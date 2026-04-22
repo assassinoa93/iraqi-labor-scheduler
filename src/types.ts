@@ -13,6 +13,22 @@ export interface Employee {
   phone: string;
   hireDate: string;
   notes: string;
+  eligibleStations: string[]; // IDs of stations
+  holidayCredits: number; // Balance of extra off days earned (Days)
+  baseMonthlySalary: number; // Fixed monthly wage
+  baseHourlyRate: number; // Rate specifically for OT calculations
+  overtimeHours: number; // Cumulative overtime hours for the month
+}
+
+export interface Station {
+  id: string;
+  name: string;
+  minHC: number; // Min Headcount required per hour
+  requiredRoles?: string[]; // Roles allowed to work here
+  openingTime: string; // HH:mm
+  closingTime: string; // HH:mm
+  color?: string;
+  description?: string;
 }
 
 export interface Shift {
@@ -52,6 +68,10 @@ export interface Config {
   standardWeeklyHrsCap: number; // Art. 70
   hazardousWeeklyHrsCap: number; // Art. 70
   minRestBetweenShiftsHrs: number; // Art. 71
+  // New Operational Settings
+  shopOpeningTime: string; // e.g. "11:00"
+  shopClosingTime: string; // e.g. "23:00"
+  holidays?: PublicHoliday[]; // Current month's holidays
 }
 
 export interface Violation {
@@ -62,4 +82,9 @@ export interface Violation {
   message: string;
 }
 
-export type Schedule = Record<string, Record<number, string>>;
+export interface ScheduleEntry {
+  shiftCode: string;
+  stationId?: string;
+}
+
+export type Schedule = Record<string, Record<number, ScheduleEntry>>;

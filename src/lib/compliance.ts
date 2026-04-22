@@ -20,8 +20,9 @@ export class ComplianceEngine {
       // Rule: Daily hours cap (Art. 67 & 68)
       if (!emp.hourExempt) {
         days.forEach(day => {
-          const shiftCode = empSchedule[day];
-          const shift = shiftMap.get(shiftCode);
+          const entry = empSchedule[day];
+          const shiftCode = entry?.shiftCode;
+          const shift = shiftMap.get(shiftCode || '');
           if (shift && shift.isWork) {
             const cap = (emp.isHazardous || shift.isHazardous) ? config.hazardousDailyHrsCap : config.standardDailyHrsCap;
             if (shift.durationHrs > cap) {
@@ -40,18 +41,16 @@ export class ComplianceEngine {
       // Rule: Rest between shifts (Art. 71)
       if (!emp.hourExempt) {
         for (let day = 1; day < config.daysInMonth; day++) {
-          const shift1Code = empSchedule[day];
-          const shift2Code = empSchedule[day + 1];
-          const s1 = shiftMap.get(shift1Code);
-          const s2 = shiftMap.get(shift2Code);
+          const entry1 = empSchedule[day];
+          const entry2 = empSchedule[day + 1];
+          const shift1Code = entry1?.shiftCode;
+          const shift2Code = entry2?.shiftCode;
+          const s1 = shiftMap.get(shift1Code || '');
+          const s2 = shiftMap.get(shift2Code || '');
 
           if (s1?.isWork && s2?.isWork) {
-            // Very simplified rest check: 24hrs - duration of shift 1 + time before shift 2 starts
-            // For a robust check, we'd need to parse actual start/end times across midnight.
-            // Under Art 71, rest should typically be 11-12 hours.
-            // Here we check if the gap is enough based on a 24h cycle
-            const finishTime = parse(s1.end, 'HH:mm', new Date());
-            const startTimeNext = parse(s2.start, 'HH:mm', addDays(new Date(), 1));
+            const finishTime = parse(s1.end || '00:00', 'HH:mm', new Date());
+            const startTimeNext = parse(s2.start || '00:00', 'HH:mm', addDays(new Date(), 1));
             const gap = differenceInHours(startTimeNext, finishTime);
 
             if (gap < config.minRestBetweenShiftsHrs) {
@@ -69,8 +68,9 @@ export class ComplianceEngine {
 
       // Prepare work sequence
       const workData = days.map(day => {
-        const shiftCode = empSchedule[day];
-        const shift = shiftMap.get(shiftCode);
+        const entry = empSchedule[day];
+        const shiftCode = entry?.shiftCode;
+        const shift = shiftMap.get(shiftCode || '');
         return {
           day,
           hrs: shift?.isWork ? shift.durationHrs : 0,
@@ -131,8 +131,9 @@ export class ComplianceEngine {
 
       // Rule: Holiday OT flag (Art. 74)
       days.forEach(day => {
-        const shiftCode = empSchedule[day];
-        const shift = shiftMap.get(shiftCode);
+        const entry = empSchedule[day];
+        const shiftCode = entry?.shiftCode;
+        const shift = shiftMap.get(shiftCode || '');
         if (shift && shift.isWork) {
           const dStr = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
           if (holidayDates.has(dStr)) {
