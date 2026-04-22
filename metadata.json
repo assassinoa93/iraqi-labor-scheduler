@@ -1,0 +1,6 @@
+{
+  "name": "Iraqi Labor Scheduler",
+  "description": "Iraqi Labor Law–compliant workforce scheduler featuring compliance monitoring (Art. 67, 70, 71, 72, 74) and local-first data privacy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
