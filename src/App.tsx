@@ -690,76 +690,92 @@ const ConfirmModal = ({
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    const saved = localStorage.getItem('scheduler_employees');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [shifts, setShifts] = useState<Shift[]>(() => {
-    const saved = localStorage.getItem('scheduler_shifts');
-    return saved ? JSON.parse(saved) : INITIAL_SHIFTS;
-  });
-  const [holidays, setHolidays] = useState<PublicHoliday[]>(() => {
-    const saved = localStorage.getItem('scheduler_holidays');
-    return saved ? JSON.parse(saved) : IRAQI_HOLIDAYS_2026;
-  });
-  const [config, setConfig] = useState<Config>(() => {
-    const saved = localStorage.getItem('scheduler_config');
-    return saved ? { ...DEFAULT_CONFIG, ...JSON.parse(saved) } : DEFAULT_CONFIG;
-  });
-  const [stations, setStations] = useState<Station[]>(() => {
-    const saved = localStorage.getItem('scheduler_stations');
-    return saved ? JSON.parse(saved) : [];
-  });
-  // Multi-month schedule storage: key is 'scheduler_schedule_YYYY_MM'
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>(INITIAL_SHIFTS);
+  const [holidays, setHolidays] = useState<PublicHoliday[]>(IRAQI_HOLIDAYS_2026);
+  const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [stations, setStations] = useState<Station[]>([]);
+  
+  const [allSchedules, setAllSchedules] = useState<Record<string, Schedule>>({});
   const scheduleKey = `scheduler_schedule_${config.year}_${config.month}`;
-  const [schedule, setSchedule] = useState<Schedule>(() => {
-    const saved = localStorage.getItem(scheduleKey);
-    const data = saved ? JSON.parse(saved) : {};
-    // Migration: handle if old data was string-based
-    Object.keys(data).forEach(empId => {
-      Object.keys(data[empId]).forEach(day => {
-        if (typeof data[empId][day] === 'string') {
-          data[empId][day] = { shiftCode: data[empId][day] };
+  const [schedule, setSchedule] = useState<Schedule>({});
+
+  // Initial Data Fetch
+  useEffect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        if (data.employees) setEmployees(data.employees);
+        else setEmployees(INITIAL_EMPLOYEES);
+
+        if (data.shifts) setShifts(data.shifts);
+        if (data.holidays) setHolidays(data.holidays);
+        if (data.config) setConfig(prev => ({ ...prev, ...data.config }));
+        if (data.stations) setStations(data.stations);
+        else setStations(INITIAL_STATIONS);
+
+        if (data.allSchedules) {
+          setAllSchedules(data.allSchedules);
+          const currentMonthKey = `scheduler_schedule_${data.config?.year || config.year}_${data.config?.month || config.month}`;
+          let currentSchedule = data.allSchedules[currentMonthKey] || {};
+          
+          // Migration: handle if old data was string-based
+          Object.keys(currentSchedule).forEach(empId => {
+            Object.keys(currentSchedule[empId]).forEach(day => {
+              if (typeof (currentSchedule as any)[empId][day] === 'string') {
+                (currentSchedule as any)[empId][day] = { shiftCode: (currentSchedule as any)[empId][day] };
+              }
+            });
+          });
+          setSchedule(currentSchedule);
         }
+        setDataLoaded(true);
       });
-    });
-    return data;
-  });
+  }, []);
+
+  // Sync Current Schedule back to AllSchedules
+  useEffect(() => {
+    if (!dataLoaded) return;
+    setAllSchedules(prev => ({
+      ...prev,
+      [scheduleKey]: schedule
+    }));
+  }, [schedule, scheduleKey]);
 
   // Re-load schedule when month/year changes
   useEffect(() => {
+    if (!dataLoaded) return;
     const nextKey = `scheduler_schedule_${config.year}_${config.month}`;
-    const saved = localStorage.getItem(nextKey);
-    const data = saved ? JSON.parse(saved) : {};
+    const data = allSchedules[nextKey] || {};
+    
     Object.keys(data).forEach(empId => {
       Object.keys(data[empId]).forEach(day => {
-        if (typeof data[empId][day] === 'string') {
-          data[empId][day] = { shiftCode: data[empId][day] };
+        if (typeof (data as any)[empId][day] === 'string') {
+          (data as any)[empId][day] = { shiftCode: (data as any)[empId][day] };
         }
       });
     });
     setSchedule(data);
   }, [config.year, config.month]);
 
-  // Persistence Sync
+  // Persistence Sync to Server
   useEffect(() => {
-    localStorage.setItem('scheduler_employees', JSON.stringify(employees));
-  }, [employees]);
-  useEffect(() => {
-    localStorage.setItem('scheduler_shifts', JSON.stringify(shifts));
-  }, [shifts]);
-  useEffect(() => {
-    localStorage.setItem('scheduler_holidays', JSON.stringify(holidays));
-  }, [holidays]);
-  useEffect(() => {
-    localStorage.setItem('scheduler_config', JSON.stringify(config));
-  }, [config]);
-  useEffect(() => {
-    localStorage.setItem('scheduler_stations', JSON.stringify(stations));
-  }, [stations]);
-  useEffect(() => {
-    localStorage.setItem(scheduleKey, JSON.stringify(schedule));
-  }, [schedule, scheduleKey]);
+    if (!dataLoaded) return;
+    const body = { employees, shifts, holidays, config, stations, allSchedules };
+    
+    // Debounce saves slightly to avoid server spam
+    const timeout = setTimeout(() => {
+      fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }, 500);
+    
+    return () => clearTimeout(timeout);
+  }, [employees, shifts, holidays, config, stations, allSchedules, dataLoaded]);
 
   // Operational State
   const [paintMode, setPaintMode] = useState<{ shiftCode: string; stationId?: string } | null>(null);
