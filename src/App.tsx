@@ -35,7 +35,8 @@ import {
   Printer,
   ChevronLeft,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -643,13 +644,19 @@ const ConfirmModal = ({
   onClose, 
   onConfirm, 
   title, 
-  message 
+  message,
+  extraAction
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   onConfirm: () => void; 
   title: string; 
   message: string;
+  extraAction?: {
+    label: string;
+    onClick: () => void;
+    icon?: any;
+  };
 }) => {
   if (!isOpen) return null;
   return (
@@ -665,6 +672,17 @@ const ConfirmModal = ({
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3>
           <p className="text-sm text-slate-500 mb-6">{message}</p>
+          
+          {extraAction && (
+            <button 
+              onClick={extraAction.onClick}
+              className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-100"
+            >
+              {extraAction.icon && <extraAction.icon className="w-4 h-4" />}
+              {extraAction.label}
+            </button>
+          )}
+
           <div className="flex gap-3">
             <button 
               onClick={onClose}
@@ -787,6 +805,7 @@ export default function App() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const backupInputRef = React.useRef<HTMLInputElement>(null);
   
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
@@ -800,6 +819,11 @@ export default function App() {
     title: string;
     message: string;
     onConfirm: () => void;
+    extraAction?: {
+      label: string;
+      onClick: () => void;
+      icon?: any;
+    };
   }>({
     isOpen: false,
     title: '',
@@ -919,6 +943,11 @@ export default function App() {
       isOpen: true,
       title: 'Factory Reset',
       message: 'This will PERMANENTLY delete all employees, schedules, and custom settings from the server. Do you have a backup?',
+      extraAction: {
+        label: 'Download Backup First',
+        onClick: exportBackup,
+        icon: Download
+      },
       onConfirm: () => {
         fetch('/api/reset', { method: 'POST' })
           .then(() => {
@@ -928,6 +957,75 @@ export default function App() {
           });
       }
     });
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      alert("Please select a valid .json backup file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        
+        // Simple validation
+        if (!data.employees || !data.shifts || !data.config) {
+          throw new Error("Invalid backup format: Missing required fields (employees, shifts, config).");
+        }
+
+        setConfirmState({
+          isOpen: true,
+          title: 'Import Migration',
+          message: `Are you sure you want to OVERWRITE all current data with this backup? This will sync to this machine's server.`,
+          onConfirm: () => {
+            // Restore states
+            setEmployees(data.employees);
+            setShifts(data.shifts);
+            setHolidays(data.holidays || []);
+            setConfig(data.config);
+            setStations(data.stations || INITIAL_STATIONS);
+            
+            // Handle schedule merge or replace
+            if (data.schedule) {
+              setSchedule(data.schedule);
+            }
+            if (data.allSchedules) {
+              setAllSchedules(data.allSchedules);
+            }
+
+            // Persistence Sync to Server immediately
+            const body = { 
+              employees: data.employees, 
+              shifts: data.shifts, 
+              holidays: data.holidays || [], 
+              config: data.config, 
+              stations: data.stations || INITIAL_STATIONS, 
+              allSchedules: data.allSchedules || {} 
+            };
+            
+            fetch('/api/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            })
+            .then(() => {
+              alert('Migration successful. Data has been synced to the local server.');
+              window.location.reload();
+            });
+          }
+        });
+
+      } catch (err) {
+        alert("Error parsing backup file: " + (err instanceof Error ? err.message : "Unknown error"));
+      }
+    };
+    reader.readAsText(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleQuitApp = () => {
@@ -1416,6 +1514,13 @@ export default function App() {
         onChange={handleImportCSV} 
         className="hidden" 
         accept=".csv"
+      />
+      <input 
+        type="file" 
+        ref={backupInputRef} 
+        onChange={handleImportBackup} 
+        className="hidden" 
+        accept=".json"
       />
       <div className="flex h-screen bg-[#F3F4F6] font-sans text-slate-800 overflow-hidden">
       {/* Left Navigation Rail */}
@@ -2747,15 +2852,21 @@ export default function App() {
                       <p className="text-sm font-bold text-slate-800">Database & Security</p>
                       <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter">Instance: Private Local (Browser Core)</p>
                    </div>
-                   <button 
-                    onClick={() => {
-                      localStorage.clear();
-                      window.location.reload();
-                    }}
-                    className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all font-mono"
-                   >
-                     Factory Reset Instance
-                   </button>
+                   <div className="flex gap-3">
+                    <button 
+                      onClick={() => backupInputRef.current?.click()}
+                      className="px-6 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 transition-all font-mono flex items-center gap-2"
+                    >
+                      <Upload className="w-3 h-3" />
+                      Import Migration Backup
+                    </button>
+                    <button 
+                      onClick={handleClearAllData}
+                      className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all font-mono"
+                    >
+                      Factory Reset Instance
+                    </button>
+                   </div>
                 </div>
               </div>
             )}
@@ -2799,6 +2910,7 @@ export default function App() {
         title={confirmState.title}
         message={confirmState.message}
         onConfirm={confirmState.onConfirm}
+        extraAction={confirmState.extraAction}
         onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
