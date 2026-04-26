@@ -8,5 +8,8 @@ strExe = strPath & "\dist-electron\win-unpacked\Iraqi Labor Scheduler.exe"
 If fso.FileExists(strExe) Then
     WshShell.Run Chr(34) & strExe & Chr(34), 1, False
 Else
-    MsgBox "Pre-built app not found. Please wait while I finish the background setup.", 48, "App Loading..."
+    res = MsgBox("The pre-built app is missing (this happens after a fresh download)." & vbCrLf & vbCrLf & "Would you like to build it now? This takes about 1-2 minutes.", 36, "App Not Ready")
+    if res = 6 then
+        WshShell.Run "wscript.exe CREATE_MY_DESKTOP_APP.vbs", 1, False
+    end if
 End If
