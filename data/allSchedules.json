@@ -1,0 +1,5212 @@
+{
+  "scheduler_schedule_2026_4": {
+    "EMP-1000": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      }
+    },
+    "EMP-1001": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      }
+    },
+    "EMP-1002": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      }
+    },
+    "EMP-1003": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      }
+    },
+    "EMP-1004": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-1005": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      }
+    },
+    "EMP-1006": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      }
+    },
+    "EMP-1007": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      }
+    },
+    "EMP-1008": {
+      "1": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      }
+    },
+    "EMP-1009": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      }
+    },
+    "EMP-1010": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      }
+    },
+    "EMP-1011": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-1012": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      }
+    },
+    "EMP-1013": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      }
+    },
+    "EMP-1014": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      }
+    },
+    "EMP-1015": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      }
+    },
+    "EMP-1016": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      }
+    },
+    "EMP-1017": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      }
+    },
+    "EMP-1018": {
+      "1": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-1019": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      }
+    },
+    "EMP-1020": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      }
+    },
+    "EMP-1021": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      }
+    },
+    "EMP-1022": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      }
+    },
+    "EMP-1023": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "5": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      }
+    },
+    "EMP-1024": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "19": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      }
+    },
+    "EMP-1025": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      }
+    },
+    "EMP-1026": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      }
+    },
+    "EMP-1027": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      }
+    },
+    "EMP-1028": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M7"
+      }
+    },
+    "EMP-1029": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M7"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "22": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      }
+    },
+    "EMP-1030": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      }
+    },
+    "EMP-1031": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "26": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      }
+    },
+    "EMP-1032": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "12": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "19": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      }
+    },
+    "EMP-1033": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-M10"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M5"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-M10"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M3"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      }
+    },
+    "EMP-1034": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-M1"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "FS",
+        "stationId": "ST-M1"
+      },
+      "6": {
+        "shiftCode": "MX",
+        "stationId": "ST-M2"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-M6"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "FS",
+        "stationId": "ST-M3"
+      },
+      "13": {
+        "shiftCode": "MX",
+        "stationId": "ST-M8"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-M6"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-M8"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-M9"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "FS",
+        "stationId": "ST-M5"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "FS",
+        "stationId": "ST-M9"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "FS",
+        "stationId": "ST-M2"
+      },
+      "27": {
+        "shiftCode": "MX",
+        "stationId": "ST-M4"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-M4"
+      }
+    },
+    "EMP-2000": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      }
+    },
+    "EMP-2001": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      }
+    },
+    "EMP-2002": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-2003": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-2004": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-2005": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      }
+    },
+    "EMP-2006": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "3": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "4": {
+        "shiftCode": "OFF"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      }
+    },
+    "EMP-2007": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      }
+    },
+    "EMP-2008": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      }
+    },
+    "EMP-2009": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "17": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      },
+      "18": {
+        "shiftCode": "OFF"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "24": {
+        "shiftCode": "MX",
+        "stationId": "ST-C3"
+      },
+      "25": {
+        "shiftCode": "OFF"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      }
+    },
+    "EMP-2010": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-C4"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "OFF"
+      },
+      "10": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "11": {
+        "shiftCode": "OFF"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "OFF"
+      },
+      "17": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "OFF"
+      },
+      "24": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-C3"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    },
+    "EMP-2011": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "FS",
+        "stationId": "ST-C1"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "FS",
+        "stationId": "ST-C4"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "FS",
+        "stationId": "ST-C2"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "MX",
+        "stationId": "ST-C2"
+      }
+    },
+    "EMP-1234": {
+      "1": {
+        "shiftCode": "OFF"
+      },
+      "2": {
+        "shiftCode": "OFF"
+      },
+      "3": {
+        "shiftCode": "OFF"
+      },
+      "4": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "5": {
+        "shiftCode": "OFF"
+      },
+      "6": {
+        "shiftCode": "OFF"
+      },
+      "7": {
+        "shiftCode": "OFF"
+      },
+      "8": {
+        "shiftCode": "OFF"
+      },
+      "9": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "10": {
+        "shiftCode": "OFF"
+      },
+      "11": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "12": {
+        "shiftCode": "OFF"
+      },
+      "13": {
+        "shiftCode": "OFF"
+      },
+      "14": {
+        "shiftCode": "OFF"
+      },
+      "15": {
+        "shiftCode": "OFF"
+      },
+      "16": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "17": {
+        "shiftCode": "OFF"
+      },
+      "18": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "19": {
+        "shiftCode": "OFF"
+      },
+      "20": {
+        "shiftCode": "OFF"
+      },
+      "21": {
+        "shiftCode": "OFF"
+      },
+      "22": {
+        "shiftCode": "OFF"
+      },
+      "23": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "24": {
+        "shiftCode": "OFF"
+      },
+      "25": {
+        "shiftCode": "MX",
+        "stationId": "ST-C1"
+      },
+      "26": {
+        "shiftCode": "OFF"
+      },
+      "27": {
+        "shiftCode": "OFF"
+      },
+      "28": {
+        "shiftCode": "OFF"
+      },
+      "29": {
+        "shiftCode": "OFF"
+      },
+      "30": {
+        "shiftCode": "OFF"
+      }
+    }
+  }
+}

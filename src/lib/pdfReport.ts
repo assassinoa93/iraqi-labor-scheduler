@@ -89,10 +89,7 @@ export const generatePDFReport = (
   doc.setTextColor(30, 41, 59);
   doc.text('Personnel Performance & Credits', 15, auditY);
 
-  const holidayDates = new Set(config.holidays?.map(h => {
-    const d = new Date(h.date);
-    return d.getDate();
-  }) || []);
+  const holidayDates = new Set(config.holidays?.map(h => h.date) || []);
 
   const performanceData = employees.map(emp => {
     const empSched = schedule[emp.empId] || {};

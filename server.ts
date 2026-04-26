@@ -9,8 +9,11 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-  const DATA_DIR = path.join(__dirname, "data");
+  const PORT = parseInt(process.env.PORT || '3000');
+  // DATA_DIR is set by Electron main process (AppData in production, ./data in dev)
+  const DATA_DIR = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(__dirname, "data");
 
   // Ensure data directory exists
   if (!fs.existsSync(DATA_DIR)) {

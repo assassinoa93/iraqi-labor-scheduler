@@ -232,9 +232,17 @@ function StationModal({ isOpen, onClose, onSave, station }: { isOpen: boolean; o
           </div>
           <div className="grid grid-cols-2 gap-4">
              <div>
-               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Theme Color</label>
-               <input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg" />
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Opening Time</label>
+               <input type="time" value={formData.openingTime} onChange={e => setFormData({...formData, openingTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm font-mono" />
              </div>
+             <div>
+               <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Closing Time</label>
+               <input type="time" value={formData.closingTime} onChange={e => setFormData({...formData, closingTime: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm font-mono" />
+             </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Theme Color</label>
+            <input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg" />
           </div>
         </div>
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
@@ -362,6 +370,18 @@ function EmployeeModal({
             </div>
             <SettingField label="Holiday Bank (Earned)" type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: parseInt(v)})} />
             <SettingField label="Annual Leave Balance" type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: parseInt(v)})} />
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fixed Rest Day</label>
+              <select
+                value={formData.fixedRestDay}
+                onChange={e => setFormData({...formData, fixedRestDay: parseInt(e.target.value)})}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+              >
+                {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => (
+                  <option key={i} value={i + 1}>{d}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-3 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
@@ -789,6 +809,9 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
+      }).catch(err => {
+        console.error('[Scheduler] Auto-save failed:', err);
+        // Non-blocking: next change will retry automatically
       });
     }, 500);
     
@@ -836,6 +859,14 @@ export default function App() {
     // User request: OT calculations clear the "Weekly hours cap" violation
     return rawViolations.filter(v => v.rule !== "Weekly hours cap");
   }, [schedule, employees, shifts, config, holidays]);
+
+  // Shared peak-day helper used by both the auto-scheduler and the coverage heatmap
+  const isPeakDay = React.useCallback((day: number): boolean => {
+    const date = new Date(config.year, config.month - 1, day);
+    const dayOfWeek = date.getDay() + 1; // 1=Sun, 7=Sat
+    const holidayDates = new Set(holidays.map(h => h.date));
+    return config.peakDays.includes(dayOfWeek) || holidayDates.has(format(date, 'yyyy-MM-dd'));
+  }, [config]);
 
   const dailyCoverage = useMemo(() => {
     const coverage: Record<number, number> = {};
@@ -1059,13 +1090,15 @@ export default function App() {
   };
 
   const exportBackup = () => {
-    const data = { employees, shifts, holidays, config, schedule };
+    // Include allSchedules so ALL months are preserved — not just the current view
+    const data = { employees, shifts, holidays, config, stations, allSchedules };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `Scheduler_Backup_${format(new Date(), 'yyyy-MM-dd')}.json`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1206,7 +1239,7 @@ export default function App() {
       usedHolidayBankThisMonth.set(emp.empId, 0);
     });
 
-    const holidayDates = new Set((config.holidays || []).map(h => h.date));
+    const holidayDates = new Set(holidays.map(h => h.date));
 
     // Internal helper to check if an employee is free and legal for a shift
     const evaluate = (emp: Employee, day: number, shift: Shift, stationId: string, level: 1 | 2 | 3, peak: boolean) => {
@@ -1259,13 +1292,6 @@ export default function App() {
       return true;
     };
 
-    const isPeakDay = (day: number) => {
-      const date = new Date(config.year, config.month - 1, day);
-      const dayOfWeek = date.getDay() + 1; // 1=Sun, ..., 7=Sat
-      const holidayDates = new Set((config.holidays || []).map(h => h.date));
-      return config.peakDays.includes(dayOfWeek) || holidayDates.has(format(date, 'yyyy-MM-dd'));
-    };
-
     // Main Scheduling Loop - Day by Day
     for (let day = 1; day <= config.daysInMonth; day++) {
       const date = new Date(config.year, config.month - 1, day);
@@ -1315,23 +1341,21 @@ export default function App() {
 
             if (validShifts.length === 0) break;
 
+            // Sort pool ONCE per station-hour (not inside the shift/level loops) — O(n log n) instead of O(n² log n)
+            const sortedPool = [...employees].sort((a, b) => {
+              const hA = totalHoursWorked.get(a.empId) || 0;
+              const hB = totalHoursWorked.get(b.empId) || 0;
+              if (Math.abs(hA - hB) > 4) return hA - hB;
+              const cA = consecutiveWork.get(a.empId) || 0;
+              const cB = consecutiveWork.get(b.empId) || 0;
+              return cA - cB;
+            });
+
             let assigned = false;
             // Passes: 1 (Legal), 2 (OT/Streaks allowed), 3 (Emergency)
             for (let level of [1, 2, 3] as (1 | 2 | 3)[]) {
               for (const targetShift of validShifts) {
-                // Sort pool by total hours (Fairness) and consecutive days
-                const pool = [...employees].sort((a, b) => {
-                  const hA = totalHoursWorked.get(a.empId) || 0;
-                  const hB = totalHoursWorked.get(b.empId) || 0;
-                  // Primary force: Balance hours tightly
-                  if (Math.abs(hA - hB) > 4) return hA - hB;
-                  // Secondary: Consecutive days
-                  const cA = consecutiveWork.get(a.empId) || 0;
-                  const cB = consecutiveWork.get(b.empId) || 0;
-                  return cA - cB;
-                });
-
-                const candidate = pool.find(e => evaluate(e, day, targetShift, st.id, level, peak));
+                const candidate = sortedPool.find(e => evaluate(e, day, targetShift, st.id, level, peak));
                 if (candidate) {
                   newSchedule[candidate.empId][day] = { shiftCode: targetShift.code, stationId: st.id };
                   totalHoursWorked.set(candidate.empId, (totalHoursWorked.get(candidate.empId) || 0) + targetShift.durationHrs);
@@ -1412,12 +1436,7 @@ export default function App() {
     const requirements: Record<number, number> = {}; // hour -> minStaffSum
     const shiftMap = new Map<string, Shift>(shifts.map(s => [s.code, s]));
 
-    const isPeakDay = (day: number) => {
-      const date = new Date(config.year, config.month - 1, day);
-      const dayOfWeek = date.getDay() + 1;
-      const holidayDates = new Set((config.holidays || []).map(h => h.date));
-      return config.peakDays.includes(dayOfWeek) || holidayDates.has(format(date, 'yyyy-MM-dd'));
-    };
+    // isPeakDay is provided by the shared useCallback above
 
     // Calculate dynamic requirements based on active stations
     hours.forEach(h => {
@@ -1562,35 +1581,35 @@ export default function App() {
           <TabButton 
             active={activeTab === 'holidays'} 
             label="Public Holidays" 
-            index="04"
+            index="05"
             icon={Flag} 
             onClick={() => setActiveTab('holidays')} 
           />
           <TabButton 
             active={activeTab === 'layout'} 
             label="Shop Layout" 
-            index="05"
+            index="06"
             icon={Layout} 
             onClick={() => setActiveTab('layout')} 
           />
           <TabButton 
             active={activeTab === 'schedule'} 
             label="Master Schedule" 
-            index="06"
+            index="07"
             icon={Calendar} 
             onClick={() => setActiveTab('schedule')} 
           />
           <TabButton 
             active={activeTab === 'reports'} 
             label="Reporting Center" 
-            index="07"
+            index="08"
             icon={FileSpreadsheet} 
             onClick={() => setActiveTab('reports')} 
           />
           <TabButton 
             active={activeTab === 'settings'} 
             label="System Settings" 
-            index="08"
+            index="09"
             icon={Settings} 
             onClick={() => setActiveTab('settings')} 
           />
@@ -1710,7 +1729,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <Card className="p-6 bg-blue-600 text-white border-0">
                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-100 mb-4 opacity-70">Compliance Health</p>
-                               <p className="text-5xl font-black tracking-tight">{violations.length === 0 ? '100%' : `${Math.max(0, 100 - violations.length)}%`}</p>
+                               <p className="text-5xl font-black tracking-tight">{(() => { const totalChecks = employees.length * config.daysInMonth * 3; if (totalChecks === 0) return '100%'; const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0); return `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`; })()}</p>
                                <p className="text-xs font-bold text-blue-100 mt-2">Based on {employees.length} personnel audited</p>
                             </Card>
                             <Card className="p-6 bg-slate-900 text-white border-0">
@@ -1763,7 +1782,7 @@ export default function App() {
                      let holiHrs = 0;
                      Object.entries(empSched).forEach(([day, entry]) => {
                        const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
-                       const isHoli = !!config.holidays?.find(h => h.date === dateStr);
+                       const isHoli = holidays.some(h => h.date === dateStr);
                        const shift = shifts.find(s => s.code === (entry as any).shiftCode);
                        if (shift?.isWork) {
                          totalHrs += shift.durationHrs;
@@ -1898,9 +1917,9 @@ export default function App() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <KpiCard label="Total Workforce" value={employees.length} />
-                  <KpiCard label="Violations Found" value={violations.length} trend={violations.length > 0 ? "Critical" : "Perfect"} />
+                  <KpiCard label="Violations Found" value={violations.reduce((s, v) => s + (v.count || 1), 0)} trend={violations.length > 0 ? "Critical" : "Perfect"} />
                   <KpiCard label="Active Stations" value={stations.length} />
-                  <KpiCard label="Global Compliance" value={`${violations.length === 0 ? 100 : Math.max(0, 100 - violations.length)}%`} trend="Health" />
+                  <KpiCard label="Global Compliance" value={(() => { const totalChecks = employees.length * config.daysInMonth * 3; if (totalChecks === 0) return '100%'; const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0); return `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`; })()} trend="Health" />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
@@ -2052,7 +2071,11 @@ export default function App() {
                     <p className="text-sm text-slate-500">Suggested overtime and holiday credit tracking based on Iraqi Labor Law (Art. 67-73).</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm">
+                    <button
+                      onClick={exportScheduleCSV}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm"
+                    >
+                      <Download className="w-3 h-3" />
                       Export Payroll Draft
                     </button>
                   </div>
@@ -2082,7 +2105,7 @@ export default function App() {
                           
                           Object.entries(empSched).forEach(([day, entry]) => {
                             const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
-                            const isHoli = !!config.holidays?.find(h => h.date === dateStr);
+                            const isHoli = holidays.some(h => h.date === dateStr);
                             const shift = shifts.find(s => s.code === (entry as any).shiftCode);
                             if (shift?.isWork) {
                               totalHours += shift.durationHrs;
@@ -2158,7 +2181,7 @@ export default function App() {
 
             {activeTab === 'roster' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="relative w-96">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -2195,7 +2218,7 @@ export default function App() {
                       setEditingEmployee(null);
                       setIsEmployeeModalOpen(true);
                     }}
-                    className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+                    className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl active:scale-95 whitespace-nowrap min-w-fit"
                   >
                     <Plus className="w-4 h-4" />
                     New Record
@@ -2304,7 +2327,7 @@ export default function App() {
 
             {activeTab === 'layout' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Shop Floor Stations</h3>
                     <p className="text-xs text-slate-400 font-medium tracking-tight uppercase tracking-widest leading-none">Map personnel requirement points for auto-scheduling.</p>
@@ -2314,7 +2337,7 @@ export default function App() {
                       setSelectedStation(null);
                       setIsStationModalOpen(true);
                     }}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95 whitespace-nowrap min-w-fit"
                   >
                     <Plus className="w-4 h-4" />
                     New Station
@@ -2719,11 +2742,11 @@ export default function App() {
                              <p className="text-2xl font-light text-slate-900">{employees.length}</p>
                           </div>
                           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">Compliance Score</p>
-                             <p className="text-2xl font-light text-emerald-600">
-                               {violations.length === 0 ? "100%" : `${Math.max(0, 100 - violations.length)}%`}
-                             </p>
-                          </div>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">Compliance Score</p>
+                              <p className="text-2xl font-light text-emerald-600">
+                                {(() => { const totalChecks = employees.length * config.daysInMonth * 3; if (totalChecks === 0) return '100%'; const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0); return `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`; })()}
+                              </p>
+                           </div>
                           <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter mb-1">Coverage Status</p>
                              <p className="text-[10px] font-bold text-emerald-700 uppercase">Authenticated</p>

@@ -1,0 +1,92 @@
+[
+  {
+    "date": "2026-01-01",
+    "name": "New Year Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-01-06",
+    "name": "Army Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-03-20",
+    "name": "Eid al-Fitr (Estimated)",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-03-21",
+    "name": "Nowruz",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-03-22",
+    "name": "Eid al-Fitr Holiday",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-05-01",
+    "name": "Labor Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-05-27",
+    "name": "Eid al-Adha (Estimated)",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-05-28",
+    "name": "Eid al-Adha Holiday",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-06-16",
+    "name": "Islamic New Year",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-06-25",
+    "name": "Ashura",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-07-14",
+    "name": "Republic Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-08-25",
+    "name": "Mawlid al-Nabi",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-10-03",
+    "name": "Independence Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-12-10",
+    "name": "Victory Day",
+    "type": "National",
+    "legalReference": "Art. 74"
+  },
+  {
+    "date": "2026-12-25",
+    "name": "Christmas Day",
+    "type": "Religious",
+    "legalReference": "Art. 74"
+  }
+]

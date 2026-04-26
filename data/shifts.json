@@ -1,0 +1,110 @@
+[
+  {
+    "code": "FS",
+    "name": "Full Shift",
+    "start": "11:00",
+    "end": "19:00",
+    "durationHrs": 7.5,
+    "breakMin": 30,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": true,
+    "description": "Standard day shift"
+  },
+  {
+    "code": "MX",
+    "name": "Mixed Shift",
+    "start": "15:00",
+    "end": "23:00",
+    "durationHrs": 7.5,
+    "breakMin": 30,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": true,
+    "description": "Evening operation shift"
+  },
+  {
+    "code": "P1",
+    "name": "Part-Time 1",
+    "start": "11:00",
+    "end": "15:00",
+    "durationHrs": 4,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": true,
+    "description": "Peak morning support"
+  },
+  {
+    "code": "P2",
+    "name": "Part-Time 2",
+    "start": "15:00",
+    "end": "19:00",
+    "durationHrs": 4,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": true,
+    "description": "Mid-day transition support"
+  },
+  {
+    "code": "P3",
+    "name": "Part-Time 3",
+    "start": "19:00",
+    "end": "23:00",
+    "durationHrs": 4,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": true,
+    "description": "Closing peak support"
+  },
+  {
+    "code": "OFF",
+    "name": "Day Off",
+    "start": "00:00",
+    "end": "00:00",
+    "durationHrs": 0,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": false,
+    "description": "Regular weekly rest"
+  },
+  {
+    "code": "AL",
+    "name": "Annual Leave",
+    "start": "00:00",
+    "end": "00:00",
+    "durationHrs": 0,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": false,
+    "description": "Approved vacation"
+  },
+  {
+    "code": "SL",
+    "name": "Sick Leave",
+    "start": "00:00",
+    "end": "00:00",
+    "durationHrs": 0,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": false,
+    "description": "Medical leave"
+  },
+  {
+    "code": "PH",
+    "name": "Public Holiday",
+    "start": "00:00",
+    "end": "00:00",
+    "durationHrs": 0,
+    "breakMin": 0,
+    "isIndustrial": false,
+    "isHazardous": false,
+    "isWork": false,
+    "description": "National holiday"
+  }
+]

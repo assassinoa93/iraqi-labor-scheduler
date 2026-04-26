@@ -1,0 +1,152 @@
+[
+  {
+    "id": "ST-C1",
+    "name": "Cashier Point 1",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#7c3aed",
+    "description": "Payment processing 1"
+  },
+  {
+    "id": "ST-C2",
+    "name": "Cashier Point 2",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#8b5cf6",
+    "description": "Payment processing 2"
+  },
+  {
+    "id": "ST-C3",
+    "name": "Cashier Point 3",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#a78bfa",
+    "description": "Payment processing 3"
+  },
+  {
+    "id": "ST-C4",
+    "name": "Cashier Point 4",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#c4b5fd",
+    "description": "Payment processing 4"
+  },
+  {
+    "id": "ST-M1",
+    "name": "Ice Hockey",
+    "normalMinHC": 1,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#2563eb",
+    "description": "Air hockey station"
+  },
+  {
+    "id": "ST-M2",
+    "name": "Arcade Zone",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#059669",
+    "description": "Video games area"
+  },
+  {
+    "id": "ST-M3",
+    "name": "Giant Slide",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#10b981",
+    "description": "Inflatable slide"
+  },
+  {
+    "id": "ST-M4",
+    "name": "Bumping Cars",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#d97706",
+    "description": "Safe collision cars"
+  },
+  {
+    "id": "ST-M5",
+    "name": "Carousel",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#ea580c",
+    "description": "Merry-go-round"
+  },
+  {
+    "id": "ST-M6",
+    "name": "VR Simulator",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#0891b2",
+    "description": "Virtual reality pods"
+  },
+  {
+    "id": "ST-M7",
+    "name": "Bowling Alley",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#475569",
+    "description": "Family bowling lanes"
+  },
+  {
+    "id": "ST-M8",
+    "name": "Trampoline Park",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#db2777",
+    "description": "Active jumping area"
+  },
+  {
+    "id": "ST-M9",
+    "name": "Mini-Train",
+    "normalMinHC": 1,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#dc2626",
+    "description": "Mall tour train"
+  },
+  {
+    "id": "ST-M10",
+    "name": "Claw Machine",
+    "normalMinHC": 0,
+    "peakMinHC": 1,
+    "openingTime": "11:00",
+    "closingTime": "23:00",
+    "color": "#f59e0b",
+    "description": "Prize pickers"
+  },
+  {
+    "id": "ST-VIP",
+    "name": "VIP ZONE",
+    "normalMinHC": 1,
+    "peakMinHC": 2,
+    "requiredRoles": [],
+    "openingTime": "08:00",
+    "closingTime": "23:00",
+    "color": "#3B82F6"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "company": "Workforce Unit",
+  "year": 2026,
+  "month": 4,
+  "daysInMonth": 30,
+  "weekendPolicy": "Friday Only",
+  "weeklyRestDayPrimary": 6,
+  "continuousShiftsMode": "OFF",
+  "coverageMin": 5,
+  "maxConsecWorkDays": 6,
+  "standardDailyHrsCap": 8,
+  "hazardousDailyHrsCap": 7,
+  "standardWeeklyHrsCap": 48,
+  "hazardousWeeklyHrsCap": 36,
+  "minRestBetweenShiftsHrs": 11,
+  "shopOpeningTime": "11:00",
+  "shopClosingTime": "23:00",
+  "peakDays": [
+    5,
+    6,
+    7
+  ],
+  "holidays": [],
+  "otRateDay": 1.5,
+  "otRateNight": 2
+}
