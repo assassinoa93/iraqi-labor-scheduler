@@ -14,8 +14,8 @@ A professional, local-first workforce management and automated scheduling system
 ## 🚀 Quick Start (Recommended)
 The easiest way to use the app is to download the pre-built installer:
 
-1. **[Download Latest Release (v1.0.3)](https://github.com/assassinoa93/Iraqi-Workplace---Vibecoded-apps/releases/latest)**
-2. Run the **`Iraqi-Labor-Scheduler-Setup-0.0.0.exe`**.
+1. **[Download Latest Release (v1.0.5)](https://github.com/assassinoa93/Iraqi-Workplace---Vibecoded-apps/releases/latest)**
+2. Run the **`Iraqi-Labor-Scheduler-Setup-1.0.4.exe`**.
 3. Follow the on-screen instructions to install.
 4. Open the app from your **Desktop Shortcut**.
 
