@@ -27,7 +27,12 @@ process.env.NODE_ENV    = isDev ? 'development' : 'production';
 // In dev, `npm run dev` already runs the tsx server separately.
 if (!isDev) {
   try {
-    require(path.join(__dirname, '..', 'server-bundle.js'));
+    const serverBundle = path.join(__dirname, '..', 'server-bundle.js');
+    if (fs.existsSync(serverBundle)) {
+      require(serverBundle);
+    } else {
+      console.error('[Electron] server-bundle.js not found at:', serverBundle);
+    }
   } catch (e) {
     console.error('[Electron] Failed to start embedded server:', e);
   }

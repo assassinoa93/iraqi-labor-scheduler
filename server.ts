@@ -4,20 +4,24 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// In production, esbuild provides __dirname for CJS
+// In dev (tsx), we handle both
+const _dirname = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : path.dirname(fileURLToPath(import.meta.url));
 
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000');
-  // DATA_DIR is set by Electron main process (AppData in production, ./data in dev)
+  
+  // DATA_DIR is set by Electron main process (AppData in production)
   const DATA_DIR = process.env.DATA_DIR
     ? path.resolve(process.env.DATA_DIR)
-    : path.join(__dirname, "data");
+    : path.join(_dirname, "data");
 
   // Ensure data directory exists
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR);
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
   app.use(express.json({ limit: '50mb' }));
@@ -85,7 +89,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(_dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
