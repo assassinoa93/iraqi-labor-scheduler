@@ -10,10 +10,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
-    "build:icon": "node scripts/build-icon.cjs",
     "build:server": "node scripts/build-server.cjs",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://127.0.0.1:3000 && electron .\"",
-    "electron:build": "npm run build && npm run build:server && npm run build:icon && electron-builder"
+    "electron:build": "npm run build && npm run build:server && electron-builder"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
