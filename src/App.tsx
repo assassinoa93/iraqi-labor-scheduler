@@ -64,9 +64,14 @@ import { ShiftModal } from './components/ShiftModal';
 import { HolidayModal } from './components/HolidayModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { VariablesTab } from './components/VariablesTab';
+import { SchedulePreviewModal, buildPreviewStats } from './components/SchedulePreviewModal';
+import { AuditLogTab } from './components/AuditLogTab';
+import { LocaleSwitcher } from './components/LocaleSwitcher';
+import { useI18n } from './lib/i18n';
 
 
 export default function App() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -561,17 +566,83 @@ export default function App() {
     }));
   };
 
+  // Preview-then-apply for the auto-scheduler. Holds the candidate result and
+  // its compliance impact in state until the user approves it. Applying also
+  // snapshots the previous (employees, schedule) tuple onto an undo stack.
+  const [pendingScheduleResult, setPendingScheduleResult] = useState<{
+    schedule: Schedule;
+    employees: Employee[];
+    stats: ReturnType<typeof buildPreviewStats>;
+  } | null>(null);
+  const [scheduleUndoStack, setScheduleUndoStack] = useState<Array<{ schedule: Schedule; employees: Employee[]; appliedAt: number }>>([]);
+
   const handleRunAutoScheduler = () => {
     try {
       const { schedule: newSchedule, updatedEmployees } = runAutoScheduler({
         employees, shifts, stations, holidays, config, isPeakDay,
       });
-      setEmployees(updatedEmployees);
-      setSchedule(newSchedule);
-      alert('Comprehensive Coverage-Optimized Scheduler complete. Priority: Cashier Points > Games. Drivers respect Art. 88 caps; rotating-rest staff are distributed across the week.');
+
+      // Build preview stats by running the compliance engine against the
+      // candidate schedule (without mutating live state).
+      const previewViolations = ComplianceEngine
+        .check(updatedEmployees, shifts, holidays, config, newSchedule)
+        .filter(v => v.rule !== 'Weekly hours cap');
+
+      let totalRequired = 0;
+      let totalFilled = 0;
+      for (const st of stations) {
+        const open = parseInt(st.openingTime.split(':')[0]);
+        const close = parseInt(st.closingTime.split(':')[0]);
+        for (let day = 1; day <= config.daysInMonth; day++) {
+          const peak = isPeakDay(day);
+          const need = peak ? st.peakMinHC : st.normalMinHC;
+          if (need <= 0) continue;
+          totalRequired += need;
+          for (let h = open; h < close; h++) {
+            let covered = 0;
+            for (const emp of updatedEmployees) {
+              const a = newSchedule[emp.empId]?.[day];
+              if (!a || a.stationId !== st.id) continue;
+              const sh = shifts.find(s => s.code === a.shiftCode);
+              if (!sh) continue;
+              const sH = parseInt(sh.start.split(':')[0]);
+              const eH = parseInt(sh.end.split(':')[0]);
+              if (h >= sH && h < eH) { covered++; break; }
+            }
+            if (covered >= need) { totalFilled += need; break; }
+          }
+        }
+      }
+
+      const stats = buildPreviewStats(
+        newSchedule, shifts, updatedEmployees, previewViolations,
+        config.daysInMonth, totalRequired, totalFilled
+      );
+
+      setPendingScheduleResult({ schedule: newSchedule, employees: updatedEmployees, stats });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Auto-scheduler failed.');
     }
+  };
+
+  const applyPendingSchedule = () => {
+    if (!pendingScheduleResult) return;
+    // Push current state onto the undo stack (cap at 5 entries) before replacing.
+    setScheduleUndoStack(prev => [
+      { schedule, employees, appliedAt: Date.now() },
+      ...prev,
+    ].slice(0, 5));
+    setEmployees(pendingScheduleResult.employees);
+    setSchedule(pendingScheduleResult.schedule);
+    setPendingScheduleResult(null);
+  };
+
+  const undoLastSchedule = () => {
+    if (scheduleUndoStack.length === 0) return;
+    const [last, ...rest] = scheduleUndoStack;
+    setEmployees(last.employees);
+    setSchedule(last.schedule);
+    setScheduleUndoStack(rest);
   };
 
   const handleExportPDF = () => {
@@ -648,6 +719,55 @@ export default function App() {
     return { hours, coverage, requirements: dailyRequirements };
   }, [employees, schedule, shifts, config, stations]);
 
+  // Role-attributed staffing gap. For each station whose peak coverage is short,
+  // attribute the worst-hour shortfall to a role:
+  //   Driver — station has 'Driver' in requiredRoles (vehicles, transport assets)
+  //   Cashier — station id starts with ST-C
+  //   Machine Operator — everything else
+  // The role label drives the Staffing Advisory "what to hire" breakdown.
+  const staffingGapByRole = useMemo(() => {
+    const byRole: Record<string, { gap: number; stations: string[] }> = {};
+    const shiftMap = new Map(shifts.map(s => [s.code, s]));
+
+    for (const st of stations) {
+      const open = parseInt(st.openingTime.split(':')[0]);
+      const close = parseInt(st.closingTime.split(':')[0]);
+      let maxStationGap = 0;
+
+      for (let day = 1; day <= config.daysInMonth; day++) {
+        const peak = isPeakDay(day);
+        const required = peak ? st.peakMinHC : st.normalMinHC;
+        if (required <= 0) continue;
+
+        for (let h = open; h < close; h++) {
+          let covered = 0;
+          for (const emp of employees) {
+            const a = schedule[emp.empId]?.[day];
+            if (!a || a.stationId !== st.id) continue;
+            const sh = shiftMap.get(a.shiftCode);
+            if (!sh) continue;
+            const sH = parseInt(sh.start.split(':')[0]);
+            const eH = parseInt(sh.end.split(':')[0]);
+            if (h >= sH && h < eH) covered++;
+          }
+          const gap = required - covered;
+          if (gap > maxStationGap) maxStationGap = gap;
+        }
+      }
+
+      if (maxStationGap <= 0) continue;
+
+      const role = st.requiredRoles?.includes('Driver')
+        ? 'Driver'
+        : st.id.startsWith('ST-C') ? 'Cashier' : 'Machine Operator';
+      if (!byRole[role]) byRole[role] = { gap: 0, stations: [] };
+      byRole[role].gap += maxStationGap;
+      byRole[role].stations.push(st.name);
+    }
+
+    return byRole;
+  }, [employees, stations, schedule, shifts, config, isPeakDay]);
+
   const handleCellClick = (empId: string, day: number) => {
     if (paintMode) {
       setSchedule(prev => ({
@@ -710,97 +830,39 @@ export default function App() {
       {/* Left Navigation Rail */}
       <aside className="w-64 bg-[#1E293B] flex flex-col border-r border-slate-700 shrink-0">
         <div className="p-6 border-b border-slate-700 bg-[#0F172A]">
-          <h1 className="text-white font-bold tracking-tight text-lg uppercase">Iraqi Labor</h1>
-          <p className="text-blue-400 text-[10px] uppercase tracking-widest font-bold mt-1">Scheduler v2.4</p>
+          <h1 className="text-white font-bold tracking-tight text-lg uppercase">{t('sidebar.brand.line1')}</h1>
+          <p className="text-blue-400 text-[10px] uppercase tracking-widest font-bold mt-1">{t('sidebar.brand.line2')} v2.4</p>
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto">
-          <TabButton 
-            active={activeTab === 'dashboard'} 
-            label="Compliance Dashboard" 
-            index="01"
-            icon={BarChart3} 
-            onClick={() => setActiveTab('dashboard')} 
-          />
-          <TabButton 
-            active={activeTab === 'roster'} 
-            label="Employee Roster" 
-            index="02"
-            icon={Users} 
-            onClick={() => setActiveTab('roster')} 
-          />
-          <TabButton 
-            active={activeTab === 'shifts'} 
-            label="Shift Setup" 
-            index="03"
-            icon={Clock} 
-            onClick={() => setActiveTab('shifts')} 
-          />
-          <TabButton 
-            active={activeTab === 'payroll'} 
-            label="Credits & Payroll" 
-            index="04"
-            icon={BarChart3} 
-            onClick={() => setActiveTab('payroll')} 
-          />
-          <TabButton 
-            active={activeTab === 'holidays'} 
-            label="Public Holidays" 
-            index="05"
-            icon={Flag} 
-            onClick={() => setActiveTab('holidays')} 
-          />
-          <TabButton 
-            active={activeTab === 'layout'} 
-            label="Stations / Assets"
-            index="06"
-            icon={Layout} 
-            onClick={() => setActiveTab('layout')} 
-          />
-          <TabButton 
-            active={activeTab === 'schedule'} 
-            label="Master Schedule" 
-            index="07"
-            icon={Calendar} 
-            onClick={() => setActiveTab('schedule')} 
-          />
-          <TabButton
-            active={activeTab === 'reports'}
-            label="Reporting Center"
-            index="08"
-            icon={FileSpreadsheet}
-            onClick={() => setActiveTab('reports')}
-          />
-          <TabButton
-            active={activeTab === 'variables'}
-            label="Legal Variables"
-            index="09"
-            icon={Scale}
-            onClick={() => setActiveTab('variables')}
-          />
-          <TabButton
-            active={activeTab === 'settings'}
-            label="System Settings"
-            index="10"
-            icon={Settings}
-            onClick={() => setActiveTab('settings')}
-          />
+          <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />
+          <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="02" icon={Users} onClick={() => setActiveTab('roster')} />
+          <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="03" icon={Clock} onClick={() => setActiveTab('shifts')} />
+          <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="04" icon={BarChart3} onClick={() => setActiveTab('payroll')} />
+          <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="05" icon={Flag} onClick={() => setActiveTab('holidays')} />
+          <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="06" icon={Layout} onClick={() => setActiveTab('layout')} />
+          <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="07" icon={Calendar} onClick={() => setActiveTab('schedule')} />
+          <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="08" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />
+          <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="09" icon={Scale} onClick={() => setActiveTab('variables')} />
+          <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="10" icon={Database} onClick={() => setActiveTab('audit')} />
+          <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="11" icon={Settings} onClick={() => setActiveTab('settings')} />
         </nav>
 
         <div className="p-4 border-t border-slate-700 bg-[#0F172A]/50 space-y-2">
-          <button 
+          <LocaleSwitcher />
+          <button
             onClick={handleClearAllData}
             className="w-full flex items-center gap-3 px-4 py-2 text-[10px] font-black text-rose-400 uppercase tracking-widest hover:bg-rose-500/10 rounded-lg transition-all"
           >
             <Trash2 className="w-4 h-4" />
-            Factory Reset
+            {t('sidebar.factoryReset')}
           </button>
-          <button 
+          <button
             onClick={handleQuitApp}
             className="w-full flex items-center gap-3 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-red-900/20"
           >
             <X className="w-4 h-4" />
-            Quit Application
+            {t('sidebar.quitApp')}
           </button>
         </div>
       </aside>
@@ -1178,30 +1240,45 @@ export default function App() {
                         <div className="p-2 bg-blue-500/20 rounded-lg">
                           <Sparkles className="w-5 h-5 text-blue-400" />
                         </div>
-                        <h3 className="font-bold uppercase tracking-widest text-xs">Staffing Advisory</h3>
+                        <h3 className="font-bold uppercase tracking-widest text-xs">{t('advisory.title')}</h3>
                       </div>
                       <div className="space-y-4">
-                        {Object.entries(hourlyCoverage.coverage).some(([dayKey, dayCov]) => Object.entries(dayCov).some(([h, c]) => c < (hourlyCoverage.requirements[parseInt(dayKey)]?.[parseInt(h)] || 0))) ? (
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                            <p className="text-[10px] font-black text-red-400 uppercase mb-1">Coverage Gaps Detected</p>
-                            <p className="text-xs text-slate-300 leading-relaxed">
-                              Current headcount is insufficient to meet station minimums during peak hours. 
-                              {employees.some(e => (e.holidayBank || 0) > 0) && " outstanding compensations cannot be granted without further affecting coverage."}
-                            </p>
-                          </div>
+                        {Object.keys(staffingGapByRole).length > 0 ? (
+                          <>
+                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                              <p className="text-[10px] font-black text-red-400 uppercase mb-1">{t('advisory.gaps')}</p>
+                              <p className="text-xs text-slate-300 leading-relaxed">
+                                Current headcount is insufficient to meet station minimums during peak hours.
+                                {employees.some(e => (e.holidayBank || 0) > 0) && " Outstanding compensations cannot be granted without further affecting coverage."}
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-[9px] text-slate-500 font-bold uppercase">{t('advisory.hireToClose')}</p>
+                              {Object.entries(staffingGapByRole).map(([role, info]) => (
+                                <div key={role} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-slate-800/40 border border-slate-700/50">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-white capitalize">{role}</p>
+                                    <p className="text-[10px] text-slate-400 truncate" title={info.stations.join(', ')}>
+                                      {t('common.affects')} {info.stations.slice(0, 3).join(', ')}{info.stations.length > 3 ? ` +${info.stations.length - 3} ${t('common.more')}` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-2xl font-black text-amber-400 leading-none">+{info.gap}</p>
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{t('advisory.toHire')}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              <p className="text-[10px] text-slate-500 leading-relaxed pt-1">
+                                <span className="text-amber-400 font-black">{Object.values(staffingGapByRole).reduce((s, r) => s + r.gap, 0)}</span> {t('advisory.totalNote')}
+                              </p>
+                            </div>
+                          </>
                         ) : (
                           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                            <p className="text-[10px] font-black text-emerald-400 uppercase mb-1">Optimal Staffing</p>
+                            <p className="text-[10px] font-black text-emerald-400 uppercase mb-1">{t('advisory.optimal')}</p>
                             <p className="text-xs text-slate-300">All station requirements are met. {employees.filter(e => (e.holidayBank || 0) > 0).length} personnel are eligible for credit-based off-days.</p>
                           </div>
                         )}
-                        <div className="pt-2">
-                           <p className="text-[9px] text-slate-500 font-bold uppercase">Business Continuity Recommendation:</p>
-                           <p className="text-xs text-slate-400 italic">
-                             Automated audit suggests hiring {Math.max(4, Math.ceil(employees.length * 0.12))} additional personnel. 
-                             This would reduce OT dependence by approx. 35% and save roughly 1.2M IQD in premium pay while ensuring 100% station coverage.
-                           </p>
-                        </div>
                       </div>
                     </Card>
 
@@ -1513,8 +1590,8 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Stations &amp; Assets Configuration</h3>
-                    <p className="text-xs text-slate-400 font-medium tracking-tight uppercase tracking-widest leading-none">Stations, vehicles, and other assets staffed by the auto-scheduler. Set required roles to gate vehicles to drivers only.</p>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">{t('layout.title')}</h3>
+                    <p className="text-xs text-slate-400 font-medium tracking-tight uppercase tracking-widest leading-none">{t('layout.subtitle')}</p>
                   </div>
                   <button 
                     onClick={() => {
@@ -1599,7 +1676,7 @@ export default function App() {
                   {stations.length === 0 && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-inner">
                        <Layout className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                       <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">No Stations or Assets Defined</h3>
+                       <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
                        <p className="text-[11px] text-slate-300 font-medium uppercase tracking-tighter mt-1">Start by adding your POS gateways, service windows or gaming areas.</p>
                     </div>
                   )}
@@ -1651,12 +1728,23 @@ export default function App() {
                       </button>
                     </div>
 
+                    {scheduleUndoStack.length > 0 && (
+                      <button
+                        onClick={undoLastSchedule}
+                        title={`${t('action.undoLast')} (${scheduleUndoStack.length})`}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        {t('action.undoLast')}
+                      </button>
+                    )}
+
                     <button
                       onClick={handleRunAutoScheduler}
                       className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
                     >
                       <Sparkles className="w-4 h-4" />
-                      Auto-Schedule
+                      {t('action.runAutoSchedule')}
                     </button>
                   </div>
                 </div>
@@ -1986,16 +2074,18 @@ export default function App() {
               <VariablesTab config={config} setConfig={setConfig} />
             )}
 
+            {activeTab === 'audit' && <AuditLogTab />}
+
             {activeTab === 'settings' && (
               <div className="space-y-8 max-w-4xl">
                 <div>
-                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight mb-1">Global Configuration</h3>
-                   <p className="text-xs text-slate-400 font-medium uppercase tracking-widest font-mono">System-wide operational parameters.</p>
+                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight mb-1">{t('settings.title')}</h3>
+                   <p className="text-xs text-slate-400 font-medium uppercase tracking-widest font-mono">{t('settings.subtitle')}</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Operation Peak Days</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('settings.peakDays')}</label>
                        <div className="flex gap-2 flex-wrap">
                           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => {
                             const dayNum = idx + 1;
@@ -2026,7 +2116,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Compliance Overview</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('settings.complianceOverview')}</label>
                       <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                          <p className="text-[10px] text-emerald-700 font-bold uppercase leading-tight">Station-Based Coverage is ACTIVE</p>
                          <p className="text-[9px] text-emerald-600 font-medium">Coverage is calculated dynamically from each station / asset's min staffing. Hour caps, driver rules, OT multipliers, and operating window all live in the <span className="font-black">Legal Variables</span> tab.</p>
@@ -2036,8 +2126,8 @@ export default function App() {
 
                 <div className="pt-8 border-t border-slate-100 flex justify-between items-center flex-wrap gap-4">
                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-slate-800">Database &amp; Security</p>
-                      <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter">Instance: Private Local · Bound to 127.0.0.1</p>
+                      <p className="text-sm font-bold text-slate-800">{t('settings.dbSecurity')}</p>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter">Instance: Private Local · 127.0.0.1</p>
                    </div>
                    <div className="flex gap-3 flex-wrap">
                     <button
@@ -2045,20 +2135,20 @@ export default function App() {
                       className="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-100 transition-all font-mono flex items-center gap-2"
                     >
                       <Download className="w-3 h-3" />
-                      Export Full Backup (JSON)
+                      {t('settings.exportBackup')}
                     </button>
                     <button
                       onClick={() => backupInputRef.current?.click()}
                       className="px-6 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 transition-all font-mono flex items-center gap-2"
                     >
                       <Upload className="w-3 h-3" />
-                      Import Migration Backup
+                      {t('settings.importBackup')}
                     </button>
                     <button
                       onClick={handleClearAllData}
                       className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all font-mono"
                     >
-                      Factory Reset Instance
+                      {t('settings.factoryReset')}
                     </button>
                    </div>
                 </div>
@@ -2099,13 +2189,21 @@ export default function App() {
         config={config}
       />
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}
         message={confirmState.message}
         onConfirm={confirmState.onConfirm}
         extraAction={confirmState.extraAction}
         onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <SchedulePreviewModal
+        isOpen={pendingScheduleResult !== null}
+        stats={pendingScheduleResult?.stats ?? null}
+        monthLabel={format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy')}
+        onClose={() => setPendingScheduleResult(null)}
+        onApply={applyPendingSchedule}
       />
     </div>
     </>

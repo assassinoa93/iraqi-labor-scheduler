@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { Config } from '../types';
 import { SettingField } from './Primitives';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   config: Config;
@@ -196,12 +197,13 @@ function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, 
 }
 
 export function VariablesTab({ config, setConfig }: Props) {
+  const { t } = useI18n();
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight mb-1">Legal Variables &amp; Compliance Caps</h3>
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
         <p className="text-xs text-slate-400 font-medium uppercase tracking-widest font-mono">
-          All thresholds enforced by the compliance engine. Each value cites the governing article of Iraqi Labor Law No. 37 of 2015.
+          {t('variables.subtitle')}
         </p>
       </div>
 
@@ -216,8 +218,8 @@ export function VariablesTab({ config, setConfig }: Props) {
       </div>
 
       <Section
-        title="Standard Personnel"
-        subtitle="Iraqi Labor Law No. 37 of 2015 — Articles 67, 70, 71, 72"
+        title={t('variables.standard')}
+        subtitle="Iraqi Labor Law No. 37 of 2015 — Art. 67, 70, 71, 72"
         icon={ShieldCheck}
         iconBg="bg-blue-50"
         iconText="text-blue-600"
@@ -227,8 +229,8 @@ export function VariablesTab({ config, setConfig }: Props) {
       />
 
       <Section
-        title="Hazardous &amp; Industrial Work"
-        subtitle="Articles 68, 70 — workers exposed to hazardous or unhealthy conditions"
+        title={t('variables.hazardous')}
+        subtitle="Art. 68, 70"
         icon={Flame}
         iconBg="bg-orange-50"
         iconText="text-orange-600"
@@ -238,8 +240,8 @@ export function VariablesTab({ config, setConfig }: Props) {
       />
 
       <Section
-        title="Drivers / Transport Workers"
-        subtitle="Article 88 + Ministry of Transport regulations"
+        title={t('variables.drivers')}
+        subtitle="Art. 88"
         icon={Truck}
         iconBg="bg-amber-50"
         iconText="text-amber-700"
@@ -249,8 +251,8 @@ export function VariablesTab({ config, setConfig }: Props) {
       />
 
       <Section
-        title="Overtime &amp; Holiday Pay"
-        subtitle="Articles 73, 74 — pay multipliers for overtime and holiday work"
+        title={t('variables.payRates')}
+        subtitle="Art. 73, 74"
         icon={Calendar}
         iconBg="bg-emerald-50"
         iconText="text-emerald-600"
@@ -265,7 +267,7 @@ export function VariablesTab({ config, setConfig }: Props) {
             <Clock className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-slate-800 text-sm tracking-tight">Operating Window</h3>
+            <h3 className="font-bold text-slate-800 text-sm tracking-tight">{t('variables.operatingWindow')}</h3>
             <p className="text-[10px] text-slate-500 font-medium">Business hours used by the auto-scheduler when sizing shifts</p>
           </div>
         </div>

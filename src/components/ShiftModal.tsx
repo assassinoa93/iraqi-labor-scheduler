@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { X, AlertCircle } from 'lucide-react';
 import { Shift, Config } from '../types';
 import { SettingField } from './Primitives';
+import { useI18n } from '../lib/i18n';
 
 interface ShiftModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ const empty = (): Shift => ({
 });
 
 export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<Shift>(shift || empty());
 
   // Auto-recompute duration whenever start/end/break change
@@ -57,7 +59,7 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg font-bold text-slate-800">
-            {shift ? 'Edit Shift Configuration' : 'Create New Shift Type'}
+            {shift ? t('modal.shift.title.edit') : t('modal.shift.title.new')}
           </h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
@@ -104,12 +106,12 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
         </div>
 
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">Cancel</button>
+          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={() => onSave(formData)}
             className="px-8 py-2 bg-slate-900 text-white rounded text-sm font-bold hover:bg-slate-800 transition-all shadow-lg uppercase tracking-widest"
           >
-            Save Shift
+            {t('modal.shift.save')}
           </button>
         </div>
       </motion.div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extraAction }: ConfirmModalProps) {
+  const { t } = useI18n();
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -46,7 +48,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
               onClick={onClose}
               className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
             >
-              Cancel
+              {t('modal.confirm.cancel')}
             </button>
             <button
               onClick={() => {
@@ -55,7 +57,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
               }}
               className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-md"
             >
-              Confirm
+              {t('modal.confirm.confirm')}
             </button>
           </div>
         </div>

@@ -5,6 +5,10 @@ A professional, local-first workforce management and automated scheduling system
 ![App Icon](assets/icon.png)
 
 ## 🌟 Key Features
+- **🌐 Bilingual UI (English / Arabic)**: One-click language toggle in the sidebar with full RTL layout for Arabic.
+- **📋 Audit Log**: Append-only log of every change to employees, schedules, shifts, stations, and config — exportable as CSV. Stored locally alongside your data.
+- **👁️ Schedule Preview & Undo**: Review the auto-scheduler's proposed assignments, hours, and compliance impact before applying. One-step undo lets you revert the most recent apply.
+- **📊 Smart Staffing Advisory**: Coverage gaps now break down by role — see exactly how many cashiers, operators, or drivers you need to hire to close peak-hour shortfalls.
 - **⚖️ Legal Compliance Engine**: Automated checks for maximum work hours (Art. 67), mandatory rest days (Art. 71), holiday compensation (Art. 73-74), and **transport-worker rules for drivers (Art. 88)**.
 - **📜 Legal Variables Tab**: All compliance caps — daily / weekly hours, hazardous limits, driver caps, OT multipliers — visible in a single tab with the governing article tagged on each value. Edit a cap and both the compliance engine and the auto-scheduler update immediately.
 - **🚚 Driver / Transport Mode**: Mark personnel as Drivers and have them scheduled under stricter caps — 9h daily / 56h weekly, 4.5h continuous-driving cap, 11h min daily rest. Configurable per fleet.
@@ -20,11 +24,11 @@ A professional, local-first workforce management and automated scheduling system
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/Iraqi-Workplace---Vibecoded-apps/releases)** page on GitHub.
-2. Under the **latest release (v1.3.1)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.3.1.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v1.4.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-1.4.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.3.1.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.4.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.

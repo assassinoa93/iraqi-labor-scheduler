@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Employee, Station } from '../types';
 import { cn } from '../lib/utils';
 import { SettingField } from './Primitives';
+import { useI18n } from '../lib/i18n';
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ const empty = (): Employee => ({
 });
 
 export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: EmployeeModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<Employee>(empty);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg font-bold text-slate-800">
-            {employee ? 'Edit Personnel File' : 'Onboard New Employee'}
+            {employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}
           </h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
@@ -77,16 +79,16 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
 
         <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-6">
-            <SettingField label="Employee ID" value={formData.empId} onChange={v => setFormData({...formData, empId: v})} />
-            <SettingField label="Full Name" value={formData.name} onChange={v => setFormData({...formData, name: v})} />
-            <SettingField label="Job Role" value={formData.role} onChange={v => setFormData({...formData, role: v})} />
-            <SettingField label="Department" value={formData.department} onChange={v => setFormData({...formData, department: v})} />
-            <SettingField label="Contract Type" type="select" options={['Permanent', 'Fixed-Term', 'Contractor']} value={formData.contractType} onChange={v => setFormData({...formData, contractType: v})} />
-            <SettingField label="Weekly Hours" type="number" value={formData.contractedWeeklyHrs} onChange={v => setFormData({...formData, contractedWeeklyHrs: parseInt(v)})} />
-            <SettingField label="Phone Contact" value={formData.phone} onChange={v => setFormData({...formData, phone: v})} />
-            <SettingField label="Hire Date" value={formData.hireDate} onChange={v => setFormData({...formData, hireDate: v})} />
+            <SettingField label={t('modal.employee.field.id')} value={formData.empId} onChange={v => setFormData({...formData, empId: v})} />
+            <SettingField label={t('modal.employee.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
+            <SettingField label={t('modal.employee.field.role')} value={formData.role} onChange={v => setFormData({...formData, role: v})} />
+            <SettingField label={t('modal.employee.field.department')} value={formData.department} onChange={v => setFormData({...formData, department: v})} />
+            <SettingField label={t('modal.employee.field.contract')} type="select" options={['Permanent', 'Fixed-Term', 'Contractor']} value={formData.contractType} onChange={v => setFormData({...formData, contractType: v})} />
+            <SettingField label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => setFormData({...formData, contractedWeeklyHrs: parseInt(v)})} />
+            <SettingField label={t('modal.employee.field.phone')} value={formData.phone} onChange={v => setFormData({...formData, phone: v})} />
+            <SettingField label={t('modal.employee.field.hireDate')} value={formData.hireDate} onChange={v => setFormData({...formData, hireDate: v})} />
             <SettingField
-              label="Base Monthly Salary (IQD)"
+              label={t('modal.employee.field.salary')}
               type="number"
               value={formData.baseMonthlySalary}
               onChange={v => {
@@ -105,18 +107,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
                  <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / 192)</span>
               </div>
             </div>
-            <SettingField label="Holiday Bank (Earned)" type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: parseInt(v)})} />
-            <SettingField label="Annual Leave Balance" type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: parseInt(v)})} />
+            <SettingField label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: parseInt(v)})} />
+            <SettingField label={t('modal.employee.field.annualLeave')} type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: parseInt(v)})} />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rest Day Policy</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
               <select
                 value={formData.fixedRestDay}
                 onChange={e => setFormData({...formData, fixedRestDay: parseInt(e.target.value)})}
                 className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
-                <option value={0}>No Fixed Rest Day (Auto-Rotate)</option>
+                <option value={0}>{t('modal.employee.rest.rotate')}</option>
                 {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => (
-                  <option key={i} value={i + 1}>Fixed: {d}</option>
+                  <option key={i} value={i + 1}>{t('modal.employee.rest.fixed')} {d}</option>
                 ))}
               </select>
               <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
@@ -126,14 +128,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personnel Category</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.category')}</label>
               <select
                 value={formData.category || 'Standard'}
                 onChange={e => setFormData({...formData, category: e.target.value as 'Standard' | 'Driver'})}
                 className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
-                <option value="Standard">Standard (Art. 67-74)</option>
-                <option value="Driver">Driver / Transport (Art. 88)</option>
+                <option value="Standard">{t('modal.employee.cat.standard')}</option>
+                <option value="Driver">{t('modal.employee.cat.driver')}</option>
               </select>
               <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
                 {formData.category === 'Driver'
@@ -144,7 +146,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
           </div>
 
           <div className="space-y-3 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
-            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Station Eligibility (Layout Assignments)</p>
+            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('modal.employee.stationEligibility')}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {stations.map(st => (
                 <button
@@ -167,19 +169,19 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
           <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
              <div className="flex items-center gap-2">
                 <input type="checkbox" checked={formData.isHazardous} onChange={e => setFormData({...formData, isHazardous: e.target.checked})} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">Hazardous Duties</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.hazardous')}</span>
              </div>
              <div className="flex items-center gap-2">
                 <input type="checkbox" checked={formData.isIndustrialRotating} onChange={e => setFormData({...formData, isIndustrialRotating: e.target.checked})} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">Industrial Rotation</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.industrial')}</span>
              </div>
              <div className="flex items-center gap-2">
                 <input type="checkbox" checked={formData.hourExempt} onChange={e => setFormData({...formData, hourExempt: e.target.checked})} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">Hour Exempt</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.exempt')}</span>
              </div>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Internal Personnel Notes</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.notes')}</label>
             <textarea
               className="w-full p-4 bg-white border border-slate-200 rounded text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none"
               value={formData.notes}
@@ -190,12 +192,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
         </div>
 
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">Cancel</button>
+          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={() => onSave(formData)}
             className="px-8 py-2 bg-slate-900 text-white rounded text-sm font-bold hover:bg-slate-800 transition-all shadow-lg uppercase tracking-widest"
           >
-            Commit Record
+            {t('modal.employee.commit')}
           </button>
         </div>
       </motion.div>

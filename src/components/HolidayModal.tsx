@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { format } from 'date-fns';
 import { PublicHoliday } from '../types';
 import { SettingField } from './Primitives';
+import { useI18n } from '../lib/i18n';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const empty = (): PublicHoliday => ({
 });
 
 export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<PublicHoliday>(holiday || empty());
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalP
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg font-bold text-slate-800">
-            {holiday ? 'Edit Public Holiday' : 'Add Legal Holiday'}
+            {holiday ? t('modal.holiday.title.edit') : t('modal.holiday.title.new')}
           </h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
@@ -52,12 +54,12 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalP
         </div>
 
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">Cancel</button>
+          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={() => onSave(formData)}
             className="px-8 py-2 bg-slate-900 text-white rounded text-sm font-bold hover:bg-slate-800 transition-all shadow-lg uppercase tracking-widest"
           >
-            Declare Holiday
+            {t('modal.holiday.declare')}
           </button>
         </div>
       </motion.div>
