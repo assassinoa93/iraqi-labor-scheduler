@@ -25,7 +25,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     isHazardous: false,
     isIndustrialRotating: false,
     hourExempt: false,
-    fixedRestDay: i < 20 ? 0 : ((i - 20) % 7) + 1,
+    fixedRestDay: 0,
     phone: `+964-770-000-${i.toString().padStart(4, '0')}`,
     hireDate: '2022-01-01',
     notes: '',
@@ -100,6 +100,12 @@ export const INITIAL_STATIONS: Station[] = [
   { id: 'ST-M8', name: 'Trampoline Park', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#db2777', description: 'Active jumping area' },
   { id: 'ST-M9', name: 'Mini-Train', normalMinHC: 1, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#dc2626', description: 'Mall tour train' },
   { id: 'ST-M10', name: 'Claw Machine', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#f59e0b', description: 'Prize pickers' },
+  // Vehicle / driver assets — gated to category=Driver via requiredRoles. Operating
+  // times define when each vehicle needs a driver assigned by the auto-scheduler.
+  { id: 'ST-V1', name: 'Delivery Van A', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '08:00', closingTime: '17:00', color: '#0f766e', description: 'Daytime parts and supply runs' },
+  { id: 'ST-V2', name: 'Delivery Van B', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '14:00', closingTime: '22:00', color: '#0e7490', description: 'Afternoon / evening logistics' },
+  { id: 'ST-V3', name: 'Mall Shuttle', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '10:00', closingTime: '23:00', color: '#1d4ed8', description: 'Customer shuttle (full operating window)' },
+  { id: 'ST-V4', name: 'Service Pickup', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '06:00', closingTime: '12:00', color: '#92400e', description: 'Early-morning supply pickup' },
 ];
 
 export const INITIAL_HOLIDAYS: PublicHoliday[] = [

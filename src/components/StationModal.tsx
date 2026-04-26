@@ -60,6 +60,23 @@ export function StationModal({ isOpen, onClose, onSave, station }: StationModalP
              </div>
           </div>
           <div>
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Required Role</label>
+            <select
+              value={formData.requiredRoles?.[0] ?? ''}
+              onChange={e => {
+                const v = e.target.value;
+                setFormData({ ...formData, requiredRoles: v ? [v] : [] });
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm font-medium"
+            >
+              <option value="">Any (Standard staff)</option>
+              <option value="Driver">Driver / Vehicle Asset (Art. 88)</option>
+            </select>
+            <p className="text-[9px] text-slate-400 font-medium leading-relaxed mt-1">
+              Set to Driver to gate this station/asset to personnel marked as Drivers. Use for vehicles, shuttles, or transport-only roles.
+            </p>
+          </div>
+          <div>
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Theme Color</label>
             <input type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg" />
           </div>

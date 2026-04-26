@@ -752,7 +752,7 @@ export default function App() {
           />
           <TabButton 
             active={activeTab === 'layout'} 
-            label="Shop Layout" 
+            label="Stations / Assets"
             index="06"
             icon={Layout} 
             onClick={() => setActiveTab('layout')} 
@@ -1513,8 +1513,8 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Shop Floor Stations</h3>
-                    <p className="text-xs text-slate-400 font-medium tracking-tight uppercase tracking-widest leading-none">Map personnel requirement points for auto-scheduling.</p>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Stations &amp; Assets Configuration</h3>
+                    <p className="text-xs text-slate-400 font-medium tracking-tight uppercase tracking-widest leading-none">Stations, vehicles, and other assets staffed by the auto-scheduler. Set required roles to gate vehicles to drivers only.</p>
                   </div>
                   <button 
                     onClick={() => {
@@ -1599,7 +1599,7 @@ export default function App() {
                   {stations.length === 0 && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-inner">
                        <Layout className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                       <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">No Shop Floor Stations Defined</h3>
+                       <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">No Stations or Assets Defined</h3>
                        <p className="text-[11px] text-slate-300 font-medium uppercase tracking-tighter mt-1">Start by adding your POS gateways, service windows or gaming areas.</p>
                     </div>
                   )}
@@ -2026,79 +2026,12 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4">
-                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Business Operating Hours</label>
-                      <div className="flex gap-4">
-                         <div className="flex-1 space-y-2">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Opening</span>
-                            <input 
-                              type="time" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm font-mono"
-                              value={config.shopOpeningTime}
-                              onChange={(e) => setConfig(prev => ({ ...prev, shopOpeningTime: e.target.value }))}
-                            />
-                         </div>
-                         <div className="flex-1 space-y-2">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Closing</span>
-                            <input 
-                              type="time" 
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm font-mono"
-                              value={config.shopClosingTime}
-                              onChange={(e) => setConfig(prev => ({ ...prev, shopClosingTime: e.target.value }))}
-                            />
-                         </div>
-                      </div>
-                   </div>
-
-                   <div className="space-y-4">
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Compliance Overview</label>
                       <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                          <p className="text-[10px] text-emerald-700 font-bold uppercase leading-tight">Station-Based Coverage is ACTIVE</p>
-                         <p className="text-[9px] text-emerald-600 font-medium">Coverage is now calculated dynamically based on your Shop Layout (Station min Staffing) rather than a global fixed number.</p>
+                         <p className="text-[9px] text-emerald-600 font-medium">Coverage is calculated dynamically from each station / asset's min staffing. Hour caps, driver rules, OT multipliers, and operating window all live in the <span className="font-black">Legal Variables</span> tab.</p>
                       </div>
-                   </div>
-                </div>
-
-                <div className="pt-8 border-t border-slate-100">
-                  <div className="flex items-center gap-3 mb-1">
-                    <p className="text-sm font-bold text-slate-800">Driver Compliance (Art. 88)</p>
-                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-widest border border-amber-200">Transport Workers</span>
-                  </div>
-                  <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter mb-6">Caps applied only to personnel marked as Driver in their profile.</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <SettingField
-                      label="Daily Driving Cap (hrs)"
-                      type="number"
-                      value={config.driverDailyHrsCap ?? 9}
-                      onChange={v => setConfig(prev => ({ ...prev, driverDailyHrsCap: parseFloat(v) || 9 }))}
-                    />
-                    <SettingField
-                      label="Weekly Driving Cap (hrs)"
-                      type="number"
-                      value={config.driverWeeklyHrsCap ?? 56}
-                      onChange={v => setConfig(prev => ({ ...prev, driverWeeklyHrsCap: parseFloat(v) || 56 }))}
-                    />
-                    <SettingField
-                      label="Continuous Driving Cap (hrs)"
-                      type="number"
-                      value={config.driverContinuousDrivingHrsCap ?? 4.5}
-                      onChange={v => setConfig(prev => ({ ...prev, driverContinuousDrivingHrsCap: parseFloat(v) || 4.5 }))}
-                    />
-                    <SettingField
-                      label="Min Daily Rest (hrs)"
-                      type="number"
-                      value={config.driverMinDailyRestHrs ?? 11}
-                      onChange={v => setConfig(prev => ({ ...prev, driverMinDailyRestHrs: parseFloat(v) || 11 }))}
-                    />
-                    <SettingField
-                      label="Max Consecutive Days"
-                      type="number"
-                      value={config.driverMaxConsecWorkDays ?? 6}
-                      onChange={v => setConfig(prev => ({ ...prev, driverMaxConsecWorkDays: parseInt(v) || 6 }))}
-                    />
-                  </div>
-                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed mt-4">
-                    Defaults reflect Iraqi Labor Law Art. 88 read with Ministry of Transport regulations: 9h daily / 56h weekly cap, 4.5h continuous driving with mandatory 30-min break, 11h daily rest. Adjust if your fleet operates under a sector-specific exemption.
-                  </p>
+                    </div>
                 </div>
 
                 <div className="pt-8 border-t border-slate-100 flex justify-between items-center flex-wrap gap-4">
