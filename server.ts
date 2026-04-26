@@ -26,17 +26,28 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
+  const ALLOWED_KEYS = new Set(["employees", "shifts", "holidays", "config", "stations", "allSchedules"]);
+  const RESET_CONFIRM_TOKEN = "DELETE_ALL_DATA";
+
+  // Atomic write: write to *.tmp then rename. On Windows same-volume renames are atomic,
+  // so a crash mid-write can never leave a half-written JSON on disk.
+  const atomicWrite = (filePath: string, contents: string) => {
+    const tmp = `${filePath}.tmp`;
+    fs.writeFileSync(tmp, contents);
+    fs.renameSync(tmp, filePath);
+  };
+
   // API: Get App Data
   app.get("/api/data", (req, res) => {
     const data: Record<string, any> = {};
-    const files = ["employees", "shifts", "holidays", "config", "stations", "allSchedules"];
-    
-    files.forEach(file => {
+    ALLOWED_KEYS.forEach(file => {
       const filePath = path.join(DATA_DIR, `${file}.json`);
       if (fs.existsSync(filePath)) {
         try {
           data[file] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
         } catch (e) {
+          // Corrupt file: surface in server log so users can recover from a backup
+          console.error(`[Scheduler] Corrupt data file ${file}.json:`, e);
           data[file] = null;
         }
       } else {
@@ -49,16 +60,27 @@ async function startServer() {
 
   // API: Save App Data
   app.post("/api/save", (req, res) => {
-    const body = req.body;
-    Object.keys(body).forEach(key => {
-      const filePath = path.join(DATA_DIR, `${key}.json`);
-      fs.writeFileSync(filePath, JSON.stringify(body[key], null, 2));
-    });
-    res.json({ success: true });
+    const body = req.body || {};
+    try {
+      Object.keys(body).forEach(key => {
+        if (!ALLOWED_KEYS.has(key)) return; // Drop unknown keys (defense in depth)
+        const filePath = path.join(DATA_DIR, `${key}.json`);
+        atomicWrite(filePath, JSON.stringify(body[key], null, 2));
+      });
+      res.json({ success: true });
+    } catch (e) {
+      console.error("[Scheduler] Save failed:", e);
+      res.status(500).json({ error: "Save failed" });
+    }
   });
 
   // API: Reset Data (Factory Reset)
+  // Requires an explicit confirm token in the body to prevent accidental wipes
+  // from a misfired fetch in the renderer.
   app.post("/api/reset", (req, res) => {
+    if (req.body?.confirm !== RESET_CONFIRM_TOKEN) {
+      return res.status(400).json({ error: "Confirmation token missing" });
+    }
     try {
       if (fs.existsSync(DATA_DIR)) {
         const files = fs.readdirSync(DATA_DIR);
@@ -96,8 +118,11 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  // Bind to loopback only — this is a single-user local app embedded in Electron.
+  // 0.0.0.0 would expose the unauthenticated /api/save and /api/reset to anything
+  // on the LAN (café/hotel Wi-Fi), allowing data exfiltration or wipe.
+  app.listen(PORT, "127.0.0.1", () => {
+    console.log(`Server running on http://127.0.0.1:${PORT}`);
   });
 }
 

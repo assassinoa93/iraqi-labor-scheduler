@@ -81,16 +81,18 @@ const INITIAL_EMPLOYEES: Employee[] = [
     isHazardous: false,
     isIndustrialRotating: false,
     hourExempt: false,
-    fixedRestDay: (i % 7) + 1,
+    // First 20 use rotating rest day (weekend coverage); rest stay fixed for demo
+    fixedRestDay: i < 20 ? 0 : ((i - 20) % 7) + 1,
     phone: `+964-770-000-${i.toString().padStart(4, '0')}`,
     hireDate: '2022-01-01',
     notes: '',
     eligibleStations: ['ST-M1', 'ST-M2', 'ST-M3', 'ST-M4', 'ST-M5', 'ST-M6', 'ST-M7', 'ST-M8', 'ST-M9', 'ST-M10'],
-    holidayBank: 0, 
+    holidayBank: 0,
     annualLeaveBalance: 21,
-    baseMonthlySalary: 1200000, 
-    baseHourlyRate: Math.round(1200000 / 192), 
-    overtimeHours: 0
+    baseMonthlySalary: 1200000,
+    baseHourlyRate: Math.round(1200000 / 192),
+    overtimeHours: 0,
+    category: 'Standard' as const
   })),
   ...Array.from({ length: 12 }, (_, i) => ({
     empId: `EMP-${2000 + i}`,
@@ -103,16 +105,42 @@ const INITIAL_EMPLOYEES: Employee[] = [
     isHazardous: false,
     isIndustrialRotating: false,
     hourExempt: false,
-    fixedRestDay: (i % 6) + 1, 
+    // Cashiers all rotate to maximise weekend coverage
+    fixedRestDay: 0,
     phone: `+964-770-000-${(i + 40).toString().padStart(4, '0')}`,
     hireDate: '2022-01-01',
     notes: '',
     eligibleStations: ['ST-C1', 'ST-C2', 'ST-C3', 'ST-C4'],
-    holidayBank: 0, 
+    holidayBank: 0,
     annualLeaveBalance: 21,
-    baseMonthlySalary: 1000000, 
-    baseHourlyRate: Math.round(1000000 / 192), 
-    overtimeHours: 0
+    baseMonthlySalary: 1000000,
+    baseHourlyRate: Math.round(1000000 / 192),
+    overtimeHours: 0,
+    category: 'Standard' as const
+  })),
+  // Driver pool — governed by Art. 88 transport-worker provisions
+  ...Array.from({ length: 4 }, (_, i) => ({
+    empId: `EMP-${3000 + i}`,
+    name: `Driver ${i + 1}`,
+    role: 'Driver',
+    department: 'Transport',
+    contractType: 'Permanent',
+    contractedWeeklyHrs: 56,
+    shiftEligibility: 'All',
+    isHazardous: false,
+    isIndustrialRotating: false,
+    hourExempt: false,
+    fixedRestDay: 0,
+    phone: `+964-770-000-${(i + 60).toString().padStart(4, '0')}`,
+    hireDate: '2023-06-01',
+    notes: 'Transport / driver — Art. 88',
+    eligibleStations: [],
+    holidayBank: 0,
+    annualLeaveBalance: 21,
+    baseMonthlySalary: 1400000,
+    baseHourlyRate: Math.round(1400000 / 224),
+    overtimeHours: 0,
+    category: 'Driver' as const
   }))
 ];
 
@@ -148,6 +176,12 @@ const DEFAULT_CONFIG: Config = {
   standardWeeklyHrsCap: 48,
   hazardousWeeklyHrsCap: 36,
   minRestBetweenShiftsHrs: 11,
+  // Iraqi Labor Law Art. 88 + Ministry of Transport regulations for transport workers.
+  driverDailyHrsCap: 9,
+  driverWeeklyHrsCap: 56,
+  driverContinuousDrivingHrsCap: 4.5,
+  driverMinDailyRestHrs: 11,
+  driverMaxConsecWorkDays: 6,
   shopOpeningTime: '11:00',
   shopClosingTime: '23:00',
   peakDays: [5, 6, 7], // Thu, Fri, Sat
@@ -272,7 +306,7 @@ function EmployeeModal({
     isHazardous: false,
     isIndustrialRotating: true,
     hourExempt: false,
-    fixedRestDay: 6,
+    fixedRestDay: 0,
     phone: '',
     hireDate: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
@@ -281,12 +315,15 @@ function EmployeeModal({
     annualLeaveBalance: 21,
     baseMonthlySalary: 1500000,
     baseHourlyRate: Math.round(1500000 / 192),
-    overtimeHours: 0
+    overtimeHours: 0,
+    category: 'Standard'
   });
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(employee || {
+      setFormData(employee
+        ? { category: 'Standard', ...employee } // backfill default for v1.1 records
+        : {
         empId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
         name: '',
         role: '',
@@ -297,7 +334,7 @@ function EmployeeModal({
         isHazardous: false,
         isIndustrialRotating: true,
         hourExempt: false,
-        fixedRestDay: 6,
+        fixedRestDay: 0,
         phone: '',
         hireDate: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
@@ -306,7 +343,8 @@ function EmployeeModal({
         annualLeaveBalance: 21,
         baseMonthlySalary: 1500000,
         baseHourlyRate: Math.round(1500000 / 192),
-        overtimeHours: 0
+        overtimeHours: 0,
+        category: 'Standard'
       });
     }
   }, [employee, isOpen]);
@@ -371,16 +409,38 @@ function EmployeeModal({
             <SettingField label="Holiday Bank (Earned)" type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: parseInt(v)})} />
             <SettingField label="Annual Leave Balance" type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: parseInt(v)})} />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fixed Rest Day</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rest Day Policy</label>
               <select
                 value={formData.fixedRestDay}
                 onChange={e => setFormData({...formData, fixedRestDay: parseInt(e.target.value)})}
                 className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
+                <option value={0}>No Fixed Rest Day (Auto-Rotate)</option>
                 {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => (
-                  <option key={i} value={i + 1}>{d}</option>
+                  <option key={i} value={i + 1}>Fixed: {d}</option>
                 ))}
               </select>
+              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                {formData.fixedRestDay === 0
+                  ? 'Auto-scheduler will rotate this person\'s rest day across the week to cover weekends and peak days.'
+                  : 'This person is always off on the selected day. Use Auto-Rotate to free up weekend coverage.'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personnel Category</label>
+              <select
+                value={formData.category || 'Standard'}
+                onChange={e => setFormData({...formData, category: e.target.value as 'Standard' | 'Driver'})}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+              >
+                <option value="Standard">Standard (Art. 67-74)</option>
+                <option value="Driver">Driver / Transport (Art. 88)</option>
+              </select>
+              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                {formData.category === 'Driver'
+                  ? 'Drivers follow the transport-worker provisions: 9h daily / 56h weekly cap, 4.5h continuous-driving cap, 11h min daily rest.'
+                  : 'Standard staff follow Art. 67-74: 8h daily / 48h weekly cap, 11h min rest between shifts.'}
+              </p>
             </div>
           </div>
 
@@ -980,12 +1040,20 @@ export default function App() {
         icon: Download
       },
       onConfirm: () => {
-        fetch('/api/reset', { method: 'POST' })
+        // Server requires this exact token to perform a destructive wipe.
+        // See server.ts /api/reset.
+        fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'DELETE_ALL_DATA' })
+        })
+          .then(r => r.ok ? r.json() : Promise.reject(r))
           .then(() => {
             localStorage.clear();
             alert('All data has been cleared on server and browser. The page will now reload.');
             window.location.reload();
-          });
+          })
+          .catch(() => alert('Reset failed. Please try again or check the server logs.'));
       }
     });
   };
@@ -1118,7 +1186,8 @@ export default function App() {
         const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
         if (cols.length < 2) continue;
 
-        const [id, name, role, dept, type, hrs, salary] = cols;
+        const [id, name, role, dept, type, hrs, salary, category] = cols;
+        const cat = category?.trim() === 'Driver' ? 'Driver' : 'Standard';
         newEmployees.push({
           empId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
           name: name || 'Unnamed',
@@ -1130,7 +1199,7 @@ export default function App() {
           isHazardous: false,
           isIndustrialRotating: true,
           hourExempt: false,
-          fixedRestDay: 6,
+          fixedRestDay: 0,
           phone: '',
           hireDate: format(new Date(), 'yyyy-MM-dd'),
           notes: 'Imported via CSV',
@@ -1139,7 +1208,8 @@ export default function App() {
           annualLeaveBalance: 21,
           baseMonthlySalary: parseInt(salary) || 1500000,
           baseHourlyRate: Math.round((parseInt(salary) || 1500000) / 192),
-          overtimeHours: 0
+          overtimeHours: 0,
+          category: cat
         });
       }
 
@@ -1172,7 +1242,7 @@ export default function App() {
   };
 
   const downloadRosterTemplate = () => {
-    const csvContent = "Employee ID,Employee Name,Role,Department,Contract Type,Weekly Hours\nEMP-1100,John Doe,Operator,Warehouse,Permanent,48";
+    const csvContent = "Employee ID,Employee Name,Role,Department,Contract Type,Weekly Hours,Base Salary,Category\nEMP-1100,John Doe,Operator,Warehouse,Permanent,48,1500000,Standard\nEMP-3100,Ali Driver,Driver,Transport,Permanent,56,1400000,Driver";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1241,22 +1311,41 @@ export default function App() {
 
     const holidayDates = new Set(holidays.map(h => h.date));
 
+    // Driver-specific caps fall back to defaults if loaded from older saves
+    const driverCfg = {
+      dailyHrsCap: config.driverDailyHrsCap ?? 9,
+      weeklyHrsCap: config.driverWeeklyHrsCap ?? 56,
+      maxConsecWorkDays: config.driverMaxConsecWorkDays ?? 6,
+    };
+
     // Internal helper to check if an employee is free and legal for a shift
-    const evaluate = (emp: Employee, day: number, shift: Shift, stationId: string, level: 1 | 2 | 3, peak: boolean) => {
+    const evaluate = (emp: Employee, day: number, shift: Shift, stationId: string, level: 1 | 2 | 3, peak: boolean, station: Station) => {
       // 1. Is already working today?
       if (newSchedule[emp.empId][day]) return false;
 
-      // 2. Eligibility
-      const isEligible = emp.eligibleStations.length === 0 || emp.eligibleStations.includes(stationId);
-      if (!isEligible) return false;
+      // 2. Eligibility — drivers only land on stations that explicitly require 'Driver';
+      //    standard staff use the existing eligibleStations whitelist.
+      const driver = emp.category === 'Driver';
+      if (driver) {
+        if (!station.requiredRoles?.includes('Driver')) return false;
+      } else {
+        const isEligible = emp.eligibleStations.length === 0 || emp.eligibleStations.includes(stationId);
+        if (!isEligible) return false;
+        // Non-driver stations should not pull non-driver staff onto driver-restricted stations either
+        if (station.requiredRoles?.length && !station.requiredRoles.some(r => r === emp.role || r === 'Standard')) return false;
+      }
+
+      // Driver-specific shift duration cap (Art. 88)
+      if (driver && shift.durationHrs > driverCfg.dailyHrsCap && level < 3) return false;
 
       // 3. Labor Law Logic
       const date = new Date(config.year, config.month - 1, day);
       const dayOfWeek = date.getDay() + 1; // 1=Sun, ..., 7=Sat
 
-      // HOLIDAY BANK UTILIZATION: 
+      // HOLIDAY BANK UTILIZATION:
       // If NOT a peak day, and employee has bank days, and we are NOT in emergency level 3,
-      // try to skip them to give them a rest day.
+      // try to skip them to give them a rest day. Rotating-rest employees (fixedRestDay = 0)
+      // never match dayOfWeek === fixedRestDay, so this still triggers for them.
       if (!peak && level < 3) {
         const currentBank = emp.holidayBank - (usedHolidayBankThisMonth.get(emp.empId) || 0);
         if (currentBank > 0 && dayOfWeek !== emp.fixedRestDay) {
@@ -1264,11 +1353,15 @@ export default function App() {
         }
       }
 
+      const consecCap = driver ? driverCfg.maxConsecWorkDays : config.maxConsecWorkDays;
+
       // Level 1: Strict (No Rest Day violations, No 6+ day streaks, No OT beyond Weekly Cap)
       if (level === 1) {
-        if (dayOfWeek === emp.fixedRestDay) return false;
-        if ((consecutiveWork.get(emp.empId) || 0) >= config.maxConsecWorkDays) return false;
-        
+        // fixedRestDay === 0 means rotating: no fixed-day exclusion. Rest is enforced via
+        // maxConsecWorkDays + rolling-7 weekly cap below, and via the fairness sort outside.
+        if (emp.fixedRestDay !== 0 && dayOfWeek === emp.fixedRestDay) return false;
+        if ((consecutiveWork.get(emp.empId) || 0) >= consecCap) return false;
+
         // Rolling 7-day hours check
         let rolling = 0;
         for (let d = Math.max(1, day - 6); d < day; d++) {
@@ -1276,13 +1369,15 @@ export default function App() {
           const s = shifts.find(sh => sh.code === entry?.shiftCode);
           if (s) rolling += s.durationHrs;
         }
-        const cap = emp.isHazardous ? config.hazardousWeeklyHrsCap : config.standardWeeklyHrsCap;
+        const cap = driver
+          ? driverCfg.weeklyHrsCap
+          : (emp.isHazardous ? config.hazardousWeeklyHrsCap : config.standardWeeklyHrsCap);
         if (rolling + shift.durationHrs > cap) return false;
       }
 
       // Level 2: Continuity (Allow OT, allow 7th day IF NEEDED, but respect Fixed Rest Day)
       if (level === 2) {
-        if (dayOfWeek === emp.fixedRestDay) return false;
+        if (emp.fixedRestDay !== 0 && dayOfWeek === emp.fixedRestDay) return false;
         // Allows consecutive and weekly cap breaches
       }
 
@@ -1341,7 +1436,9 @@ export default function App() {
 
             if (validShifts.length === 0) break;
 
-            // Sort pool ONCE per station-hour (not inside the shift/level loops) — O(n log n) instead of O(n² log n)
+            // Sort pool ONCE per station-hour (not inside the shift/level loops) — O(n log n) instead of O(n² log n).
+            // For rotating-rest staff (fixedRestDay = 0) the consecutive-day tiebreaker prefers
+            // those who recently rested, naturally rotating rest across the week.
             const sortedPool = [...employees].sort((a, b) => {
               const hA = totalHoursWorked.get(a.empId) || 0;
               const hB = totalHoursWorked.get(b.empId) || 0;
@@ -1355,7 +1452,7 @@ export default function App() {
             // Passes: 1 (Legal), 2 (OT/Streaks allowed), 3 (Emergency)
             for (let level of [1, 2, 3] as (1 | 2 | 3)[]) {
               for (const targetShift of validShifts) {
-                const candidate = sortedPool.find(e => evaluate(e, day, targetShift, st.id, level, peak));
+                const candidate = sortedPool.find(e => evaluate(e, day, targetShift, st.id, level, peak, st));
                 if (candidate) {
                   newSchedule[candidate.empId][day] = { shiftCode: targetShift.code, stationId: st.id };
                   totalHoursWorked.set(candidate.empId, (totalHoursWorked.get(candidate.empId) || 0) + targetShift.durationHrs);
@@ -2009,7 +2106,7 @@ export default function App() {
                         <h3 className="font-bold uppercase tracking-widest text-xs">Staffing Advisory</h3>
                       </div>
                       <div className="space-y-4">
-                        {Object.values(hourlyCoverage.coverage).some(dayCov => Object.entries(dayCov).some(([h, c]) => c < (hourlyCoverage.requirements[parseInt(h)] || 0))) ? (
+                        {Object.entries(hourlyCoverage.coverage).some(([dayKey, dayCov]) => Object.entries(dayCov).some(([h, c]) => c < (hourlyCoverage.requirements[parseInt(dayKey)]?.[parseInt(h)] || 0))) ? (
                           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                             <p className="text-[10px] font-black text-red-400 uppercase mb-1">Coverage Gaps Detected</p>
                             <p className="text-xs text-slate-300 leading-relaxed">
@@ -2282,7 +2379,19 @@ export default function App() {
                             <p className="text-[9px] text-slate-400 font-black uppercase tracking-tighter mt-0.5">{emp.contractType}</p>
                           </td>
                           <td className="px-6 py-4">
-                            <p className="font-bold text-slate-700 text-xs">{emp.role}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-700 text-xs">{emp.role}</p>
+                              {emp.category === 'Driver' && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-widest border border-amber-200">
+                                  Driver · Art.88
+                                </span>
+                              )}
+                              {(!emp.fixedRestDay || emp.fixedRestDay === 0) && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[8px] font-black uppercase tracking-widest border border-blue-100">
+                                  Rotate
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{emp.department}</p>
                           </td>
                           <td className="px-6 py-4">
@@ -2870,20 +2979,70 @@ export default function App() {
                    </div>
                 </div>
 
-                <div className="pt-8 border-t border-slate-100 flex justify-between items-center">
+                <div className="pt-8 border-t border-slate-100">
+                  <div className="flex items-center gap-3 mb-1">
+                    <p className="text-sm font-bold text-slate-800">Driver Compliance (Art. 88)</p>
+                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-widest border border-amber-200">Transport Workers</span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter mb-6">Caps applied only to personnel marked as Driver in their profile.</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <SettingField
+                      label="Daily Driving Cap (hrs)"
+                      type="number"
+                      value={config.driverDailyHrsCap ?? 9}
+                      onChange={v => setConfig(prev => ({ ...prev, driverDailyHrsCap: parseFloat(v) || 9 }))}
+                    />
+                    <SettingField
+                      label="Weekly Driving Cap (hrs)"
+                      type="number"
+                      value={config.driverWeeklyHrsCap ?? 56}
+                      onChange={v => setConfig(prev => ({ ...prev, driverWeeklyHrsCap: parseFloat(v) || 56 }))}
+                    />
+                    <SettingField
+                      label="Continuous Driving Cap (hrs)"
+                      type="number"
+                      value={config.driverContinuousDrivingHrsCap ?? 4.5}
+                      onChange={v => setConfig(prev => ({ ...prev, driverContinuousDrivingHrsCap: parseFloat(v) || 4.5 }))}
+                    />
+                    <SettingField
+                      label="Min Daily Rest (hrs)"
+                      type="number"
+                      value={config.driverMinDailyRestHrs ?? 11}
+                      onChange={v => setConfig(prev => ({ ...prev, driverMinDailyRestHrs: parseFloat(v) || 11 }))}
+                    />
+                    <SettingField
+                      label="Max Consecutive Days"
+                      type="number"
+                      value={config.driverMaxConsecWorkDays ?? 6}
+                      onChange={v => setConfig(prev => ({ ...prev, driverMaxConsecWorkDays: parseInt(v) || 6 }))}
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed mt-4">
+                    Defaults reflect Iraqi Labor Law Art. 88 read with Ministry of Transport regulations: 9h daily / 56h weekly cap, 4.5h continuous driving with mandatory 30-min break, 11h daily rest. Adjust if your fleet operates under a sector-specific exemption.
+                  </p>
+                </div>
+
+                <div className="pt-8 border-t border-slate-100 flex justify-between items-center flex-wrap gap-4">
                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-slate-800">Database & Security</p>
-                      <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter">Instance: Private Local (Browser Core)</p>
+                      <p className="text-sm font-bold text-slate-800">Database &amp; Security</p>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-tighter">Instance: Private Local · Bound to 127.0.0.1</p>
                    </div>
-                   <div className="flex gap-3">
-                    <button 
+                   <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={exportBackup}
+                      className="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-100 transition-all font-mono flex items-center gap-2"
+                    >
+                      <Download className="w-3 h-3" />
+                      Export Full Backup (JSON)
+                    </button>
+                    <button
                       onClick={() => backupInputRef.current?.click()}
                       className="px-6 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 transition-all font-mono flex items-center gap-2"
                     >
                       <Upload className="w-3 h-3" />
                       Import Migration Backup
                     </button>
-                    <button 
+                    <button
                       onClick={handleClearAllData}
                       className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all font-mono"
                     >

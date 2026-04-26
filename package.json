@@ -1,7 +1,7 @@
 {
   "name": "iraqi-labor-scheduler",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "lint": "tsc --noEmit",
     "build:server": "node scripts/build-server.cjs",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://127.0.0.1:3000 && electron .\"",
-    "electron:build": "npm run build && npm run build:server && electron-builder"
+    "electron:build": "npm run lint && npm run build && npm run build:server && electron-builder"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",

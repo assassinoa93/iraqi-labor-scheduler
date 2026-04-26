@@ -1,3 +1,5 @@
+export type EmployeeCategory = 'Standard' | 'Driver';
+
 export interface Employee {
   empId: string;
   name: string;
@@ -9,7 +11,9 @@ export interface Employee {
   isHazardous: boolean;
   isIndustrialRotating: boolean;
   hourExempt: boolean;
-  fixedRestDay: number; // 1=Sunday, 2=Monday, ..., 7=Saturday
+  // 0 = no fixed rest day (rotating: auto-scheduler distributes rest across the week);
+  // 1=Sunday, 2=Monday, ..., 7=Saturday
+  fixedRestDay: number;
   phone: string;
   hireDate: string;
   notes: string;
@@ -19,6 +23,11 @@ export interface Employee {
   baseMonthlySalary: number; // Fixed monthly wage
   baseHourlyRate: number; // Rate specifically for OT calculations
   overtimeHours: number; // Cumulative overtime hours for the month
+  // Drivers fall under the transport-worker provisions of the Iraqi Labor Law
+  // (Art. 88) and follow stricter daily/weekly driving caps and continuous
+  // driving limits than standard staff. Default 'Standard' for backward compat
+  // with v1.1 data files.
+  category?: EmployeeCategory;
 }
 
 export interface Station {
@@ -51,6 +60,7 @@ export interface PublicHoliday {
   name: string;
   type: string;
   legalReference: string;
+  isFixed?: boolean; // True for fixed-Gregorian holidays; false for lunar/movable
 }
 
 export interface Config {
@@ -70,6 +80,13 @@ export interface Config {
   standardWeeklyHrsCap: number; // Art. 70
   hazardousWeeklyHrsCap: number; // Art. 70
   minRestBetweenShiftsHrs: number; // Art. 71
+  // Driver-specific caps (Art. 88 + transport-worker regulations).
+  // Optional for backward compat — readers should fall back to defaults.
+  driverDailyHrsCap?: number;        // Daily on-duty cap (default 9)
+  driverWeeklyHrsCap?: number;       // Weekly on-duty cap (default 56)
+  driverContinuousDrivingHrsCap?: number; // Max continuous duty before mandatory break (default 4.5)
+  driverMinDailyRestHrs?: number;    // Min rest between two duty days (default 11)
+  driverMaxConsecWorkDays?: number;  // Max consecutive driving days (default 6)
   // New Operational Settings
   shopOpeningTime: string; // e.g. "11:00"
   shopClosingTime: string; // e.g. "23:00"

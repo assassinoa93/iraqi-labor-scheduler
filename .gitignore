@@ -9,3 +9,5 @@ assets/icon.ico
 !.env.example
 data/*.json
 !data/.gitkeep
+temp_build/
+.claude/
