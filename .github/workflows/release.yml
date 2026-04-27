@@ -41,16 +41,21 @@ jobs:
         run: npm run build:server
 
       - name: Build/Release Electron App
-        uses: samuelmeuli/action-electron-builder@v1
+        # Direct electron-builder call. The historically-used
+        # `samuelmeuli/action-electron-builder@v1` is unmaintained (last
+        # release 2021) and was forced onto Node 24 by the GitHub runner;
+        # invoking electron-builder ourselves removes that wrapper and
+        # gives us a clearer build log if NSIS rejects a custom include.
+        # `--publish always` uploads the artifacts to the GitHub Release
+        # for the tag that triggered the workflow.
+        run: npx --no-install electron-builder --windows --publish always
         env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-          # Once a code-signing cert is provisioned (e.g. via SignPath Foundation
-          # for OSS), set CSC_LINK and CSC_KEY_PASSWORD repository secrets and
-          # electron-builder will sign automatically. Until then the installer
-          # ships unsigned and Windows SmartScreen will display a warning.
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Once a code-signing cert is provisioned (e.g. via SignPath
+          # Foundation for OSS), set CSC_LINK and CSC_KEY_PASSWORD
+          # repository secrets and electron-builder will sign
+          # automatically. Until then the installer ships unsigned and
+          # Windows SmartScreen will display a warning.
 
       - name: Publish SHA-256 hashes
         shell: pwsh
