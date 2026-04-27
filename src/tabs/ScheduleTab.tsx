@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2 } from 'lucide-react';
 import { format, isWeekend } from 'date-fns';
 import { List, type RowComponentProps } from 'react-window';
 import { Employee, Shift, PublicHoliday, Config, Schedule } from '../types';
@@ -28,7 +28,12 @@ interface ScheduleTabProps {
   nextMonth: () => void;
   onCellClick: (empId: string, day: number) => void;
   onUndo: () => void;
-  onRunAuto: () => void;
+  onRunAuto: (mode?: 'fresh' | 'preserve') => void;
+  // Cells (`${empId}:${day}` keys) the user just swapped via the coverage
+  // hint toast. The grid renders these with a brief pulsing highlight so the
+  // user sees what moved. Empty set = no recent changes; the cells render
+  // normally.
+  recentlyChangedCells?: Set<string>;
   // Last paint operation's compliance warnings, if any. Null means the most
   // recent paint was clean (or no paint has happened yet).
   paintWarnings: { empName: string; warnings: string[] } | null;
@@ -54,6 +59,7 @@ interface RowData {
   days: number[];
   schedule: Schedule;
   onCellClick: (empId: string, day: number) => void;
+  recentlyChangedCells?: Set<string>;
 }
 
 // Each visible row is rendered by react-window. We deliberately do NOT wrap
@@ -61,7 +67,7 @@ interface RowData {
 // react-window v2's strict prop type rejects, and the row is cheap anyway
 // (a flexbox + N divs). Virtualisation alone is the meaningful win.
 function ScheduleRow({
-  index, style, employees, days, schedule, onCellClick,
+  index, style, employees, days, schedule, onCellClick, recentlyChangedCells,
 }: RowComponentProps<RowData>) {
   const emp = employees[index];
   return (
@@ -75,14 +81,18 @@ function ScheduleRow({
           <Hash className="w-2 h-2" /> {emp?.empId} • {emp?.role}
         </span>
       </div>
-      {days.map(day => (
-        <div key={day} className="border-r border-slate-100 flex-shrink-0" style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }}>
-          <ScheduleCell
-            value={emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : ''}
-            onClick={() => emp && onCellClick(emp.empId, day)}
-          />
-        </div>
-      ))}
+      {days.map(day => {
+        const isRecent = !!emp && !!recentlyChangedCells?.has(`${emp.empId}:${day}`);
+        return (
+          <div key={day} className="border-r border-slate-100 flex-shrink-0" style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }}>
+            <ScheduleCell
+              value={emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : ''}
+              onClick={() => emp && onCellClick(emp.empId, day)}
+              isRecent={isRecent}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -92,7 +102,7 @@ export function ScheduleTab({
   paintMode, setPaintMode, scheduleFilter, setScheduleFilter,
   scheduleRoleFilter, setScheduleRoleFilter, rosterRoles,
   scheduleUndoStack, prevMonth, nextMonth, onCellClick, onUndo, onRunAuto,
-  paintWarnings, onDismissPaintWarnings, staleness,
+  paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
 }: ScheduleTabProps) {
   const { t } = useI18n();
 
@@ -189,7 +199,16 @@ export function ScheduleTab({
           )}
 
           <button
-            onClick={onRunAuto}
+            onClick={() => onRunAuto('preserve')}
+            title={t('action.runAutoSchedulePreserve.tooltip')}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg active:scale-95"
+          >
+            <Wand2 className="w-4 h-4" />
+            {t('action.runAutoSchedulePreserve')}
+          </button>
+
+          <button
+            onClick={() => onRunAuto('fresh')}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
           >
             <Sparkles className="w-4 h-4" />
@@ -223,7 +242,7 @@ export function ScheduleTab({
               })}
             </p>
             <button
-              onClick={onRunAuto}
+              onClick={() => onRunAuto('fresh')}
               className="mt-2 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold uppercase tracking-widest"
             >
               {t('schedule.stale.rerun')}
@@ -301,7 +320,7 @@ export function ScheduleTab({
                 rowHeight={ROW_HEIGHT}
                 defaultHeight={Math.min(filteredEmployees.length * ROW_HEIGHT, 600)}
                 rowComponent={ScheduleRow}
-                rowProps={{ employees: filteredEmployees, days, schedule, onCellClick }}
+                rowProps={{ employees: filteredEmployees, days, schedule, onCellClick, recentlyChangedCells }}
               />
             )}
           </div>

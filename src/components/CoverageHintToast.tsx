@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lightbulb, X, ArrowRight, MoonStar, AlertTriangle } from 'lucide-react';
+import { Lightbulb, X, ArrowRight, MoonStar, AlertTriangle, Star } from 'lucide-react';
 import { CoverageGap, CoverageSuggestion } from '../lib/coverageHints';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
@@ -66,14 +66,22 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                     key={s.empId}
                     onClick={() => onPickReplacement(s.empId)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group",
-                      s.currentlyOff
-                        ? "bg-emerald-50/70 border-emerald-100 hover:bg-emerald-100"
-                        : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                      "w-full text-left px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
+                      s.isRecommended
+                        ? "bg-amber-50 border-amber-300 ring-2 ring-amber-200 hover:bg-amber-100"
+                        : s.currentlyOff
+                          ? "bg-emerald-50/70 border-emerald-100 hover:bg-emerald-100"
+                          : "bg-slate-50 border-slate-100 hover:bg-slate-100"
                     )}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {s.isRecommended && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-amber-500 text-white rounded">
+                            <Star className="w-2.5 h-2.5 fill-white" />
+                            {t('hint.coverage.tag.recommended')}
+                          </span>
+                        )}
                         <span className="text-xs font-bold text-slate-800 truncate">{s.empName}</span>
                         {s.currentlyOff && (
                           <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-200 text-emerald-800 rounded">

@@ -13,6 +13,14 @@ interface RunArgs {
   // check at the start of the month sees the trailing days of the previous
   // month so the cap doesn't reset arbitrarily on day 1.
   allSchedules?: Record<string, Schedule>;
+  // Optional: an existing schedule whose entries should be preserved instead
+  // of overwritten. Drives the "Optimal Schedule (Preserve Absences)" mode —
+  // the user inputs leaves / vacations / shift overrides manually, then asks
+  // the scheduler to fill the rest of the month around them. Any cell with
+  // a non-empty entry in `preserveExisting` is locked: the algorithm won't
+  // touch it, won't reassign the employee on that day, and counts the
+  // entry's hours toward the rolling-7-day window.
+  preserveExisting?: Schedule;
 }
 
 export interface RunResult {
@@ -52,7 +60,7 @@ const shiftOverlapsNightWindow = (shiftStart: string, shiftEnd: string, nightSta
  * are governed by maxConsecWorkDays + the rolling-7-day weekly cap; the candidate
  * sort prefers those who recently rested, distributing rest naturally across the week.
  */
-export function runAutoScheduler({ employees, shifts, stations, holidays, config, isPeakDay, allSchedules }: RunArgs): RunResult {
+export function runAutoScheduler({ employees, shifts, stations, holidays, config, isPeakDay, allSchedules, preserveExisting }: RunArgs): RunResult {
   const newSchedule: Schedule = {};
   const workShifts = shifts.filter(s => s.isWork);
 
@@ -125,6 +133,23 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
     consecutiveWork.set(emp.empId, runIn);
     totalHoursWorked.set(emp.empId, 0);
     usedHolidayBankThisMonth.set(emp.empId, 0);
+
+    // Pre-populate preserved entries. Each one becomes a locked cell that
+    // the main loop's `evaluate(... newSchedule[emp.empId][day])` check will
+    // skip. We also seed the running totals so the algorithm doesn't blow
+    // past caps when filling the *rest* of the month around the locked rows.
+    if (preserveExisting) {
+      const empExisting = preserveExisting[emp.empId] || {};
+      for (let d = 1; d <= config.daysInMonth; d++) {
+        const entry = empExisting[d];
+        if (!entry) continue;
+        newSchedule[emp.empId][d] = { ...entry };
+        const s = shiftByCode.get(entry.shiftCode);
+        if (s?.isWork) {
+          totalHoursWorked.set(emp.empId, (totalHoursWorked.get(emp.empId) || 0) + s.durationHrs);
+        }
+      }
+    }
   });
 
   const holidayDates = new Set(holidays.map(h => h.date));
@@ -275,6 +300,24 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
     const isHoliday = holidayDates.has(dateStr);
     const peak = isPeakDay(day);
     const dayOfWeek = date.getDay() + 1;
+
+    // Bring preserved work-shift entries into today's headcount index so the
+    // main fill loop sees them as already covering their station — otherwise
+    // we'd over-staff stations the user has manually pre-filled.
+    if (preserveExisting) {
+      for (const e of employees) {
+        const entry = newSchedule[e.empId]?.[day];
+        if (!entry?.stationId) continue;
+        const s = shiftByCode.get(entry.shiftCode);
+        if (!s?.isWork) continue;
+        let stSet = dayAssignmentsByStation.get(entry.stationId);
+        if (!stSet) {
+          stSet = new Set<string>();
+          dayAssignmentsByStation.set(entry.stationId, stSet);
+        }
+        stSet.add(e.empId);
+      }
+    }
 
     for (const hour of HOURS_24) {
       for (const st of sortedStations) {

@@ -326,6 +326,22 @@ export default function App() {
   // station-bound work shift; the toast lists swap candidates and offers a
   // one-click rebalance. Non-blocking — the user can always dismiss it.
   const [coverageHint, setCoverageHint] = useState<{ gap: CoverageGap; suggestions: CoverageSuggestion[] } | null>(null);
+  // Cells the user just edited via the toast's swap action. Rendered with a
+  // pulsing highlight in the schedule grid for ~5 seconds so the user can
+  // see exactly which rows moved when the rebalance completes. Stored as
+  // `${empId}:${day}` keys.
+  const [recentlyChangedCells, setRecentlyChangedCells] = useState<Set<string>>(new Set());
+  const recentlyChangedTimerRef = React.useRef<number | null>(null);
+  const flashRecentlyChanged = React.useCallback((keys: string[]) => {
+    if (keys.length === 0) return;
+    setRecentlyChangedCells(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
+      return next;
+    });
+    if (recentlyChangedTimerRef.current) window.clearTimeout(recentlyChangedTimerRef.current);
+    recentlyChangedTimerRef.current = window.setTimeout(() => setRecentlyChangedCells(new Set()), 5000);
+  }, []);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
@@ -847,13 +863,20 @@ export default function App() {
   } | null>(null);
   const [scheduleUndoStack, setScheduleUndoStack] = useState<Array<{ schedule: Schedule; employees: Employee[]; appliedAt: number }>>([]);
 
-  const handleRunAutoScheduler = () => {
+  // `mode` controls whether the scheduler builds a fresh schedule
+  // (`fresh`) or fills around the user's existing entries (`preserve`).
+  // The "Optimal (Preserve Absences)" button on the Schedule tab passes
+  // `preserve` so manual leave / vacation / shift edits stay locked.
+  const handleRunAutoScheduler = (mode: 'fresh' | 'preserve' = 'fresh') => {
     try {
       const { schedule: newSchedule, updatedEmployees } = runAutoScheduler({
         employees, shifts, stations, holidays, config, isPeakDay,
         // Pass the entire allSchedules map so the rolling-7-day window can
         // see the trailing days of the prior month.
         allSchedules,
+        // In preserve mode, the existing month's schedule is treated as a
+        // set of locked cells the algorithm fills around.
+        preserveExisting: mode === 'preserve' ? schedule : undefined,
       });
 
       const previewViolations = ComplianceEngine
@@ -1192,6 +1215,8 @@ export default function App() {
   // vacated shift onto the chosen employee. The move overwrites whatever
   // they had on that day — usually OFF, occasionally another work shift
   // (the toast warned about this when the candidate was already assigned).
+  // Both the original cell (the one that opened the gap) and the chosen
+  // candidate's cell flash briefly so the user sees what moved.
   const acceptCoverageSwap = (replacementEmpId: string) => {
     if (!coverageHint) return;
     const { gap } = coverageHint;
@@ -1202,8 +1227,45 @@ export default function App() {
         [gap.day]: { shiftCode: gap.vacatedShiftCode, stationId: gap.station.id },
       },
     }));
+    flashRecentlyChanged([
+      `${replacementEmpId}:${gap.day}`,
+      `${gap.vacatedEmpId}:${gap.day}`,
+    ]);
     setCoverageHint(null);
   };
+
+  // Live-refresh the open coverage-hint toast as the schedule evolves. The
+  // user might keep editing after the toast appears — without this, the
+  // candidate list goes stale (shows employees who are no longer off, or
+  // omits employees who just became free). If the gap has been filled by
+  // another edit, dismiss the toast so it stops asking the user to fix
+  // something that no longer exists.
+  useEffect(() => {
+    if (!coverageHint) return;
+    const { gap } = coverageHint;
+    // Has the gap been filled in the meantime? Count current work-shift
+    // assignments at the same station on the same day.
+    const stationFilled = employees.some(e => {
+      const entry = schedule[e.empId]?.[gap.day];
+      if (!entry || entry.stationId !== gap.station.id) return false;
+      const sh = shifts.find(s => s.code === entry.shiftCode);
+      return !!sh?.isWork;
+    });
+    if (stationFilled) {
+      setCoverageHint(null);
+      return;
+    }
+    // Still gapped — refresh suggestions against the current schedule.
+    const fresh = findSwapCandidates(gap, {
+      employees, shifts, stations, holidays, config, schedule, isPeakDay,
+    });
+    // Avoid infinite loops: only update if the suggestion list actually changed.
+    const prevKey = coverageHint.suggestions.map(s => s.empId).join('|');
+    const nextKey = fresh.map(s => s.empId).join('|');
+    if (prevKey !== nextKey) {
+      setCoverageHint({ gap, suggestions: fresh });
+    }
+  }, [schedule, employees, shifts, stations, holidays, config, isPeakDay, coverageHint]);
 
   // Multi-company actions ---
   const switchCompany = (id: string) => {
@@ -1593,6 +1655,7 @@ export default function App() {
                 paintWarnings={paintWarnings}
                 onDismissPaintWarnings={() => setPaintWarnings(null)}
                 staleness={scheduleStaleness}
+                recentlyChangedCells={recentlyChangedCells}
               />
             )}
 

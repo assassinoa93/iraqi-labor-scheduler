@@ -42,6 +42,10 @@ export interface CoverageSuggestion {
   warnings: string[];
   // Score: lower is better. Used to sort the toast's list.
   score: number;
+  // True for the lowest-scoring entry in the returned list. The toast
+  // surfaces this with a star + "Recommended" badge so the user sees the
+  // most optimal pick at a glance.
+  isRecommended?: boolean;
 }
 
 interface DetectArgs {
@@ -152,5 +156,10 @@ export function findSwapCandidates(
     });
   }
 
-  return out.sort((a, b) => a.score - b.score).slice(0, limit);
+  const sorted = out.sort((a, b) => a.score - b.score).slice(0, limit);
+  // Mark the top entry as recommended. We do this here rather than in the
+  // toast component so the recommendation logic stays alongside the scoring
+  // it depends on — easier to keep them in sync if we tweak the score.
+  if (sorted.length > 0) sorted[0].isRecommended = true;
+  return sorted;
 }

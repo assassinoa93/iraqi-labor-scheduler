@@ -33,6 +33,16 @@ export const INITIAL_SHIFTS: Shift[] = [
   { code: 'MAT', name: 'Maternity Leave', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Protected maternity leave (Art. 87)' },
 ];
 
+// Vehicle stations the seeded drivers are eligible for. Drivers are still
+// gated by `requiredRoles: ['Driver']` on the station itself (so non-driver
+// staff can't land here), but listing the vehicles in `eligibleStations`
+// makes the assignment visible in the EmployeeModal and the Roster tab —
+// previously drivers showed "Unassigned" even though the auto-scheduler was
+// happily routing them to vehicles.
+const VEHICLE_STATION_IDS = ['ST-V1', 'ST-V2', 'ST-V3', 'ST-V4'];
+const CASHIER_STATION_IDS = ['ST-C1', 'ST-C2', 'ST-C3', 'ST-C4'];
+const MACHINE_STATION_IDS = ['ST-M1', 'ST-M2', 'ST-M3', 'ST-M4', 'ST-M5', 'ST-M6', 'ST-M7', 'ST-M8', 'ST-M9', 'ST-M10'];
+
 export const INITIAL_EMPLOYEES: Employee[] = [
   ...Array.from({ length: 35 }, (_, i) => ({
     empId: `EMP-${1000 + i}`,
@@ -49,14 +59,21 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     phone: `+964-770-000-${i.toString().padStart(4, '0')}`,
     hireDate: '2022-01-01',
     notes: '',
-    eligibleStations: ['ST-M1', 'ST-M2', 'ST-M3', 'ST-M4', 'ST-M5', 'ST-M6', 'ST-M7', 'ST-M8', 'ST-M9', 'ST-M10'],
+    eligibleStations: MACHINE_STATION_IDS,
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1200000,
     baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1200000, contractedWeeklyHrs: 48 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
-    category: 'Standard' as const
+    category: 'Standard' as const,
+    // Operators default to male — the seeded shifts aren't industrial so
+    // Art. 86 wouldn't fire either way, but defaulting matches the realistic
+    // gender split in the user's own venue (entertainment / games).
+    gender: 'M' as const,
   })),
+  // Cashiers: deliberately mixed-gender so Art. 86 has someone to protect
+  // when the user creates an industrial-flagged shift (e.g. for a kitchen
+  // or warehouse station). Alternates female / male on even / odd indices.
   ...Array.from({ length: 12 }, (_, i) => ({
     empId: `EMP-${2000 + i}`,
     name: `Cashier ${i + 1}`,
@@ -72,13 +89,14 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     phone: `+964-770-000-${(i + 40).toString().padStart(4, '0')}`,
     hireDate: '2022-01-01',
     notes: '',
-    eligibleStations: ['ST-C1', 'ST-C2', 'ST-C3', 'ST-C4'],
+    eligibleStations: CASHIER_STATION_IDS,
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1000000,
     baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1000000, contractedWeeklyHrs: 48 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
-    category: 'Standard' as const
+    category: 'Standard' as const,
+    gender: (i % 2 === 0 ? 'F' : 'M') as 'F' | 'M',
   })),
   ...Array.from({ length: 4 }, (_, i) => ({
     empId: `EMP-${3000 + i}`,
@@ -95,13 +113,19 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     phone: `+964-770-000-${(i + 60).toString().padStart(4, '0')}`,
     hireDate: '2023-06-01',
     notes: 'Transport / driver — Art. 88',
-    eligibleStations: [],
+    // Make the vehicle assignment visible in the EmployeeModal /
+    // RosterTab. The scheduler already routes drivers to these via the
+    // station's `requiredRoles: ['Driver']`, but populating the field here
+    // means each driver row shows the vehicles it can drive instead of
+    // rendering as "Unassigned".
+    eligibleStations: VEHICLE_STATION_IDS,
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1400000,
     baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1400000, contractedWeeklyHrs: 56 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
-    category: 'Driver' as const
+    category: 'Driver' as const,
+    gender: 'M' as const,
   }))
 ];
 
@@ -182,4 +206,12 @@ export const DEFAULT_CONFIG: Config = {
   ramadanStart: '',
   ramadanEnd: '',
   ramadanDailyHrsCap: 6,
+  // Art. 86 — women's night work in industrial undertakings. Enabled by
+  // default with the standard 22:00–07:00 window so the rule fires the
+  // moment a user creates an industrial-flagged shift (existing seed shifts
+  // are non-industrial so the rule has no effect on them today). Toggle
+  // off in Variables if your sector falls under a Ministerial exemption.
+  enforceArt86NightWork: true,
+  art86NightStart: '22:00',
+  art86NightEnd: '07:00',
 };

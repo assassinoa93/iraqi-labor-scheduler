@@ -48,13 +48,16 @@ export function KpiCard({ label, value, trend }: { label: string; value: any; tr
   );
 }
 
-export function ScheduleCell({ value, onClick }: { value: string; onClick: () => void }) {
+export function ScheduleCell({ value, onClick, isRecent }: { value: string; onClick: () => void; isRecent?: boolean }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full h-10 border-none transition-all flex items-center justify-center font-bold text-[10px] group-hover:scale-105",
-        value ? getShiftColor(value) : "bg-transparent hover:bg-slate-50"
+        "w-full h-10 border-none transition-all flex items-center justify-center font-bold text-[10px] group-hover:scale-105 relative",
+        value ? getShiftColor(value) : "bg-transparent hover:bg-slate-50",
+        // The "just-swapped" highlight: a soft pulsing ring drawn via outline
+        // so it sits over neighbouring cells without nudging the layout.
+        isRecent && "outline outline-2 outline-amber-400 z-10 animate-pulse"
       )}
     >
       {value}

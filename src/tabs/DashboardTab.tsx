@@ -228,7 +228,7 @@ export function DashboardTab(props: DashboardTabProps) {
                 <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <AlertCircle className="w-5 h-5 text-blue-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-slate-300">
                     {t('dashboard.optim.body', {
                       hours: totalOTHours.toFixed(0),
@@ -238,6 +238,38 @@ export function DashboardTab(props: DashboardTabProps) {
                   </p>
                 </div>
               </div>
+
+              {/* Per-station gap breakdown — answers "where exactly?" so the
+                  aggregate hire count isn't a black box. Mirrors the Staffing
+                  Advisory but condensed for the strategic-growth context. */}
+              {staffingGapsByStation.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">{t('dashboard.optim.byStation')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {staffingGapsByStation.slice(0, 6).map(g => (
+                      <div key={g.stationId} className="flex items-center justify-between gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white truncate">{g.stationName}</p>
+                          <p className="text-[10px] font-mono text-blue-300 truncate">
+                            {g.roleHint
+                              ? t('dashboard.optim.byStation.role', { role: g.roleHint })
+                              : t('dashboard.optim.byStation.anyEligible')}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-lg font-black text-rose-300 leading-none">+{g.gap}</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">{t('dashboard.optim.byStation.toHire')}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {staffingGapsByStation.length > 6 && (
+                    <p className="text-[10px] text-white/40 italic">
+                      {t('dashboard.optim.byStation.moreFooter', { extra: staffingGapsByStation.length - 6 })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
