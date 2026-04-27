@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle, Moon } from 'lucide-react';
 import { Config } from '../types';
 import { SettingField } from './Primitives';
 import { useI18n } from '../lib/i18n';
@@ -284,6 +284,42 @@ export function VariablesTab({ config, setConfig }: Props) {
             value={config.shopClosingTime}
             onChange={v => setConfig(prev => ({ ...prev, shopClosingTime: v }))}
           />
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-100 flex items-center gap-4">
+          <div className="w-10 h-10 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center">
+            <Moon className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-800 text-sm tracking-tight">{t('variables.ramadan.title')}</h3>
+            <p className="text-[10px] text-slate-500 font-medium">{t('variables.ramadan.subtitle')}</p>
+          </div>
+        </div>
+        <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SettingField
+            label={t('variables.ramadan.start')}
+            value={config.ramadanStart ?? ''}
+            onChange={v => setConfig(prev => ({ ...prev, ramadanStart: v }))}
+          />
+          <SettingField
+            label={t('variables.ramadan.end')}
+            value={config.ramadanEnd ?? ''}
+            onChange={v => setConfig(prev => ({ ...prev, ramadanEnd: v }))}
+          />
+          <SettingField
+            label={t('variables.ramadan.dailyCap')}
+            type="number"
+            value={config.ramadanDailyHrsCap ?? 6}
+            onChange={v => {
+              const n = parseFloat(v);
+              setConfig(prev => ({ ...prev, ramadanDailyHrsCap: Number.isFinite(n) ? n : 6 }));
+            }}
+          />
+        </div>
+        <div className="p-5 pt-0 text-[11px] text-slate-500 leading-relaxed">
+          {t('variables.ramadan.note')}
         </div>
       </div>
 

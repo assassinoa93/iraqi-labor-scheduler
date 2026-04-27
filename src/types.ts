@@ -28,6 +28,20 @@ export interface Employee {
   // driving limits than standard staff. Default 'Standard' for backward compat
   // with v1.1 data files.
   category?: EmployeeCategory;
+  // Maternity leave (Art. 87): 14 weeks paid leave for women. Stored as a
+  // [start, end] inclusive YYYY-MM-DD range. The auto-scheduler skips the
+  // employee on these days; the compliance engine treats each day as a
+  // protected leave (no daily/weekly checks fire). Both fields together or
+  // both empty — partial values are treated as no active leave.
+  maternityLeaveStart?: string;
+  maternityLeaveEnd?: string;
+  // Sick leave (Art. 84): paid medical leave. Same semantics as maternity —
+  // [start, end] inclusive YYYY-MM-DD range, both filled or both empty. The
+  // auto-scheduler stamps SL on these days and skips the employee for any
+  // assignment; the compliance engine flags manual work shifts as a
+  // violation against the protected-leave rule.
+  sickLeaveStart?: string;
+  sickLeaveEnd?: string;
 }
 
 export interface Station {
@@ -95,6 +109,14 @@ export interface Config {
   // Labor Law Multipliers
   otRateDay: number; // e.g. 1.5
   otRateNight: number; // e.g. 2.0
+  // Ramadan reduced-hours mode. When the current day falls between
+  // [ramadanStart, ramadanEnd] inclusive, the daily cap is replaced by
+  // `ramadanDailyHrsCap` (typically 6 instead of 8). The fields are optional
+  // for backward-compat with pre-1.5 data files; if either date is missing,
+  // Ramadan mode is treated as off.
+  ramadanStart?: string;          // YYYY-MM-DD
+  ramadanEnd?: string;            // YYYY-MM-DD
+  ramadanDailyHrsCap?: number;    // Default 6
 }
 
 export interface Violation {

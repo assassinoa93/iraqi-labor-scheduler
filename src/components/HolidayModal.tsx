@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { PublicHoliday } from '../types';
 import { SettingField } from './Primitives';
 import { useI18n } from '../lib/i18n';
+import { useModalKeys } from '../lib/hooks';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ const empty = (): PublicHoliday => ({
 
 export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalProps) {
   const { t } = useI18n();
+  const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   const [formData, setFormData] = useState<PublicHoliday>(holiday || empty());
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={holiday ? t('modal.holiday.title.edit') : t('modal.holiday.title.new')}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -41,7 +43,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday }: HolidayModalP
           <h3 className="text-lg font-bold text-slate-800">
             {holiday ? t('modal.holiday.title.edit') : t('modal.holiday.title.new')}
           </h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>

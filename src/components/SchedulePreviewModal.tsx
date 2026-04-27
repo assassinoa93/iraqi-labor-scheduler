@@ -4,6 +4,7 @@ import { X, Sparkles, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-reac
 import { Schedule, Shift, Employee, Violation } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { useModalKeys } from '../lib/hooks';
 
 interface PreviewStats {
   totalAssignments: number;
@@ -71,12 +72,13 @@ interface Props {
 
 export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLabel }: Props) {
   const { t } = useI18n();
+  const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   if (!isOpen || !stats) return null;
 
   const violationLevel = stats.violationCount === 0 ? 'clean' : stats.violationCount < 10 ? 'mild' : 'heavy';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t('modal.preview.title')}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -92,7 +94,7 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
               <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest">{monthLabel} · {t('modal.preview.subtitle')}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>

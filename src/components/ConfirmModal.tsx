@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
+import { useModalKeys } from '../lib/hooks';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -18,9 +19,13 @@ interface ConfirmModalProps {
 
 export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extraAction }: ConfirmModalProps) {
   const { t } = useI18n();
+  // Cancel gets initial focus so Esc/Enter both default to the safe path; the
+  // Confirm action requires deliberate intent because most uses of this
+  // dialog (deletes, factory reset) are destructive.
+  const cancelRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -45,6 +50,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
 
           <div className="flex gap-3">
             <button
+              ref={cancelRef}
               onClick={onClose}
               className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
             >

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { Station } from '../types';
 import { useI18n } from '../lib/i18n';
+import { useModalKeys } from '../lib/hooks';
 
 interface StationModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const empty = (): Station => ({
 
 export function StationModal({ isOpen, onClose, onSave, station }: StationModalProps) {
   const { t } = useI18n();
+  const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   const [formData, setFormData] = useState<Station>(empty());
 
   useEffect(() => {
@@ -27,11 +29,11 @@ export function StationModal({ isOpen, onClose, onSave, station }: StationModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label={t('modal.station.title')}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="font-black text-slate-800 uppercase tracking-tighter">{t('modal.station.title')}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>

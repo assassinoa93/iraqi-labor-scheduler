@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { Employee, Station } from '../types';
+import { Employee, Station, Config } from '../types';
 import { cn } from '../lib/utils';
 import { SettingField } from './Primitives';
 import { useI18n } from '../lib/i18n';
+import { useModalKeys } from '../lib/hooks';
+import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHoursDivisor } from '../lib/payroll';
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -13,42 +15,48 @@ interface EmployeeModalProps {
   onSave: (emp: Employee) => void;
   employee: Employee | null;
   stations: Station[];
+  config: Pick<Config, 'standardWeeklyHrsCap'>;
 }
 
-const empty = (): Employee => ({
-  empId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-  name: '',
-  role: '',
-  department: '',
-  contractType: 'Permanent',
-  contractedWeeklyHrs: 48,
-  shiftEligibility: 'All',
-  isHazardous: false,
-  isIndustrialRotating: true,
-  hourExempt: false,
-  fixedRestDay: 0,
-  phone: '',
-  hireDate: format(new Date(), 'yyyy-MM-dd'),
-  notes: '',
-  eligibleStations: [],
-  holidayBank: 0,
-  annualLeaveBalance: 21,
-  baseMonthlySalary: 1500000,
-  baseHourlyRate: Math.round(1500000 / 192),
-  overtimeHours: 0,
-  category: 'Standard'
-});
+const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
+  const seed: Employee = {
+    empId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+    name: '',
+    role: '',
+    department: '',
+    contractType: 'Permanent',
+    contractedWeeklyHrs: config.standardWeeklyHrsCap,
+    shiftEligibility: 'All',
+    isHazardous: false,
+    isIndustrialRotating: true,
+    hourExempt: false,
+    fixedRestDay: 0,
+    phone: '',
+    hireDate: format(new Date(), 'yyyy-MM-dd'),
+    notes: '',
+    eligibleStations: [],
+    holidayBank: 0,
+    annualLeaveBalance: 21,
+    baseMonthlySalary: DEFAULT_MONTHLY_SALARY_IQD,
+    baseHourlyRate: 0,
+    overtimeHours: 0,
+    category: 'Standard',
+  };
+  seed.baseHourlyRate = Math.round(baseHourlyRate(seed, config));
+  return seed;
+};
 
-export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: EmployeeModalProps) {
+export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, config }: EmployeeModalProps) {
   const { t } = useI18n();
-  const [formData, setFormData] = useState<Employee>(empty);
+  const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
+  const [formData, setFormData] = useState<Employee>(() => empty(config));
 
   useEffect(() => {
     if (isOpen) {
       // Backfill `category` for v1.1 records that don't carry it.
-      setFormData(employee ? { category: 'Standard', ...employee } : empty());
+      setFormData(employee ? { category: 'Standard', ...employee } : empty(config));
     }
-  }, [employee, isOpen]);
+  }, [employee, isOpen, config]);
 
   if (!isOpen) return null;
 
@@ -62,7 +70,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -72,7 +80,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
           <h3 className="text-lg font-bold text-slate-800">
             {employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}
           </h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
@@ -84,7 +92,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
             <SettingField label={t('modal.employee.field.role')} value={formData.role} onChange={v => setFormData({...formData, role: v})} />
             <SettingField label={t('modal.employee.field.department')} value={formData.department} onChange={v => setFormData({...formData, department: v})} />
             <SettingField label={t('modal.employee.field.contract')} type="select" options={['Permanent', 'Fixed-Term', 'Contractor']} value={formData.contractType} onChange={v => setFormData({...formData, contractType: v})} />
-            <SettingField label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => setFormData({...formData, contractedWeeklyHrs: parseInt(v)})} />
+            <SettingField label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => {
+              const weekly = parseInt(v) || 0;
+              setFormData(prev => ({
+                ...prev,
+                contractedWeeklyHrs: weekly,
+                baseHourlyRate: Math.round(baseHourlyRate({ ...prev, contractedWeeklyHrs: weekly }, config)),
+              }));
+            }} />
             <SettingField label={t('modal.employee.field.phone')} value={formData.phone} onChange={v => setFormData({...formData, phone: v})} />
             <SettingField label={t('modal.employee.field.hireDate')} value={formData.hireDate} onChange={v => setFormData({...formData, hireDate: v})} />
             <SettingField
@@ -93,18 +108,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
               value={formData.baseMonthlySalary}
               onChange={v => {
                 const salary = parseInt(v) || 0;
-                setFormData({
-                  ...formData,
+                setFormData(prev => ({
+                  ...prev,
                   baseMonthlySalary: salary,
-                  baseHourlyRate: Math.round(salary / 192)
-                });
+                  baseHourlyRate: Math.round(baseHourlyRate({ ...prev, baseMonthlySalary: salary }, config)),
+                }));
               }}
             />
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">OT Hourly Rate (Derived)</label>
               <div className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-slate-500 shadow-sm flex justify-between items-center">
                  <span>{formData.baseHourlyRate.toLocaleString()} IQD</span>
-                 <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / 192)</span>
+                 <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
               </div>
             </div>
             <SettingField label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: parseInt(v)})} />
@@ -179,6 +194,38 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations }: E
                 <input type="checkbox" checked={formData.hourExempt} onChange={e => setFormData({...formData, hourExempt: e.target.checked})} />
                 <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.exempt')}</span>
              </div>
+          </div>
+          <div className="space-y-3 p-4 bg-rose-50/30 rounded-lg border border-rose-100">
+            <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">{t('modal.employee.maternity.title')}</p>
+            <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.maternity.note')}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField
+                label={t('modal.employee.maternity.start')}
+                value={formData.maternityLeaveStart || ''}
+                onChange={v => setFormData(prev => ({ ...prev, maternityLeaveStart: v || undefined }))}
+              />
+              <SettingField
+                label={t('modal.employee.maternity.end')}
+                value={formData.maternityLeaveEnd || ''}
+                onChange={v => setFormData(prev => ({ ...prev, maternityLeaveEnd: v || undefined }))}
+              />
+            </div>
+          </div>
+          <div className="space-y-3 p-4 bg-yellow-50/30 rounded-lg border border-yellow-100">
+            <p className="text-[10px] font-bold text-yellow-700 uppercase tracking-widest">{t('modal.employee.sick.title')}</p>
+            <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.sick.note')}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField
+                label={t('modal.employee.sick.start')}
+                value={formData.sickLeaveStart || ''}
+                onChange={v => setFormData(prev => ({ ...prev, sickLeaveStart: v || undefined }))}
+              />
+              <SettingField
+                label={t('modal.employee.sick.end')}
+                value={formData.sickLeaveEnd || ''}
+                onChange={v => setFormData(prev => ({ ...prev, sickLeaveEnd: v || undefined }))}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.notes')}</label>

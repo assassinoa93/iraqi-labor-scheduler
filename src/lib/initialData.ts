@@ -1,5 +1,11 @@
 import { getDaysInMonth } from 'date-fns';
 import { Employee, Shift, Station, PublicHoliday, Config } from '../types';
+import { baseHourlyRate } from './payroll';
+
+// Synthetic seed config used to pre-compute the hourly rate for the demo
+// employees below. Real users get their config from `DEFAULT_CONFIG` (which
+// matches this exactly) — keeping it inline avoids a forward reference.
+const SEED_WEEKLY_CAP = 48;
 
 export const INITIAL_SHIFTS: Shift[] = [
   { code: 'FS', name: 'Full Shift', start: '11:00', end: '19:00', durationHrs: 7.5, breakMin: 30, isIndustrial: false, isHazardous: false, isWork: true, description: 'Standard day shift' },
@@ -11,6 +17,9 @@ export const INITIAL_SHIFTS: Shift[] = [
   { code: 'AL', name: 'Annual Leave', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Approved vacation' },
   { code: 'SL', name: 'Sick Leave', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Medical leave' },
   { code: 'PH', name: 'Public Holiday', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'National holiday' },
+  // Maternity leave (Art. 87) — 14 weeks paid leave for women. The auto-
+  // scheduler stamps this code on every day in the configured range.
+  { code: 'MAT', name: 'Maternity Leave', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Protected maternity leave (Art. 87)' },
 ];
 
 export const INITIAL_EMPLOYEES: Employee[] = [
@@ -33,7 +42,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1200000,
-    baseHourlyRate: Math.round(1200000 / 192),
+    baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1200000, contractedWeeklyHrs: 48 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
     category: 'Standard' as const
   })),
@@ -56,7 +65,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1000000,
-    baseHourlyRate: Math.round(1000000 / 192),
+    baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1000000, contractedWeeklyHrs: 48 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
     category: 'Standard' as const
   })),
@@ -79,7 +88,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1400000,
-    baseHourlyRate: Math.round(1400000 / 224),
+    baseHourlyRate: Math.round(baseHourlyRate({ baseMonthlySalary: 1400000, contractedWeeklyHrs: 56 }, { standardWeeklyHrsCap: SEED_WEEKLY_CAP })),
     overtimeHours: 0,
     category: 'Driver' as const
   }))
@@ -108,14 +117,26 @@ export const INITIAL_STATIONS: Station[] = [
   { id: 'ST-V4', name: 'Service Pickup', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '06:00', closingTime: '12:00', color: '#92400e', description: 'Early-morning supply pickup' },
 ];
 
+// Iraqi public holidays for the current planning year. Religious holidays are
+// estimates and should be edited when the official lunar dates are announced.
+// All carry the same Art. 74 reference because that's the article that grants
+// double-pay or compensatory rest for work on a public holiday.
 export const INITIAL_HOLIDAYS: PublicHoliday[] = [
-  { date: '2026-01-01', name: "New Year's Day", type: 'National', legalReference: 'Civil Law' },
-  { date: '2026-01-06', name: 'Army Day', type: 'National', legalReference: 'Military Code' },
-  { date: '2026-03-21', name: 'Nawruz', type: 'National', legalReference: 'Customary Law' },
-  { date: '2026-05-01', name: 'Labor Day', type: 'National', legalReference: 'Labor Law Art. 73' },
-  { date: '2026-07-14', name: 'Republic Day', type: 'National', legalReference: 'Constitutional' },
-  { date: '2026-10-03', name: 'National Day', type: 'National', legalReference: 'Independence' },
-  { date: '2026-12-25', name: 'Christmas Day', type: 'National', legalReference: 'Inclusion' },
+  { date: '2026-01-01', name: 'New Year Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-01-06', name: 'Army Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-03-20', name: 'Eid al-Fitr (Estimated)', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-03-21', name: 'Nowruz', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-03-22', name: 'Eid al-Fitr Holiday', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-05-01', name: 'Labor Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-05-27', name: 'Eid al-Adha (Estimated)', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-05-28', name: 'Eid al-Adha Holiday', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-06-16', name: 'Islamic New Year', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-06-25', name: 'Ashura', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-07-14', name: 'Republic Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-08-25', name: 'Mawlid al-Nabi', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  { date: '2026-10-03', name: 'Independence Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-12-10', name: 'Victory Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
+  { date: '2026-12-25', name: 'Christmas Day', type: 'Religious', legalReference: 'Art. 74', isFixed: true },
 ];
 
 export const DEFAULT_CONFIG: Config = {
@@ -143,5 +164,11 @@ export const DEFAULT_CONFIG: Config = {
   peakDays: [5, 6, 7],
   holidays: [],
   otRateDay: 1.5,
-  otRateNight: 2.0
+  otRateNight: 2.0,
+  // Ramadan reduced-hours window. Empty by default; set the dates in the
+  // Variables tab to activate. 6h follows the customary practice; the user
+  // can override via the same tab if their sector permits a different cap.
+  ramadanStart: '',
+  ramadanEnd: '',
+  ramadanDailyHrsCap: 6,
 };

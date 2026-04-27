@@ -7,6 +7,7 @@ export function getShiftColor(code: string) {
     case 'AL': return "bg-purple-50 text-purple-700 border-purple-100";
     case 'SL': return "bg-yellow-50 text-yellow-700 border-yellow-100";
     case 'PH': return "bg-red-50 text-red-700 border-red-100";
+    case 'MAT': return "bg-rose-50 text-rose-700 border-rose-100";
     default: return "";
   }
 }
