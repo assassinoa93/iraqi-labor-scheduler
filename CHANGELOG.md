@@ -2,6 +2,15 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.13.1 — 2026-04-28
+
+Hotfix on top of v1.13.0.
+
+**Sticky names column on the top-rail scrollbar**
+- v1.13.0 added a top-rail scrollbar that mirrored the FULL grid width — including the sticky-left name column zone. This meant the rail's thumb position didn't map cleanly to the day cells: dragging the thumb 50% of the way right wouldn't show day 15 below it because the rail's content included the 224 px name column area too.
+- v1.13.1 splits the rail into a sticky-left "personnel" placeholder (matching the names-column width) and a flex-1 scroll mirror that holds only the day-cell scroll. The names column zone is now anchored at the left of BOTH the rail and the grid; the rail thumb maps directly to day-cell scroll position.
+- A small ⇄ glyph in the placeholder hints at the bidirectional scroll affordance.
+
 ## v1.13.0 — 2026-04-28
 
 UX polish + Workforce Planning goes annual. Four user-reported quality-of-life requests addressed in one batch.
