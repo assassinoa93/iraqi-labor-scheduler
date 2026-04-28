@@ -194,6 +194,14 @@ const prevMonthKey = (year: number, month: number): string => {
   return `scheduler_schedule_${d.getFullYear()}_${d.getMonth() + 1}`;
 };
 
+// Look up the next month's schedule key — used by the comp-day-owed check
+// so a holiday late in the month can still satisfy its 7-day comp window
+// against the start of the following month.
+const nextMonthKey = (year: number, month: number): string => {
+  const d = new Date(year, month, 1);
+  return `scheduler_schedule_${d.getFullYear()}_${d.getMonth() + 1}`;
+};
+
 const prevMonthDays = (year: number, month: number): number => {
   return new Date(year, month - 1, 0).getDate();
 };
@@ -497,16 +505,36 @@ export class ComplianceEngine {
             }
             // Comp-day-owed check: scan the next 7 days for any non-work
             // entry (OFF / AL / SL / MAT / empty cell). If none appear, the
-            // comp day hasn't been granted yet.
+            // comp day hasn't been granted yet. When the 7-day window
+            // crosses the month boundary AND the next month's schedule has
+            // already been generated (allSchedules supplies it), peek into
+            // it so a late-month PH-work can be compensated by an early
+            // OFF in the following month — closing the v1.8.0 gap where
+            // we used to bail at the boundary.
+            const nextSchedule = allSchedules?.[nextMonthKey(config.year, config.month)];
+            const nextSchedExists = !!nextSchedule;
             let compFound = false;
+            let scannableDays = 0;
             for (let look = 1; look <= 7; look++) {
               const next = day + look;
-              if (next > config.daysInMonth) break; // crosses month boundary; supervisor handles next month
-              const nextEntry = empSchedule[next];
-              const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
-              if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+              if (next <= config.daysInMonth) {
+                scannableDays++;
+                const nextEntry = empSchedule[next];
+                const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
+                if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+              } else if (nextSchedExists) {
+                scannableDays++;
+                const nextDay = next - config.daysInMonth;
+                const nextEntry = nextSchedule[emp.empId]?.[nextDay];
+                const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
+                if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+              } else {
+                // Hit the month boundary with no next-month schedule — stop
+                // scanning. The supervisor handles next month manually.
+                break;
+              }
             }
-            if (!compFound && day + 7 <= config.daysInMonth) {
+            if (!compFound && scannableDays >= 7) {
               violations.push({
                 empId: emp.empId,
                 day,

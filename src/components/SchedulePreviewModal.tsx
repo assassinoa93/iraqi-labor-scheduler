@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { X, Sparkles, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Sparkles, ShieldAlert, CheckCircle2, AlertCircle, Info, BarChart3 } from 'lucide-react';
 import { Schedule, Shift, Employee, Violation } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
@@ -47,10 +47,16 @@ export function buildPreviewStats(
     }
   }
 
-  const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0);
+  // Count violations by severity tier so the modal can split them visually:
+  // hard violations (cap breaches, missing rest) drive the headline number;
+  // info findings (PH worked, comp day owed) are surfaced separately so the
+  // user understands they don't penalise the compliance score.
+  const totalViolationInstances = violations
+    .filter(v => (v.severity ?? 'violation') === 'violation')
+    .reduce((s, v) => s + (v.count || 1), 0);
   const topViolations = [...violations]
     .sort((a, b) => (b.count || 1) - (a.count || 1))
-    .slice(0, 4);
+    .slice(0, 6);
 
   return {
     totalAssignments,
@@ -81,6 +87,23 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
   if (!isOpen || !stats) return null;
   const violationLevel = stats.violationCount === 0 ? 'clean' : stats.violationCount < 10 ? 'mild' : 'heavy';
 
+  // Compliance health score for the headline. Same heuristic the dashboard
+  // uses (3 checks per employee×day) but applied to the preview's totals.
+  const totalChecks = Math.max(1, stats.totalAssignments * 3);
+  const compliancePct = Math.max(0, Math.round(100 - (stats.violationCount / totalChecks) * 100));
+
+  // Split top findings into hard violations vs informational notes so the user
+  // sees them as separate columns — info findings (PH worked, comp day owed)
+  // shouldn't read like critical failures.
+  const hardFindings = stats.topViolations.filter(v => (v.severity ?? 'violation') === 'violation');
+  const infoFindings = stats.topViolations.filter(v => v.severity === 'info');
+
+  // Hours-by-role bar visualisation. Sort largest-first and compute bar widths
+  // relative to the busiest role so the chart fills its container.
+  const roleEntries = Object.entries(stats.perRoleHours).sort((a, b) => b[1] - a[1]);
+  const maxRoleHours = roleEntries[0]?.[1] ?? 1;
+  const ROLE_TONES = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-blue-500', 'bg-rose-500', 'bg-purple-500'];
+
   return (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
@@ -92,90 +115,140 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+        className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
       >
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 via-blue-50 to-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
+        {/* Hero header — bigger, with the compliance score front and centre. */}
+        <div className={cn(
+          "p-6 border-b border-slate-100 flex justify-between items-stretch gap-4",
+          violationLevel === 'clean' ? "bg-gradient-to-r from-emerald-50 via-white to-white"
+            : violationLevel === 'mild' ? "bg-gradient-to-r from-amber-50 via-white to-white"
+              : "bg-gradient-to-r from-rose-50 via-white to-white"
+        )}>
+          <div className="flex items-center gap-4 min-w-0">
+            <div className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-lg",
+              violationLevel === 'clean' ? "bg-emerald-600 shadow-emerald-200"
+                : violationLevel === 'mild' ? "bg-amber-600 shadow-amber-200"
+                  : "bg-rose-600 shadow-rose-200",
+            )}>
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">{t('modal.preview.title')}</h3>
-              <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest">{monthLabel} · {t('modal.preview.subtitle')}</p>
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold text-slate-800 truncate">{t('modal.preview.title')}</h3>
+              <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest mt-0.5">
+                {monthLabel} · {t('modal.preview.subtitle')}
+              </p>
             </div>
           </div>
-          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+          <div className="hidden sm:flex items-center gap-3 pr-1">
+            <div className="text-right">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('modal.preview.compliance')}</p>
+              <p className={cn(
+                "text-3xl font-black leading-none mt-1",
+                compliancePct >= 95 ? "text-emerald-600" : compliancePct >= 80 ? "text-amber-600" : "text-rose-600",
+              )}>{compliancePct}%</p>
+            </div>
+            <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+          </div>
+          <button onClick={onClose} aria-label={t('action.cancel')} className="sm:hidden p-2 hover:bg-slate-200 rounded-lg transition-colors self-start">
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* Top-level KPI strip — 4 cards laid out in a single visually balanced row. */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label={t('modal.preview.assignments')} value={stats.totalAssignments} />
-            <Stat label={t('modal.preview.totalHours')} value={Math.round(stats.totalHours)} />
-            <Stat label={t('modal.preview.unfilled')} value={stats.unfilledStationDays} tone={stats.unfilledStationDays > 0 ? 'warn' : 'ok'} />
-            <Stat label={t('modal.preview.violations')} value={stats.violationCount} tone={violationLevel === 'clean' ? 'ok' : violationLevel === 'mild' ? 'warn' : 'bad'} />
+            <BigStat label={t('modal.preview.assignments')} value={stats.totalAssignments} sub={t('modal.preview.assignmentsSub')} />
+            <BigStat label={t('modal.preview.totalHours')} value={Math.round(stats.totalHours)} sub="hours" />
+            <BigStat
+              label={t('modal.preview.unfilled')}
+              value={stats.unfilledStationDays}
+              sub={t('modal.preview.unfilledSub')}
+              tone={stats.unfilledStationDays === 0 ? 'ok' : stats.unfilledStationDays < 5 ? 'warn' : 'bad'}
+            />
+            <BigStat
+              label={t('modal.preview.violations')}
+              value={stats.violationCount}
+              sub={t('modal.preview.violationsSub')}
+              tone={violationLevel === 'clean' ? 'ok' : violationLevel === 'mild' ? 'warn' : 'bad'}
+            />
           </div>
 
-          <div className="space-y-2">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('modal.preview.hoursByRole')}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(stats.perRoleHours).map(([role, hrs]) => (
-                <div key={role} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100">
-                  <span className="text-xs font-bold text-slate-700">{role}</span>
-                  <span className="text-sm font-black text-slate-900">{Math.round(hrs)} h</span>
-                </div>
-              ))}
-              {Object.keys(stats.perRoleHours).length === 0 && (
-                <p className="text-xs text-slate-400 italic col-span-2">No work assignments yet.</p>
-              )}
-            </div>
-          </div>
-
-          {stats.topViolations.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                <ShieldAlert className="w-3 h-3" /> {t('modal.preview.violationsHeader')}
+          {/* Hours-by-role visual bar chart */}
+          {roleEntries.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <BarChart3 className="w-3 h-3" /> {t('modal.preview.hoursByRole')}
               </p>
-              <div className="space-y-1">
-                {stats.topViolations.map((v, i) => (
-                  <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
-                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-red-800">
-                        {v.rule} <span className="font-mono text-[10px] text-red-500">{v.article}</span>
-                      </p>
-                      <p className="text-[11px] text-red-700 leading-relaxed">{v.message}</p>
+              <div className="space-y-2">
+                {roleEntries.map(([role, hrs], i) => {
+                  const pct = Math.max(2, Math.round((hrs / maxRoleHours) * 100));
+                  return (
+                    <div key={role} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-bold text-slate-700">{role}</span>
+                        <span className="font-mono font-black text-slate-900">{Math.round(hrs)} h</span>
+                      </div>
+                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all", ROLE_TONES[i % ROLE_TONES.length])}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     </div>
-                    {(v.count || 1) > 1 && (
-                      <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[9px] font-black">×{v.count}</span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {stats.violationCount === 0 && stats.unfilledStationDays === 0 && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <p className="text-xs text-emerald-800 font-bold">{t('modal.preview.cleanRun')}</p>
+          {/* Findings split — hard violations on the left, info notes on the right. */}
+          {(hardFindings.length > 0 || infoFindings.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {hardFindings.length > 0 && (
+                <FindingsList
+                  title={t('modal.preview.violationsHeader')}
+                  findings={hardFindings}
+                  tone="rose"
+                  Icon={ShieldAlert}
+                />
+              )}
+              {infoFindings.length > 0 && (
+                <FindingsList
+                  title={t('modal.preview.notesHeader')}
+                  findings={infoFindings}
+                  tone="blue"
+                  Icon={Info}
+                />
+              )}
+            </div>
+          )}
+
+          {stats.violationCount === 0 && stats.unfilledStationDays === 0 && hardFindings.length === 0 && (
+            <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-emerald-800">{t('modal.preview.cleanRun')}</p>
+                <p className="text-xs text-emerald-700 mt-0.5">{t('modal.preview.cleanRunSub')}</p>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-3 flex-wrap">
-          <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+        <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-3 flex-wrap">
+          <p className="text-[10px] text-slate-500 font-medium leading-relaxed flex-1 min-w-[180px]">
             {t('modal.preview.applyNote')}
           </p>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-5 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 transition-all uppercase tracking-widest">
               {t('action.cancel')}
             </button>
             <button
               onClick={onApply}
               className={cn(
-                "px-8 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest",
+                "px-6 py-2 rounded-lg text-xs font-black transition-all shadow-md uppercase tracking-widest",
                 violationLevel === 'heavy'
                   ? "bg-amber-600 hover:bg-amber-700 text-white"
                   : "bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -190,18 +263,64 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
   );
 }
 
-function Stat({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'ok' | 'warn' | 'bad' | 'neutral' }) {
+function BigStat({ label, value, sub, tone = 'neutral' }: { label: string; value: number; sub?: string; tone?: 'ok' | 'warn' | 'bad' | 'neutral' }) {
   const toneClass = tone === 'ok'
-    ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+    ? 'bg-emerald-50 border-emerald-100'
     : tone === 'warn'
-      ? 'bg-amber-50 border-amber-100 text-amber-700'
+      ? 'bg-amber-50 border-amber-100'
       : tone === 'bad'
-        ? 'bg-red-50 border-red-100 text-red-700'
-        : 'bg-slate-50 border-slate-100 text-slate-700';
+        ? 'bg-rose-50 border-rose-100'
+        : 'bg-slate-50 border-slate-100';
+  const valueClass = tone === 'ok'
+    ? 'text-emerald-700'
+    : tone === 'warn'
+      ? 'text-amber-700'
+      : tone === 'bad'
+        ? 'text-rose-700'
+        : 'text-slate-800';
   return (
-    <div className={cn("p-3 rounded-lg border", toneClass)}>
-      <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{label}</p>
-      <p className="text-2xl font-black mt-1">{value.toLocaleString()}</p>
+    <div className={cn("p-3.5 rounded-xl border", toneClass)}>
+      <p className="text-[9px] font-black uppercase tracking-widest opacity-60 text-slate-600">{label}</p>
+      <p className={cn("text-2xl font-black mt-1.5 leading-none", valueClass)}>{value.toLocaleString()}</p>
+      {sub && <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{sub}</p>}
+    </div>
+  );
+}
+
+function FindingsList({ title, findings, tone, Icon }: {
+  title: string;
+  findings: Violation[];
+  tone: 'rose' | 'blue';
+  Icon: React.ComponentType<{ className?: string }>;
+}) {
+  const headerClass = tone === 'rose' ? 'text-rose-600' : 'text-blue-600';
+  const rowBgClass = tone === 'rose' ? 'bg-rose-50/60 border-rose-100' : 'bg-blue-50/60 border-blue-100';
+  const ruleClass = tone === 'rose' ? 'text-rose-800' : 'text-blue-800';
+  const articleClass = tone === 'rose' ? 'text-rose-500' : 'text-blue-500';
+  const messageClass = tone === 'rose' ? 'text-rose-700' : 'text-blue-700';
+  const countClass = tone === 'rose' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700';
+  const iconClass = tone === 'rose' ? 'text-rose-500' : 'text-blue-500';
+  return (
+    <div className="space-y-2">
+      <p className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5", headerClass)}>
+        <Icon className="w-3 h-3" /> {title}
+      </p>
+      <div className="space-y-1.5">
+        {findings.map((v, i) => (
+          <div key={i} className={cn("flex items-start gap-2 p-2.5 rounded-lg border", rowBgClass)}>
+            <AlertCircle className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", iconClass)} />
+            <div className="min-w-0 flex-1">
+              <p className={cn("text-[11px] font-black leading-tight", ruleClass)}>
+                {v.rule} <span className={cn("font-mono text-[9px] font-bold ml-0.5", articleClass)}>{v.article}</span>
+              </p>
+              <p className={cn("text-[10px] leading-snug mt-0.5", messageClass)}>{v.message}</p>
+            </div>
+            {(v.count || 1) > 1 && (
+              <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black shrink-0", countClass)}>×{v.count}</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft, ChevronRight, Database, BarChart3, X,
   ShieldAlert, Clock, ShieldCheck, AlertCircle, TrendingUp,
-  Briefcase, Plus, Sparkles,
+  Briefcase, Plus, CheckCircle2, Circle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station } from '../types';
@@ -99,14 +99,40 @@ export function DashboardTab(props: DashboardTabProps) {
   const totalHolidayBank = employees.reduce((s, e) => s + (e.holidayBank || 0), 0);
   const peopleWithBank = employees.filter(e => (e.holidayBank || 0) > 0).length;
 
-  // 3-mode staffing advisory. The total coverage gap comes from the
-  // peak-hour shortfall sum across stations — staffingGapsByStation already
-  // computes per-station gap, so we sum here.
-  const totalCoverageGap = staffingGapsByStation.reduce((s, g) => s + g.gap, 0);
-  const advisory = computeStaffingAdvisory({
-    employees, schedule, shifts, stations, holidays, config, isPeakDay: () => false,
-    totalOTHours, totalOTPay, totalCoverageGap,
-  });
+  // 3-mode staffing advisory. The per-station gap data comes straight from
+  // the dashboard's existing peak-hour shortfall computation — the advisory
+  // module slices it by mode (OT-driven, gap-driven, or both) and returns a
+  // per-station breakdown so each recommended hire is tied to a station and
+  // a reason. Wrap isPeakDay locally so the simulation re-uses the same
+  // peak-day predicate.
+  const isPeakDay = (d: number) => (config.peakDays || []).includes(((new Date(config.year, config.month - 1, d).getDay()) + 1));
+  const stationGaps = staffingGapsByStation.map(g => ({
+    stationId: g.stationId, stationName: g.stationName, gap: g.gap,
+  }));
+  const advisorySimArgs = {
+    employees, schedule, shifts, stations, holidays, config, isPeakDay,
+    totalOTHours, totalOTPay, stationGaps,
+  };
+  const advisory = computeStaffingAdvisory(advisorySimArgs);
+
+  // Gate the strategic-growth + advisory cards on setup-completeness. The
+  // dashboard should not pretend to give actionable advice when the supervisor
+  // hasn't entered a roster, defined stations, or set a schedule for the
+  // active month. Each block lists exactly what is still missing so the user
+  // knows where to go next.
+  const hasRoster = employees.length > 0;
+  const hasStations = stations.length > 0;
+  const hasShifts = shifts.some(s => s.isWork);
+  const hasEligibility = employees.length === 0 || employees.every(e => e.category === 'Driver' || e.eligibleStations.length > 0);
+  const hasScheduleEntries = Object.values(schedule).some(empSched => empSched && Object.keys(empSched).length > 0);
+  const setupComplete = hasRoster && hasStations && hasShifts && hasEligibility && hasScheduleEntries;
+  const setupChecklist: Array<{ key: string; ok: boolean; labelKey: string }> = [
+    { key: 'roster', ok: hasRoster, labelKey: 'dashboard.setup.needRoster' },
+    { key: 'stations', ok: hasStations, labelKey: 'dashboard.setup.needStations' },
+    { key: 'shifts', ok: hasShifts, labelKey: 'dashboard.setup.needShifts' },
+    { key: 'elig', ok: hasEligibility, labelKey: 'dashboard.setup.needEligibility' },
+    { key: 'schedule', ok: hasScheduleEntries, labelKey: 'dashboard.setup.needSchedule' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -212,7 +238,35 @@ export function DashboardTab(props: DashboardTabProps) {
         )}
       </AnimatePresence>
 
-      {employees.length > 0 && (
+      {!setupComplete && employees.length > 0 && (
+        <Card className="p-6 border-amber-200 bg-amber-50/40">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-slate-800 tracking-tight">{t('dashboard.setup.title')}</h3>
+              <p className="text-xs text-slate-600 leading-relaxed mt-1">{t('dashboard.setup.body')}</p>
+              <div className="mt-4 space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('dashboard.setup.checklist')}</p>
+                {setupChecklist.map(item => (
+                  <div key={item.key} className="flex items-center gap-2">
+                    {item.ok
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      : <Circle className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+                    <p className={cn(
+                      "text-xs leading-relaxed",
+                      item.ok ? "text-slate-400 line-through" : "text-slate-700 font-medium",
+                    )}>{t(item.labelKey)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {setupComplete && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 p-6 bg-slate-900 text-white border-0 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -378,11 +432,14 @@ export function DashboardTab(props: DashboardTabProps) {
         coveragePct={overallCoveragePercent}
       />
 
-      <StaffingAdvisoryCard
-        advisory={advisory}
-        currentOTHours={totalOTHours}
-        currentOTPay={totalOTPay}
-      />
+      {setupComplete && (
+        <StaffingAdvisoryCard
+          advisory={advisory}
+          currentOTHours={totalOTHours}
+          currentOTPay={totalOTPay}
+          simArgs={advisorySimArgs}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         <Card className="flex flex-col">
@@ -462,58 +519,12 @@ export function DashboardTab(props: DashboardTabProps) {
           <p className="mt-6 text-[10px] text-slate-400 font-medium italic">{t('dashboard.coverage.note')}</p>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="p-6 bg-slate-900 text-white border-none shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Sparkles className="w-5 h-5 text-blue-400" />
-              </div>
-              <h3 className="font-bold uppercase tracking-widest text-xs">{t('advisory.title')}</h3>
-            </div>
-            <div className="space-y-4">
-              {staffingGapsByStation.length > 0 ? (
-                <>
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <p className="text-[10px] font-black text-red-400 uppercase mb-1">{t('advisory.gaps')}</p>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {t('advisory.gapsBody')}
-                      {peopleWithBank > 0 && ' ' + t('advisory.bankNote')}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[9px] text-slate-500 font-bold uppercase">{t('advisory.hireToClose')}</p>
-                    {staffingGapsByStation.map(s => (
-                      <div key={s.stationId} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-slate-800/40 border border-slate-700/50">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-white">{s.stationName}</p>
-                          {s.roleHint ? (
-                            <p className="text-[10px] text-slate-400">
-                              {t('advisory.roleHint')}: <span className="text-slate-300 font-bold">{s.roleHint}</span>
-                            </p>
-                          ) : (
-                            <p className="text-[10px] text-slate-500 italic">{t('advisory.roleUnset')}</p>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-2xl font-black text-amber-400 leading-none">+{s.gap}</p>
-                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{t('advisory.toHire')}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <p className="text-[10px] text-slate-500 leading-relaxed pt-1">
-                      <span className="text-amber-400 font-black">{staffingGapsByStation.reduce((s, r) => s + r.gap, 0)}</span> {t('advisory.totalNote')}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <p className="text-[10px] font-black text-emerald-400 uppercase mb-1">{t('advisory.optimal')}</p>
-                  <p className="text-xs text-slate-300">{t('advisory.optimalBody', { count: peopleWithBank })}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
+        <div className="grid grid-cols-1 gap-6">
+          {/* Note: the older "Staffing Advisory" panel that lived here was
+              removed in v1.8.1 — its content is now covered by the
+              StaffingAdvisoryCard above (with per-mode tabs + per-station
+              breakdown + simulation validation). The duplicate panel was
+              showing the same recommendations in two different cards. */}
           <Card className="p-6 border-blue-100 bg-blue-50/30">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-lg text-blue-600">

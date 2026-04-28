@@ -64,17 +64,45 @@ interface DetectArgs {
   prevEntry: { shiftCode: string; stationId?: string } | undefined;
   newEntry: { shiftCode: string; stationId?: string } | undefined;
   isPeakDay: (day: number) => boolean;
+  // Permissive mode: surface the gap whenever a work shift was removed,
+  // even if the station's minimum headcount is 0 for the day or the
+  // previous entry didn't carry a stationId. Used by the leave-pipeline so
+  // adding annual / sick leave for a non-driver always yields suggestions —
+  // strict mode would suppress them when normalMinHC=0 (e.g. cashier
+  // stations on non-peak days). Manual paint flows keep this off so we
+  // don't spam toasts when a user clears a cell at a non-required station.
+  permissive?: boolean;
 }
 
 // Returns the gap struct when the edit removed coverage from a station,
 // or undefined when no gap was created (no station was attached, the new
 // shift is also a work shift covering the same hours, etc.).
 export function detectCoverageGap(args: DetectArgs): CoverageGap | undefined {
-  const { shifts, stations, prevEntry, newEntry, day, isPeakDay } = args;
-  if (!prevEntry || !prevEntry.stationId) return undefined;
+  const { shifts, stations, prevEntry, newEntry, day, isPeakDay, employees, empId, permissive } = args;
+  if (!prevEntry) return undefined;
   const prevShift = shifts.find(s => s.code === prevEntry.shiftCode);
   if (!prevShift?.isWork) return undefined;
-  const station = stations.find(s => s.id === prevEntry.stationId);
+
+  // Resolve the station. In strict mode the prev entry must carry a stationId;
+  // in permissive mode we fall back to the employee's eligibility list so a
+  // manually-painted shift without a station still yields suggestions.
+  let station = prevEntry.stationId ? stations.find(s => s.id === prevEntry.stationId) : undefined;
+  if (!station && permissive) {
+    const emp = employees.find(e => e.empId === empId);
+    if (emp) {
+      // Drivers map to the first vehicle station that requires Drivers.
+      // Standard staff use their eligibleStations list (or the first station
+      // if none specified — matches the auto-scheduler's open-eligibility
+      // semantics).
+      if (emp.category === 'Driver') {
+        station = stations.find(s => s.requiredRoles?.includes('Driver'));
+      } else if (emp.eligibleStations.length > 0) {
+        station = stations.find(s => emp.eligibleStations.includes(s.id));
+      } else {
+        station = stations.find(s => !s.requiredRoles?.length || s.requiredRoles.includes('Standard'));
+      }
+    }
+  }
   if (!station) return undefined;
 
   // If the new entry still covers the same station with a work shift that
@@ -87,15 +115,19 @@ export function detectCoverageGap(args: DetectArgs): CoverageGap | undefined {
     }
   }
 
-  const peak = isPeakDay(day);
-  const required = peak ? station.peakMinHC : station.normalMinHC;
-  if (required <= 0) return undefined;
+  // Strict mode honours the station's required-headcount threshold; permissive
+  // mode treats any vacated work shift as worth suggesting alternates for.
+  if (!permissive) {
+    const peak = isPeakDay(day);
+    const required = peak ? station.peakMinHC : station.normalMinHC;
+    if (required <= 0) return undefined;
+  }
 
   return {
     day,
     station,
     vacatedShiftCode: prevEntry.shiftCode,
-    vacatedEmpId: args.empId,
+    vacatedEmpId: empId,
   };
 }
 

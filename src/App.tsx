@@ -445,7 +445,25 @@ export default function App() {
   // without disturbing the rest of the session's edits. Capped at 50 to
   // bound DOM size.
   const [recentChanges, setRecentChanges] = useState<RecentChange[]>([]);
-  const [paneCollapsed, setPaneCollapsed] = useState(false);
+  // Suggestion-pane collapse state. The 340px right rail is too aggressive on
+  // narrow laptop displays (1366×768 cuts the schedule grid in half), so we
+  // start collapsed below 1280px and track resize crossings — but only until
+  // the user manually toggles, after which their preference wins for the
+  // rest of the session.
+  const PANE_BREAKPOINT_PX = 1280;
+  const [paneCollapsed, setPaneCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < PANE_BREAKPOINT_PX;
+  });
+  const paneUserOverrideRef = React.useRef(false);
+  useEffect(() => {
+    const onResize = () => {
+      if (paneUserOverrideRef.current) return;
+      setPaneCollapsed(window.innerWidth < PANE_BREAKPOINT_PX);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const recordRecentChange = React.useCallback((edit: Omit<RecentChange, 'id' | 'ts' | 'empName'>) => {
     const emp = employees.find(e => e.empId === edit.empId);
     setRecentChanges(prev => [
@@ -536,9 +554,15 @@ export default function App() {
     let best: { day: number; gap: CoverageGap } | null = null;
     for (const d of newlyOnLeave) {
       const prevEntry = schedule[nextEmp.empId]?.[d];
+      // Permissive mode: leave additions should always surface candidate
+      // substitutes regardless of the station's minimum-headcount threshold.
+      // Without this, cashier-station leaves on non-peak days yielded zero
+      // suggestions because normalMinHC is 0 — only drivers (whose vehicle
+      // stations have normalMinHC=1) ever surfaced hints.
       const gap = detectCoverageGap({
         employees, shifts, stations, holidays, config, schedule,
         empId: nextEmp.empId, day: d, prevEntry, newEntry: undefined, isPeakDay,
+        permissive: true,
       });
       if (!gap) continue;
       const need = isPeakDay(d) ? gap.station.peakMinHC : gap.station.normalMinHC;
@@ -2033,7 +2057,10 @@ export default function App() {
           onUndoChange={undoRecentChange}
           onClearChanges={() => setRecentChanges([])}
           collapsed={paneCollapsed}
-          onToggleCollapsed={() => setPaneCollapsed(c => !c)}
+          onToggleCollapsed={() => {
+            paneUserOverrideRef.current = true;
+            setPaneCollapsed(c => !c);
+          }}
         />
       ) : (
         <CoverageHintToast

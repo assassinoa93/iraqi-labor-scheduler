@@ -2,6 +2,43 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.9.0 — 2026-04-28
+
+Quality + accuracy release on top of v1.8.0. Closes the four open follow-ups from the v1.8.0 batch (test coverage for the new helper modules, narrow-viewport pane behaviour, PH cross-month handling) and fixes four user-reported issues with the auto-scheduler advisory pipeline + dashboard recommendations.
+
+**Bug fixes**
+- **Leave-driven coverage hints now fire for every employee category, not just drivers.** Adding annual / sick / maternity leave on a cashier or operator previously produced no swap suggestions because the cashier stations have `normalMinHC: 0` on non-peak days — the gap detector treated the dropped shift as "not required" and stayed silent. The leave-pipeline now uses a permissive detection mode that surfaces substitutes whenever a work shift is removed, regardless of the station's minimum threshold. Strict (manual-paint) detection is unchanged so cycling a cell at a non-required station still doesn't spam toasts.
+- **Dashboard advisory + strategic-growth gating.** The Strategic Growth Path card and the 3-mode Staffing Advisory now only render when the supervisor has finished basic setup: at least one employee in the roster, stations defined, work shifts defined, every non-driver assigned to ≥1 eligible station, and a schedule painted (auto or manual) for the active month. While setup is incomplete a checklist banner replaces the cards so the supervisor sees exactly what is still missing instead of advice computed from an empty dataset.
+- **Duplicate Staffing Advisory panel removed.** v1.8.0 introduced the new 3-mode StaffingAdvisoryCard but left the older small "Staffing Advisory" panel mounted as well, so the dashboard was showing the same hire counts in two places. The old panel is gone — its content is fully covered by the new card with per-mode tabs + per-station breakdown + simulation.
+
+**Staffing Advisory upgrades — accurate, station-aware, simulation-validated**
+- **Per-station breakdown for every mode.** Each mode now lists exactly which stations the recommended hires would land at, the reason each station is in the list (`OT pressure` / `Peak shortfall` / `Both`), and the numerical evidence (monthly OT hours attributed to that station + the peak-hour FTE shortfall). OT is distributed across stations proportionally to the hours an over-scheduled employee actually worked there, so a cashier burning OT covering Cashier 2 puts the recommended hire on Cashier 2, not on a generic queue.
+- **Validate with simulation button.** Each mode has a "Run" button that injects phantom hires (one per recommended slot, pinned to the station that drives that recommendation) and re-runs the auto-scheduler. The result reports residual OT hours and residual coverage gap days so the supervisor can sanity-check the recommendation against a real run before approving any headcount. A clean run flips the readout green; a partial result shows what's still left for a follow-up pass.
+- **Math now lives in `src/lib/staffingAdvisory.ts`.** The OT-attribution + per-station-hire logic is its own pure function with 15 unit tests and a `simulateWithExtraHires` helper that re-runs the scheduler.
+
+**Auto-scheduler results UI**
+- **Hero header on the preview modal** with the compliance-score percentage front and centre, gradient backdrop matching the violation tier (clean / mild / heavy), and a larger-format icon so the user sees at a glance whether the run was clean.
+- **Hours-by-role becomes a bar chart.** The flat list of role-keyed totals is now a horizontal bar visualization with each role coloured distinctly so the workload distribution reads at a glance.
+- **Findings split into Hard Violations vs Informational Notes.** v1.7.2's severity tier wasn't honoured by the preview modal — info-severity findings (PH worked, Comp day owed) were shown alongside hard violations in the same red-tinted list. The two columns now render side-by-side with their own colours so the supervisor can tell at a glance which findings will lower the compliance score and which are advisory only.
+- **Better empty state**: "Clean run — you can apply this with confidence" instead of a thin one-line note.
+
+**Comp-day cross-month handling (Art. 74)**
+- The compliance engine's `Comp day owed` check used to bail at the month boundary — a public holiday worked on Jan 28 with no OFF in days 29-31 was treated as "supervisor handles it next month" and produced no finding. When the next month's schedule already exists, the check now peeks into it so a late-month PH-work can be compensated by an early-month OFF in the following month. If the next month hasn't been generated yet the original behaviour applies (no false positive at the boundary).
+
+**Suggestion pane — narrow-viewport responsiveness**
+- The 340px right rail used to leave laptops at 1366×768 with the schedule grid cut in half. The pane now starts collapsed below 1280px viewport width and auto-tracks resize crossings — until the user manually expands or collapses, after which their preference wins for the rest of the session. The collapsed state still surfaces the unread-changes count and gap dot.
+
+**Tests + observability**
+- **`src/lib/__tests__/staffingAdvisory.test.ts`** — 15 unit tests covering all three modes, per-station breakdown, edge cases (empty roster, negative gaps, salary fallback).
+- **`src/lib/__tests__/coverageHints.test.ts`** — 8 unit tests covering strict mode (manual paint), permissive mode (leave pipeline), driver vs non-driver paths, and `findSwapCandidates`.
+- **`src/lib/__tests__/autoScheduler.test.ts`** — 5 tests covering PH-debt rotation, holiday-day assignment, balanced workload, complete-month population, and `preserveExisting` mode.
+- **`compliance.test.ts`** — added 5 tests for `Comp day owed` (rule firing, OFF in window, empty cells in window, cross-month boundary handling, holiday-day OFF means no PH work).
+
+**Architecture**
+- `lib/staffingAdvisory.ts` — `computeStaffingAdvisory` now returns per-station breakdowns; new `simulateWithExtraHires` runs the auto-scheduler with phantom hires and reports residual OT + gap.
+- `lib/coverageHints.ts` — `detectCoverageGap` accepts an optional `permissive` flag for the leave-pipeline path.
+- `lib/compliance.ts` — `Comp day owed` reads the next month's schedule from `allSchedules` when the comp window crosses month boundary.
+
 ## v1.8.0 — 2026-04-28
 
 Major UX + advisory release. Four substantial additions in one batch: PH comp-day awareness in the auto-scheduler + compliance engine, a persistent right-side suggestion pane on the Schedule tab (replaces the bottom-right toast), a 3-mode hiring advisory on the Dashboard, and several focused improvements to the Master Schedule grid.
