@@ -116,6 +116,15 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
   const consecutiveWork = new Map<string, number>();
   const totalHoursWorked = new Map<string, number>();
   const usedHolidayBankThisMonth = new Map<string, number>();
+  // Tracks unmet comp-day debt per employee: incremented on each PH-work
+  // assignment and decremented when the employee gets an OFF/leave within
+  // the next 7 days. Used by the candidate sort to push PH-debtors DOWN in
+  // work priority so they naturally rotate to OFF first, satisfying the
+  // "comp day in the following week" expectation for Art. 74.
+  const phDebt = new Map<string, number>();
+  // Per-employee circular log of the day each PH-work occurred (last 14
+  // days). Lets us decay debt when a comp window has fully elapsed.
+  const phWorkDays = new Map<string, number[]>();
   const updatedEmployees = [...employees];
   const empIndexById = new Map<string, number>(updatedEmployees.map((e, i) => [e.empId, i]));
 
@@ -341,13 +350,21 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
 
         // Candidate sort: balance hours-worked first; bias towards employees
         // whose preferences include one of the valid shifts so they land on
-        // their preferred shifts when other constraints permit.
+        // their preferred shifts when other constraints permit. Employees
+        // with unmet PH comp-day debt sort LATER so they get rotated to OFF
+        // first, naturally satisfying the next-week comp-day expectation.
         const validShiftCodes = new Set(validShifts.map(s => s.code));
         const sortedPool = [...employees].sort((a, b) => {
           const hA = totalHoursWorked.get(a.empId) || 0;
           const hB = totalHoursWorked.get(b.empId) || 0;
           if (Math.abs(hA - hB) > 4) return hA - hB;
-          // Soft preference bias.
+          // PH comp-day priority: someone with unpaid PH debt should rest
+          // before being given another shift. Heavily weighted because comp
+          // day timing is a compliance concern, not a soft preference.
+          const debtA = phDebt.get(a.empId) || 0;
+          const debtB = phDebt.get(b.empId) || 0;
+          if (debtA !== debtB) return debtA - debtB;
+          // Soft shift-code preference bias.
           const prefA = (a.preferredShiftCodes || []).some(c => validShiftCodes.has(c)) ? 1 : 0;
           const prefB = (b.preferredShiftCodes || []).some(c => validShiftCodes.has(c)) ? 1 : 0;
           if (prefA !== prefB) return prefB - prefA;
@@ -390,6 +407,16 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
                   if (idx !== undefined) {
                     updatedEmployees[idx] = { ...updatedEmployees[idx], holidayBank: (updatedEmployees[idx].holidayBank || 0) + 1 };
                   }
+                  // Track comp-day debt: each PH-work increments by 1; the
+                  // after-day OFF/leave pass decrements (capped at 0). Only
+                  // counts the FIRST shift of the day per employee — multi-
+                  // shift days are still one PH-work day owed one comp day.
+                  if (!phWorkDays.has(candidate.empId)) phWorkDays.set(candidate.empId, []);
+                  const log = phWorkDays.get(candidate.empId)!;
+                  if (log[log.length - 1] !== day) {
+                    log.push(day);
+                    phDebt.set(candidate.empId, (phDebt.get(candidate.empId) || 0) + 1);
+                  }
                 }
 
                 assigned = true;
@@ -424,6 +451,22 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
         if (idx !== undefined && updatedEmployees[idx].holidayBank > 0) {
           updatedEmployees[idx].holidayBank -= 1;
           usedHolidayBankThisMonth.set(e.empId, (usedHolidayBankThisMonth.get(e.empId) || 0) + 1);
+        }
+      }
+
+      // Comp-day satisfaction: an OFF / leave day after a tracked PH-work
+      // pays down one unit of debt. Only counts the days within the rolling
+      // 7-day window after each PH-work; older entries are dropped so the
+      // bias doesn't linger past the comp window.
+      const log = phWorkDays.get(e.empId);
+      if (log && log.length > 0) {
+        // Drop expired entries (more than 7 days behind today).
+        while (log.length > 0 && log[0] < day - 7) log.shift();
+        if (log.length > 0) {
+          // Pay down one unit; the earliest pending PH gets compensated first.
+          log.shift();
+          const newDebt = Math.max(0, (phDebt.get(e.empId) || 0) - 1);
+          phDebt.set(e.empId, newDebt);
         }
       }
     }

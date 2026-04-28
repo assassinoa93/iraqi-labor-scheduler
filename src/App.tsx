@@ -53,6 +53,7 @@ import { LocaleSwitcher } from './components/LocaleSwitcher';
 import { CompanySwitcher } from './components/CompanySwitcher';
 import { SimulationDeltaPanel, SimDeltaMetric } from './components/SimulationDeltaPanel';
 import { CoverageHintToast } from './components/CoverageHintToast';
+import { SuggestionPane, RecentChange } from './components/SuggestionPane';
 import { BulkAssignModal } from './components/BulkAssignModal';
 import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
@@ -439,6 +440,45 @@ export default function App() {
     };
   }, [schedule, employees, shifts, stations]);
 
+  // Per-session change log surfaced in the right-side SuggestionPane. Each
+  // entry has its own undo button so the user can revert a specific change
+  // without disturbing the rest of the session's edits. Capped at 50 to
+  // bound DOM size.
+  const [recentChanges, setRecentChanges] = useState<RecentChange[]>([]);
+  const [paneCollapsed, setPaneCollapsed] = useState(false);
+  const recordRecentChange = React.useCallback((edit: Omit<RecentChange, 'id' | 'ts' | 'empName'>) => {
+    const emp = employees.find(e => e.empId === edit.empId);
+    setRecentChanges(prev => [
+      {
+        ...edit,
+        empName: emp?.name || edit.empId,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        ts: Date.now(),
+      },
+      ...prev,
+    ].slice(0, 50));
+  }, [employees]);
+  // Undo a single recorded change by id. Restores the pre-change cell state
+  // and removes the entry from the log. Doesn't touch the per-cell undo stack
+  // because that's a different stream (the user can have edits in either or
+  // both sources).
+  const undoRecentChange = React.useCallback((id: string) => {
+    setRecentChanges(prev => {
+      const target = prev.find(c => c.id === id);
+      if (!target) return prev;
+      setSchedule(curr => {
+        const empBucket = { ...(curr[target.empId] || {}) };
+        if (target.prevCode) {
+          empBucket[target.day] = { shiftCode: target.prevCode };
+        } else {
+          delete empBucket[target.day];
+        }
+        return { ...curr, [target.empId]: empBucket };
+      });
+      return prev.filter(c => c.id !== id);
+    });
+  }, [setSchedule]);
+
   // Stamp the appropriate leave code (AL / SL / MAT) onto every schedule
   // cell that just transitioned from "no leave" to "on leave" for this
   // employee. Single source of truth: editing leaves in the LeaveManagerModal
@@ -448,6 +488,7 @@ export default function App() {
   // employee absent on that day.
   const stampLeaveOntoSchedule = React.useCallback((prevEmp: Employee, nextEmp: Employee) => {
     const codeFor = (type: 'annual' | 'sick' | 'maternity') => type === 'annual' ? 'AL' : type === 'sick' ? 'SL' : 'MAT';
+    const stampedDays: Array<{ day: number; prevCode: string; nextCode: string }> = [];
     setSchedule(prevSched => {
       const empBucket = { ...(prevSched[nextEmp.empId] || {}) };
       let changed = false;
@@ -457,7 +498,9 @@ export default function App() {
         const nowOnLeave = getEmployeeLeaveOnDate(nextEmp, ds);
         if (!wasOnLeave && nowOnLeave) {
           const desired = codeFor(nowOnLeave.type);
-          if (empBucket[day]?.shiftCode !== desired) {
+          const prevCode = empBucket[day]?.shiftCode || '';
+          if (prevCode !== desired) {
+            stampedDays.push({ day, prevCode, nextCode: desired });
             empBucket[day] = { shiftCode: desired };
             changed = true;
           }
@@ -466,7 +509,13 @@ export default function App() {
       if (!changed) return prevSched;
       return { ...prevSched, [nextEmp.empId]: empBucket };
     });
-  }, [config.year, config.month, config.daysInMonth, setSchedule]);
+    // Record each stamped day in the SuggestionPane log so the user can see
+    // what got auto-painted and undo individual entries if a leave date was
+    // entered by mistake.
+    for (const s of stampedDays) {
+      recordRecentChange({ empId: nextEmp.empId, day: s.day, prevCode: s.prevCode, nextCode: s.nextCode, source: 'leave-stamp' });
+    }
+  }, [config.year, config.month, config.daysInMonth, setSchedule, recordRecentChange]);
 
   // Surface a single coverage-hint toast for the most impactful day where the
   // given employee just transitioned from "available" to "on leave". Diffs the
@@ -1302,6 +1351,7 @@ export default function App() {
       // back over a cell that's already correct shouldn't bloat the stack).
       if (!prev || prev.shiftCode !== next.shiftCode || prev.stationId !== next.stationId) {
         pushCellUndo([{ empId, day, prev }]);
+        recordRecentChange({ empId, day, prevCode: prev?.shiftCode || '', nextCode: next.shiftCode, source: 'paint' });
       }
       setSchedule(p => ({
         ...p,
@@ -1318,6 +1368,7 @@ export default function App() {
       const nextShift = shifts[(idx + 1) % shifts.length];
       const next = { shiftCode: nextShift.code };
       pushCellUndo([{ empId, day, prev }]);
+      recordRecentChange({ empId, day, prevCode: prev?.shiftCode || '', nextCode: next.shiftCode, source: 'cycle' });
       setSchedule(p => ({
         ...p,
         [empId]: {
@@ -1372,6 +1423,7 @@ export default function App() {
   const acceptCoverageSwap = (replacementEmpId: string) => {
     if (!coverageHint) return;
     const { gap } = coverageHint;
+    const prevReplacementEntry = schedule[replacementEmpId]?.[gap.day];
     setSchedule(prev => ({
       ...prev,
       [replacementEmpId]: {
@@ -1383,6 +1435,15 @@ export default function App() {
       `${replacementEmpId}:${gap.day}`,
       `${gap.vacatedEmpId}:${gap.day}`,
     ]);
+    // Record the swap as a recent change so the user can undo it from the
+    // SuggestionPane along with their other edits.
+    recordRecentChange({
+      empId: replacementEmpId,
+      day: gap.day,
+      prevCode: prevReplacementEntry?.shiftCode || '',
+      nextCode: gap.vacatedShiftCode,
+      source: 'swap',
+    });
     setCoverageHint(null);
   };
 
@@ -1698,7 +1759,13 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
+        <div className={cn(
+          "flex-1 overflow-auto p-8 transition-[padding] duration-200",
+          // The right-side suggestion pane is fixed-positioned. When it's
+          // open on the Schedule tab we shift the content right margin so
+          // the grid doesn't slide under the pane.
+          activeTab === 'schedule' && !paneCollapsed && "pr-[356px]"
+        )}>
           <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1952,11 +2019,29 @@ export default function App() {
         onReset={resetSimMode}
       />
 
-      <CoverageHintToast
-        hint={coverageHint}
-        onDismiss={() => setCoverageHint(null)}
-        onPickReplacement={acceptCoverageSwap}
-      />
+      {/* Live-suggestion right rail. Only shown on the Schedule tab where it
+          actually has context to act on. Replaces the bottom-right
+          CoverageHintToast for that tab; the toast is still mounted as a
+          fallback for the few seconds between tab switches when the pane
+          isn't visible. */}
+      {activeTab === 'schedule' ? (
+        <SuggestionPane
+          hint={coverageHint}
+          onDismissHint={() => setCoverageHint(null)}
+          onPickReplacement={acceptCoverageSwap}
+          recentChanges={recentChanges}
+          onUndoChange={undoRecentChange}
+          onClearChanges={() => setRecentChanges([])}
+          collapsed={paneCollapsed}
+          onToggleCollapsed={() => setPaneCollapsed(c => !c)}
+        />
+      ) : (
+        <CoverageHintToast
+          hint={coverageHint}
+          onDismiss={() => setCoverageHint(null)}
+          onPickReplacement={acceptCoverageSwap}
+        />
+      )}
 
       <BulkAssignModal
         isOpen={isBulkAssignOpen}

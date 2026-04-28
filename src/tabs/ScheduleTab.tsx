@@ -476,19 +476,39 @@ export function ScheduleTab({
               </div>
               {days.map(d => {
                 const date = new Date(config.year, config.month - 1, d);
-                const isHoli = holidays.some(h => h.date === format(date, 'yyyy-MM-dd'));
+                const dateStr = format(date, 'yyyy-MM-dd');
+                const holiday = holidays.find(h => h.date === dateStr);
+                const isHoli = !!holiday;
+                const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                const weekendDay = isWeekend(date);
                 return (
                   <div
                     key={d}
+                    title={isHoli ? `${d} ${format(date, 'MMM')} — ${holiday.name}` : `${d} ${format(date, 'MMM')} (${format(date, 'EEEE')})`}
                     className={cn(
-                      "py-4 text-center border-r border-slate-100 tracking-tighter flex flex-col items-center",
-                      isWeekend(date) && "bg-slate-100/50",
-                      isHoli && "bg-red-50/50"
+                      "py-3 text-center border-r border-slate-100 tracking-tighter flex flex-col items-center relative",
+                      weekendDay && "bg-slate-100/60",
+                      isHoli && "bg-red-50/70",
+                      isToday && "bg-blue-50/80 ring-2 ring-blue-400 ring-inset z-10",
                     )}
                     style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }}
                   >
-                    <span className={cn("text-slate-900 font-black text-[10px]", (isWeekend(date) || isHoli) && "text-red-500")}>{d}</span>
-                    <span className="text-[7px] text-slate-400 font-bold uppercase shrink-0 leading-none">
+                    {isHoli && (
+                      <span className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Holiday" />
+                    )}
+                    {isToday && (
+                      <span className="absolute -top-0.5 right-0.5 text-[7px] font-black text-blue-600 uppercase tracking-tighter">●</span>
+                    )}
+                    <span className={cn(
+                      "font-black text-[11px]",
+                      isToday ? "text-blue-700" : (weekendDay || isHoli) ? "text-red-600" : "text-slate-900",
+                    )}>
+                      {d}
+                    </span>
+                    <span className={cn(
+                      "text-[7px] font-bold uppercase shrink-0 leading-none mt-0.5",
+                      isToday ? "text-blue-500" : "text-slate-400",
+                    )}>
                       {format(date, 'EEE')}
                     </span>
                   </div>
@@ -521,6 +541,50 @@ export function ScheduleTab({
             )}
           </div>
         </div>
+        {/* Footer summary bar — totals across the currently-filtered roster.
+            Helps spot at a glance whether the visible group is over- or
+            under-loaded without scrolling through all employee tooltips. */}
+        {filteredEmployees.length > 0 && (() => {
+          let totalHrs = 0;
+          let saturated = 0;
+          let nearCap = 0;
+          let onLeaveAnyDay = 0;
+          for (const emp of filteredEmployees) {
+            const stats = statsByEmpId.get(emp.empId);
+            if (!stats) continue;
+            totalHrs += stats.totalHrs;
+            const ratio = stats.weeklyCap > 0 ? stats.weeklyHrsRolling / stats.weeklyCap : 0;
+            if (ratio >= 1) saturated++;
+            else if (ratio >= 0.9) nearCap++;
+            if (stats.daysOnLeave > 0) onLeaveAnyDay++;
+          }
+          return (
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2 flex items-center gap-4 flex-wrap text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">{t('schedule.footer.totalHrs')}:</span>
+                <span className="font-black text-slate-800">{totalHrs.toFixed(0)}h</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="text-slate-400">{t('schedule.footer.saturated')}:</span>
+                <span className="font-black text-red-700">{saturated}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span className="text-slate-400">{t('schedule.footer.nearCap')}:</span>
+                <span className="font-black text-amber-700">{nearCap}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-slate-400">{t('schedule.footer.onLeaveAny')}:</span>
+                <span className="font-black text-emerald-700">{onLeaveAnyDay}</span>
+              </div>
+              <div className="ml-auto text-slate-400 normal-case font-mono">
+                {filteredEmployees.length}/{employees.length} {t('schedule.footer.employees')}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

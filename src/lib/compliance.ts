@@ -474,6 +474,10 @@ export class ComplianceEngine {
       // assumes the supervisor processes holiday OT as part of the next
       // payroll cycle, so we surface it as an "info" finding for the report
       // rather than penalising the compliance score.
+      // Companion check: if no OFF / leave appears within the 7 days
+      // following a PH-work day, surface "Comp day owed" — the supervisor
+      // hasn't yet given the employee their compensation rest. Still info
+      // severity (the law allows pay-in-lieu), just a heads-up.
       days.forEach(day => {
         const entry = empSchedule[day];
         const shiftCode = entry?.shiftCode;
@@ -488,6 +492,27 @@ export class ComplianceEngine {
                 rule: "Public holiday worked",
                 article: "(Art. 74)",
                 message: "Worked on a public holiday — eligible for double pay or a compensation day off.",
+                severity: 'info',
+              });
+            }
+            // Comp-day-owed check: scan the next 7 days for any non-work
+            // entry (OFF / AL / SL / MAT / empty cell). If none appear, the
+            // comp day hasn't been granted yet.
+            let compFound = false;
+            for (let look = 1; look <= 7; look++) {
+              const next = day + look;
+              if (next > config.daysInMonth) break; // crosses month boundary; supervisor handles next month
+              const nextEntry = empSchedule[next];
+              const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
+              if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+            }
+            if (!compFound && day + 7 <= config.daysInMonth) {
+              violations.push({
+                empId: emp.empId,
+                day,
+                rule: "Comp day owed",
+                article: "(Art. 74)",
+                message: `Worked the public holiday on day ${day} but no OFF / leave was scheduled within 7 days. Grant a comp day or process double pay.`,
                 severity: 'info',
               });
             }

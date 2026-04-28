@@ -596,6 +596,43 @@ export const en: Dict = {
   'schedule.print': 'Print',
   'schedule.print.tooltip': 'Print the active month\'s schedule (A3 landscape recommended).',
 
+  // Schedule grid footer summary
+  'schedule.footer.totalHrs': 'Total work',
+  'schedule.footer.saturated': 'At cap',
+  'schedule.footer.nearCap': 'Near cap',
+  'schedule.footer.onLeaveAny': 'On leave',
+  'schedule.footer.employees': 'employees',
+
+  // 3-mode staffing advisory (dashboard)
+  'advisory.section.eyebrow': 'Hiring strategy',
+  'advisory.mode.eliminateOT.title': 'Eliminate Overtime',
+  'advisory.mode.eliminateOT.body': 'Hire enough new staff to absorb every overtime hour into regular FTE shifts. Compliance score climbs; OT premium goes to zero. May still leave coverage gaps if OT was masking them.',
+  'advisory.mode.optimalCoverage.title': 'Optimal Coverage',
+  'advisory.mode.optimalCoverage.body': 'Hire enough to fill every peak-hour station gap. Eliminates downtime and short-staff days but may not fully address overtime if existing staff are over-scheduled.',
+  'advisory.mode.bestOfBoth.title': 'Best of Both',
+  'advisory.mode.bestOfBoth.body': 'The conservative ceiling — enough hires to satisfy whichever is the larger of the two needs above. Both OT and coverage gaps close, no compromise either way.',
+  'advisory.kpi.hires': 'Hires Needed',
+  'advisory.kpi.otSaved': 'OT Saved',
+  'advisory.kpi.salaryAdded': 'Salary Added',
+  'advisory.kpi.netMonthly': 'Net Monthly Delta',
+  'advisory.footnote': 'Today: {ot}h scheduled OT @ ~{spend} IQD/mo. Marginal hire cost assumed at {avg} IQD/mo (roster average). After adding hires, re-run the auto-scheduler to spread the load — the recommendation persists until the schedule is re-balanced.',
+
+  // Suggestion pane (right rail on Schedule tab)
+  'pane.title': 'Live Suggestions',
+  'pane.collapse': 'Collapse panel',
+  'pane.expand': 'Expand suggestions panel',
+  'pane.suggestions.header': 'Coverage suggestions',
+  'pane.suggestions.noGap': 'All stations covered',
+  'pane.suggestions.noGapHint': 'Make a change in the schedule to see live coverage suggestions.',
+  'pane.changes.header': 'Recent changes',
+  'pane.changes.empty': 'No changes yet',
+  'pane.changes.emptyHint': 'Painted cells and accepted swaps will appear here.',
+  'pane.changes.line': 'Day {day} · {prev} → {next}',
+  'pane.changes.undo': 'Undo this change',
+  'pane.changes.clear': 'Clear log',
+  'pane.changes.showAll': 'Show {extra} more',
+  'pane.changes.showLess': 'Show fewer',
+
   // Theme toggle
   'theme.light': 'Light',
   'theme.dark': 'Dark',
@@ -1205,6 +1242,43 @@ export const ar: Dict = {
   // Print
   'schedule.print': 'طباعة',
   'schedule.print.tooltip': 'طباعة جدول الشهر النشط (يُفضّل A3 أفقي).',
+
+  // Schedule grid footer summary
+  'schedule.footer.totalHrs': 'إجمالي العمل',
+  'schedule.footer.saturated': 'عند الحد الأقصى',
+  'schedule.footer.nearCap': 'قريب من الحد',
+  'schedule.footer.onLeaveAny': 'في إجازة',
+  'schedule.footer.employees': 'موظفون',
+
+  // 3-mode staffing advisory
+  'advisory.section.eyebrow': 'استراتيجية التوظيف',
+  'advisory.mode.eliminateOT.title': 'إلغاء العمل الإضافي',
+  'advisory.mode.eliminateOT.body': 'وظِّف عددًا كافيًا من الموظفين الجدد لاستيعاب كل ساعات العمل الإضافي ضمن ورديات منتظمة. ترتفع درجة الامتثال وتنخفض علاوات الإضافي إلى الصفر.',
+  'advisory.mode.optimalCoverage.title': 'تغطية مثالية',
+  'advisory.mode.optimalCoverage.body': 'وظِّف عددًا كافيًا لسد كل فجوات المحطات في ساعات الذروة. يلغي التوقف وأيام النقص لكنه قد لا يعالج العمل الإضافي بالكامل.',
+  'advisory.mode.bestOfBoth.title': 'الحل الأمثل',
+  'advisory.mode.bestOfBoth.body': 'السقف المتحفظ — توظيف يكفي لتلبية الأكبر من الحاجتين أعلاه. تُغلق فجوات العمل الإضافي والتغطية معًا.',
+  'advisory.kpi.hires': 'التوظيفات المطلوبة',
+  'advisory.kpi.otSaved': 'الإضافي الموفَّر',
+  'advisory.kpi.salaryAdded': 'الراتب المضاف',
+  'advisory.kpi.netMonthly': 'صافي الفرق الشهري',
+  'advisory.footnote': 'الآن: {ot} ساعة إضافية مجدولة بحوالي {spend} د.ع/شهر. تكلفة التوظيف الهامشية حوالي {avg} د.ع/شهر (متوسط الرواتب). بعد الإضافة، أعد تشغيل المُجدوِل التلقائي لتوزيع العبء — تستمر التوصية حتى تعاد موازنة الجدول.',
+
+  // Suggestion pane
+  'pane.title': 'اقتراحات حية',
+  'pane.collapse': 'طي اللوحة',
+  'pane.expand': 'فتح لوحة الاقتراحات',
+  'pane.suggestions.header': 'اقتراحات التغطية',
+  'pane.suggestions.noGap': 'جميع المحطات مغطاة',
+  'pane.suggestions.noGapHint': 'أجرِ تغييرًا في الجدول لرؤية اقتراحات التغطية الحية.',
+  'pane.changes.header': 'التغييرات الأخيرة',
+  'pane.changes.empty': 'لا توجد تغييرات بعد',
+  'pane.changes.emptyHint': 'ستظهر هنا الخلايا المرسومة وعمليات التبديل المعتمدة.',
+  'pane.changes.line': 'يوم {day} · {prev} ← {next}',
+  'pane.changes.undo': 'تراجع عن هذا التغيير',
+  'pane.changes.clear': 'مسح السجل',
+  'pane.changes.showAll': 'عرض {extra} إضافية',
+  'pane.changes.showLess': 'عرض أقل',
 
   // Theme
   'theme.light': 'فاتح',

@@ -2,6 +2,38 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.8.0 — 2026-04-28
+
+Major UX + advisory release. Four substantial additions in one batch: PH comp-day awareness in the auto-scheduler + compliance engine, a persistent right-side suggestion pane on the Schedule tab (replaces the bottom-right toast), a 3-mode hiring advisory on the Dashboard, and several focused improvements to the Master Schedule grid.
+
+**Auto-scheduler — public holiday comp days**
+- Added per-employee `phDebt` tracking inside `runAutoScheduler`. Working a public holiday increments debt by 1; the after-day OFF/leave pass decrements it. The candidate sort now pushes employees with unmet PH debt LATER in work priority (heavier weight than the existing soft preference bias) so they naturally rotate to OFF in the days after a holiday — satisfying the "comp day in the following week" expectation under Art. 74 without scheduling extra rest days arbitrarily.
+- Companion compliance check: a new `Comp day owed` info-severity finding fires when a PH-work day isn't followed by any OFF / leave within 7 days. Same severity tier as the v1.7.2 PH-worked finding (informational, not a violation) so it appears in reports without dragging down the compliance score.
+
+**Right-side Suggestion Pane (replaces CoverageHintToast on Schedule tab)**
+- New `SuggestionPane` component — fixed right rail, ~340px wide, full viewport height. Two sections:
+  1. **Coverage suggestions** — the same swap-candidate logic the toast used to show, but persistent. When there's no active gap a pleasant "All stations covered" state appears.
+  2. **Recent changes** — per-session log of cell modifications (paint, cycle, swap, leave-stamp) with one-click undo per entry. Capped at 50 entries; "show more" expands beyond the first 10.
+- Pane is collapsible to a thin tab against the right edge (with a status dot if a gap is active and a count badge for unread changes). The Schedule tab applies right-padding only when the pane is open so the grid never slides under it.
+- The CoverageHintToast still ships and is shown on non-Schedule tabs, so cross-tab edits (e.g. adding a leave from Credits & Payroll) still surface a toast.
+
+**3-mode Staffing Advisory (Dashboard)**
+- New `StaffingAdvisoryCard` with three flavours of hiring strategy as a tab strip:
+  1. **Eliminate Overtime** — hires needed to absorb every OT hour into regular FTE shifts.
+  2. **Optimal Coverage** — hires needed to fill every peak-hour station gap.
+  3. **Best of Both** — the conservative ceiling, max of the two above.
+- Each mode shows hires needed, OT saved (IQD/mo), salary added (IQD/mo), and net monthly delta. The footnote spells out that the recommendation is based on current OT — after adding hires, the user must re-run the auto-scheduler so the load gets spread (this directly addresses the "I followed the recommendation but it still says I need to hire more HC" report — the advisor doesn't know about hires that haven't been scheduled yet).
+- Math lives in `src/lib/staffingAdvisory.ts` so it can be unit-tested or reused.
+
+**Master Schedule UX**
+- **Day-header overhaul**: today indicator (blue ring + ●), holiday dot (top-left), better contrast for weekends/holidays, full holiday name in the cell tooltip.
+- **Footer summary bar**: totals across the currently-filtered roster — total work hours, employees at cap (≥100% weekly), employees near cap (≥90%), employees with any leave-day this month, and an X/Y employee count.
+
+**Architecture / new files**
+- `src/lib/staffingAdvisory.ts` — pure compute for the 3 hiring modes.
+- `src/components/SuggestionPane.tsx` — the right-rail pane.
+- `src/components/StaffingAdvisoryCard.tsx` — the dashboard card.
+
 ## v1.7.2 — 2026-04-28
 
 Compliance-semantics + leave-sync fixes. The user reported that May produced a "substantial OT" spike and most of the violations were "Worked on a public holiday without an explicit OT or PH designation" — not actually a rule breach, just compensable per Art. 74. Demoted that finding to an informational note so it shows in the report without polluting the violation count or compliance score.

@@ -13,6 +13,8 @@ import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
+import { StaffingAdvisoryCard } from '../components/StaffingAdvisoryCard';
+import { computeStaffingAdvisory } from '../lib/staffingAdvisory';
 
 interface DashboardTabProps {
   employees: Employee[];
@@ -96,6 +98,15 @@ export function DashboardTab(props: DashboardTabProps) {
   const savings = Math.max(0, totalOTPay - hireCost);
   const totalHolidayBank = employees.reduce((s, e) => s + (e.holidayBank || 0), 0);
   const peopleWithBank = employees.filter(e => (e.holidayBank || 0) > 0).length;
+
+  // 3-mode staffing advisory. The total coverage gap comes from the
+  // peak-hour shortfall sum across stations — staffingGapsByStation already
+  // computes per-station gap, so we sum here.
+  const totalCoverageGap = staffingGapsByStation.reduce((s, g) => s + g.gap, 0);
+  const advisory = computeStaffingAdvisory({
+    employees, schedule, shifts, stations, holidays, config, isPeakDay: () => false,
+    totalOTHours, totalOTPay, totalCoverageGap,
+  });
 
   return (
     <div className="space-y-6">
@@ -365,6 +376,12 @@ export function DashboardTab(props: DashboardTabProps) {
         compliancePct={parseInt(compliancePct, 10) || 0}
         violations={totalViolationInstances}
         coveragePct={overallCoveragePercent}
+      />
+
+      <StaffingAdvisoryCard
+        advisory={advisory}
+        currentOTHours={totalOTHours}
+        currentOTPay={totalOTPay}
       />
 
       <div className="grid grid-cols-1 gap-6">
