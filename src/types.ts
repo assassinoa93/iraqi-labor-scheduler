@@ -65,6 +65,17 @@ export interface Employee {
   // own type so a single employee can have multiple non-contiguous sick
   // leaves, an annual block in summer, etc., all in the same record.
   leaveRanges?: LeaveRange[];
+  // Public-holiday compensation choices. Iraqi Labor Law (Art. 74) lets the
+  // supervisor pick between paying 2× for holiday work OR granting a
+  // compensation day off in lieu (the worked hours then pay 1× regular,
+  // matching the cost of a normal day). Each entry is a YYYY-MM-DD date
+  // for which the supervisor has elected to grant a comp day instead of
+  // the cash premium. Holidays NOT in this list default to the 2× cash
+  // premium (Art. 74 default). The auto-scheduler's after-day pass still
+  // drains `holidayBank` when an OFF day appears post-holiday — that
+  // machinery is unchanged; this field is purely the "did the supervisor
+  // pick comp day over double pay?" toggle that drives the IQD math.
+  holidayCompensations?: string[];
 }
 
 export type LeaveType = 'annual' | 'sick' | 'maternity';

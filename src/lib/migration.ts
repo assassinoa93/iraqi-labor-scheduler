@@ -83,6 +83,14 @@ export function normalizeEmployee(raw: Partial<Employee> & Record<string, unknow
             notes: typeof r.notes === 'string' ? r.notes : undefined,
           }))
       : undefined,
+    // Holiday-compensation toggles (v1.11+). Each entry is a YYYY-MM-DD
+    // date the supervisor has elected to compensate with a paid day off
+    // instead of the 2× cash premium. Pre-1.11 saves don't have this
+    // field — defaults to undefined (treated as empty list = all
+    // holidays paid double).
+    holidayCompensations: Array.isArray(raw.holidayCompensations)
+      ? (raw.holidayCompensations as unknown[]).filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d as string)) as string[]
+      : undefined,
   };
 }
 

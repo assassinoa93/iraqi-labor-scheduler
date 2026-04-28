@@ -142,6 +142,60 @@ describe('analyzeOT — does not double-count holiday hours', () => {
   });
 });
 
+describe('analyzeOT — holiday compensation choices (Art. 74 alternative)', () => {
+  const holiday: PublicHoliday = { date: '2026-01-05', name: 'Test', type: 'National', legalReference: 'Art. 74' };
+
+  it('drops uncompensated holiday pay when the supervisor opts for a comp day', () => {
+    const emp = mkEmp('A', 1_500_000);
+    emp.holidayCompensations = ['2026-01-05'];
+    const a = analyzeOT([emp], sched('A', 'ST-A', [5]), [FS, OFF], [STATION_A], [holiday], config);
+
+    expect(a.totalHolidayHours).toBe(8);
+    expect(a.totalCompensatedHolidayHours).toBe(8);
+    expect(a.totalUncompensatedHolidayHours).toBe(0);
+    expect(a.totalHolidayPay).toBe(0);
+    expect(a.totalOTPay).toBe(0);
+  });
+
+  it('keeps the 2x premium when the date is not in holidayCompensations', () => {
+    const emp = mkEmp('A', 1_500_000);
+    // Empty list — pre-1.11 default behaviour.
+    const a = analyzeOT([emp], sched('A', 'ST-A', [5]), [FS, OFF], [STATION_A], [holiday], config);
+    expect(a.totalUncompensatedHolidayHours).toBe(8);
+    expect(a.totalHolidayPay).toBeGreaterThan(0);
+  });
+
+  it('handles partial compensation across multiple holidays', () => {
+    const holidays: PublicHoliday[] = [
+      { date: '2026-01-05', name: 'H1', type: 'National', legalReference: 'Art. 74' },
+      { date: '2026-01-12', name: 'H2', type: 'National', legalReference: 'Art. 74' },
+    ];
+    const emp = mkEmp('A', 1_500_000);
+    // Comp granted for only the first holiday.
+    emp.holidayCompensations = ['2026-01-05'];
+    const a = analyzeOT([emp], sched('A', 'ST-A', [5, 12]), [FS, OFF], [STATION_A], holidays, config);
+    expect(a.totalHolidayHours).toBe(16);
+    expect(a.totalCompensatedHolidayHours).toBe(8);
+    expect(a.totalUncompensatedHolidayHours).toBe(8);
+    // Uncompensated 8h at 2× -> hourly * 16
+    expect(a.totalHolidayPay).toBeGreaterThan(0);
+  });
+
+  it('exposes per-date compensation flags on byEmployee.holidayDates', () => {
+    const holidays: PublicHoliday[] = [
+      { date: '2026-01-05', name: 'H1', type: 'National', legalReference: 'Art. 74' },
+      { date: '2026-01-12', name: 'H2', type: 'National', legalReference: 'Art. 74' },
+    ];
+    const emp = mkEmp('A', 1_500_000);
+    emp.holidayCompensations = ['2026-01-12'];
+    const a = analyzeOT([emp], sched('A', 'ST-A', [5, 12]), [FS, OFF], [STATION_A], holidays, config);
+    const dates = a.byEmployee[0].holidayDates;
+    expect(dates).toHaveLength(2);
+    expect(dates.find(d => d.date === '2026-01-05')?.compensated).toBe(false);
+    expect(dates.find(d => d.date === '2026-01-12')?.compensated).toBe(true);
+  });
+});
+
 describe('suggestMitigations', () => {
   it('proposes hires when there is over-cap pressure', () => {
     const holidays: PublicHoliday[] = [];

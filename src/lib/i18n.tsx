@@ -660,6 +660,29 @@ export const en: Dict = {
   'pane.changes.showAll': 'Show {extra} more',
   'pane.changes.showLess': 'Show fewer',
 
+  // Holiday compensation modal (v1.11) — toggle per worked holiday whether
+  // to pay 2× cash premium or grant a comp day off in lieu.
+  'holidayComp.title': 'Holiday Compensation Choices',
+  'holidayComp.body': 'Iraqi Labor Law (Art. 74) lets you compensate public-holiday work either with the 2× cash premium OR by granting a paid day off in lieu within 7 days. Comp days drop the line from 2× to 1× regular wage (already covered by the base salary), saving the venue the premium.',
+  'holidayComp.empty.title': 'No public-holiday work this month',
+  'holidayComp.empty.body': 'This employee did not work any public holidays in the active month, so there\'s nothing to compensate.',
+  'holidayComp.workedCount': '{n} holiday day(s) worked',
+  'holidayComp.compAll': 'Comp all',
+  'holidayComp.payAll': 'Pay all',
+  'holidayComp.row.willBeComp': 'pays 1× regular (comp day will be granted)',
+  'holidayComp.row.willPay': 'pays {iqd} IQD premium',
+  'holidayComp.tag.comp': 'Comp Day',
+  'holidayComp.tag.pay': '2× Pay',
+  'holidayComp.savings.title': 'Premium savings',
+  'holidayComp.savings.body': 'Granting comp days for the selected holidays will save {savings} IQD on this employee\'s premium pay this month. The supervisor must ensure an OFF day appears within 7 days of each compensated holiday — the compliance engine will flag any that don\'t.',
+  'holidayComp.footer.rate': 'Holiday premium rate: {rate}%',
+  'holidayComp.apply': 'Apply Choices',
+
+  // Payroll-tab inline labels for the compensation status
+  'payroll.compensated': 'comped',
+  'payroll.compEdit': '{count}/{total} comped',
+  'payroll.compGrant': '{count} holiday(s) — choose comp',
+
   // Coverage & OT Analysis tab
   'otAnalysis.eyebrow': 'Cost · Coverage · Mitigations',
   'otAnalysis.empty.title': 'No data to analyze yet',
@@ -691,6 +714,8 @@ export const en: Dict = {
   'otAnalysis.byEmployee.count': 'with OT',
   'otAnalysis.byEmployee.overCap': 'Over-cap',
   'otAnalysis.byEmployee.holiday': 'Holiday',
+  'otAnalysis.byEmployee.uncomp': 'uncomped',
+  'otAnalysis.byEmployee.compTitle': 'Choose comp day vs cash for this employee',
   'otAnalysis.byEmployee.more': '… and {extra} more — see Reports tab for the full export',
   // Mitigations
   'otAnalysis.mitigations.title': 'Mitigations',
@@ -1386,6 +1411,27 @@ export const ar: Dict = {
   'pane.changes.showAll': 'عرض {extra} إضافية',
   'pane.changes.showLess': 'عرض أقل',
 
+  // Holiday compensation modal
+  'holidayComp.title': 'خيارات تعويض العطل',
+  'holidayComp.body': 'يسمح قانون العمل العراقي (المادة 74) بتعويض عمل العطل الرسمية بإحدى طريقتين: علاوة نقدية 2× أو منح يوم راحة مدفوع خلال 7 أيام. منح يوم تعويضي يُخفّض الأجر من 2× إلى 1× (مغطى بالراتب الأساسي)، مما يوفّر العلاوة.',
+  'holidayComp.empty.title': 'لا عمل في العطل هذا الشهر',
+  'holidayComp.empty.body': 'لم يعمل هذا الموظف في أي عطلة رسمية خلال الشهر النشط، لا يوجد ما يُعوَّض.',
+  'holidayComp.workedCount': 'تم العمل في {n} عطلة',
+  'holidayComp.compAll': 'تعويض الكل',
+  'holidayComp.payAll': 'دفع الكل',
+  'holidayComp.row.willBeComp': 'سيُدفع 1× عادي (سيُمنح يوم تعويضي)',
+  'holidayComp.row.willPay': 'سيُدفع {iqd} د.ع كعلاوة',
+  'holidayComp.tag.comp': 'يوم تعويضي',
+  'holidayComp.tag.pay': 'دفع 2×',
+  'holidayComp.savings.title': 'توفير العلاوة',
+  'holidayComp.savings.body': 'منح أيام تعويضية للعطل المختارة سيوفّر {savings} د.ع من علاوة هذا الموظف الشهرية. يجب التأكد من ظهور يوم راحة خلال 7 أيام من كل عطلة معوَّضة — سينبّه محرك الامتثال إلى أي حالة لا تلتزم بذلك.',
+  'holidayComp.footer.rate': 'معدل علاوة العطل: {rate}%',
+  'holidayComp.apply': 'تطبيق الخيارات',
+
+  'payroll.compensated': 'معوَّض',
+  'payroll.compEdit': '{count}/{total} معوَّضة',
+  'payroll.compGrant': '{count} عطلة — اختر التعويض',
+
   // Coverage & OT Analysis
   'otAnalysis.eyebrow': 'التكلفة · التغطية · الحلول',
   'otAnalysis.empty.title': 'لا توجد بيانات للتحليل بعد',
@@ -1417,6 +1463,8 @@ export const ar: Dict = {
   'otAnalysis.byEmployee.count': 'بساعات إضافية',
   'otAnalysis.byEmployee.overCap': 'فوق الحد',
   'otAnalysis.byEmployee.holiday': 'عطل',
+  'otAnalysis.byEmployee.uncomp': 'غير معوَّض',
+  'otAnalysis.byEmployee.compTitle': 'اختر تعويض يوم أو أجر نقدي لهذا الموظف',
   'otAnalysis.byEmployee.more': '… و{extra} آخرون — انظر تبويب التقارير للتصدير الكامل',
   // Mitigations
   'otAnalysis.mitigations.title': 'الحلول',

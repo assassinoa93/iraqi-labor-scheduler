@@ -2,6 +2,40 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.11.0 — 2026-04-28
+
+Holiday-comp-day workflow. Iraqi Labor Law (Art. 74) lets the supervisor compensate public-holiday work either with the 2× cash premium or by granting a paid day off in lieu within 7 days. Pre-v1.11 the app paid the cash premium regardless and tracked `holidayBank` as an opaque counter — there was no way to actually realise the legal alternative and save the venue the premium. v1.11 adds the explicit per-employee, per-holiday choice, and propagates it through every cost surface.
+
+**New: per-holiday compensation choice**
+- New `holidayCompensations: string[]` field on Employee (YYYY-MM-DD list of dates the supervisor has elected to grant a comp day in lieu). Pre-v1.11 saves migrate to undefined (treated as empty list — every holiday hour pays double, identical to v1.10 behaviour).
+- New `HolidayCompensationModal` lets the supervisor pick per worked holiday: pay 2× cash OR grant a paid off day in lieu. Live "premium savings" preview shows the IQD impact as choices toggle. Comp-all / Pay-all bulk buttons for fast setup.
+- Modal opens from two places: Credits & Payroll (per-employee row, when the employee worked any holiday) and Coverage & OT Analysis (Coins button on each top-burner row + the comp-day mitigation card's CTA pre-fills the highest-uncompensated-pressure employee).
+
+**OT math now respects the choice**
+- `lib/otAnalysis.ts` splits holiday hours into `compensatedHolidayHours` (pay 1× regular, already covered by base salary → 0 extra premium) and `uncompensatedHolidayHours` (pay 2×). The byEmployee detail now includes a `holidayDates` array with per-date `compensated` flags so UIs can show what's still pending.
+- The Coverage & OT Analysis tab's "Holiday (2.0×)" KPI and per-station / per-employee breakdowns now reflect only uncompensated hours. Granting a comp day visibly drops the IQD figures across every surface in real time.
+- Compliance Dashboard's "Monthly OT Premium" cell honours the same split: only uncompensated holidays contribute to the IQD total, so the supervisor sees the realised savings on the headline.
+- Credits & Payroll's "OT Amount" column shows compensated vs uncompensated hours separately and surfaces a one-click button per-row to open the modal.
+
+**Compliance engine semantics**
+- "Comp day owed" finding now fires only when the supervisor has explicitly opted into comp-day-in-lieu for that date AND no OFF/leave appears within 7 days. If they're paying the 2× cash premium, Art. 74 is satisfied by the cash and the warning is suppressed. Pre-v1.11 saves with empty `holidayCompensations` default to pay-double semantics — "Public holiday worked" info finding still surfaces them.
+
+**Suggestion-pane (carryover from v1.10.1, restated for visibility)**
+- Auto-dismiss now only fires when the originally-vacated employee comes back to the station (Ctrl+Z scenario). All other paths leave the hint visible until the user clicks X or picks a candidate. Fixes the "hint flashes off when I paint a single OFF on someone" report.
+
+**Tests**
+- Added 5 new otAnalysis tests for compensation behaviour: single comp drops pay to 0, default keeps 2×, partial comp across multiple holidays, per-date `compensated` flags exposed in `byEmployee.holidayDates`.
+- Updated 5 existing comp-day-owed compliance tests to use the new opt-in semantics (was: warning fired by default; now: only when comp was explicitly chosen).
+- Added a "default keeps cash premium" regression test so future changes can't silently re-default.
+- 69 tests total, all passing.
+
+**Architecture / files**
+- `src/components/HolidayCompensationModal.tsx` — new modal component.
+- `src/lib/otAnalysis.ts` — split fields; `analyzeOT` and `suggestMitigations` honour compensations.
+- `src/lib/compliance.ts` — `Comp day owed` short-circuits when not opted in.
+- `src/lib/migration.ts` — recognises `holidayCompensations` array on load; drops malformed entries silently.
+- `src/tabs/PayrollTab.tsx` + `src/tabs/DashboardTab.tsx` + `src/tabs/CoverageOTAnalysisTab.tsx` — all three honour the split.
+
 ## v1.10.1 — 2026-04-28
 
 Hotfix on top of v1.10.0.

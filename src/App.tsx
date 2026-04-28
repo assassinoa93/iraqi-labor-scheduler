@@ -1868,6 +1868,9 @@ export default function App() {
                 nextMonth={nextMonth}
                 onGoToRoster={() => setActiveTab('roster')}
                 onGoToSchedule={() => setActiveTab('schedule')}
+                onUpdateEmployee={(next) => {
+                  setEmployees(arr => arr.map(e => e.empId === next.empId ? next : e));
+                }}
               />
             )}
 

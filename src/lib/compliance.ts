@@ -503,14 +503,22 @@ export class ComplianceEngine {
                 severity: 'info',
               });
             }
-            // Comp-day-owed check: scan the next 7 days for any non-work
-            // entry (OFF / AL / SL / MAT / empty cell). If none appear, the
-            // comp day hasn't been granted yet. When the 7-day window
-            // crosses the month boundary AND the next month's schedule has
-            // already been generated (allSchedules supplies it), peek into
-            // it so a late-month PH-work can be compensated by an early
-            // OFF in the following month — closing the v1.8.0 gap where
-            // we used to bail at the boundary.
+            // Comp-day-owed check: only fires when the supervisor has
+            // EXPLICITLY chosen comp-day-in-lieu for this date (Art. 74
+            // alternative — emp.holidayCompensations contains it). If they
+            // chose to pay the 2× cash premium instead, the law is satisfied
+            // by the cash and no OFF day is required, so the warning is
+            // suppressed. Pre-v1.11 saves with empty `holidayCompensations`
+            // default to pay-double semantics — the "Public holiday worked"
+            // info finding above still surfaces them in the report.
+            //
+            // When the supervisor IS owed a comp day, scan the next 7 days
+            // for any non-work entry. If none appear (and the window doesn't
+            // cross into a not-yet-generated next month), surface the
+            // warning. The next-month peek is preserved from v1.9.0.
+            const compSet = new Set(emp.holidayCompensations || []);
+            const supervisorChoseComp = compSet.has(dStr);
+            if (!supervisorChoseComp) return; // forEach iteration short-circuit
             const nextSchedule = allSchedules?.[nextMonthKey(config.year, config.month)];
             const nextSchedExists = !!nextSchedule;
             let compFound = false;

@@ -151,70 +151,77 @@ describe('ComplianceEngine — public holiday worked', () => {
 
 describe('ComplianceEngine — comp day owed (Art. 74)', () => {
   const holiday: PublicHoliday = { date: '2026-01-05', name: 'Test Holiday', type: 'National', legalReference: 'Art. 74' };
+  // v1.11+: warning fires only when the supervisor has explicitly opted into
+  // comp-day-in-lieu for that date (holidayCompensations contains it). If
+  // they're paying the 2× cash premium (date NOT in the list), Art. 74 is
+  // satisfied by the cash and no OFF day is required.
+  const empOptedIntoComp = (dates: string[]): Employee => ({ ...baseEmployee, holidayCompensations: dates });
 
-  it('fires when a PH-work day has no OFF/leave in the next 7 days', () => {
-    // Day 5 is the holiday and worked, days 6-12 all worked too — no comp day.
+  it('fires when comp was chosen but no OFF/leave in the next 7 days', () => {
     const sched = buildSchedule({
       5: 'FS', 6: 'FS', 7: 'FS', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
     });
-    const v = ComplianceEngine.check([baseEmployee], [FS], [holiday], baseConfig, sched);
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-05'])], [FS], [holiday], baseConfig, sched);
     const compFinding = v.find(x => x.rule === 'Comp day owed');
     expect(compFinding).toBeDefined();
     expect(compFinding?.article).toBe('(Art. 74)');
     expect(compFinding?.severity).toBe('info');
   });
 
-  it('does not fire when an OFF day appears within the 7-day window', () => {
+  it('does NOT fire when supervisor is paying the cash premium (default, date not opted-in)', () => {
+    // Pre-v1.11 default behaviour: empty holidayCompensations means the
+    // supervisor is paying double, which satisfies Art. 74 — no warning.
     const sched = buildSchedule({
-      5: 'FS', 6: 'FS', 7: 'OFF', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
-    });
-    const v = ComplianceEngine.check([baseEmployee], [FS, OFF], [holiday], baseConfig, sched);
-    expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
-  });
-
-  it('does not fire when an empty (unscheduled) day is within the window', () => {
-    // Day 6 has no entry → counted as non-work → satisfies comp-day expectation.
-    const sched = buildSchedule({
-      5: 'FS', 7: 'FS', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
+      5: 'FS', 6: 'FS', 7: 'FS', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
     });
     const v = ComplianceEngine.check([baseEmployee], [FS], [holiday], baseConfig, sched);
     expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
   });
 
+  it('does not fire when an OFF day appears within the 7-day window (and comp was chosen)', () => {
+    const sched = buildSchedule({
+      5: 'FS', 6: 'FS', 7: 'OFF', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
+    });
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-05'])], [FS, OFF], [holiday], baseConfig, sched);
+    expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
+  });
+
+  it('does not fire when an empty (unscheduled) day is within the window', () => {
+    const sched = buildSchedule({
+      5: 'FS', 7: 'FS', 8: 'FS', 9: 'FS', 10: 'FS', 11: 'FS', 12: 'FS',
+    });
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-05'])], [FS], [holiday], baseConfig, sched);
+    expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
+  });
+
   it('does not fire when the window crosses the month boundary and next month is unknown', () => {
-    // PH worked on day 28; days 29-31 all worked but only 3 days remain in
-    // January and no next-month schedule has been supplied → can't tell yet.
     const lateHoliday: PublicHoliday = { date: '2026-01-28', name: 'Late', type: 'National', legalReference: 'Art. 74' };
     const sched = buildSchedule({
       28: 'FS', 29: 'FS', 30: 'FS', 31: 'FS',
     });
-    const v = ComplianceEngine.check([baseEmployee], [FS], [lateHoliday], baseConfig, sched);
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-28'])], [FS], [lateHoliday], baseConfig, sched);
     expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
   });
 
   it('peeks into next month when a late-month PH window crosses the boundary', () => {
-    // PH worked on Jan 28; Jan 29-31 worked + Feb 1-4 worked (no comp day
-    // anywhere in the 7-day window) → comp day owed.
     const lateHoliday: PublicHoliday = { date: '2026-01-28', name: 'Late', type: 'National', legalReference: 'Art. 74' };
     const sched = buildSchedule({ 28: 'FS', 29: 'FS', 30: 'FS', 31: 'FS' });
     const nextSched: Schedule = {
       'EMP-1': { 1: { shiftCode: 'FS' }, 2: { shiftCode: 'FS' }, 3: { shiftCode: 'FS' }, 4: { shiftCode: 'FS' } },
     };
     const allSchedules = { 'scheduler_schedule_2026_2': nextSched };
-    const v = ComplianceEngine.check([baseEmployee], [FS], [lateHoliday], baseConfig, sched, allSchedules);
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-28'])], [FS], [lateHoliday], baseConfig, sched, allSchedules);
     expect(v.find(x => x.rule === 'Comp day owed')).toBeDefined();
   });
 
   it('does not fire when an OFF appears in the next month within the 7-day window', () => {
-    // PH worked on Jan 28; Jan 29-31 + Feb 1 worked, but Feb 2 is OFF →
-    // the comp day was given on Feb 2, no violation.
     const lateHoliday: PublicHoliday = { date: '2026-01-28', name: 'Late', type: 'National', legalReference: 'Art. 74' };
     const sched = buildSchedule({ 28: 'FS', 29: 'FS', 30: 'FS', 31: 'FS' });
     const nextSched: Schedule = {
       'EMP-1': { 1: { shiftCode: 'FS' }, 2: { shiftCode: 'OFF' }, 3: { shiftCode: 'FS' } },
     };
     const allSchedules = { 'scheduler_schedule_2026_2': nextSched };
-    const v = ComplianceEngine.check([baseEmployee], [FS, OFF], [lateHoliday], baseConfig, sched, allSchedules);
+    const v = ComplianceEngine.check([empOptedIntoComp(['2026-01-28'])], [FS, OFF], [lateHoliday], baseConfig, sched, allSchedules);
     expect(v.find(x => x.rule === 'Comp day owed')).toBeUndefined();
   });
 

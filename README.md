@@ -59,17 +59,17 @@ A professional, local-first workforce management and automated scheduling system
 - **🧬 Backward-compatible data layer**: A central `src/lib/migration.ts` normaliser runs every loaded record through field-by-field defaults. Schemas can grow (new optional fields, future structural changes via `CURRENT_DATA_VERSION`) without breaking older backups.
 - **🔐 Verifiable builds**: Every release ships with a `SHA256SUMS.txt` so you can confirm the installer is byte-identical to what GitHub Actions built from this open-source code.
 - **♿ Accessible**: All modals trap focus and close on Escape. Every icon-only button has an `aria-label`. Tables use semantic markup with sortable column headers.
-- **🧪 Tested**: 64 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, and OT analysis — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution. Run `npm test` to verify.
+- **🧪 Tested**: 69 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, and OT analysis — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, comp-day choice (cash 2× vs paid day off in lieu), driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution. Run `npm test` to verify.
 
 ## 🚀 Quick Start (Recommended)
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v1.10.1)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.10.1.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v1.11.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-1.11.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.10.1.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.11.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
@@ -77,7 +77,7 @@ The easiest way to use the app is to download the pre-built installer:
 ### 🔄 Updating from an earlier version
 Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
 
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.9.x). This wizard will update Iraqi Labor Scheduler to v1.10.1…"*).
+1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.10.x). This wizard will update Iraqi Labor Scheduler to v1.11.0…"*).
 2. Replaces the program files in the existing install directory.
 3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
 4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
@@ -219,7 +219,14 @@ This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
 
 All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
 
-## 📦 What's new in v1.10
+## 📦 What's new in v1.11
+
+| Area | Change |
+|------|--------|
+| **Holiday comp-day workflow (Art. 74)** | New per-employee, per-holiday toggle: pay 2× cash premium **or** grant a paid day off in lieu within 7 days. Pre-1.11 the app paid double regardless and tracked `holidayBank` as an opaque counter — there was no way to actually realise the legal alternative and save the venue the premium. The new `HolidayCompensationModal` opens from Credits & Payroll (per-row button) and from the Coverage & OT Analysis tab (Coins button on each top-burner row, plus the comp-day mitigation card's CTA pre-fills the highest-uncompensated-pressure employee). Live "premium savings" preview shows the IQD impact as choices toggle. |
+| **OT math respects the choice everywhere** | Compensated holiday hours pay 1× regular wage (already covered by base salary → 0 extra premium). Uncompensated hours pay 2× per Art. 74 default. The Compliance Dashboard's "OT Premium" cell, Credits & Payroll's "OT Amount" column, and the Coverage & OT Analysis tab's Holiday-pool KPI all honour the same split — granting a comp day visibly drops the IQD figures across every surface in real time. |
+| **Compliance semantics** | "Comp day owed" finding now fires only when the supervisor has explicitly opted into comp-day-in-lieu for that date AND no OFF/leave appears within 7 days. Paying the cash premium satisfies Art. 74 the other way, so the warning is suppressed for those dates. |
+| **Carried from v1.10** | Coverage & OT Analysis tab (sidebar position #2); over-cap vs holiday-premium split; per-station + per-employee burner breakdowns; mitigations panel; suggestion-pane stability fix (only auto-dismisses on undo). |
 
 | Area | Change |
 |------|--------|

@@ -28,14 +28,24 @@ export interface EmployeeOT {
   totalHours: number;
   cap: number;
   overCapHours: number;       // hours > monthly cap (paid at otRateDay)
-  holidayHours: number;       // hours on a public holiday (paid at otRateNight)
-  // The over-cap pool excluding holiday hours (because holiday hours are
-  // already paid at the higher 2× rate so we don't want to double-charge).
-  // This is what the IQD calculation actually multiplies by otRateDay.
+  // Holiday hours: split by whether the supervisor has elected to grant a
+  // comp day off (Art. 74 alternative) or default to the 2× cash premium.
+  // Compensated hours pay 1× regular wage (already covered by base salary
+  // → no extra premium). Uncompensated hours pay 2× per Art. 74 default.
+  holidayHours: number;
+  compensatedHolidayHours: number;
+  uncompensatedHolidayHours: number;
+  // The over-cap pool excluding holiday hours (because uncompensated holiday
+  // hours are already paid at 2× and compensated holiday hours don't count
+  // toward over-cap pressure either — they're 1× regular). This is what
+  // the IQD calculation actually multiplies by otRateDay.
   payableOverCapHours: number;
   overCapPay: number;         // IQD: payableOverCapHours * hourly * otRateDay
-  holidayPay: number;         // IQD: holidayHours * hourly * otRateNight
+  holidayPay: number;         // IQD: uncompensatedHolidayHours * hourly * otRateNight
   totalOTPay: number;         // overCapPay + holidayPay
+  // Per-holiday breakdown so the UI can list which dates the worker did and
+  // which got comp days vs cash. Date strings are YYYY-MM-DD.
+  holidayDates: Array<{ date: string; hours: number; compensated: boolean }>;
   // Per-station distribution of the employee's hours. Used to attribute OT
   // pressure to specific stations.
   hoursByStation: Map<string, number>;
@@ -64,8 +74,14 @@ export interface OTAnalysis {
   // Top-line totals.
   totalOverCapHours: number;
   totalHolidayHours: number;
+  // Compensated vs uncompensated split. The savings from converting a
+  // holiday from cash to comp day shows up as a drop in
+  // uncompensatedHolidayHours and a rise in compensatedHolidayHours.
+  totalCompensatedHolidayHours: number;
+  totalUncompensatedHolidayHours: number;
   totalOverCapPay: number;
-  totalHolidayPay: number;
+  totalHolidayPay: number;            // only uncompensated counts toward IQD
+  totalCompSavings: number;           // IQD already saved by granting comps
   totalOTPay: number;
   // Cap (monthly hour cap) used for the analysis. Reported so the UI can
   // explain "X hours above the {cap}h cap".
@@ -119,11 +135,18 @@ export function analyzeOT(
   for (const emp of employees) {
     const empSched = schedule[emp.empId] || {};
     const hoursByStation = new Map<string, number>();
+    const compSet = new Set(emp.holidayCompensations || []);
     let totalHours = 0;
     let holidayHours = 0;
-    // Per-station holiday-hours bucket so we can attribute the holiday
-    // premium to the station the employee actually worked at on the holiday.
-    const holidayHoursByStation = new Map<string, number>();
+    let compensatedHolidayHours = 0;
+    let uncompensatedHolidayHours = 0;
+    // Per-station UNCOMPENSATED holiday-hours bucket so we attribute the
+    // 2× cash premium to where it was actually paid (compensated hours
+    // don't add to the cash pressure on a station).
+    const uncompHolidayHoursByStation = new Map<string, number>();
+    // Per-date breakdown so the UI can list each holiday the employee
+    // worked and let the supervisor toggle compensation per-date.
+    const holidayDateBuckets = new Map<string, number>();
 
     for (const [dayStr, entry] of Object.entries(empSched)) {
       const shift = shiftByCode.get(entry.shiftCode);
@@ -134,7 +157,13 @@ export function analyzeOT(
       const ds = dateStrFor(config.year, config.month, parseInt(dayStr));
       if (holidayDateSet.has(ds)) {
         holidayHours += shift.durationHrs;
-        holidayHoursByStation.set(stKey, (holidayHoursByStation.get(stKey) || 0) + shift.durationHrs);
+        holidayDateBuckets.set(ds, (holidayDateBuckets.get(ds) || 0) + shift.durationHrs);
+        if (compSet.has(ds)) {
+          compensatedHolidayHours += shift.durationHrs;
+        } else {
+          uncompensatedHolidayHours += shift.durationHrs;
+          uncompHolidayHoursByStation.set(stKey, (uncompHolidayHoursByStation.get(stKey) || 0) + shift.durationHrs);
+        }
       }
     }
 
@@ -142,12 +171,13 @@ export function analyzeOT(
 
     const hourly = baseHourlyRate(emp, config);
     const overCapHours = Math.max(0, totalHours - cap);
-    // Subtract holiday hours from the over-cap pool because holiday hours
-    // are already paid at the higher 2× rate. This mirrors the accounting
-    // that ScheduleTab + DashboardTab use for `stdOT`.
+    // Subtract ALL holiday hours from the over-cap pool: uncompensated
+    // hours are paid at 2× (already accounted for), compensated hours are
+    // paid at 1× regular wage covered by salary (no premium). Either way,
+    // they shouldn't double-charge into the over-cap 1.5× bucket.
     const payableOverCapHours = Math.max(0, overCapHours - holidayHours);
     const overCapPay = payableOverCapHours * hourly * otRateDay;
-    const holidayPay = holidayHours * hourly * otRateNight;
+    const holidayPay = uncompensatedHolidayHours * hourly * otRateNight;
     const totalOTPay = overCapPay + holidayPay;
 
     if (overCapHours > 0 || holidayHours > 0) {
@@ -158,10 +188,15 @@ export function analyzeOT(
         cap,
         overCapHours,
         holidayHours,
+        compensatedHolidayHours,
+        uncompensatedHolidayHours,
         payableOverCapHours,
         overCapPay,
         holidayPay,
         totalOTPay,
+        holidayDates: Array.from(holidayDateBuckets.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, hours]) => ({ date, hours, compensated: compSet.has(date) })),
         hoursByStation,
       });
     }
@@ -182,10 +217,10 @@ export function analyzeOT(
         acc.contributorIds.add(emp.empId);
       }
     }
-    // Holiday pool: each station gets exactly its share of the holiday
-    // hours actually worked there (no proportional fudging — this is a
-    // direct attribution).
-    for (const [stId, hrs] of holidayHoursByStation) {
+    // Holiday pool (uncompensated only): each station gets exactly its share
+    // of the uncompensated holiday hours actually worked there (no
+    // proportional fudging — this is a direct attribution).
+    for (const [stId, hrs] of uncompHolidayHoursByStation) {
       if (stId === '__unassigned__') continue;
       const acc = ensureStation(stId);
       acc.holidayHours += hrs;
@@ -222,15 +257,31 @@ export function analyzeOT(
   // Top-level totals.
   const totalOverCapHours = byEmployee.reduce((s, e) => s + e.payableOverCapHours, 0);
   const totalHolidayHours = byEmployee.reduce((s, e) => s + e.holidayHours, 0);
+  const totalCompensatedHolidayHours = byEmployee.reduce((s, e) => s + e.compensatedHolidayHours, 0);
+  const totalUncompensatedHolidayHours = byEmployee.reduce((s, e) => s + e.uncompensatedHolidayHours, 0);
   const totalOverCapPay = byEmployee.reduce((s, e) => s + e.overCapPay, 0);
   const totalHolidayPay = byEmployee.reduce((s, e) => s + e.holidayPay, 0);
   const totalOTPay = totalOverCapPay + totalHolidayPay;
+  // Pretend NO comp days were granted, then compare to the actual cost. The
+  // delta is the IQD already saved by the supervisor's compensation choices.
+  // This is what powers the "saved X IQD by granting comp days" KPI.
+  const hypotheticalNoCompPay = byEmployee.reduce((s, e) => {
+    // What would holidayPay be if every holiday hour paid 2× (current
+    // uncompensated + the compensated ones at the same rate)?
+    const totalHoliPay = (e.compensatedHolidayHours + e.uncompensatedHolidayHours)
+      * (e.totalOTPay > 0 ? (e.holidayPay / Math.max(1, e.uncompensatedHolidayHours)) : 0);
+    return s + totalHoliPay;
+  }, 0);
+  const totalCompSavings = Math.max(0, Math.round(hypotheticalNoCompPay - totalHolidayPay));
 
   return {
     totalOverCapHours: Math.round(totalOverCapHours * 10) / 10,
     totalHolidayHours,
+    totalCompensatedHolidayHours,
+    totalUncompensatedHolidayHours,
     totalOverCapPay: Math.round(totalOverCapPay),
     totalHolidayPay: Math.round(totalHolidayPay),
+    totalCompSavings,
     totalOTPay: Math.round(totalOTPay),
     cap,
     byEmployee,
@@ -265,21 +316,18 @@ export function suggestMitigations(analysis: OTAnalysis, avgMonthlySalary: numbe
   }
 
   // Grant comp days to convert holiday-premium pay (2×) to a single-rate
-  // wage. Each holiday day worked = 1 comp day owed to convert the premium.
-  // Approximation: distinct (employee, holiday) pairs. The savings is the
-  // delta between holidayPay (2× the wage) and a 1× wage — i.e. half of
-  // holidayPay since the 2× rate is twice the 1× rate.
-  if (analysis.totalHolidayPay > 0) {
-    // Compute distinct emp×holiday pairs by walking byEmployee.
+  // wage. The mitigation only proposes comps for holidays still on the
+  // uncompensated pool — already-compensated days don't need further action.
+  // Savings = the entire uncompensated holiday pay would drop to zero
+  // premium since regular wages are covered by the base monthly salary.
+  if (analysis.totalUncompensatedHolidayHours > 0) {
     let compDays = 0;
     for (const e of analysis.byEmployee) {
-      if (e.holidayHours > 0) {
-        // Approximate # of holiday days from holidayHours / 8 (full shift).
-        // This is rough but lines up with the per-employee tooltip math.
-        compDays += Math.max(1, Math.round(e.holidayHours / 8));
+      if (e.uncompensatedHolidayHours > 0) {
+        compDays += Math.max(1, Math.round(e.uncompensatedHolidayHours / 8));
       }
     }
-    out.push({ id: 'comp-day-holiday', estimatedSavings: Math.round(analysis.totalHolidayPay / 2), count: compDays });
+    out.push({ id: 'comp-day-holiday', estimatedSavings: analysis.totalHolidayPay, count: compDays });
   }
 
   // Re-running the scheduler in strict mode (level 1) sometimes spreads
