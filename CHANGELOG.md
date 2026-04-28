@@ -2,6 +2,41 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.10.0 — 2026-04-28
+
+OT-truth release. Two user-reported bugs from v1.9.0 + a substantial new tab to answer "why is the OT bill so high?".
+
+**Bug fixes**
+- **Suggestion pane no longer flashes off on manual paint.** Pre-1.10 the live-refresh effect dismissed the hint the moment ANY worker had a station-bound work shift at the gap's station — even if the station's `peakMinHC` was 2 and only one worker remained, or when the next paint immediately replaced the previous gap. The new auto-dismiss only fires when the gap is genuinely closed (the original employee was reassigned back, or another employee has taken a station-bound work shift such that the headcount meets the requirement). For permissive-mode hints (cashier stations on non-peak days where `normalMinHC: 0`) the hint persists until the user dismisses or picks a candidate — silent suppression was the wrong answer there.
+- **Manual paint now uses permissive coverage detection.** Painting a non-work shift over a working cashier on a non-peak day used to silently produce nothing (because `normalMinHC: 0` told the strict detector "no gap"). The same permissive pipeline that v1.9.0 introduced for the leave flow is now used for manual paints — the supervisor always sees substitute candidates when they remove someone from a working cell.
+
+**OT attribution — honest about both pools**
+- The dashboard advisory + simulation used to count only over-cap hours (paid 1.5×) as "OT". Holiday-premium hours (Art. 74, paid 2.0× regardless of cap) didn't show up in `totalOTHours`, so a clean run with everyone at-cap could still produce millions of IQD in premium pay yet report "remaining OT 0". The simulation now reports holiday hours as a separate residual pool with the correct caveat: hires CANNOT eliminate them — only comp days or fewer holiday operations can.
+- The new `src/lib/otAnalysis.ts` is the single source of truth for both pools. It splits per-employee and per-station OT into:
+  - **Over-cap pool** — hours over the monthly cap (excluding holiday hours, which are already paid 2× so we don't double-charge them in the 1.5× pool). Hires absorb this.
+  - **Holiday-premium pool** — every hour worked on a public holiday in the active month. Comp days within 7 days convert the 2× premium to a 1× wage.
+
+**New: Coverage & OT Analysis tab**
+- Sidebar position #2 (right after Compliance Dashboard). Compliance stays first.
+- Top KPI strip: total OT cost, over-cap pool, holiday pool, public holidays in this month.
+- "Why we have OT this month" panel with a stacked-bar visualisation showing the over-cap : holiday split, plus a per-holiday chip list.
+- Per-station OT breakdown: each station's total OT pay, with the over-cap : holiday share visualised inline. OT hours are attributed to stations proportionally to where the over-scheduled employees worked.
+- Per-employee burner list (top 20, with link to Reports for full export): total hours vs cap, over-cap hours, holiday hours, total IQD impact.
+- Mitigations panel with three actionable suggestions:
+  - **Hire +N to absorb over-cap OT** (links to Compliance Dashboard advisory)
+  - **Grant N comp days for holiday work** (links to Credits & Payroll)
+  - **Re-run auto-scheduler in strict mode** (one-click button to schedule)
+- Empty-state: friendly "no schedule yet" prompt with shortcuts to Roster + Schedule.
+
+**Tests**
+- New `otAnalysis.test.ts` (11 tests): empty / clean state, over-cap pool, holiday pool, no double-counting when both apply, station attribution, mitigation suggestions.
+- 64 tests total, all passing.
+
+**Architecture**
+- `src/lib/otAnalysis.ts` — `analyzeOT` + `suggestMitigations` are pure functions. The new tab and the dashboard advisory both consume them so the totals never disagree.
+- `src/tabs/CoverageOTAnalysisTab.tsx` — code-split, lazy-loaded like every other tab.
+- `simulateWithExtraHires` extended with `remainingHolidayHours` so the simulation readout can flag the structural premium that hires can't fix.
+
 ## v1.9.0 — 2026-04-28
 
 Quality + accuracy release on top of v1.8.0. Closes the four open follow-ups from the v1.8.0 batch (test coverage for the new helper modules, narrow-viewport pane behaviour, PH cross-month handling) and fixes four user-reported issues with the auto-scheduler advisory pipeline + dashboard recommendations.

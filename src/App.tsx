@@ -18,6 +18,7 @@ import {
   Layout,
   Scale,
   FlaskConical,
+  TrendingUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -69,6 +70,7 @@ import type { DayOfWeek } from './types';
 // clicks the corresponding sidebar item. Cuts the initial bundle materially —
 // the dashboard ships first, the rest are pulled in on demand.
 const DashboardTab = lazy(() => import('./tabs/DashboardTab').then(m => ({ default: m.DashboardTab })));
+const CoverageOTAnalysisTab = lazy(() => import('./tabs/CoverageOTAnalysisTab').then(m => ({ default: m.CoverageOTAnalysisTab })));
 const RosterTab = lazy(() => import('./tabs/RosterTab').then(m => ({ default: m.RosterTab })));
 const PayrollTab = lazy(() => import('./tabs/PayrollTab').then(m => ({ default: m.PayrollTab })));
 const ScheduleTab = lazy(() => import('./tabs/ScheduleTab').then(m => ({ default: m.ScheduleTab })));
@@ -1306,11 +1308,16 @@ export default function App() {
 
   // Run coverage-gap detection after a paint that may have removed a station
   // assignment. If a gap is found, queue up swap suggestions for the toast.
+  // Manual paint runs in *permissive* mode so a paint over a working cell
+  // always surfaces substitute candidates regardless of the station's minimum
+  // — pre-v1.10 only peak days or stations with normalMinHC>0 fired a hint,
+  // which left cashier paints on non-peak days silently producing OT.
   const surfaceCoverageHint = React.useCallback(
     (empId: string, day: number, prevEntry: { shiftCode: string; stationId?: string } | undefined, newEntry: { shiftCode: string; stationId?: string } | undefined) => {
       const gap = detectCoverageGap({
         employees, shifts, stations, holidays, config, schedule,
         empId, day, prevEntry, newEntry, isPeakDay,
+        permissive: true,
       });
       if (!gap) return;
       const suggestions = findSwapCandidates(gap, {
@@ -1471,32 +1478,56 @@ export default function App() {
     setCoverageHint(null);
   };
 
-  // Live-refresh the open coverage-hint toast as the schedule evolves. The
-  // user might keep editing after the toast appears — without this, the
-  // candidate list goes stale (shows employees who are no longer off, or
-  // omits employees who just became free). If the gap has been filled by
-  // another edit, dismiss the toast so it stops asking the user to fix
-  // something that no longer exists.
+  // Live-refresh the open coverage-hint as the schedule evolves. The user
+  // might keep editing after the hint appears — without this the candidate
+  // list goes stale (shows employees who are no longer off, or omits people
+  // who just became free).
+  //
+  // Auto-dismiss is conservative: pre-v1.10 we dismissed the moment ANY work
+  // shift appeared at the gap's station, which (a) flashed the hint on/off
+  // for stations with peakMinHC>1 where one worker remained, and (b) failed
+  // to surface multi-employee leave scenarios because the next paint would
+  // immediately replace + dismiss the prior hint. The new rule only
+  // dismisses when the gap is genuinely closed: either the original employee
+  // came back to the station as a work shift, or another employee has taken
+  // a station-bound work shift such that the headcount meets the requirement.
   useEffect(() => {
     if (!coverageHint) return;
     const { gap } = coverageHint;
-    // Has the gap been filled in the meantime? Count current work-shift
-    // assignments at the same station on the same day.
-    const stationFilled = employees.some(e => {
+    const peak = isPeakDay(gap.day);
+    const required = peak ? gap.station.peakMinHC : gap.station.normalMinHC;
+
+    // Did the originally-vacated employee come back to the station as a work
+    // shift? (e.g. user undid the paint that opened the gap.)
+    const currentVacatedEntry = schedule[gap.vacatedEmpId]?.[gap.day];
+    const reassigned =
+      currentVacatedEntry?.stationId === gap.station.id &&
+      !!shifts.find(s => s.code === currentVacatedEntry.shiftCode)?.isWork;
+
+    // How many other employees now hold a station-bound work shift here?
+    let replacementCount = 0;
+    for (const e of employees) {
+      if (e.empId === gap.vacatedEmpId) continue;
       const entry = schedule[e.empId]?.[gap.day];
-      if (!entry || entry.stationId !== gap.station.id) return false;
-      const sh = shifts.find(s => s.code === entry.shiftCode);
-      return !!sh?.isWork;
-    });
-    if (stationFilled) {
+      if (entry?.stationId !== gap.station.id) continue;
+      if (shifts.find(s => s.code === entry.shiftCode)?.isWork) replacementCount++;
+    }
+
+    // Genuinely closed only if a real replacement exists or the vacated cell
+    // was reassigned. For permissive-mode hints (required === 0) we keep the
+    // hint until the user dismisses or picks — the supervisor's intent is to
+    // see substitutes, not to be told the station "doesn't need one".
+    if (reassigned || (required > 0 && replacementCount >= required)) {
       setCoverageHint(null);
       return;
     }
-    // Still gapped — refresh suggestions against the current schedule.
+
+    // Refresh suggestions, but only commit when the candidate empIds actually
+    // change. Comparing on empId order keeps us out of infinite useEffect
+    // loops while still picking up roster availability changes.
     const fresh = findSwapCandidates(gap, {
       employees, shifts, stations, holidays, config, schedule, isPeakDay,
     });
-    // Avoid infinite loops: only update if the suggestion list actually changed.
     const prevKey = coverageHint.suggestions.map(s => s.empId).join('|');
     const nextKey = fresh.map(s => s.empId).join('|');
     if (prevKey !== nextKey) {
@@ -1693,16 +1724,17 @@ export default function App() {
 
         <nav className="flex-1 py-4 overflow-y-auto">
           <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />
-          <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="02" icon={Users} onClick={() => setActiveTab('roster')} />
-          <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="03" icon={Clock} onClick={() => setActiveTab('shifts')} />
-          <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="04" icon={BarChart3} onClick={() => setActiveTab('payroll')} />
-          <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="05" icon={Flag} onClick={() => setActiveTab('holidays')} />
-          <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="06" icon={Layout} onClick={() => setActiveTab('layout')} />
-          <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="07" icon={Calendar} onClick={() => setActiveTab('schedule')} />
-          <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="08" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />
-          <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="09" icon={Scale} onClick={() => setActiveTab('variables')} />
-          <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="10" icon={Database} onClick={() => setActiveTab('audit')} />
-          <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="11" icon={Settings} onClick={() => setActiveTab('settings')} />
+          <TabButton active={activeTab === 'coverageOT'} label={t('tab.coverageOT')} index="02" icon={TrendingUp} onClick={() => setActiveTab('coverageOT')} />
+          <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="03" icon={Users} onClick={() => setActiveTab('roster')} />
+          <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="04" icon={Clock} onClick={() => setActiveTab('shifts')} />
+          <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="05" icon={BarChart3} onClick={() => setActiveTab('payroll')} />
+          <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="06" icon={Flag} onClick={() => setActiveTab('holidays')} />
+          <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="07" icon={Layout} onClick={() => setActiveTab('layout')} />
+          <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="08" icon={Calendar} onClick={() => setActiveTab('schedule')} />
+          <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="09" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />
+          <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="10" icon={Scale} onClick={() => setActiveTab('variables')} />
+          <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="11" icon={Database} onClick={() => setActiveTab('audit')} />
+          <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="12" icon={Settings} onClick={() => setActiveTab('settings')} />
         </nav>
 
         <div className="p-4 border-t border-slate-700 bg-[#0F172A]/50 space-y-2">
@@ -1823,6 +1855,21 @@ export default function App() {
                 onGoToRoster={() => setActiveTab('roster')}
                 onLoadSample={loadSampleData}
                 activeCompanyId={activeCompanyId}
+              />
+            )}
+
+            {activeTab === 'coverageOT' && (
+              <CoverageOTAnalysisTab
+                employees={employees}
+                shifts={shifts}
+                stations={stations}
+                holidays={holidays}
+                config={config}
+                schedule={schedule}
+                prevMonth={prevMonth}
+                nextMonth={nextMonth}
+                onGoToRoster={() => setActiveTab('roster')}
+                onGoToSchedule={() => setActiveTab('schedule')}
               />
             )}
 

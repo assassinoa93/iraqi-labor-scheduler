@@ -256,6 +256,11 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
 
 function SimulationReadout({ result }: { result: SimulationResult }) {
   const { t } = useI18n();
+  // Hires can absorb over-cap OT and close coverage gaps; they CANNOT
+  // eliminate holiday-premium hours (someone has to work each holiday). So
+  // "clean" means cap-respected + every station covered. Holiday hours are
+  // reported as their own line so the supervisor sees that the residual
+  // premium pay is structural, not a hiring problem.
   const isClean = result.remainingOTHours < 1 && result.remainingCoverageGapDays === 0;
   return (
     <div className="space-y-2">
@@ -270,23 +275,30 @@ function SimulationReadout({ result }: { result: SimulationResult }) {
             : t('advisory.sim.partial', { hires: result.phantomHires })}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <SimStat label={t('advisory.sim.remainingOT')} value={`${result.remainingOTHours.toFixed(0)}h`} ok={result.remainingOTHours < 1} />
+        <SimStat label={t('advisory.sim.remainingHoliday')} value={`${result.remainingHolidayHours.toFixed(0)}h`} ok={false} hint />
         <SimStat label={t('advisory.sim.remainingGap')} value={result.remainingCoverageGapDays.toString()} ok={result.remainingCoverageGapDays === 0} />
         <SimStat label={t('advisory.sim.scheduled')} value={result.scheduledShifts.toString()} ok />
       </div>
+      {result.remainingHolidayHours > 0 && (
+        <p className="text-[10px] text-slate-500 leading-relaxed pt-1">{t('advisory.sim.holidayCaveat')}</p>
+      )}
     </div>
   );
 }
 
-function SimStat({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+function SimStat({ label, value, ok, hint }: { label: string; value: string; ok: boolean; hint?: boolean }) {
   return (
     <div className={cn(
       "p-2 rounded-lg border text-center",
-      ok ? "bg-white border-emerald-100" : "bg-white border-amber-100",
+      hint ? "bg-white border-slate-100" : ok ? "bg-white border-emerald-100" : "bg-white border-amber-100",
     )}>
       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <p className={cn("text-base font-black mt-0.5", ok ? "text-emerald-700" : "text-amber-700")}>{value}</p>
+      <p className={cn(
+        "text-base font-black mt-0.5",
+        hint ? "text-slate-700" : ok ? "text-emerald-700" : "text-amber-700",
+      )}>{value}</p>
     </div>
   );
 }

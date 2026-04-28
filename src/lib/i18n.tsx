@@ -20,6 +20,7 @@ export const en: Dict = {
 
   // Tabs
   'tab.dashboard': 'Compliance Dashboard',
+  'tab.coverageOT': 'Coverage & OT Analysis',
   'tab.roster': 'Employee Roster',
   'tab.shifts': 'Shift Setup',
   'tab.payroll': 'Credits & Payroll',
@@ -627,8 +628,10 @@ export const en: Dict = {
   'advisory.sim.clean': 'Clean run with {hires} added — recommendation validated.',
   'advisory.sim.partial': '{hires} hires injected — residual issues remain (see below).',
   'advisory.sim.remainingOT': 'Residual OT',
+  'advisory.sim.remainingHoliday': 'Holiday Hrs',
   'advisory.sim.remainingGap': 'Residual Gap',
   'advisory.sim.scheduled': 'Shifts',
+  'advisory.sim.holidayCaveat': 'Holiday hours stay because the venue still operates on public holidays — hires can\'t make them disappear. Convert the 2× premium to a 1× wage by granting a comp day within 7 days. See the Coverage & OT Analysis tab for the per-employee breakdown.',
   // Setup-incomplete gating banner
   'dashboard.setup.title': 'Setup not complete',
   'dashboard.setup.body': 'The compliance dashboard needs the basics in place before it can give accurate hiring or coverage advice. Once you finish setup, advisory cards appear here automatically.',
@@ -654,6 +657,56 @@ export const en: Dict = {
   'pane.changes.clear': 'Clear log',
   'pane.changes.showAll': 'Show {extra} more',
   'pane.changes.showLess': 'Show fewer',
+
+  // Coverage & OT Analysis tab
+  'otAnalysis.eyebrow': 'Cost · Coverage · Mitigations',
+  'otAnalysis.empty.title': 'No data to analyze yet',
+  'otAnalysis.empty.body': 'Add employees and run the auto-scheduler (or paint a schedule manually) to see your monthly OT cost broken down by station, employee, and source.',
+  'otAnalysis.empty.toRoster': 'Go to Roster',
+  'otAnalysis.empty.toSchedule': 'Go to Schedule',
+  'otAnalysis.cleanRun.title': 'Zero overtime this month',
+  'otAnalysis.cleanRun.body': 'No employee is over the monthly cap, no public-holiday hours were worked. Nothing to mitigate — keep an eye out as next month\'s schedule fills in.',
+  // KPI strip
+  'otAnalysis.kpi.totalOT': 'Total OT cost',
+  'otAnalysis.kpi.overCapPay': 'Over-cap (1.5×)',
+  'otAnalysis.kpi.holidayPay': 'Holiday (2.0×)',
+  'otAnalysis.kpi.holidaysWorked': 'Public holidays this month',
+  'otAnalysis.kpi.holidaysSub': 'days worked',
+  'otAnalysis.kpi.ofTotal': 'of total',
+  // Why we have OT
+  'otAnalysis.why.title': 'Why we have OT this month',
+  'otAnalysis.why.body': 'Iraqi Labor Law pays two distinct OT premiums. Hours over the {cap}h monthly cap are paid at 1.5× the base rate (Art. 70). Hours worked on public holidays are paid at 2.0× (Art. 74), even if the employee is below the cap. Hires can absorb the first pool — only comp days or fewer holiday operations can shrink the second.',
+  'otAnalysis.why.overCapLegend': 'Over-cap: {hrs}h',
+  'otAnalysis.why.holidayLegend': 'Holiday: {hrs}h',
+  'otAnalysis.why.holidaysHeader': 'Holidays in this month',
+  // Per-station
+  'otAnalysis.byStation.title': 'Where the OT was spent',
+  'otAnalysis.byStation.subtitle': 'Each over-cap hour is attributed to a station proportional to where the over-scheduled employee worked. Holiday hours are attributed directly to the station the worker was on that day.',
+  'otAnalysis.byStation.contributors': '{n} contributor(s)',
+  'otAnalysis.byStation.totalHours': 'total worked',
+  // Per-employee
+  'otAnalysis.byEmployee.title': 'Who burned the OT',
+  'otAnalysis.byEmployee.count': 'with OT',
+  'otAnalysis.byEmployee.overCap': 'Over-cap',
+  'otAnalysis.byEmployee.holiday': 'Holiday',
+  'otAnalysis.byEmployee.more': '… and {extra} more — see Reports tab for the full export',
+  // Mitigations
+  'otAnalysis.mitigations.title': 'Mitigations',
+  'otAnalysis.mitigations.subtitle': 'Each OT pool has a different lever — pick the one that matches the kind of cost you have.',
+  'otAnalysis.mitigations.estSavings': 'Estimated savings: {amount} IQD/mo',
+  'otAnalysis.mitigations.hire.title': 'Hire +{count} to absorb over-cap OT',
+  'otAnalysis.mitigations.hire.body': 'Each new FTE relieves up to one monthly cap of over-cap pressure. Salary added is approximately {cost} IQD/mo at the roster average. See the Compliance Dashboard for per-station breakdown + simulation.',
+  'otAnalysis.mitigations.hire.cta': 'See advisory',
+  'otAnalysis.mitigations.compDay.title': 'Grant {count} comp day(s) for holiday work',
+  'otAnalysis.mitigations.compDay.body': 'Iraqi Labor Law (Art. 74) lets you swap the 2× holiday premium for a regular paid day plus a rest day off within 7 days. The compliance engine flags any holiday-work day that doesn\'t get a comp within the window — go to Roster → Credits & Payroll to mark them.',
+  'otAnalysis.mitigations.compDay.cta': 'Open payroll',
+  'otAnalysis.mitigations.rebalance.title': 'Re-run the auto-scheduler in strict mode',
+  'otAnalysis.mitigations.rebalance.body': 'Sometimes a manually-edited schedule has skewed someone\'s weekly load. Strict-mode auto-scheduling re-distributes hours subject to all caps, so the over-cap pool can shrink without any new hires.',
+  'otAnalysis.mitigations.rebalance.cta': 'Open schedule',
+
+  // Action helpers used by the tab header
+  'action.prevMonth': 'Previous month',
+  'action.nextMonth': 'Next month',
 
   // Theme toggle
   'theme.light': 'Light',
@@ -689,6 +742,7 @@ export const ar: Dict = {
 
   // Tabs
   'tab.dashboard': 'لوحة الامتثال',
+  'tab.coverageOT': 'تحليل التغطية والإضافي',
   'tab.roster': 'سجل الموظفين',
   'tab.shifts': 'إعداد الورديات',
   'tab.payroll': 'الأرصدة والأجور',
@@ -1298,8 +1352,10 @@ export const ar: Dict = {
   'advisory.sim.clean': 'تشغيل نظيف بإضافة {hires} — التوصية مؤكدة.',
   'advisory.sim.partial': 'تمت إضافة {hires} موظفين — لا تزال هناك مشاكل (انظر أدناه).',
   'advisory.sim.remainingOT': 'متبقي إضافي',
+  'advisory.sim.remainingHoliday': 'ساعات العطل',
   'advisory.sim.remainingGap': 'متبقي فجوة',
   'advisory.sim.scheduled': 'الورديات',
+  'advisory.sim.holidayCaveat': 'تبقى ساعات العطل لأن المكان يعمل في العطل الرسمية — التوظيف لا يلغيها. حوّل العلاوة من 2× إلى أجر عادي بمنح يوم تعويضي خلال 7 أيام. انظر تبويب تحليل التغطية والإضافي لتفصيل كل موظف.',
   // Setup-incomplete gating
   'dashboard.setup.title': 'الإعداد غير مكتمل',
   'dashboard.setup.body': 'تحتاج لوحة الامتثال إلى الأساسيات قبل تقديم نصائح دقيقة للتوظيف أو التغطية. بعد إكمال الإعداد، تظهر بطاقات التوصيات هنا تلقائيًا.',
@@ -1325,6 +1381,55 @@ export const ar: Dict = {
   'pane.changes.clear': 'مسح السجل',
   'pane.changes.showAll': 'عرض {extra} إضافية',
   'pane.changes.showLess': 'عرض أقل',
+
+  // Coverage & OT Analysis
+  'otAnalysis.eyebrow': 'التكلفة · التغطية · الحلول',
+  'otAnalysis.empty.title': 'لا توجد بيانات للتحليل بعد',
+  'otAnalysis.empty.body': 'أضف موظفين وشغّل المُجدوِل التلقائي (أو ارسم جدولًا يدويًا) لعرض تكلفة العمل الإضافي الشهرية مفصّلة حسب المحطة والموظف والمصدر.',
+  'otAnalysis.empty.toRoster': 'اذهب إلى السجل',
+  'otAnalysis.empty.toSchedule': 'اذهب إلى الجدول',
+  'otAnalysis.cleanRun.title': 'لا عمل إضافي هذا الشهر',
+  'otAnalysis.cleanRun.body': 'لا أحد فوق الحد الشهري ولم يتم العمل في أي عطلة رسمية. لا شيء للمعالجة — راقب جدول الشهر القادم.',
+  // KPI strip
+  'otAnalysis.kpi.totalOT': 'إجمالي تكلفة الإضافي',
+  'otAnalysis.kpi.overCapPay': 'تجاوز الحد (1.5×)',
+  'otAnalysis.kpi.holidayPay': 'العطل (2.0×)',
+  'otAnalysis.kpi.holidaysWorked': 'العطل الرسمية هذا الشهر',
+  'otAnalysis.kpi.holidaysSub': 'أيام عمل',
+  'otAnalysis.kpi.ofTotal': 'من الإجمالي',
+  // Why we have OT
+  'otAnalysis.why.title': 'لماذا لدينا عمل إضافي هذا الشهر',
+  'otAnalysis.why.body': 'يدفع قانون العمل العراقي علاوتين مختلفتين. الساعات فوق الحد الشهري ({cap} ساعة) تُدفع 1.5× من الأجر الأساسي (المادة 70). ساعات العمل في العطل الرسمية تُدفع 2.0× (المادة 74) حتى لو كان الموظف تحت الحد. التوظيف يستوعب المجموعة الأولى — أما الثانية فلا تتقلص إلا بمنح أيام تعويضية أو تقليل العمل في العطل.',
+  'otAnalysis.why.overCapLegend': 'تجاوز الحد: {hrs} ساعة',
+  'otAnalysis.why.holidayLegend': 'عطل: {hrs} ساعة',
+  'otAnalysis.why.holidaysHeader': 'عطل هذا الشهر',
+  // Per-station
+  'otAnalysis.byStation.title': 'أين تم صرف الإضافي',
+  'otAnalysis.byStation.subtitle': 'كل ساعة تجاوز للحد تُنسب إلى محطة بنسبة الساعات التي عمل فيها الموظف هناك. ساعات العطل تُنسب مباشرة إلى المحطة التي عمل فيها ذلك اليوم.',
+  'otAnalysis.byStation.contributors': '{n} مساهم',
+  'otAnalysis.byStation.totalHours': 'إجمالي العمل',
+  // Per-employee
+  'otAnalysis.byEmployee.title': 'من تحمّل العمل الإضافي',
+  'otAnalysis.byEmployee.count': 'بساعات إضافية',
+  'otAnalysis.byEmployee.overCap': 'فوق الحد',
+  'otAnalysis.byEmployee.holiday': 'عطل',
+  'otAnalysis.byEmployee.more': '… و{extra} آخرون — انظر تبويب التقارير للتصدير الكامل',
+  // Mitigations
+  'otAnalysis.mitigations.title': 'الحلول',
+  'otAnalysis.mitigations.subtitle': 'لكل مجموعة من الإضافي رافعة مختلفة — اختر التي تناسب نوع التكلفة لديك.',
+  'otAnalysis.mitigations.estSavings': 'التوفير المتوقّع: {amount} د.ع/شهر',
+  'otAnalysis.mitigations.hire.title': 'وظِّف +{count} لاستيعاب الإضافي فوق الحد',
+  'otAnalysis.mitigations.hire.body': 'كل موظف جديد يخفّف عن الموجودين ما يصل إلى حد شهري كامل من ساعات تجاوز الحد. الراتب المضاف ≈ {cost} د.ع/شهر بمتوسط الرواتب. انظر لوحة الامتثال للتفصيل والمحاكاة.',
+  'otAnalysis.mitigations.hire.cta': 'اطلع على التوصية',
+  'otAnalysis.mitigations.compDay.title': 'امنح {count} يومًا تعويضيًا لعمل العطل',
+  'otAnalysis.mitigations.compDay.body': 'يسمح القانون (المادة 74) باستبدال علاوة 2× بأجر عادي ويوم راحة خلال 7 أيام. يُنبّه محرك الامتثال إلى أي يوم عطلة عُمل ولم يحصل على تعويض في الإطار الزمني — انتقل إلى السجل ← الرواتب لتعليمها.',
+  'otAnalysis.mitigations.compDay.cta': 'افتح الرواتب',
+  'otAnalysis.mitigations.rebalance.title': 'أعد تشغيل المُجدوِل التلقائي بالوضع الصارم',
+  'otAnalysis.mitigations.rebalance.body': 'أحيانًا يُحدث التحرير اليدوي اختلالًا في عبء أحدهم الأسبوعي. الجدولة الصارمة تُعيد التوزيع ضمن جميع الحدود، فيمكن أن تتقلص ساعات تجاوز الحد دون توظيف جديد.',
+  'otAnalysis.mitigations.rebalance.cta': 'افتح الجدول',
+
+  'action.prevMonth': 'الشهر السابق',
+  'action.nextMonth': 'الشهر التالي',
 
   // Theme
   'theme.light': 'فاتح',

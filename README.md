@@ -59,17 +59,17 @@ A professional, local-first workforce management and automated scheduling system
 - **🧬 Backward-compatible data layer**: A central `src/lib/migration.ts` normaliser runs every loaded record through field-by-field defaults. Schemas can grow (new optional fields, future structural changes via `CURRENT_DATA_VERSION`) without breaking older backups.
 - **🔐 Verifiable builds**: Every release ships with a `SHA256SUMS.txt` so you can confirm the installer is byte-identical to what GitHub Actions built from this open-source code.
 - **♿ Accessible**: All modals trap focus and close on Escape. Every icon-only button has an `aria-label`. Tables use semantic markup with sortable column headers.
-- **🧪 Tested**: 53 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, and staffing advisory math — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown. Run `npm test` to verify.
+- **🧪 Tested**: 64 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, and OT analysis — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution. Run `npm test` to verify.
 
 ## 🚀 Quick Start (Recommended)
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v1.9.0)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.9.0.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v1.10.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-1.10.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.9.0.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.10.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
@@ -77,7 +77,7 @@ The easiest way to use the app is to download the pre-built installer:
 ### 🔄 Updating from an earlier version
 Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
 
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.8.x). This wizard will update Iraqi Labor Scheduler to v1.9.0…"*).
+1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.9.x). This wizard will update Iraqi Labor Scheduler to v1.10.0…"*).
 2. Replaces the program files in the existing install directory.
 3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
 4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
@@ -218,6 +218,16 @@ This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
 - **Article 88** (transport workers): Stricter caps for drivers — 9h daily / 56h weekly, 4.5h max continuous driving with mandatory 30-min break, 11h daily rest.
 
 All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
+
+## 📦 What's new in v1.10
+
+| Area | Change |
+|------|--------|
+| **New tab — Coverage & OT Analysis** | Sidebar position #2 (Compliance stays first). Answers "why is the OT bill so high, where is it being spent, and what can I do about it?". Top KPI strip splits the monthly OT cost into the **two distinct pools** Iraqi Labor Law pays at different rates: **over-cap (1.5×, Art. 70)** and **holiday-premium (2.0×, Art. 74)**. Per-station breakdown shows where each pool was burned. Per-employee burner list ranks the supervisor's roster by total OT cost. Mitigation panel proposes the correct lever per pool: hires for over-cap, comp days for holiday, or a strict-mode auto-scheduler re-run for skewed schedules. |
+| **OT attribution honest about both pools** | The dashboard advisory + simulation used to count only over-cap hours as OT. A clean run with everyone at-cap could still produce millions of IQD in premium pay (all from public-holiday work) yet report "remaining OT 0". The simulation now reports holiday hours as a separate residual pool with the correct caveat — hires can't eliminate them, only comp days can. New `src/lib/otAnalysis.ts` is the single source of truth so the dashboard advisory and the analysis tab never disagree on totals. |
+| **Suggestion-pane stability fix** | Pre-1.10 the live-refresh effect dismissed the hint the moment any worker had a station-bound shift at the gap's station — even when the station's `peakMinHC` was 2 and only one worker remained. New auto-dismiss only fires when the gap is genuinely closed: original employee reassigned back, or another employee took a station-bound shift such that headcount meets the requirement. Permissive-mode hints stay open until the user dismisses or picks. |
+| **Manual paint uses permissive coverage detection** | Painting a non-work shift over a working cashier on a non-peak day used to silently produce nothing because `normalMinHC: 0` told the strict detector "no gap". The same permissive pipeline that v1.9.0 introduced for the leave flow now applies to manual paints — the supervisor always sees substitutes when removing someone from a working cell. |
+| **Carried from v1.9** | Per-station + simulation-validated hiring advisory; setup-completeness gating; auto-scheduler results UI overhaul (compliance hero header + bar chart + violation/notes split); narrow-viewport suggestion pane; cross-month PH comp-day check. |
 
 ## 📦 What's new in v1.9
 

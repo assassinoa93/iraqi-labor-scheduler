@@ -233,7 +233,12 @@ export function computeStaffingAdvisory({
 // just back-of-envelope: the supervisor can sanity-check the recommendation
 // against a real run before approving headcount.
 export interface SimulationResult {
+  /** Hours still over the monthly cap after the phantom hires are added. */
   remainingOTHours: number;
+  /** Hours worked on a public holiday in the simulated schedule. Hires
+   *  cannot eliminate this pool — it's reported so the supervisor sees that
+   *  even a "clean" hire result still carries holiday-premium cost. */
+  remainingHolidayHours: number;
   remainingCoverageGapDays: number;
   scheduledShifts: number;
   /** Number of phantom hires injected for this run. */
@@ -246,7 +251,7 @@ export function simulateWithExtraHires(
 ): SimulationResult {
   const { employees, shifts, stations, holidays, config, isPeakDay } = args;
   if (shifts.length === 0 || stations.length === 0 || perStation.length === 0) {
-    return { remainingOTHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
+    return { remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
   }
 
   // Build phantom employees, pinned to the station that drives each hire so
@@ -287,7 +292,7 @@ export function simulateWithExtraHires(
   }
 
   if (phantoms.length === 0) {
-    return { remainingOTHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
+    return { remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
   }
 
   const augmented = [...employees, ...phantoms];
@@ -298,21 +303,28 @@ export function simulateWithExtraHires(
   // Measure the simulated outcome.
   const cap = monthlyHourCap(config);
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
+  const holidayDateSet = new Set(holidays
+    .filter(h => h.date.startsWith(`${config.year}-${String(config.month).padStart(2, '0')}-`))
+    .map(h => h.date));
 
   let remainingOTHours = 0;
+  let remainingHolidayHours = 0;
   let scheduledShifts = 0;
 
   for (const emp of augmented) {
     let hrs = 0;
+    let holiHrs = 0;
     const empSched = schedule[emp.empId] || {};
-    for (const entry of Object.values(empSched)) {
+    for (const [dayStr, entry] of Object.entries(empSched)) {
       const sh = shiftByCode.get(entry.shiftCode);
-      if (sh?.isWork) {
-        hrs += sh.durationHrs;
-        scheduledShifts++;
-      }
+      if (!sh?.isWork) continue;
+      hrs += sh.durationHrs;
+      scheduledShifts++;
+      const ds = format(new Date(config.year, config.month - 1, parseInt(dayStr)), 'yyyy-MM-dd');
+      if (holidayDateSet.has(ds)) holiHrs += sh.durationHrs;
     }
     if (hrs > cap) remainingOTHours += hrs - cap;
+    remainingHolidayHours += holiHrs;
   }
 
   // Remaining coverage gap: count (day, station) pairs where peak-hour HC < required.
@@ -333,5 +345,5 @@ export function simulateWithExtraHires(
     }
   }
 
-  return { remainingOTHours, remainingCoverageGapDays, scheduledShifts, phantomHires: phantoms.length };
+  return { remainingOTHours, remainingHolidayHours, remainingCoverageGapDays, scheduledShifts, phantomHires: phantoms.length };
 }
