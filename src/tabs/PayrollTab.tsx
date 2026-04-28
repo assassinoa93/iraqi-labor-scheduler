@@ -7,7 +7,6 @@ import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { LeaveManagerModal } from '../components/LeaveManagerModal';
-import { HolidayCompensationModal } from '../components/HolidayCompensationModal';
 import { listAllLeaveRanges } from '../lib/leaves';
 
 interface PayrollTabProps {
@@ -25,7 +24,6 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
   const holidayDates = new Set(holidays.map(h => h.date));
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
   const [leaveEditFor, setLeaveEditFor] = useState<Employee | null>(null);
-  const [compEditFor, setCompEditFor] = useState<Employee | null>(null);
 
   return (
     <div className="space-y-6">
@@ -65,12 +63,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
             <tbody className="divide-y divide-slate-100">
               {employees.map(emp => {
                 const empSched = schedule[emp.empId] || {};
-                const compSet = new Set(emp.holidayCompensations || []);
                 let totalHours = 0;
                 let holidayOTHours = 0;
-                let compHolidayHours = 0;
-                let uncompHolidayHours = 0;
-                const workedHolidayDates: string[] = [];
 
                 Object.entries(empSched).forEach(([day, entry]) => {
                   const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
@@ -78,12 +72,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                   const shift = shiftByCode.get(entry.shiftCode);
                   if (shift?.isWork) {
                     totalHours += shift.durationHrs;
-                    if (isHoli) {
-                      holidayOTHours += shift.durationHrs;
-                      workedHolidayDates.push(dateStr);
-                      if (compSet.has(dateStr)) compHolidayHours += shift.durationHrs;
-                      else uncompHolidayHours += shift.durationHrs;
-                    }
+                    if (isHoli) holidayOTHours += shift.durationHrs;
                   }
                 });
 
@@ -94,11 +83,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                 const standardOTHours = Math.max(0, totalHours - cap - holidayOTHours);
 
                 const standardOTPay = standardOTHours * hourlyRate * (config.otRateDay ?? 1.5);
-                // Only UNCOMPENSATED holiday hours pay the 2× premium. Compensated
-                // holidays — the supervisor has elected to grant a comp day off
-                // in lieu (Art. 74 alternative) — pay 1× regular wage already
-                // covered by base salary, so they contribute 0 extra premium.
-                const holidayOTPay = uncompHolidayHours * hourlyRate * (config.otRateNight ?? 2.0);
+                // Holiday hours always pay 2× per Art. 74 (cash premium) AND
+                // the worker is also owed a comp rest day. Tracked separately
+                // via emp.holidayBank — paid both, not "either/or".
+                const holidayOTPay = holidayOTHours * hourlyRate * (config.otRateNight ?? 2.0);
 
                 const isOtEligible = totalHours > cap;
 
@@ -155,21 +143,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                       <div className="text-xs font-bold text-emerald-600">+{Math.round(standardOTPay + holidayOTPay).toLocaleString()}</div>
                       <div className="text-[9px] text-slate-400 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
-                        {uncompHolidayHours > 0 && `(${uncompHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
-                        {compHolidayHours > 0 && (
-                          <span className="text-emerald-600"> · {compHolidayHours.toFixed(1)}h {t('payroll.compensated')}</span>
-                        )}
+                        {holidayOTHours > 0 && `(incl. ${holidayOTHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
                       </div>
-                      {workedHolidayDates.length > 0 && (
-                        <button
-                          onClick={() => setCompEditFor(emp)}
-                          className="mt-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          {compSet.size > 0
-                            ? t('payroll.compEdit', { count: compSet.size, total: workedHolidayDates.length })
-                            : t('payroll.compGrant', { count: workedHolidayDates.length })}
-                        </button>
-                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-black text-slate-900 tracking-tighter">
@@ -194,6 +169,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
         }}
       />
 
+      {/* HolidayCompensationModal was removed in v1.14.0 — Iraqi Labor Law
+          Art. 74 entitles workers to BOTH the 2× cash premium AND a comp
+          rest day, not a choice between them. The choose-comps toggle
+          modeled the wrong legal interpretation.
       <HolidayCompensationModal
         isOpen={compEditFor !== null}
         employee={compEditFor}
@@ -206,7 +185,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
           onUpdateEmployee(next);
           setCompEditFor(null);
         }}
-      />
+      /> */}
     </div>
   );
 }

@@ -2,6 +2,37 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.14.0 — 2026-04-28
+
+Legal-correctness pass + Workforce Planning v2.
+
+**Holiday compensation — Art. 74 corrected**
+- Pre-1.14 the OT analysis tab and PayrollTab let the supervisor toggle "comp day in lieu" per holiday, dropping the 2× cash premium to 0× when chosen. That modeled Art. 74 as an OR (cash XOR comp day), which is the strict-grammar reading. In our sector's prevailing CBA interpretation, the worker is entitled to BOTH: the cash premium for working AND a comp rest day (the rest portion of Art. 73 isn't waived just because Art. 74 also applies).
+- v1.14 removes the choose-comps modal entirely. Holiday hours always pay 2×; the comp rest day is a scheduling obligation tracked separately. The compliance engine's "Comp day owed" warning fires by default for any PH-work day with no OFF in 7 days, no opt-in required (reverted to v1.10 default-on semantics).
+- The `holidayCompensations` field on Employee is retained on the data model for forward-compat but is no longer read by the math.
+
+**Workforce Planning — two strategies**
+- New `mode` parameter: `conservative` or `optimal`. The supervisor picks via an Apple-style segmented control at the top of the tab.
+  - **Conservative** (default): pure FTE, hire-to-peak, never recommend release. Sized for the busiest month and held through valleys. Carrying excess capacity through valley months is cheaper than the legal/social cost of releases under Iraqi Labor Law (Art. 36/40 — fixed-term renewals become open-ended FTE; dismissals require Minister of Labor approval).
+  - **Optimal**: cost-minimising FTE baseline + part-time surge mix. Cheaper on paper but requires scaling the workforce up/down across the year — legally complex.
+- Action labels: `release` is gone from the recommendation vocabulary entirely. When current > recommended, the planner surfaces `hold` instead — carry the surplus through valleys, don't fire anyone.
+- New "Annual rollup" panel above the monthly chart: one row per role with the year-round recommendation (peak FTE in conservative mode, monthly average in optimal). Includes the per-role peak-month indicator and a plain-language reasoning line.
+- New top-right Apple-style switch toggles between **Comparative** view (current vs recommended side-by-side) and **Ideal-only** view (standalone recommendation, easier to share with stakeholders).
+- New PDF export — single-click report download for HR Director / CEO. Includes the annual summary, per-role rollup table, monthly demand breakdown, and the legal-safety premium calculation.
+- KPI strip in ideal-only mode shows the **legal-safety premium**: the IQD/yr cost of choosing conservative over optimal — what the supervisor is paying to avoid the legal complexity of releases.
+
+**Tests**
+- Updated `workforcePlanning.test.ts`: 4 new tests for conservative/optimal mode behaviour + buildAnnualRollup. 21 tests total in this file.
+- Updated `compliance.test.ts`: reverted comp-day-owed tests to default-on semantics.
+- Updated `otAnalysis.test.ts`: removed the comp-choice tests.
+- 87 tests total across the suite, all passing.
+
+**Architecture**
+- `src/lib/workforcePlanning.ts` — added `PlanMode`, mode-aware `recommendMix`, `buildAnnualRollup`, `AnnualRollup` interface.
+- `src/tabs/WorkforcePlanningTab.tsx` — rewritten with mode toggle, view toggle, annual rollup panel, PDF export.
+- `src/components/HolidayCompensationModal.tsx` — deleted.
+- `src/lib/otAnalysis.ts` — `EmployeeOT.compensatedHolidayHours` / `uncompensatedHolidayHours` removed; holiday hours always pay 2×.
+
 ## v1.13.1 — 2026-04-28
 
 Hotfix on top of v1.13.0.

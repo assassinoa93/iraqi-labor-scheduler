@@ -1,13 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Users, TrendingUp, TrendingDown, Minus, Briefcase, Clock, Sparkles, Info,
-  MapPin, ChevronDown, ChevronUp, Calendar, Coins, Activity,
+  Users, TrendingUp, Minus, Briefcase, Sparkles, Info,
+  MapPin, ChevronDown, ChevronUp, Calendar, Activity, ShieldCheck,
+  Zap, Download, Eye, GitCompareArrows,
 } from 'lucide-react';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
 import { Card } from '../components/Primitives';
+import { Switch } from '../components/ui/Switch';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
-import { analyzeWorkforceAnnual, RoleDemand, MonthlyPlanSummary } from '../lib/workforcePlanning';
+import {
+  analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupRole, MonthlyPlanSummary,
+  PlanMode,
+} from '../lib/workforcePlanning';
 
 interface Props {
   employees: Employee[];
@@ -16,10 +21,6 @@ interface Props {
   holidays: PublicHoliday[];
   config: Config;
   schedule: Schedule;
-  // Per-month peak-day factory. Given a config (with year/month overridden),
-  // returns the predicate. App.tsx already has this logic; the tab only
-  // needs the factory so each month's analysis honours the user's peak-day
-  // settings + holiday list.
   isPeakDayFor: (config: Config) => (day: number) => boolean;
   prevMonth: () => void;
   nextMonth: () => void;
@@ -27,50 +28,86 @@ interface Props {
   onGoToLayout: () => void;
 }
 
-// Workforce Planning tab (v1.13 — annual view)
+// Workforce Planning tab (v1.14)
 //
-// Pre-1.13 this tab analyzed only the active month, which made the
-// recommendation feel jumpy: Ramadan dropped demand, Eid spiked it, and the
-// supervisor couldn't see the bigger picture. The annual view runs the
-// monthly analyzer for every month of the year and surfaces:
-//   • Annual aggregates (total hours, average FTE/PT, payroll delta)
-//   • A monthly demand bar chart (peak month and valley month highlighted)
-//   • Per-role roll-ups using the year-average plan
-//   • An implementation timing table — pick a start month, see the
-//     remaining-year savings — so the supervisor can decide WHEN to roll
-//     out the change, not just whether to do it.
+// Two recommendation modes:
+//   • Conservative — pure FTE, hire-to-peak, never release. The
+//     Iraqi-labor-law-safe default.
+//   • Optimal — FTE baseline + part-timers for peak surge. Cheaper but
+//     assumes the supervisor can scale up/down across the year, which is
+//     legally tricky (Art. 36/40 of the Iraqi Labor Law: fixed-term renewals
+//     become open-ended FTE; dismissals need Minister of Labor approval).
+//
+// Two view modes:
+//   • Comparative — current roster vs ideal roster side-by-side
+//   • Ideal-only — standalone view of what the ideal plan looks like
+//     without the comparison clutter, easier to share with stakeholders
+//
+// Export to PDF for sharing with HR Director / CEO.
 export function WorkforcePlanningTab(props: Props) {
   const {
-    employees, shifts, stations, holidays, config, schedule, isPeakDayFor,
-    prevMonth, nextMonth, onGoToRoster, onGoToLayout,
+    employees, shifts, stations, holidays, config, isPeakDayFor,
+    onGoToRoster, onGoToLayout,
   } = props;
   const { t } = useI18n();
-  void prevMonth; void nextMonth; void schedule;
+
+  const [mode, setMode] = useState<PlanMode>('conservative');
+  const [idealOnly, setIdealOnly] = useState(false);
+  const [showAnnualRollup, setShowAnnualRollup] = useState(true);
+  const [drillMonthIndex, setDrillMonthIndex] = useState<number | null>(null);
 
   const annual = useMemo(
-    () => analyzeWorkforceAnnual({ employees, shifts, stations, holidays, baseConfig: config, isPeakDayFor }),
-    [employees, shifts, stations, holidays, config, isPeakDayFor],
+    () => analyzeWorkforceAnnual({ employees, shifts, stations, holidays, baseConfig: config, isPeakDayFor, mode }),
+    [employees, shifts, stations, holidays, config, isPeakDayFor, mode],
   );
-
-  // The "headline plan" for the per-role section uses the peak month so the
-  // supervisor sees the worst-case staffing requirement. They can drill into
-  // any month via the monthly bar chart below.
-  const [drillMonthIndex, setDrillMonthIndex] = useState<number>(annual.peakMonthIndex);
-  const drillMonth = annual.byMonth.find(m => m.monthIndex === drillMonthIndex) || annual.byMonth[annual.peakMonthIndex - 1];
+  const rollup = useMemo(
+    () => buildAnnualRollup(annual, employees, mode),
+    [annual, employees, mode],
+  );
+  const drillMonth = drillMonthIndex
+    ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
+    : annual.byMonth[annual.peakMonthIndex - 1];
 
   const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
 
   const hasInputs = stations.length > 0;
   const hasDemand = annual.annualRequiredHours > 0;
 
+  const handleExportPDF = () => exportWorkforcePlanToPDF({
+    annual, rollup, mode, idealOnly, fmtIQD,
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-2">
-        <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">{t('workforce.annual.year')}</p>
-          <p className="text-2xl font-black text-slate-800 tracking-tight font-mono">{annual.year}</p>
+      <div className="flex flex-col lg:flex-row items-start justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">{t('workforce.annual.year')}</p>
+            <p className="text-2xl font-black text-slate-800 tracking-tight font-mono">{annual.year}</p>
+          </div>
+          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.mode.label')}</p>
+            <ModeToggle mode={mode} onChange={setMode} />
+          </div>
+          <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+            {idealOnly ? <Eye className="w-3.5 h-3.5 text-indigo-600" /> : <GitCompareArrows className="w-3.5 h-3.5 text-slate-600" />}
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+              {idealOnly ? t('workforce.view.ideal') : t('workforce.view.comparative')}
+            </p>
+            <Switch checked={idealOnly} onChange={setIdealOnly} tone="indigo" size="sm" aria-label={t('workforce.view.toggle')} />
+          </div>
         </div>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.eyebrow')}</p>
+        <div className="flex items-center gap-2">
+          {hasInputs && hasDemand && (
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-[0.98]"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {t('workforce.export.button')}
+            </button>
+          )}
+        </div>
       </div>
 
       {!hasInputs ? (
@@ -94,145 +131,211 @@ export function WorkforcePlanningTab(props: Props) {
         </Card>
       ) : (
         <>
-          {/* ── Annual KPI strip ────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="p-5 bg-slate-900 text-white border-0 shadow-xl">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">{t('workforce.annual.kpi.totalHours')}</p>
-              <p className="text-3xl font-black tracking-tight">{Math.round(annual.annualRequiredHours).toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{t('workforce.annual.kpi.totalHoursSub')}</p>
-            </Card>
-            <Card className="p-5 bg-emerald-50 border-emerald-200">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">{t('workforce.annual.kpi.avgFTE')}</p>
-              <p className="text-3xl font-black tracking-tight text-emerald-700">{annual.avgRecommendedFTE.toFixed(1)}</p>
-              <p className="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-wider">{t('workforce.annual.kpi.avgFTESub')}</p>
-            </Card>
-            <Card className="p-5 bg-blue-50 border-blue-200">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 mb-2">{t('workforce.annual.kpi.avgPT')}</p>
-              <p className="text-3xl font-black tracking-tight text-blue-700">{annual.avgRecommendedPartTime.toFixed(1)}</p>
-              <p className="text-[10px] font-bold text-blue-600 mt-1 uppercase tracking-wider">{t('workforce.annual.kpi.avgPTSub')}</p>
-            </Card>
-            <Card className={cn(
-              "p-5 border",
-              annual.annualDelta < 0 ? "bg-emerald-50 border-emerald-200" : annual.annualDelta > 0 ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-200",
-            )}>
+          {/* Mode explanation banner */}
+          <Card className={cn(
+            "p-4 flex items-start gap-3 border",
+            mode === 'conservative' ? "bg-emerald-50/50 border-emerald-200" : "bg-amber-50/50 border-amber-200",
+          )}>
+            {mode === 'conservative' ? (
+              <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+            ) : (
+              <Zap className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            )}
+            <div className="min-w-0 flex-1">
               <p className={cn(
-                "text-[10px] font-black uppercase tracking-widest mb-2",
-                annual.annualDelta < 0 ? "text-emerald-700" : annual.annualDelta > 0 ? "text-rose-700" : "text-slate-600",
-              )}>{t('workforce.annual.kpi.annualDelta')}</p>
-              <p className={cn(
-                "text-2xl font-black tracking-tight",
-                annual.annualDelta < 0 ? "text-emerald-700" : annual.annualDelta > 0 ? "text-rose-700" : "text-slate-700",
+                "text-[11px] font-black uppercase tracking-widest",
+                mode === 'conservative' ? "text-emerald-800" : "text-amber-800",
               )}>
-                {annual.annualDelta >= 0 ? '+' : '−'}{fmtIQD(annual.annualDelta)}
+                {mode === 'conservative' ? t('workforce.mode.conservative.title') : t('workforce.mode.optimal.title')}
               </p>
               <p className={cn(
-                "text-[10px] font-bold mt-1",
-                annual.annualDelta < 0 ? "text-emerald-600" : annual.annualDelta > 0 ? "text-rose-600" : "text-slate-500",
-              )}>IQD / yr</p>
-            </Card>
-          </div>
-
-          {/* Method note */}
-          <Card className="p-4 bg-blue-50/50 border-blue-100 flex items-start gap-3">
-            <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black text-blue-800 uppercase tracking-widest">{t('workforce.method.title')}</p>
-              <p className="text-[11px] text-blue-700 leading-relaxed mt-1">{t('workforce.annual.method.body')}</p>
+                "text-[11px] leading-relaxed mt-1",
+                mode === 'conservative' ? "text-emerald-700" : "text-amber-700",
+              )}>
+                {mode === 'conservative' ? t('workforce.mode.conservative.body') : t('workforce.mode.optimal.body')}
+              </p>
             </div>
           </Card>
 
-          {/* ── Monthly demand chart ───────────────────────────────────── */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-600" /> {t('workforce.annual.chart.title')}
-              </h3>
-              <p className="text-[10px] text-slate-500">{t('workforce.annual.chart.tip')}</p>
+          {/* ── Annual KPI strip ────────────────────────────────────────── */}
+          {!idealOnly ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="p-5 bg-slate-900 text-white border-0 shadow-xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">{t('workforce.annual.kpi.totalHours')}</p>
+                <p className="text-3xl font-black tracking-tight">{Math.round(annual.annualRequiredHours).toLocaleString()}</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{t('workforce.annual.kpi.totalHoursSub')}</p>
+              </Card>
+              <Card className="p-5 bg-slate-50 border-slate-200">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-700 mb-2">{t('workforce.kpi.current')}</p>
+                <p className="text-3xl font-black tracking-tight text-slate-800">{rollup.totalCurrentEmployees}</p>
+                <p className="text-[10px] font-bold text-slate-600 mt-1 uppercase tracking-wider">{t('workforce.kpi.currentSub')}</p>
+              </Card>
+              <Card className="p-5 bg-emerald-50 border-emerald-200">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">{t('workforce.kpi.recommended')}</p>
+                <p className="text-3xl font-black tracking-tight text-emerald-700">{rollup.totalRecommendedFTE + rollup.totalRecommendedPartTime}</p>
+                <p className="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-wider">
+                  {rollup.totalRecommendedFTE} FTE + {rollup.totalRecommendedPartTime} PT
+                </p>
+              </Card>
+              <Card className={cn(
+                "p-5 border",
+                annual.annualDelta < 0 ? "bg-emerald-50 border-emerald-200" : annual.annualDelta > 0 ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-200",
+              )}>
+                <p className={cn(
+                  "text-[10px] font-black uppercase tracking-widest mb-2",
+                  annual.annualDelta < 0 ? "text-emerald-700" : annual.annualDelta > 0 ? "text-rose-700" : "text-slate-600",
+                )}>{t('workforce.annual.kpi.annualDelta')}</p>
+                <p className={cn(
+                  "text-2xl font-black tracking-tight",
+                  annual.annualDelta < 0 ? "text-emerald-700" : annual.annualDelta > 0 ? "text-rose-700" : "text-slate-700",
+                )}>
+                  {annual.annualDelta >= 0 ? '+' : '−'}{fmtIQD(annual.annualDelta)}
+                </p>
+                <p className={cn(
+                  "text-[10px] font-bold mt-1",
+                  annual.annualDelta < 0 ? "text-emerald-600" : annual.annualDelta > 0 ? "text-rose-600" : "text-slate-500",
+                )}>IQD / yr</p>
+              </Card>
             </div>
-            <MonthlyDemandChart
-              months={annual.byMonth}
-              peakMonthIndex={annual.peakMonthIndex}
-              valleyMonthIndex={annual.valleyMonthIndex}
-              activeMonthIndex={drillMonthIndex}
-              onPickMonth={setDrillMonthIndex}
-            />
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3 text-[10px]">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-slate-500">{t('workforce.annual.chart.peakLabel')}: <span className="font-bold text-slate-800">{annual.byMonth[annual.peakMonthIndex - 1].monthName}</span></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-slate-500">{t('workforce.annual.chart.valleyLabel')}: <span className="font-bold text-slate-800">{annual.byMonth[annual.valleyMonthIndex - 1].monthName}</span></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-slate-500">{t('workforce.annual.chart.activeLabel')}: <span className="font-bold text-slate-800">{drillMonth.monthName}</span></span>
-              </div>
+          ) : (
+            // Ideal-only view: simpler 3-card strip showing the recommendation alone
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-6 bg-slate-900 text-white border-0 shadow-xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300 mb-2">{t('workforce.ideal.totalRoster')}</p>
+                <p className="text-4xl font-black tracking-tight">{rollup.totalRecommendedFTE + rollup.totalRecommendedPartTime}</p>
+                <p className="text-[11px] font-bold text-slate-300 mt-2">{rollup.totalRecommendedFTE} FTE + {rollup.totalRecommendedPartTime} PT</p>
+              </Card>
+              <Card className="p-6 bg-emerald-50 border-emerald-200">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">{t('workforce.ideal.annualSalary')}</p>
+                <p className="text-3xl font-black tracking-tight text-emerald-700">
+                  {fmtIQD(mode === 'conservative' ? rollup.annualConservativeSalary : rollup.annualOptimalSalary)}
+                </p>
+                <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-wider">IQD / yr</p>
+              </Card>
+              {mode === 'conservative' ? (
+                <Card className="p-6 bg-amber-50 border-amber-200">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">{t('workforce.ideal.legalPremium')}</p>
+                  <p className="text-3xl font-black tracking-tight text-amber-700">{fmtIQD(rollup.legalSafetyPremium)}</p>
+                  <p className="text-[10px] text-amber-700 leading-relaxed mt-2">{t('workforce.ideal.legalPremiumNote')}</p>
+                </Card>
+              ) : (
+                <Card className="p-6 bg-blue-50 border-blue-200">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 mb-2">{t('workforce.ideal.peakMonth')}</p>
+                  <p className="text-3xl font-black tracking-tight text-blue-700">
+                    {annual.byMonth[annual.peakMonthIndex - 1].monthName}
+                  </p>
+                  <p className="text-[10px] text-blue-600 mt-2">{Math.round(annual.byMonth[annual.peakMonthIndex - 1].monthlyRequiredHours).toLocaleString()}h required</p>
+                </Card>
+              )}
             </div>
-          </Card>
+          )}
 
-          {/* ── Per-role breakdown for the picked drill month ──────────── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                {t('workforce.annual.drill.header', { month: drillMonth.monthName })}
-              </h3>
-              <p className="text-[10px] text-slate-500">{t('workforce.annual.drill.subtitle')}</p>
-            </div>
-            <div className="space-y-3">
-              {drillMonth.plan.byRole.map(r => <RoleCard key={r.role} role={r} fmtIQD={fmtIQD} />)}
-            </div>
-          </div>
-
-          {/* ── Implementation timing ─────────────────────────────────── */}
+          {/* ── Annual rollup table ────────────────────────────────────── */}
           <Card className="overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Activity className="w-4 h-4 text-amber-600" /> {t('workforce.annual.timing.title')}
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-1">{t('workforce.annual.timing.subtitle')}</p>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {annual.savingsByStartMonth.map(row => {
-                  const isSaving = row.savings > 0;
-                  const isNeutral = row.savings === 0;
-                  return (
-                    <div
-                      key={row.monthIndex}
-                      className={cn(
-                        "p-3 rounded-xl border transition-all",
-                        isNeutral ? "bg-slate-50 border-slate-200"
-                          : isSaving ? "bg-emerald-50 border-emerald-200"
-                            : "bg-rose-50 border-rose-200",
-                      )}
-                    >
-                      <p className={cn(
-                        "text-[10px] font-black uppercase tracking-widest",
-                        isNeutral ? "text-slate-500" : isSaving ? "text-emerald-700" : "text-rose-700",
-                      )}>
-                        {t('workforce.annual.timing.startIn', { month: row.monthName })}
-                      </p>
-                      <p className={cn(
-                        "text-lg font-black mt-1",
-                        isNeutral ? "text-slate-700" : isSaving ? "text-emerald-700" : "text-rose-700",
-                      )}>
-                        {isSaving ? '+' : row.savings < 0 ? '−' : ''}{fmtIQD(row.savings)}
-                      </p>
-                      <p className={cn(
-                        "text-[9px] font-bold uppercase tracking-wider mt-0.5",
-                        isNeutral ? "text-slate-500" : isSaving ? "text-emerald-600" : "text-rose-600",
-                      )}>
-                        IQD · {row.remainingMonths} {row.remainingMonths === 1 ? t('workforce.annual.timing.monthLeft') : t('workforce.annual.timing.monthsLeft')}
-                      </p>
-                    </div>
-                  );
-                })}
+            <button
+              onClick={() => setShowAnnualRollup(s => !s)}
+              className="w-full p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 hover:bg-slate-100/50 transition-colors text-left"
+            >
+              <Activity className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                  {t('workforce.rollup.title')}
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">{t('workforce.rollup.subtitle')}</p>
               </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed mt-4 italic">{t('workforce.annual.timing.footnote')}</p>
-            </div>
+              {showAnnualRollup ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+            {showAnnualRollup && (
+              <div className="divide-y divide-slate-100">
+                {rollup.byRole.map(r => (
+                  <RollupRoleRow key={r.role} role={r} idealOnly={idealOnly} />
+                ))}
+              </div>
+            )}
           </Card>
+
+          {/* ── Monthly demand chart (skipped in ideal-only) ───────────── */}
+          {!idealOnly && (
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-600" /> {t('workforce.annual.chart.title')}
+                </h3>
+                <p className="text-[10px] text-slate-500">{t('workforce.annual.chart.tip')}</p>
+              </div>
+              <MonthlyDemandChart
+                months={annual.byMonth}
+                peakMonthIndex={annual.peakMonthIndex}
+                valleyMonthIndex={annual.valleyMonthIndex}
+                activeMonthIndex={drillMonth?.monthIndex ?? annual.peakMonthIndex}
+                onPickMonth={setDrillMonthIndex}
+              />
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3 text-[10px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-slate-500">{t('workforce.annual.chart.peakLabel')}: <span className="font-bold text-slate-800">{annual.byMonth[annual.peakMonthIndex - 1].monthName}</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-slate-500">{t('workforce.annual.chart.valleyLabel')}: <span className="font-bold text-slate-800">{annual.byMonth[annual.valleyMonthIndex - 1].monthName}</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-slate-500">{t('workforce.annual.chart.activeLabel')}: <span className="font-bold text-slate-800">{drillMonth?.monthName}</span></span>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* ── Implementation timing (only meaningful in comparative mode) ── */}
+          {!idealOnly && (
+            <Card className="overflow-hidden">
+              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-amber-600" /> {t('workforce.annual.timing.title')}
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-1">{t('workforce.annual.timing.subtitle')}</p>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {annual.savingsByStartMonth.map(row => {
+                    const isSaving = row.savings > 0;
+                    const isNeutral = row.savings === 0;
+                    return (
+                      <div
+                        key={row.monthIndex}
+                        className={cn(
+                          "p-3 rounded-xl border transition-all",
+                          isNeutral ? "bg-slate-50 border-slate-200"
+                            : isSaving ? "bg-emerald-50 border-emerald-200"
+                              : "bg-rose-50 border-rose-200",
+                        )}
+                      >
+                        <p className={cn(
+                          "text-[10px] font-black uppercase tracking-widest",
+                          isNeutral ? "text-slate-500" : isSaving ? "text-emerald-700" : "text-rose-700",
+                        )}>
+                          {t('workforce.annual.timing.startIn', { month: row.monthName })}
+                        </p>
+                        <p className={cn(
+                          "text-lg font-black mt-1",
+                          isNeutral ? "text-slate-700" : isSaving ? "text-emerald-700" : "text-rose-700",
+                        )}>
+                          {isSaving ? '+' : row.savings < 0 ? '−' : ''}{fmtIQD(row.savings)}
+                        </p>
+                        <p className={cn(
+                          "text-[9px] font-bold uppercase tracking-wider mt-0.5",
+                          isNeutral ? "text-slate-500" : isSaving ? "text-emerald-600" : "text-rose-600",
+                        )}>
+                          IQD · {row.remainingMonths} {row.remainingMonths === 1 ? t('workforce.annual.timing.monthLeft') : t('workforce.annual.timing.monthsLeft')}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Footer CTA */}
           <Card className="p-5 bg-slate-900 text-white border-0 flex items-start gap-4">
@@ -253,9 +356,93 @@ export function WorkforcePlanningTab(props: Props) {
   );
 }
 
-// 12-bar monthly demand chart with peak/valley highlighting and click-to-pick
-// drill behaviour. Stays simple — no axis labels other than the month name
-// inside the bar.
+// Apple-style segmented control for mode (Conservative ↔ Optimal).
+function ModeToggle({ mode, onChange }: { mode: PlanMode; onChange: (m: PlanMode) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="inline-flex items-center bg-slate-100 rounded-full p-0.5">
+      <button
+        onClick={() => onChange('conservative')}
+        className={cn(
+          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+          mode === 'conservative'
+            ? "bg-emerald-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-800",
+        )}
+      >
+        {t('workforce.mode.conservative.label')}
+      </button>
+      <button
+        onClick={() => onChange('optimal')}
+        className={cn(
+          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+          mode === 'optimal'
+            ? "bg-amber-500 text-white shadow-sm"
+            : "text-slate-600 hover:text-slate-800",
+        )}
+      >
+        {t('workforce.mode.optimal.label')}
+      </button>
+    </div>
+  );
+}
+
+function RollupRoleRow({ role, idealOnly }: { role: AnnualRollupRole; idealOnly: boolean }) {
+  const { t } = useI18n();
+  const actionTone =
+    role.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
+      : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
+  const ActionIcon = actionTone.Icon;
+  const actionLabel = role.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
+
+  return (
+    <div className="p-5 hover:bg-slate-50/40 transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+          <Briefcase className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">{role.role}</h3>
+            <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-lg border", actionTone.bg, actionTone.border)}>
+              <ActionIcon className={cn("w-3 h-3", actionTone.text)} />
+              <span className={cn("text-[9px] font-black uppercase tracking-widest", actionTone.text)}>{actionLabel}</span>
+            </div>
+          </div>
+
+          <div className={cn("grid gap-3", idealOnly ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-5")}>
+            {!idealOnly && (
+              <KpiBlock label={t('workforce.role.current')} value={role.currentCount.toString()} />
+            )}
+            <KpiBlock label={t('workforce.rollup.recommendedFTE')} value={role.recommendedFTE.toString()} tone="emerald" />
+            <KpiBlock label={t('workforce.rollup.recommendedPT')} value={role.recommendedPartTime.toString()} tone="blue" />
+            {!idealOnly && (
+              <KpiBlock
+                label={t('workforce.role.delta')}
+                value={`${role.delta > 0 ? '+' : ''}${role.delta}`}
+                tone={role.delta > 0 ? 'rose' : 'neutral'}
+                hint={role.action === 'hire'
+                  ? t('workforce.role.hireBy', { count: role.delta })
+                  : t('workforce.role.matchesNeed')}
+              />
+            )}
+            <KpiBlock
+              label={t('workforce.rollup.peakMonth')}
+              value={MONTH_NAMES[role.peakMonthIndex - 1]}
+              hint={`${role.peakMonthFTE} FTE`}
+            />
+          </div>
+
+          <div className="p-3 rounded-lg bg-slate-50/60 border border-slate-100 flex items-start gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-slate-700 leading-relaxed">{role.reasoning}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonthlyDemandChart({
   months, peakMonthIndex, valleyMonthIndex, activeMonthIndex, onPickMonth,
 }: {
@@ -307,119 +494,6 @@ function MonthlyDemandChart({
   );
 }
 
-function RoleCard({ role, fmtIQD }: { role: RoleDemand; fmtIQD: (n: number) => string }) {
-  const { t } = useI18n();
-  void fmtIQD;
-  const [expanded, setExpanded] = useState(false);
-  const peakLift = role.nonPeakRequiredHours > 0
-    ? (role.peakRequiredHours / role.nonPeakRequiredHours)
-    : (role.peakRequiredHours > 0 ? Infinity : 0);
-  const actionTone =
-    role.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
-      : role.action === 'release' ? { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', Icon: TrendingDown }
-        : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
-  const ActionIcon = actionTone.Icon;
-  const actionLabel = role.action === 'hire' ? t('workforce.action.hire')
-    : role.action === 'release' ? t('workforce.action.release')
-    : t('workforce.action.hold');
-
-  return (
-    <Card className="overflow-hidden">
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full p-4 border-b border-slate-100 flex items-center gap-4 hover:bg-slate-50/50 transition-colors text-left"
-      >
-        <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-          <Briefcase className="w-5 h-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-bold text-slate-800 tracking-tight">{role.role}</h3>
-          <p className="text-[10px] text-slate-500 font-mono">
-            {role.monthlyRequiredHours.toFixed(0)}h {t('workforce.role.required')} · {role.currentCount} {t('workforce.role.currentShort')} → {role.recommendedFTE} FTE + {role.recommendedPartTime} PT
-          </p>
-        </div>
-        <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg border", actionTone.bg, actionTone.border)}>
-          <ActionIcon className={cn("w-3.5 h-3.5", actionTone.text)} />
-          <span className={cn("text-[10px] font-black uppercase tracking-widest", actionTone.text)}>{actionLabel}</span>
-        </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-      </button>
-
-      {expanded && (
-        <>
-          <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-slate-100">
-            <KpiBlock label={t('workforce.role.current')} value={role.currentCount.toString()} />
-            <KpiBlock label={t('workforce.role.recommendedFTE')} value={role.recommendedFTE.toString()} tone="emerald" />
-            <KpiBlock label={t('workforce.role.recommendedPT')} value={role.recommendedPartTime.toString()} tone="blue" />
-            <KpiBlock
-              label={t('workforce.role.delta')}
-              value={`${role.delta > 0 ? '+' : ''}${role.delta}`}
-              tone={role.delta > 0 ? 'rose' : role.delta < 0 ? 'emerald' : 'neutral'}
-              hint={role.action === 'hire' ? t('workforce.role.hireBy', { count: role.delta })
-                : role.action === 'release' ? t('workforce.role.releaseBy', { count: Math.abs(role.delta) })
-                : t('workforce.role.matchesNeed')}
-            />
-          </div>
-
-          <div className="p-5 bg-slate-50/40 border-b border-slate-100 flex items-start gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-slate-700 leading-relaxed">{role.reasoning}</p>
-          </div>
-
-          <div className="p-5 border-b border-slate-100 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Clock className="w-3 h-3" /> {t('workforce.role.demandSplit')}
-              </p>
-              {peakLift > 0 && peakLift !== Infinity && (
-                <p className="text-[10px] text-slate-500 font-mono">
-                  {t('workforce.role.peakLift', { pct: (peakLift * 100).toFixed(0) })}
-                </p>
-              )}
-            </div>
-            {(role.peakRequiredHours + role.nonPeakRequiredHours) > 0 && (
-              <>
-                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-amber-500" style={{ width: `${(role.peakRequiredHours / (role.peakRequiredHours + role.nonPeakRequiredHours)) * 100}%` }} />
-                  <div className="h-full bg-emerald-500" style={{ width: `${(role.nonPeakRequiredHours / (role.peakRequiredHours + role.nonPeakRequiredHours)) * 100}%` }} />
-                </div>
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-amber-500 rounded-sm" /> {role.peakRequiredHours.toFixed(0)}h {t('workforce.role.peak')}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-sm" /> {role.nonPeakRequiredHours.toFixed(0)}h {t('workforce.role.nonPeak')}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {role.byStation.length > 0 && (
-            <div className="p-5 space-y-2">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <MapPin className="w-3 h-3" /> {t('workforce.role.stationsHeader')}
-              </p>
-              <div className="space-y-1.5">
-                {role.byStation.map(st => (
-                  <div key={st.stationId} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-800 truncate">{st.stationName}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">
-                        {st.openHrsPerDay.toFixed(0)}h/day · peak {st.peakMinHC} HC · normal {st.normalMinHC} HC
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0 w-24">
-                      <p className="text-sm font-black text-slate-800">{st.monthlyHours.toFixed(0)}h</p>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('workforce.role.monthlyHours')}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </Card>
-  );
-}
-
 function KpiBlock({ label, value, tone = 'neutral', hint }: { label: string; value: string; tone?: 'emerald' | 'blue' | 'rose' | 'neutral'; hint?: string }) {
   const valueClass =
     tone === 'emerald' ? 'text-emerald-700'
@@ -433,4 +507,120 @@ function KpiBlock({ label, value, tone = 'neutral', hint }: { label: string; val
       {hint && <p className="text-[9px] text-slate-500 mt-0.5 leading-tight">{hint}</p>}
     </div>
   );
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// PDF export. Renders the current rollup + KPI strip into a portrait A4
+// document and triggers a download. Uses jspdf + jspdf-autotable (already
+// shipped for compliance reports).
+async function exportWorkforcePlanToPDF(args: {
+  annual: ReturnType<typeof analyzeWorkforceAnnual>;
+  rollup: ReturnType<typeof buildAnnualRollup>;
+  mode: PlanMode;
+  idealOnly: boolean;
+  fmtIQD: (n: number) => string;
+}) {
+  const { annual, rollup, mode, fmtIQD } = args;
+  const { jsPDF } = await import('jspdf');
+  const autoTableMod = await import('jspdf-autotable');
+  // jspdf-autotable v5 ships as `export default` from ESM; the bundler
+  // sometimes wraps it in a CJS-style namespace, so accept either shape.
+  type AutoTableFn = (doc: InstanceType<typeof jsPDF>, opts: Record<string, unknown>) => void;
+  const autoTable = (autoTableMod as unknown as { default: AutoTableFn }).default;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Workforce Plan', 14, 18);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Year: ${annual.year}`, 14, 25);
+  doc.text(`Mode: ${mode === 'conservative' ? 'Conservative (FTE-only, hire-to-peak)' : 'Optimal (FTE + part-time mix)'}`, 14, 30);
+  doc.text(`Generated: ${new Date().toISOString().slice(0, 10)}`, 14, 35);
+
+  // Summary KPIs
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Annual Summary', 14, 45);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  const summaryLines = [
+    `Annual demand: ${Math.round(annual.annualRequiredHours).toLocaleString()} hours`,
+    `Current roster: ${rollup.totalCurrentEmployees}`,
+    `Recommended roster: ${rollup.totalRecommendedFTE} FTE + ${rollup.totalRecommendedPartTime} part-time`,
+    `Peak month: ${annual.byMonth[annual.peakMonthIndex - 1].monthName} (${Math.round(annual.byMonth[annual.peakMonthIndex - 1].monthlyRequiredHours).toLocaleString()}h)`,
+    `Valley month: ${annual.byMonth[annual.valleyMonthIndex - 1].monthName} (${Math.round(annual.byMonth[annual.valleyMonthIndex - 1].monthlyRequiredHours).toLocaleString()}h)`,
+    `Annual recommended salary: ${fmtIQD(mode === 'conservative' ? rollup.annualConservativeSalary : rollup.annualOptimalSalary)} IQD`,
+    mode === 'conservative'
+      ? `Legal-safety premium vs optimal: ${fmtIQD(rollup.legalSafetyPremium)} IQD/yr (cost of carrying excess capacity through valleys to avoid releases)`
+      : `Note: optimal mode assumes scaling up/down across the year — legally complex under Iraqi Labor Law.`,
+  ];
+  let cursor = 50;
+  summaryLines.forEach(line => { doc.text(line, 14, cursor); cursor += 5; });
+
+  // Per-role rollup table
+  cursor += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Per-role Recommendation', 14, cursor);
+  cursor += 4;
+  autoTable(doc, {
+    startY: cursor,
+    head: [['Role', 'Current', 'Rec. FTE', 'Rec. PT', 'Delta', 'Action', 'Peak Month', 'Reasoning']],
+    body: rollup.byRole.map(r => [
+      r.role,
+      r.currentCount.toString(),
+      r.recommendedFTE.toString(),
+      r.recommendedPartTime.toString(),
+      `${r.delta > 0 ? '+' : ''}${r.delta}`,
+      r.action.toUpperCase(),
+      MONTH_NAMES[r.peakMonthIndex - 1],
+      r.reasoning,
+    ]),
+    headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
+    bodyStyles: { fontSize: 8 },
+    columnStyles: {
+      0: { cellWidth: 22 }, 1: { cellWidth: 14 }, 2: { cellWidth: 16 }, 3: { cellWidth: 14 },
+      4: { cellWidth: 12 }, 5: { cellWidth: 14 }, 6: { cellWidth: 18 }, 7: { cellWidth: 'auto' },
+    },
+    margin: { left: 14, right: 14 },
+    styles: { overflow: 'linebreak' },
+  });
+
+  // Monthly demand table
+  const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? cursor + 60;
+  cursor = lastY + 8;
+  if (cursor > 240) { doc.addPage(); cursor = 18; }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Monthly Demand Breakdown', 14, cursor);
+  cursor += 4;
+  autoTable(doc, {
+    startY: cursor,
+    head: [['Month', 'Required hrs', 'Rec. FTE', 'Rec. PT', 'Salary (IQD)']],
+    body: annual.byMonth.map(m => [
+      m.monthName,
+      Math.round(m.monthlyRequiredHours).toLocaleString(),
+      m.recommendedFTE.toString(),
+      m.recommendedPartTime.toString(),
+      Math.round(m.recommendedMonthlySalary).toLocaleString(),
+    ]),
+    headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
+    bodyStyles: { fontSize: 9 },
+    margin: { left: 14, right: 14 },
+  });
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(`Iraqi Labor Scheduler — Workforce Plan ${annual.year}`, 14, 290);
+    doc.text(`Page ${i} / ${pageCount}`, 196, 290, { align: 'right' });
+  }
+
+  doc.save(`Workforce-Plan-${annual.year}-${mode}.pdf`);
 }

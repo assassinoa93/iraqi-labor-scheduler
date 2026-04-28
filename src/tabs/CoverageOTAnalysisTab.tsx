@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, Calendar as CalendarIcon,
-  Users, MapPin, Clock, Lightbulb, Sparkles, Info, Coins,
+  ChevronLeft, ChevronRight, TrendingUp, Calendar as CalendarIcon,
+  Users, MapPin, Clock, Lightbulb, Sparkles, Info,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
@@ -9,7 +9,6 @@ import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { analyzeOT, suggestMitigations, OTMitigation } from '../lib/otAnalysis';
-import { HolidayCompensationModal } from '../components/HolidayCompensationModal';
 
 interface Props {
   employees: Employee[];
@@ -22,7 +21,6 @@ interface Props {
   nextMonth: () => void;
   onGoToRoster: () => void;
   onGoToSchedule: () => void;
-  onUpdateEmployee: (next: Employee) => void;
 }
 
 // Coverage & OT Analysis tab — answers "why do we have OT, where is it being
@@ -36,11 +34,9 @@ interface Props {
 export function CoverageOTAnalysisTab(props: Props) {
   const {
     employees, shifts, stations, holidays, config, schedule,
-    prevMonth, nextMonth, onGoToRoster, onGoToSchedule, onUpdateEmployee,
+    prevMonth, nextMonth, onGoToRoster, onGoToSchedule,
   } = props;
   const { t } = useI18n();
-  const [compEditFor, setCompEditFor] = useState<Employee | null>(null);
-  const empById = useMemo(() => new Map(employees.map(e => [e.empId, e])), [employees]);
 
   const analysis = useMemo(
     () => analyzeOT(employees, schedule, shifts, stations, holidays, config),
@@ -232,8 +228,6 @@ export function CoverageOTAnalysisTab(props: Props) {
                 {analysis.byEmployee.slice(0, 20).map(emp => {
                   const overCapColor = emp.payableOverCapHours > 0 ? 'text-rose-700' : 'text-slate-300';
                   const holidayColor = emp.holidayHours > 0 ? 'text-amber-700' : 'text-slate-300';
-                  const sourceEmp = empById.get(emp.empId);
-                  const canCompensate = !!sourceEmp && emp.uncompensatedHolidayHours > 0;
                   return (
                     <div key={emp.empId} className="p-3 px-4 hover:bg-slate-50/50 transition-colors">
                       <div className="flex items-center gap-3">
@@ -248,24 +242,13 @@ export function CoverageOTAnalysisTab(props: Props) {
                           </div>
                           <div>
                             <p className={cn("text-sm font-black", holidayColor)}>{emp.holidayHours}h</p>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                              {emp.compensatedHolidayHours > 0 ? `${emp.uncompensatedHolidayHours}h ${t('otAnalysis.byEmployee.uncomp')}` : t('otAnalysis.byEmployee.holiday')}
-                            </p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{t('otAnalysis.byEmployee.holiday')}</p>
                           </div>
                         </div>
                         <div className="text-right shrink-0 w-24">
                           <p className="text-sm font-black text-slate-900">{fmtIQD(emp.totalOTPay)}</p>
                           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">IQD</p>
                         </div>
-                        {canCompensate && (
-                          <button
-                            onClick={() => sourceEmp && setCompEditFor(sourceEmp)}
-                            title={t('otAnalysis.byEmployee.compTitle')}
-                            className="shrink-0 p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-all"
-                          >
-                            <Coins className="w-3.5 h-3.5" />
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -289,48 +272,25 @@ export function CoverageOTAnalysisTab(props: Props) {
                 <p className="text-[10px] text-slate-500 mt-1">{t('otAnalysis.mitigations.subtitle')}</p>
               </div>
               <div className="divide-y divide-slate-100">
-                {mitigations.map(m => {
-                  // The comp-day CTA needs to know who has the most
-                  // uncompensated hours so we can open the modal directly on
-                  // that employee. Pre-pick the top burner with uncomp > 0.
-                  const topUncompEmp = m.id === 'comp-day-holiday'
-                    ? analysis.byEmployee.find(e => e.uncompensatedHolidayHours > 0)
-                    : undefined;
-                  const topUncompSource = topUncompEmp ? empById.get(topUncompEmp.empId) : undefined;
-                  return (
-                    <MitigationRow
-                      key={m.id}
-                      m={m}
-                      avgSalary={avgMonthlySalary}
-                      onGoToSchedule={onGoToSchedule}
-                      onOpenComp={topUncompSource ? () => setCompEditFor(topUncompSource) : undefined}
-                    />
-                  );
-                })}
+                {mitigations.map(m => (
+                  <MitigationRow
+                    key={m.id}
+                    m={m}
+                    avgSalary={avgMonthlySalary}
+                    onGoToSchedule={onGoToSchedule}
+                  />
+                ))}
               </div>
             </Card>
           )}
         </>
       )}
 
-      <HolidayCompensationModal
-        isOpen={compEditFor !== null}
-        employee={compEditFor}
-        schedule={schedule}
-        shifts={shifts}
-        holidays={holidays}
-        config={config}
-        onClose={() => setCompEditFor(null)}
-        onSave={(next) => {
-          onUpdateEmployee(next);
-          setCompEditFor(null);
-        }}
-      />
     </div>
   );
 }
 
-function MitigationRow({ m, avgSalary, onGoToSchedule, onOpenComp }: { m: OTMitigation; avgSalary: number; onGoToSchedule: () => void; onOpenComp?: () => void }) {
+function MitigationRow({ m, avgSalary, onGoToSchedule }: { m: OTMitigation; avgSalary: number; onGoToSchedule: () => void }) {
   const { t } = useI18n();
   const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
   const labels: Record<OTMitigation['id'], { title: string; body: string; cta: string; tone: 'rose' | 'amber' | 'blue' }> = {
@@ -374,11 +334,6 @@ function MitigationRow({ m, avgSalary, onGoToSchedule, onOpenComp }: { m: OTMiti
       </div>
       {m.id === 'rebalance' && (
         <button onClick={onGoToSchedule} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shrink-0">
-          {cfg.cta}
-        </button>
-      )}
-      {m.id === 'comp-day-holiday' && onOpenComp && (
-        <button onClick={onOpenComp} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all shrink-0">
           {cfg.cta}
         </button>
       )}

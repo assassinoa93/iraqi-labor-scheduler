@@ -503,22 +503,15 @@ export class ComplianceEngine {
                 severity: 'info',
               });
             }
-            // Comp-day-owed check: only fires when the supervisor has
-            // EXPLICITLY chosen comp-day-in-lieu for this date (Art. 74
-            // alternative — emp.holidayCompensations contains it). If they
-            // chose to pay the 2× cash premium instead, the law is satisfied
-            // by the cash and no OFF day is required, so the warning is
-            // suppressed. Pre-v1.11 saves with empty `holidayCompensations`
-            // default to pay-double semantics — the "Public holiday worked"
-            // info finding above still surfaces them in the report.
-            //
-            // When the supervisor IS owed a comp day, scan the next 7 days
-            // for any non-work entry. If none appear (and the window doesn't
-            // cross into a not-yet-generated next month), surface the
-            // warning. The next-month peek is preserved from v1.9.0.
-            const compSet = new Set(emp.holidayCompensations || []);
-            const supervisorChoseComp = compSet.has(dStr);
-            if (!supervisorChoseComp) return; // forEach iteration short-circuit
+            // Comp-day-owed check (v1.14: reverted to v1.10 default-on
+            // semantics). Per Iraqi Labor Law Art. 74 the worker is owed
+            // BOTH the 2× cash premium AND a comp rest day — not a choice.
+            // The check therefore fires for every PH-work day where no
+            // OFF/leave appears within 7 days, regardless of any
+            // per-holiday opt-in flag. The v1.11–1.13 `holidayCompensations`
+            // field is retained on the data model for forward-compat but
+            // ignored here; granting comp days is a scheduling obligation,
+            // not a payroll choice.
             const nextSchedule = allSchedules?.[nextMonthKey(config.year, config.month)];
             const nextSchedExists = !!nextSchedule;
             let compFound = false;

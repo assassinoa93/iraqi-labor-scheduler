@@ -86,27 +86,22 @@ export function DashboardTab(props: DashboardTabProps) {
   let totalHolidayPay = 0;
   for (const emp of employees) {
     const empSched = schedule[emp.empId] || {};
-    const compSet = new Set(emp.holidayCompensations || []);
     let totalHrs = 0;
     let holiHrs = 0;
-    let uncompHoliHrs = 0;
     for (const [dayStr, entry] of Object.entries(empSched)) {
       const dateStr = format(new Date(config.year, config.month - 1, parseInt(dayStr)), 'yyyy-MM-dd');
       const shift = shiftByCode.get(entry.shiftCode);
       if (!shift?.isWork) continue;
       totalHrs += shift.durationHrs;
-      if (holidayDateSet.has(dateStr)) {
-        holiHrs += shift.durationHrs;
-        if (!compSet.has(dateStr)) uncompHoliHrs += shift.durationHrs;
-      }
+      if (holidayDateSet.has(dateStr)) holiHrs += shift.durationHrs;
     }
     const hourly = baseHourlyRate(emp, config);
     const stdOT = Math.max(0, totalHrs - cap - holiHrs);
     totalOTHours += Math.max(0, totalHrs - cap);
     totalOverCapPay += stdOT * hourly * otRateDay;
-    // Only uncompensated holiday hours pay the 2× premium. Granted comps
-    // pay 1× regular wage already covered by the base monthly salary.
-    totalHolidayPay += uncompHoliHrs * hourly * otRateNight;
+    // Holiday hours always pay the 2× premium per Art. 74. Worker also
+    // owed a comp rest day (tracked via emp.holidayBank).
+    totalHolidayPay += holiHrs * hourly * otRateNight;
   }
   const totalOTPay = totalOverCapPay + totalHolidayPay;
   const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));

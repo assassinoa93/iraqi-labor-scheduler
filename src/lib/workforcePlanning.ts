@@ -31,6 +31,20 @@ export const PART_TIME_MONTHLY_HOURS = 96; // 24h/week × 4 — common Iraqi PT 
 export const PART_TIME_MONTHLY_SALARY_IQD_RATIO = 0.5; // PT salary roughly 50% of FTE
 export const PEAK_LIFT_THRESHOLD = 1.25; // peak ÷ non-peak ratio above which PT mix kicks in
 
+// Recommendation modes (v1.14):
+//   - 'optimal'      : cost-minimising mix (FTE baseline + PT for peak surge).
+//                      Theoretically cheapest but requires releasing surplus
+//                      FTE in valley months and contracting PT for peak —
+//                      both are HARD under Iraqi Labor Law (Art. 36, Art.
+//                      40 — fixed-term contracts that renew become open-
+//                      ended; releasing requires Minister of Labor approval).
+//   - 'conservative' : pure FTE, hire-to-peak, never release. Carries
+//                      excess capacity through valley months as paid idle
+//                      time; cheaper than the legal/social cost of
+//                      releasing & re-hiring across the year. Default
+//                      recommendation in our sector.
+export type PlanMode = 'conservative' | 'optimal';
+
 export type WorkforceRole = 'Driver' | 'Standard' | string; // concrete role names also allowed
 
 export interface StationDemand {
@@ -89,6 +103,9 @@ interface AnalyzeArgs {
   // Pull in venue-wide opening windows; per-station openTime/closeTime
   // overrides take precedence when present.
   isPeakDay: (day: number) => boolean;
+  // Optional: which recommendation strategy to use. Defaults to
+  // 'conservative' since it's the sector-default Iraqi-law-safe option.
+  mode?: PlanMode;
 }
 
 // Length of a station's open window in hours, handling overnight (close < open)
@@ -165,11 +182,20 @@ function rollupByRole(stations: Station[], demand: Map<string, StationDemand>): 
   return out;
 }
 
-// Decide FTE/PT mix for a role. The rule: if peak demand is > PEAK_LIFT_THRESHOLD
-// times the non-peak demand, route the surge to part-timers (paid pro-rata,
-// usually no full benefits) and size FTEs to the non-peak baseline. Otherwise
-// fill everything with FTEs since the load is roughly flat.
-function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs: number, cap: number): {
+// Decide FTE/PT mix for a role. Behaviour depends on the requested
+// recommendation mode:
+//   - 'conservative' : pure FTE math. ceil(monthlyRequiredHours / cap).
+//                      Never recommends part-timers. Used as the safer
+//                      year-round target — releases are legally hard, so
+//                      the conservative number is the FTE count we'd
+//                      need at peak demand and would carry through the
+//                      valleys.
+//   - 'optimal'      : the cost-minimising mix. If peak demand is
+//                      > PEAK_LIFT_THRESHOLD × non-peak demand, route
+//                      the surge to part-timers (paid pro-rata) and
+//                      size FTEs to the non-peak baseline. Otherwise
+//                      fill everything with FTEs since the load is flat.
+function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs: number, cap: number, mode: PlanMode): {
   recommendedFTE: number;
   recommendedPartTime: number;
   reasoning: string;
@@ -180,7 +206,16 @@ function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs:
 
   const idealFTE = Math.ceil(monthlyRequiredHours / cap);
 
-  // Edge case: no peak (all non-peak demand). All FTE.
+  // Conservative mode: always pure FTE, hire-to-demand. Never PT.
+  if (mode === 'conservative') {
+    return {
+      recommendedFTE: idealFTE,
+      recommendedPartTime: 0,
+      reasoning: 'Conservative mode — pure FTE roster (Iraqi labor law makes releases hard, so we size for peak and carry through valleys).',
+    };
+  }
+
+  // Optimal mode below.
   if (peakHrs === 0) {
     return {
       recommendedFTE: idealFTE,
@@ -188,8 +223,6 @@ function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs:
       reasoning: 'Flat demand — pure FTE coverage.',
     };
   }
-  // Edge case: no non-peak. Demand is entirely surge — FTEs would idle most
-  // of the time, so PT-only.
   if (nonPeakHrs === 0) {
     const ptCount = Math.ceil(peakHrs / PART_TIME_MONTHLY_HOURS);
     return {
@@ -201,7 +234,6 @@ function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs:
 
   const lift = peakHrs / nonPeakHrs;
   if (lift < PEAK_LIFT_THRESHOLD) {
-    // Demand is roughly flat across peak/non-peak — FTEs are efficient.
     return {
       recommendedFTE: idealFTE,
       recommendedPartTime: 0,
@@ -209,13 +241,8 @@ function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs:
     };
   }
 
-  // Peak surge. Size FTEs to the non-peak baseline so they're never idle on
-  // off-peak days. Part-timers cover the peak excess.
   const fteCount = Math.ceil(nonPeakHrs / cap);
-  const ftePeakCoverage = fteCount * cap; // FTEs cover this many hours total
-  // Hours still needed during peak = peakHrs minus what FTEs already covered
-  // from their normal allocation. We assume FTEs prioritize their non-peak
-  // schedule; whatever's left of their cap goes to peak.
+  const ftePeakCoverage = fteCount * cap;
   const fteHoursAvailableForPeak = Math.max(0, ftePeakCoverage - nonPeakHrs);
   const peakUncovered = Math.max(0, peakHrs - fteHoursAvailableForPeak);
   const ptCount = Math.ceil(peakUncovered / PART_TIME_MONTHLY_HOURS);
@@ -244,7 +271,7 @@ function currentByRole(employees: Employee[]): Map<string, number> {
 }
 
 export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
-  const { employees, stations, config } = args;
+  const { employees, stations, config, mode = 'conservative' } = args;
   const stdCap = monthlyHourCap(config);
   const driverCap = (config.driverWeeklyHrsCap ?? DRIVER_WEEKLY_CAP_DEFAULT) * 4;
 
@@ -270,11 +297,18 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
     const nonPeakRequiredHours = stationsForRole.reduce((s, x) => s + x.nonPeakHours, 0);
     const cap = role === 'Driver' ? driverCap : stdCap;
     const idealFTE = Math.ceil(monthlyRequiredHours / cap);
-    const mix = recommendMix(monthlyRequiredHours, peakRequiredHours, nonPeakRequiredHours, cap);
+    const mix = recommendMix(monthlyRequiredHours, peakRequiredHours, nonPeakRequiredHours, cap, mode);
     const currentCount = current.get(role) || 0;
     const recommendedTotal = mix.recommendedFTE + mix.recommendedPartTime;
     const delta = recommendedTotal - currentCount;
-    const action: RoleDemand['action'] = delta > 0 ? 'hire' : delta < 0 ? 'release' : 'hold';
+    // Iraqi Labor Law (Art. 36, 40 — fixed-term renewals become open-ended;
+    // releases require Minister of Labor approval). When current exceeds
+    // recommended, we surface 'hold' rather than 'release' — the supervisor
+    // carries the surplus through valley months instead of triggering a
+    // legally-fraught termination process. Only the optimal-mode annual
+    // analysis ever surfaces a 'release' action, and even then only
+    // alongside a clear legal-cost warning.
+    const action: RoleDemand['action'] = delta > 0 ? 'hire' : 'hold';
     byRole.push({
       role, cap,
       monthlyRequiredHours, peakRequiredHours, nonPeakRequiredHours,
@@ -298,8 +332,8 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
       byStation: [],
       idealFTE: 0,
       recommendedFTE: 0, recommendedPartTime: 0,
-      reasoning: 'No station demand for this role this month — consider reassigning or releasing.',
-      currentCount: count, delta: -count, action: 'release',
+      reasoning: 'No station demand for this role this month — consider reassigning. Releasing is legally complex (Minister of Labor approval required).',
+      currentCount: count, delta: -count, action: 'hold',
     });
   }
 
@@ -399,10 +433,55 @@ export interface AnalyzeAnnualArgs {
   // re-use the existing `isPeakDay` logic from App.tsx without rebuilding
   // the date math from scratch.
   isPeakDayFor: (config: Config) => (day: number) => boolean;
+  mode?: PlanMode;
+}
+
+// Annual rollup — a single set of per-role recommendations for the year as
+// a whole, NOT a per-month plan. This is what the supervisor presents to HR
+// or the CEO: "for the year, you need X FTE of role Y; here's why."
+//
+// Rollup rules:
+//   - Conservative mode: per role, take the MAX FTE count required across
+//     any month. That's the year-round headcount needed to cover peak
+//     demand without releases. Carries the excess through valleys —
+//     accepts the idle-time cost as the price of legal stability.
+//   - Optimal mode: per role, take the AVERAGE FTE/PT across months.
+//     Assumes the supervisor is willing to scale the workforce up/down
+//     across the year (legally hard, surfaces with explicit warnings).
+export interface AnnualRollupRole {
+  role: WorkforceRole;
+  // Aggregated demand-hours across all months.
+  annualRequiredHours: number;
+  peakMonthIndex: number;            // 1..12, the month driving the rec
+  peakMonthFTE: number;              // FTE recommendation for that month
+  // Year-round recommendation (= max for conservative, avg-rounded for optimal)
+  recommendedFTE: number;
+  recommendedPartTime: number;
+  reasoning: string;
+  currentCount: number;
+  delta: number;
+  action: 'hire' | 'hold';
+}
+
+export interface AnnualRollup {
+  byRole: AnnualRollupRole[];
+  // Year-level totals.
+  totalRecommendedFTE: number;
+  totalRecommendedPartTime: number;
+  totalCurrentEmployees: number;
+  // Pure ideal cost: sum of all months' recommended salaries (per-month
+  // optimal mix). Used as the baseline against which the conservative
+  // rollup is compared so the supervisor sees what they're "paying" for
+  // the legal safety.
+  annualOptimalSalary: number;
+  // Conservative cost: peak-FTE-count × 12 × avgFTESalary. Always ≥ optimal.
+  annualConservativeSalary: number;
+  // Cost of legal safety = conservative − optimal. Never negative.
+  legalSafetyPremium: number;
 }
 
 export function analyzeWorkforceAnnual({
-  employees, shifts, stations, holidays, baseConfig, isPeakDayFor,
+  employees, shifts, stations, holidays, baseConfig, isPeakDayFor, mode = 'conservative',
 }: AnalyzeAnnualArgs): AnnualWorkforcePlan {
   const byMonth: MonthlyPlanSummary[] = [];
   let annualRequiredHours = 0;
@@ -413,7 +492,7 @@ export function analyzeWorkforceAnnual({
     const monthCfg: Config = { ...baseConfig, month: m, daysInMonth };
     const monthIsPeakDay = isPeakDayFor(monthCfg);
     const plan = analyzeWorkforce({
-      employees, shifts, stations, holidays, config: monthCfg, isPeakDay: monthIsPeakDay,
+      employees, shifts, stations, holidays, config: monthCfg, isPeakDay: monthIsPeakDay, mode,
     });
     const monthRequired = plan.byRole.reduce((s, r) => s + r.monthlyRequiredHours, 0);
     annualRequiredHours += monthRequired;
@@ -479,5 +558,149 @@ export function analyzeWorkforceAnnual({
     peakMonthIndex,
     valleyMonthIndex,
     savingsByStartMonth,
+  };
+}
+
+// Build a single-row-per-role rollup of the year. Conservative mode picks
+// the per-role MAX FTE across the 12 months (peak-driven); optimal mode
+// uses the rounded average. Both modes never recommend release — the
+// supervisor holds excess capacity through valleys (Art. 36/40 of the
+// Iraqi Labor Law makes releases legally fraught, see comments at the top
+// of this module).
+export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], mode: PlanMode): AnnualRollup {
+  // Walk each role across all 12 months, picking up the per-role demand.
+  type RolePerMonth = {
+    role: string;
+    cap: number;
+    perMonth: Array<{ idx: number; fte: number; pt: number; required: number }>;
+    annualRequired: number;
+  };
+  const byRoleAcc = new Map<string, RolePerMonth>();
+  for (const m of annual.byMonth) {
+    for (const r of m.plan.byRole) {
+      let acc = byRoleAcc.get(r.role);
+      if (!acc) {
+        acc = { role: r.role, cap: r.cap, perMonth: [], annualRequired: 0 };
+        byRoleAcc.set(r.role, acc);
+      }
+      acc.perMonth.push({
+        idx: m.monthIndex,
+        fte: r.recommendedFTE,
+        pt: r.recommendedPartTime,
+        required: r.monthlyRequiredHours,
+      });
+      acc.annualRequired += r.monthlyRequiredHours;
+    }
+  }
+
+  // Current roster grouped by role (same logic as currentByRole).
+  const isGenericRole = (r: string) => r === '' || r === 'Standard';
+  const current = new Map<string, number>();
+  for (const e of employees) {
+    let key: string;
+    if (e.category === 'Driver') key = 'Driver';
+    else if (e.role && !isGenericRole(e.role)) key = e.role;
+    else key = 'Standard';
+    current.set(key, (current.get(key) || 0) + 1);
+  }
+
+  // Avg salary for cost calculations.
+  const avgFTESalary = employees.length > 0
+    ? Math.round(employees.reduce((s, e) => s + (e.baseMonthlySalary || 0), 0) / employees.length)
+    : 1_500_000;
+  const avgPartTimeSalary = Math.round(avgFTESalary * PART_TIME_MONTHLY_SALARY_IQD_RATIO);
+
+  const byRole: AnnualRollupRole[] = [];
+  let totalRecommendedFTE = 0;
+  let totalRecommendedPartTime = 0;
+
+  for (const [role, acc] of byRoleAcc) {
+    if (acc.perMonth.length === 0) continue;
+    // Find the peak month for this role.
+    let peakIdx = acc.perMonth[0].idx;
+    let peakFTE = acc.perMonth[0].fte;
+    let peakPT = acc.perMonth[0].pt;
+    for (const p of acc.perMonth) {
+      if (p.fte + p.pt > peakFTE + peakPT) {
+        peakIdx = p.idx;
+        peakFTE = p.fte;
+        peakPT = p.pt;
+      }
+    }
+    const recommendedFTE = mode === 'conservative'
+      ? peakFTE
+      : Math.round(acc.perMonth.reduce((s, p) => s + p.fte, 0) / acc.perMonth.length);
+    const recommendedPartTime = mode === 'conservative'
+      ? 0  // conservative never uses PT
+      : Math.round(acc.perMonth.reduce((s, p) => s + p.pt, 0) / acc.perMonth.length);
+    const currentCount = current.get(role) || 0;
+    const delta = (recommendedFTE + recommendedPartTime) - currentCount;
+    const action: AnnualRollupRole['action'] = delta > 0 ? 'hire' : 'hold';
+
+    const reasoning = mode === 'conservative'
+      ? `Conservative target = peak month (${MONTH_NAMES[peakIdx - 1]}) FTE need = ${peakFTE}. Hire to that level and hold through valley months — releases are legally hard under Art. 36/40 (fixed-term renewals become open-ended, dismissals require Minister of Labor approval).`
+      : `Optimal target = average across the year. ${recommendedFTE} FTE baseline + ${recommendedPartTime} part-timer(s) for peak surge. Cheaper than the conservative approach but assumes the supervisor can scale headcount up/down — usually requires fixed-term PT contracts that don't trigger Art. 36 open-end conversion.`;
+
+    byRole.push({
+      role,
+      annualRequiredHours: acc.annualRequired,
+      peakMonthIndex: peakIdx,
+      peakMonthFTE: peakFTE,
+      recommendedFTE,
+      recommendedPartTime,
+      reasoning,
+      currentCount,
+      delta,
+      action,
+    });
+    totalRecommendedFTE += recommendedFTE;
+    totalRecommendedPartTime += recommendedPartTime;
+  }
+  // Roles in the roster but with no demand this year — surface as hold.
+  for (const [role, count] of current) {
+    if (byRoleAcc.has(role)) continue;
+    byRole.push({
+      role,
+      annualRequiredHours: 0,
+      peakMonthIndex: 1,
+      peakMonthFTE: 0,
+      recommendedFTE: 0,
+      recommendedPartTime: 0,
+      reasoning: 'No station demand for this role anywhere in the year — consider reassignment. Releasing requires Minister of Labor approval under Iraqi Labor Law.',
+      currentCount: count,
+      delta: -count,
+      action: 'hold',
+    });
+  }
+  byRole.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  // Cost calculations: conservative cost = peak-FTE × 12 × salary.
+  const annualConservativeSalary = byRole.reduce(
+    (s, r) => s + r.peakMonthFTE * avgFTESalary * 12, 0);
+  // Optimal cost: re-derive the optimal mix from each month's required-
+  // hours data so we get the right answer regardless of which mode was
+  // used to build `annual`. Without this re-derivation, calling
+  // `buildAnnualRollup` with a conservative-mode annual would produce
+  // legalSafetyPremium=0 (because every month's data already reflects
+  // the conservative pure-FTE recommendation).
+  let annualOptimalSalary = 0;
+  for (const m of annual.byMonth) {
+    for (const r of m.plan.byRole) {
+      const optimalMix = recommendMix(
+        r.monthlyRequiredHours, r.peakRequiredHours, r.nonPeakRequiredHours, r.cap, 'optimal');
+      annualOptimalSalary += optimalMix.recommendedFTE * avgFTESalary
+        + optimalMix.recommendedPartTime * avgPartTimeSalary;
+    }
+  }
+  const legalSafetyPremium = Math.max(0, Math.round(annualConservativeSalary - annualOptimalSalary));
+
+  return {
+    byRole,
+    totalRecommendedFTE,
+    totalRecommendedPartTime,
+    totalCurrentEmployees: employees.length,
+    annualOptimalSalary: Math.round(annualOptimalSalary),
+    annualConservativeSalary: Math.round(annualConservativeSalary),
+    legalSafetyPremium,
   };
 }

@@ -59,17 +59,17 @@ A professional, local-first workforce management and automated scheduling system
 - **🧬 Backward-compatible data layer**: A central `src/lib/migration.ts` normaliser runs every loaded record through field-by-field defaults. Schemas can grow (new optional fields, future structural changes via `CURRENT_DATA_VERSION`) without breaking older backups.
 - **🔐 Verifiable builds**: Every release ships with a `SHA256SUMS.txt` so you can confirm the installer is byte-identical to what GitHub Actions built from this open-source code.
 - **♿ Accessible**: All modals trap focus and close on Escape. Every icon-only button has an `aria-label`. Tables use semantic markup with sortable column headers.
-- **🧪 Tested**: 86 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, OT analysis, and workforce planning (monthly + annual) — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, comp-day choice (cash 2× vs paid day off in lieu), driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution, FTE/PT mix recommendations. Run `npm test` to verify.
+- **🧪 Tested**: 87 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, OT analysis, and workforce planning (conservative + optimal modes, monthly + annual + rollup) — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, comp-day choice (cash 2× vs paid day off in lieu), driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution, FTE/PT mix recommendations. Run `npm test` to verify.
 
 ## 🚀 Quick Start (Recommended)
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v1.13.1)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.13.1.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v1.14.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-1.14.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.13.1.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.14.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
@@ -77,7 +77,7 @@ The easiest way to use the app is to download the pre-built installer:
 ### 🔄 Updating from an earlier version
 Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
 
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.12.x). This wizard will update Iraqi Labor Scheduler to v1.13.1…"*).
+1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.13.x). This wizard will update Iraqi Labor Scheduler to v1.14.0…"*).
 2. Replaces the program files in the existing install directory.
 3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
 4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
@@ -218,6 +218,16 @@ This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
 - **Article 88** (transport workers): Stricter caps for drivers — 9h daily / 56h weekly, 4.5h max continuous driving with mandatory 30-min break, 11h daily rest.
 
 All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
+
+## 📦 What's new in v1.14
+
+| Area | Change |
+|------|--------|
+| **Holiday compensation — Art. 74 corrected** | Removed the choose-comps modal that let supervisors swap the 2× cash premium for a comp day off. Our sector's CBA interpretation of Art. 74 entitles the worker to BOTH the cash AND a comp rest day, not a choice. Holiday hours always pay 2×; the comp rest day is a scheduling obligation tracked by the compliance engine. |
+| **Workforce Planning — Conservative vs Optimal modes** | New top-of-tab segmented control switches between two recommendation strategies. **Conservative** (default) = pure FTE, hire-to-peak, never release — the Iraqi-labor-law-safe option (Art. 36/40 makes releases legally hard). **Optimal** = FTE baseline + part-time surge mix, cheaper but assumes the supervisor can scale headcount up/down. |
+| **Workforce Planning — Annual rollup** | New panel above the monthly chart with one row per role: year-round FTE/PT recommendation (peak in conservative, average in optimal), peak-month indicator, plain-language reasoning. The "release" action is gone from the vocabulary entirely — surplus surfaces as "hold" so the supervisor never fires anyone over a forecast. |
+| **Workforce Planning — Comparative ↔ Ideal-only switch** | Apple-style toggle in the header. Comparative shows current vs recommended side-by-side; Ideal-only strips the comparison clutter for sharing with stakeholders. The Ideal-only KPI strip surfaces the **legal-safety premium** — the IQD/yr cost of choosing conservative over optimal. |
+| **Workforce Planning — PDF export** | Single-click PDF download for HR Director / CEO. Includes the annual summary, per-role rollup table with reasoning, monthly demand breakdown, and the legal-safety premium. |
 
 ## 📦 What's new in v1.13
 
