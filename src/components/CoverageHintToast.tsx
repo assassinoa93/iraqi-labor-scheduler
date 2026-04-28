@@ -66,7 +66,7 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                     key={s.empId}
                     onClick={() => onPickReplacement(s.empId)}
                     className={cn(
-                      "w-full text-left px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
+                      "w-full text-start px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
                       s.isRecommended
                         ? "bg-amber-50 border-amber-300 ring-2 ring-amber-200 hover:bg-amber-100"
                         : s.currentlyOff

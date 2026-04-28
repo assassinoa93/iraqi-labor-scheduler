@@ -1,7 +1,7 @@
 {
   "name": "iraqi-labor-scheduler",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Local-first workforce scheduler tailored for Iraqi Labor Law (Art. 67-74, 88).",
   "author": {
     "name": "Iraqi Labor Scheduler Project",

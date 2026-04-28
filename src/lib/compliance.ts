@@ -478,14 +478,25 @@ export class ComplianceEngine {
 
       // Rule: Holiday work — informational note, NOT a violation.
       // Working a public holiday is legal under Art. 74; the law just
-      // requires double pay (compensable, not prohibited). The platform
-      // assumes the supervisor processes holiday OT as part of the next
-      // payroll cycle, so we surface it as an "info" finding for the report
-      // rather than penalising the compliance score.
-      // Companion check: if no OFF / leave appears within the 7 days
-      // following a PH-work day, surface "Comp day owed" — the supervisor
-      // hasn't yet given the employee their compensation rest. Still info
-      // severity (the law allows pay-in-lieu), just a heads-up.
+      // requires either a comp day or 2× pay (per the practitioner reading
+      // the user adopted in v2.1, those are alternatives, not both). The
+      // platform surfaces holiday work as an "info" finding so the report
+      // shows the eligibility without penalising the compliance score.
+      //
+      // Companion check: when the holiday's effective mode is `comp-day`,
+      // verify a non-work day was scheduled inside the configured comp
+      // window after the PH-work day. The window has two thresholds:
+      //   • recommended (default 7) — soft target, surfaces a "late comp
+      //     day" recommendation note when the granted CP/OFF lands beyond
+      //     it but still within the max window.
+      //   • max (default 30) — beyond this, "Comp day owed" fires.
+      // `cash-ot` holidays skip the comp check entirely; payroll handles
+      // the 2× premium.
+      const compModeDefault = config.holidayCompMode ?? 'comp-day';
+      const compWindowMax = Math.max(1, config.holidayCompWindowDays ?? 30);
+      const compWindowRec = Math.max(1, config.holidayCompRecommendedDays ?? 7);
+      const holidayByDate = new Map<string, PublicHoliday>();
+      for (const h of holidays) holidayByDate.set(h.date, h);
       days.forEach(day => {
         const entry = empSchedule[day];
         const shiftCode = entry?.shiftCode;
@@ -493,55 +504,71 @@ export class ComplianceEngine {
         if (shift && shift.isWork) {
           const dStr = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
           if (holidayDates.has(dStr)) {
+            const hol = holidayByDate.get(dStr);
+            const effMode = hol?.compMode ?? compModeDefault;
             if (!shift.code.includes('OT') && !shift.code.includes('PH')) {
+              const noteMsg = effMode === 'cash-ot'
+                ? "Worked on a public holiday — 2× cash premium owed (Art. 74 cash mode)."
+                : "Worked on a public holiday — comp rest day owed within the configured window (Art. 74 comp mode).";
               violations.push({
                 empId: emp.empId,
                 day,
                 rule: "Public holiday worked",
                 article: "(Art. 74)",
-                message: "Worked on a public holiday — eligible for double pay or a compensation day off.",
+                message: noteMsg,
                 severity: 'info',
               });
             }
-            // Comp-day-owed check (v1.14: reverted to v1.10 default-on
-            // semantics). Per Iraqi Labor Law Art. 74 the worker is owed
-            // BOTH the 2× cash premium AND a comp rest day — not a choice.
-            // The check therefore fires for every PH-work day where no
-            // OFF/leave appears within 7 days, regardless of any
-            // per-holiday opt-in flag. The v1.11–1.13 `holidayCompensations`
-            // field is retained on the data model for forward-compat but
-            // ignored here; granting comp days is a scheduling obligation,
-            // not a payroll choice.
+            // Skip the comp-day-owed scan when the holiday is in cash-ot
+            // mode — there's no comp day to owe.
+            if (effMode !== 'comp-day') return;
+
             const nextSchedule = allSchedules?.[nextMonthKey(config.year, config.month)];
             const nextSchedExists = !!nextSchedule;
-            let compFound = false;
+            let compDayOffset = -1;
             let scannableDays = 0;
-            for (let look = 1; look <= 7; look++) {
+            for (let look = 1; look <= compWindowMax; look++) {
               const next = day + look;
+              let nextShift: Shift | undefined;
               if (next <= config.daysInMonth) {
                 scannableDays++;
                 const nextEntry = empSchedule[next];
-                const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
-                if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+                nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
               } else if (nextSchedExists) {
                 scannableDays++;
                 const nextDay = next - config.daysInMonth;
                 const nextEntry = nextSchedule[emp.empId]?.[nextDay];
-                const nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
-                if (!nextShift || !nextShift.isWork) { compFound = true; break; }
+                nextShift = nextEntry ? shiftMap.get(nextEntry.shiftCode) : undefined;
               } else {
                 // Hit the month boundary with no next-month schedule — stop
                 // scanning. The supervisor handles next month manually.
                 break;
               }
+              if (!nextShift || !nextShift.isWork) {
+                compDayOffset = look;
+                break;
+              }
             }
-            if (!compFound && scannableDays >= 7) {
+            const compFound = compDayOffset > 0;
+            if (!compFound && scannableDays >= compWindowMax) {
               violations.push({
                 empId: emp.empId,
                 day,
                 rule: "Comp day owed",
                 article: "(Art. 74)",
-                message: `Worked the public holiday on day ${day} but no OFF / leave was scheduled within 7 days. Grant a comp day or process double pay.`,
+                message: `Worked the public holiday on day ${day} but no OFF / CP / leave was scheduled within ${compWindowMax} days. Grant a comp day or flip the holiday to cash-OT mode.`,
+                severity: 'info',
+              });
+            } else if (compFound && compDayOffset > compWindowRec) {
+              // Soft recommendation: comp day landed beyond the recommended
+              // window but still inside the legal max. Helpful nudge for
+              // the supervisor; doesn't count as a violation.
+              violations.push({
+                empId: emp.empId,
+                day,
+                rule: "Comp day late",
+                article: "(Art. 74)",
+                message: `Comp day for the day-${day} public holiday lands ${compDayOffset} days later — recommended is within ${compWindowRec} days.`,
                 severity: 'info',
               });
             }

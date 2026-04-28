@@ -62,8 +62,13 @@ export function SuggestionPane({
   recentChanges, onUndoChange, onClearChanges,
   collapsed, onToggleCollapsed,
 }: Props) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [showAllChanges, setShowAllChanges] = useState(false);
+  // Anchor the pane on the visual edge OPPOSITE the sidebar. The sidebar
+  // sits at the inline-start of the document (visual left in LTR, visual
+  // right in RTL because the flex row reverses), so the pane stays at
+  // inline-end via logical positioning.
+  const isRTL = dir === 'rtl';
 
   if (collapsed) {
     return (
@@ -71,9 +76,16 @@ export function SuggestionPane({
         onClick={onToggleCollapsed}
         title={t('pane.expand')}
         aria-label={t('pane.expand')}
-        className="fixed top-32 right-0 z-[40] flex flex-col items-center gap-2 px-2 py-4 bg-white border-l border-y border-slate-200 rounded-l-xl shadow-lg hover:bg-slate-50 transition-all"
+        style={isRTL ? { left: 0 } : { right: 0 }}
+        className={cn(
+          "fixed top-32 z-[40] flex flex-col items-center gap-2 px-2 py-4 bg-white border-y border-slate-200 shadow-lg hover:bg-slate-50 transition-all",
+          isRTL ? "border-r rounded-r-xl" : "border-l rounded-l-xl",
+        )}
       >
-        <ChevronLeftIcon className="w-4 h-4 text-slate-500" />
+        {isRTL
+          ? <ChevronRight className="w-4 h-4 text-slate-500" />
+          : <ChevronLeftIcon className="w-4 h-4 text-slate-500" />
+        }
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest [writing-mode:vertical-rl]">
           {t('pane.title')}
         </span>
@@ -93,7 +105,11 @@ export function SuggestionPane({
 
   return (
     <aside
-      className="fixed top-16 right-0 bottom-0 w-[340px] z-[40] bg-white border-l border-slate-200 shadow-xl flex flex-col overflow-hidden"
+      style={isRTL ? { left: 0 } : { right: 0 }}
+      className={cn(
+        "fixed top-16 bottom-0 w-[340px] z-[40] bg-white shadow-xl flex flex-col overflow-hidden",
+        isRTL ? "border-r border-slate-200" : "border-l border-slate-200",
+      )}
       role="complementary"
       aria-label={t('pane.title')}
     >
@@ -109,7 +125,10 @@ export function SuggestionPane({
           aria-label={t('pane.collapse')}
           className="p-1 hover:bg-slate-200 rounded transition-colors"
         >
-          <ChevronRight className="w-4 h-4 text-slate-500" />
+          {isRTL
+            ? <ChevronLeftIcon className="w-4 h-4 text-slate-500" />
+            : <ChevronRight className="w-4 h-4 text-slate-500" />
+          }
         </button>
       </div>
 
@@ -190,7 +209,7 @@ export function SuggestionPane({
                       key={s.empId}
                       onClick={() => onPickReplacement(s.empId)}
                       className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
+                        "w-full text-start px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
                         s.isRecommended
                           ? "bg-amber-50 border-amber-300 ring-2 ring-amber-200 hover:bg-amber-100"
                           : s.currentlyOff

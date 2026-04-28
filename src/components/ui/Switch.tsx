@@ -46,8 +46,11 @@ export function Switch({
   const trackW = sm ? 'w-8' : 'w-10';
   const trackH = sm ? 'h-4.5' : 'h-6';
   const thumbSize = sm ? 'w-3.5 h-3.5' : 'w-5 h-5';
-  const thumbOff = sm ? 'translate-x-0.5' : 'translate-x-0.5';
-  const thumbOn = sm ? 'translate-x-3.5' : 'translate-x-4';
+  // RTL: the thumb travel must mirror, so the ON state lands the thumb on
+  // the inline-end of the track (visual left in RTL). Tailwind's
+  // translate-x-* is physical, so we pair with rtl: variants to negate.
+  const thumbOff = 'translate-x-0.5 rtl:-translate-x-0.5';
+  const thumbOn = sm ? 'translate-x-3.5 rtl:-translate-x-3.5' : 'translate-x-4 rtl:-translate-x-4';
 
   return (
     <button

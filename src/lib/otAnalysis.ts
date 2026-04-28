@@ -28,17 +28,21 @@ export interface EmployeeOT {
   totalHours: number;
   cap: number;
   overCapHours: number;       // hours > monthly cap (paid at otRateDay)
-  // Hours worked on a public holiday this month. Per Iraqi Labor Law Art.
-  // 74 (and the prevailing CBA interpretation in our sector), the worker is
-  // entitled to BOTH the 2× cash premium AND a compensatory rest day —
-  // these are not alternatives. v1.14 removed the per-holiday choose-comps
-  // toggle that wrongly treated them as a choice.
+  // Total hours worked on a public holiday this month. v2.1 splits this
+  // into two cost lanes (see `premiumHolidayHours` below) per the user's
+  // Art. 74 reading: comp day OR cash, not both.
   holidayHours: number;
-  // The over-cap pool excluding holiday hours (avoids double-charging the
-  // 1.5× over-cap rate against hours already paid at 2× per Art. 74).
+  // Subset of `holidayHours` where the 2× cash premium is owed (cash-ot
+  // mode, or comp-day mode with no CP scheduled within the window). The
+  // remaining hours are paid at the regular wage because the supervisor
+  // already granted the comp rest day.
+  premiumHolidayHours: number;
+  // The over-cap pool excluding premium-rate holiday hours (avoids
+  // double-charging the 1.5× over-cap rate against hours already paid at
+  // 2× per Art. 74).
   payableOverCapHours: number;
   overCapPay: number;         // IQD: payableOverCapHours * hourly * otRateDay
-  holidayPay: number;         // IQD: holidayHours * hourly * otRateNight
+  holidayPay: number;         // IQD: premiumHolidayHours * hourly * otRateNight
   totalOTPay: number;         // overCapPay + holidayPay
   // Per-holiday-date breakdown so the UI can list which holidays the
   // employee worked. Date strings are YYYY-MM-DD.
@@ -105,6 +109,41 @@ export function analyzeOT(
   const monthPrefix = `${config.year}-${String(config.month).padStart(2, '0')}-`;
   const holidaysThisMonth = holidays.filter(h => h.date.startsWith(monthPrefix));
   const holidayDateSet = new Set(holidaysThisMonth.map(h => h.date));
+  const holidayByDate = new Map(holidaysThisMonth.map(h => [h.date, h]));
+
+  // v2.1 — per-PH-day premium gating. The user's reading of Art. 74 is
+  // "either comp day OR cash premium, not both". So the 2× premium fires
+  // only when:
+  //   • the holiday's effective compMode is 'cash-ot', OR
+  //   • the holiday's compMode is 'comp-day' AND no comp day (CP / OFF /
+  //     leave) was scheduled inside `holidayCompWindowDays` after the
+  //     PH-work day. The supervisor missed the comp window so the
+  //     premium becomes owed.
+  // Holiday hours that DO have a comp day fall back to the regular wage
+  // and contribute only to the over-cap pool (1× share) like any other
+  // working day.
+  const compModeDefault = config.holidayCompMode ?? 'comp-day';
+  const compWindowMax = Math.max(1, config.holidayCompWindowDays ?? 30);
+  const dayOfDate = (dateStr: string): number | null => {
+    const m = /^\d{4}-\d{2}-(\d{2})$/.exec(dateStr);
+    return m ? parseInt(m[1], 10) : null;
+  };
+  const isPremiumOwed = (empSched: Record<number, { shiftCode: string }>, holidayDate: string): boolean => {
+    const hol = holidayByDate.get(holidayDate);
+    const effMode = hol?.compMode ?? compModeDefault;
+    if (effMode === 'cash-ot') return true;
+    const startDay = dayOfDate(holidayDate);
+    if (startDay === null) return true;
+    for (let look = 1; look <= compWindowMax; look++) {
+      const d = startDay + look;
+      if (d > config.daysInMonth) break; // can't see next month here
+      const e = empSched[d];
+      if (!e) continue;
+      const sh = shiftByCode.get(e.shiftCode);
+      if (!sh || !sh.isWork) return false; // comp day landed → premium not owed
+    }
+    return true; // no comp day within the window → premium owed
+  };
 
   const byEmployee: EmployeeOT[] = [];
   // Aggregate buckets — we'll fill them as we walk each employee, then turn
@@ -128,9 +167,15 @@ export function analyzeOT(
     const hoursByStation = new Map<string, number>();
     let totalHours = 0;
     let holidayHours = 0;
+    // v2.1 — only the subset of holiday hours where the 2× premium is
+    // actually owed (cash-ot mode, or comp-day mode with no CP scheduled
+    // within the window). Hours with a comp day granted skip the premium
+    // and roll into the regular wage pool.
+    let premiumHolidayHours = 0;
     // Per-station holiday-hours bucket so we attribute the 2× cash premium
     // to the station the employee actually worked at on the holiday.
     const holidayHoursByStation = new Map<string, number>();
+    const premiumHolidayHoursByStation = new Map<string, number>();
     // Per-date breakdown so the UI can list each holiday the employee
     // worked.
     const holidayDateBuckets = new Map<string, number>();
@@ -146,6 +191,10 @@ export function analyzeOT(
         holidayHours += shift.durationHrs;
         holidayDateBuckets.set(ds, (holidayDateBuckets.get(ds) || 0) + shift.durationHrs);
         holidayHoursByStation.set(stKey, (holidayHoursByStation.get(stKey) || 0) + shift.durationHrs);
+        if (isPremiumOwed(empSched, ds)) {
+          premiumHolidayHours += shift.durationHrs;
+          premiumHolidayHoursByStation.set(stKey, (premiumHolidayHoursByStation.get(stKey) || 0) + shift.durationHrs);
+        }
       }
     }
 
@@ -153,12 +202,12 @@ export function analyzeOT(
 
     const hourly = baseHourlyRate(emp, config);
     const overCapHours = Math.max(0, totalHours - cap);
-    // Subtract holiday hours from the over-cap pool because holiday hours
-    // are already paid at the higher 2× rate per Art. 74. Mirrors the
-    // accounting that ScheduleTab + DashboardTab use for `stdOT`.
-    const payableOverCapHours = Math.max(0, overCapHours - holidayHours);
+    // Subtract premium-rate holiday hours from the over-cap pool — those
+    // are already covered at the higher 2× rate. Non-premium holiday
+    // hours (comp granted) stay eligible for the 1.5× over-cap pool.
+    const payableOverCapHours = Math.max(0, overCapHours - premiumHolidayHours);
     const overCapPay = payableOverCapHours * hourly * otRateDay;
-    const holidayPay = holidayHours * hourly * otRateNight;
+    const holidayPay = premiumHolidayHours * hourly * otRateNight;
     const totalOTPay = overCapPay + holidayPay;
 
     if (overCapHours > 0 || holidayHours > 0) {
@@ -169,6 +218,7 @@ export function analyzeOT(
         cap,
         overCapHours,
         holidayHours,
+        premiumHolidayHours,
         payableOverCapHours,
         overCapPay,
         holidayPay,
@@ -194,13 +244,18 @@ export function analyzeOT(
       }
     }
     // Holiday pool: direct attribution to station the worker was on that
-    // day. Always paid 2× per Art. 74.
+    // day. Pay only the subset where the premium is owed (cash-ot mode or
+    // comp-day mode with no CP scheduled inside the window).
     for (const [stId, hrs] of holidayHoursByStation) {
       if (stId === '__unassigned__') continue;
       const acc = ensureStation(stId);
       acc.holidayHours += hrs;
-      acc.holidayPay += hrs * hourly * otRateNight;
       acc.contributorIds.add(emp.empId);
+    }
+    for (const [stId, hrs] of premiumHolidayHoursByStation) {
+      if (stId === '__unassigned__') continue;
+      const acc = ensureStation(stId);
+      acc.holidayPay += hrs * hourly * otRateNight;
     }
     // Always count total hours at the station for context.
     for (const [stId, hrs] of hoursByStation) {
@@ -274,18 +329,21 @@ export function suggestMitigations(analysis: OTAnalysis, avgMonthlySalary: numbe
     out.push({ id: 'hire-overcap', estimatedSavings: saved - cost, count: hires });
   }
 
-  // Holiday-pool mitigation. Per Art. 74 the worker is owed BOTH the 2×
-  // premium AND a comp rest day — these are not alternatives in our
-  // sector's CBA reading. The "mitigation" is therefore a compliance
-  // reminder (track the comp day in the schedule) rather than a savings
-  // lever. We surface it with estimatedSavings=0 so the UI shows the row
-  // as informational, not a cash-saving suggestion.
-  if (analysis.totalHolidayHours > 0) {
+  // Holiday-pool mitigation. v2.1 — under the "either / or" reading, a
+  // comp day actually erases the 2× premium for those hours, so this row
+  // now shows the projected savings from completing the rotation. Counts
+  // PH-work days where the premium is currently owed (no CP within the
+  // configured window) and projects the cash that would be saved if a
+  // comp day were granted.
+  const totalPremiumHours = analysis.byEmployee.reduce((s, e) => s + (e.premiumHolidayHours || 0), 0);
+  if (totalPremiumHours > 0) {
+    const projectedSavings = analysis.totalHolidayPay; // entire premium pool
     let compDays = 0;
     for (const e of analysis.byEmployee) {
-      if (e.holidayHours > 0) compDays += Math.max(1, Math.round(e.holidayHours / 8));
+      const ph = e.premiumHolidayHours || 0;
+      if (ph > 0) compDays += Math.max(1, Math.round(ph / 8));
     }
-    out.push({ id: 'comp-day-holiday', estimatedSavings: 0, count: compDays });
+    out.push({ id: 'comp-day-holiday', estimatedSavings: projectedSavings, count: compDays });
   }
 
   // Re-running the scheduler in strict mode (level 1) sometimes spreads

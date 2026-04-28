@@ -31,6 +31,13 @@ export const INITIAL_SHIFTS: Shift[] = [
   // Maternity leave (Art. 87) — 14 weeks paid leave for women. The auto-
   // scheduler stamps this code on every day in the configured range.
   { code: 'MAT', name: 'Maternity Leave', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Protected maternity leave (Art. 87)' },
+  // v2.1 — Compensation rest day (Art. 74). Distinct from OFF so the
+  // user can see at a glance which non-work days the auto-scheduler
+  // granted as comp days for prior public-holiday work. Payroll treats
+  // CP as non-work (no daily wage burn beyond the regular monthly
+  // salary), and the compliance engine recognises CP as satisfying the
+  // comp-day-owed check after a PH-work day.
+  { code: 'CP', name: 'Compensation', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: 'Comp rest day for prior PH work (Art. 74)' },
 ];
 
 // Vehicle stations the seeded drivers are eligible for. Drivers are still
@@ -232,4 +239,11 @@ export const DEFAULT_CONFIG: Config = {
   enforceArt86NightWork: true,
   art86NightStart: '22:00',
   art86NightEnd: '07:00',
+  // v2.1 Art. 74 model. Default to comp-day rotation with a 30-day max
+  // window (1 month) and a 7-day recommended threshold. The auto-
+  // scheduler aims to land the CP within the recommended window; the
+  // compliance engine accepts up to the max before flagging "owed".
+  holidayCompMode: 'comp-day',
+  holidayCompWindowDays: 30,
+  holidayCompRecommendedDays: 7,
 };

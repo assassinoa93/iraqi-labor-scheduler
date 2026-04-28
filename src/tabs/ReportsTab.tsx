@@ -98,7 +98,7 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, on
             </div>
 
             <div className="overflow-hidden border border-slate-100 rounded-lg">
-              <table className="w-full text-left text-[9px]">
+              <table className="w-full text-start text-[9px]">
                 <thead className="bg-slate-50 font-bold uppercase text-slate-400">
                   <tr>
                     <th className="px-4 py-2">{t('roster.col.id')}</th>

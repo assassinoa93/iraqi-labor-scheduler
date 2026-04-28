@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Edit3, Trash2, Layout, FolderPlus, Boxes, ChevronDown, X } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
@@ -223,12 +224,102 @@ function StationCard({
   onDelete: () => void;
   onMoveToGroup: (groupId: string | undefined) => void;
 }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [moveOpen, setMoveOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Computed in viewport coordinates so the menu floats free of the
+  // kanban column's `overflow-hidden` clip and the surrounding card
+  // borders. Re-measured on open + on scroll/resize.
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; placement: 'down' | 'up' } | null>(null);
+  const MENU_HEIGHT = 220;
+  const MENU_WIDTH = 200;
   const eligibleCount = employees.filter(e =>
     e.eligibleStations.includes(station.id)
     || (station.groupId && (e.eligibleGroups || []).includes(station.groupId))
   ).length;
+
+  useLayoutEffect(() => {
+    if (!moveOpen || !triggerRef.current) return;
+    const recompute = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const spaceBelow = vh - r.bottom;
+      const placement: 'down' | 'up' = spaceBelow < MENU_HEIGHT ? 'up' : 'down';
+      const top = placement === 'down' ? r.bottom + 4 : Math.max(8, r.top - MENU_HEIGHT - 4);
+      // Anchor the menu to the start side of the trigger; clamp to the
+      // viewport so it never escapes off-screen on either axis.
+      const rawLeft = dir === 'rtl' ? r.right - MENU_WIDTH : r.left;
+      const left = Math.min(Math.max(8, rawLeft), vw - MENU_WIDTH - 8);
+      setMenuPos({ top, left, placement });
+    };
+    recompute();
+    window.addEventListener('scroll', recompute, true);
+    window.addEventListener('resize', recompute);
+    return () => {
+      window.removeEventListener('scroll', recompute, true);
+      window.removeEventListener('resize', recompute);
+    };
+  }, [moveOpen, dir]);
+
+  // Click-outside to close. Listen on document with a tick delay so the
+  // toggle click that opened the menu doesn't immediately re-close it.
+  useEffect(() => {
+    if (!moveOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      const portalEl = document.getElementById('station-move-menu-portal');
+      if (portalEl?.contains(target)) return;
+      setMoveOpen(false);
+    };
+    const t = setTimeout(() => document.addEventListener('mousedown', onDocClick), 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', onDocClick);
+    };
+  }, [moveOpen]);
+
+  const menu = moveOpen && menuPos ? createPortal(
+    <div
+      id="station-move-menu-portal"
+      role="menu"
+      style={{
+        position: 'fixed',
+        top: menuPos.top,
+        left: menuPos.left,
+        width: MENU_WIDTH,
+        maxHeight: MENU_HEIGHT,
+        overflowY: 'auto',
+        zIndex: 70,
+      }}
+      className="bg-white border border-slate-200 rounded-lg shadow-xl py-1"
+    >
+      {groups.map(g => (
+        <button
+          key={g.id}
+          onClick={() => { onMoveToGroup(g.id); setMoveOpen(false); }}
+          className={cn(
+            "w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 flex items-center gap-2",
+            station.groupId === g.id && "bg-slate-50 font-bold",
+          )}
+        >
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.color || '#94a3b8' }} />
+          <span className="truncate">{g.name}</span>
+        </button>
+      ))}
+      {(station.groupId || groups.length === 0) && (
+        <button
+          onClick={() => { onMoveToGroup(undefined); setMoveOpen(false); }}
+          className="w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 text-slate-500 italic border-t border-slate-100"
+        >
+          {t('layout.station.unassign')}
+        </button>
+      )}
+    </div>,
+    document.body,
+  ) : null;
 
   return (
     <div className="p-3 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all group">
@@ -265,36 +356,15 @@ function StationCard({
       <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100">
         <div className="relative">
           <button
+            ref={triggerRef}
             onClick={() => setMoveOpen(o => !o)}
+            aria-haspopup="menu"
+            aria-expanded={moveOpen}
             className="text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest flex items-center gap-1"
           >
             {t('layout.station.moveTo')} <ChevronDown className="w-3 h-3" />
           </button>
-          {moveOpen && (
-            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px]">
-              {groups.map(g => (
-                <button
-                  key={g.id}
-                  onClick={() => { onMoveToGroup(g.id); setMoveOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-3 py-1.5 text-[11px] hover:bg-slate-50 flex items-center gap-2",
-                    station.groupId === g.id && "bg-slate-50 font-bold",
-                  )}
-                >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: g.color || '#94a3b8' }} />
-                  {g.name}
-                </button>
-              ))}
-              {(station.groupId || groups.length === 0) && (
-                <button
-                  onClick={() => { onMoveToGroup(undefined); setMoveOpen(false); }}
-                  className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-slate-50 text-slate-500 italic border-t border-slate-100"
-                >
-                  {t('layout.station.unassign')}
-                </button>
-              )}
-            </div>
-          )}
+          {menu}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600">

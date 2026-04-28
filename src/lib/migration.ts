@@ -147,12 +147,16 @@ export function normalizeStationGroup(raw: Record<string, unknown>): { id: strin
 
 // ─── Holiday ─────────────────────────────────────────────────────────────────
 export function normalizeHoliday(raw: Partial<PublicHoliday> & Record<string, unknown>): PublicHoliday {
+  const compMode = raw.compMode === 'cash-ot' || raw.compMode === 'comp-day' ? raw.compMode : undefined;
   return {
     date: String(raw.date ?? ''),
     name: String(raw.name ?? ''),
     type: String(raw.type ?? 'National'),
     legalReference: String(raw.legalReference ?? 'Art. 74'),
     isFixed: typeof raw.isFixed === 'boolean' ? raw.isFixed : undefined,
+    // v2.1: per-holiday Art. 74 mode override. Undefined = inherit
+    // config.holidayCompMode at evaluation time.
+    compMode,
   };
 }
 
@@ -247,7 +251,25 @@ export function normalizeEmployees(raw: unknown): Employee[] {
 }
 export function normalizeShifts(raw: unknown): Shift[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(x => x && typeof x === 'object').map(x => normalizeShift(x as Record<string, unknown>));
+  const shifts = raw.filter(x => x && typeof x === 'object').map(x => normalizeShift(x as Record<string, unknown>));
+  // v2.1: backfill the CP (compensation) shift on existing companies. Pre-2.1
+  // saves don't have it; the auto-scheduler uses CP for the comp-day rotation
+  // after PH-work, so it must exist or the scheduler falls back to OFF.
+  if (!shifts.some(s => s.code === 'CP')) {
+    shifts.push({
+      code: 'CP',
+      name: 'Compensation',
+      start: '00:00',
+      end: '00:00',
+      durationHrs: 0,
+      breakMin: 0,
+      isIndustrial: false,
+      isHazardous: false,
+      isWork: false,
+      description: 'Comp rest day for prior PH work (Art. 74)',
+    });
+  }
+  return shifts;
 }
 export function normalizeStations(raw: unknown): Station[] {
   if (!Array.isArray(raw)) return [];

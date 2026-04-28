@@ -29,7 +29,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
       </div>
 
       <Card>
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200">
             <tr>
               <th className="px-6 py-4 tracking-wider">{t('shifts.col.code')}</th>
@@ -37,7 +37,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
               <th className="px-6 py-4 tracking-wider">{t('shifts.col.hours')}</th>
               <th className="px-6 py-4 tracking-wider text-center">{t('shifts.col.status')}</th>
               <th className="px-6 py-4 tracking-wider text-center w-24">{t('shifts.col.order')}</th>
-              <th className="px-6 py-4 tracking-wider text-right">{t('shifts.col.actions')}</th>
+              <th className="px-6 py-4 tracking-wider text-end">{t('shifts.col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -78,7 +78,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-4 text-end">
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => onEdit(s)} aria-label={`${t('action.edit')}: ${s.code}`} className="text-slate-400 hover:text-slate-900 transition-colors p-1">
                       <Settings className="w-4 h-4" />

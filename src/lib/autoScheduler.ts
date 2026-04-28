@@ -181,6 +181,20 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
   const ramadanCap = config.ramadanDailyHrsCap ?? 6;
   const art86NightStart = config.art86NightStart || ART86_DEFAULT_NIGHT_START;
   const art86NightEnd = config.art86NightEnd || ART86_DEFAULT_NIGHT_END;
+  // v2.1: Art. 74 model. Default 'comp-day' rotates a CP day within the
+  // configured window (default 30 days). 'cash-ot' skips comp tracking
+  // entirely — payroll handles the 2× premium instead.
+  const compMode = config.holidayCompMode ?? 'comp-day';
+  const compWindowDays = Math.max(1, config.holidayCompWindowDays ?? 30);
+  // CP shift code is granted as the comp day. Falls back to OFF when CP
+  // isn't in the company's shifts list (defensive — the migration always
+  // backfills it, but keep the scheduler resilient).
+  const hasCPShift = shifts.some(s => s.code === 'CP');
+  const compCode = hasCPShift ? 'CP' : 'OFF';
+  // Per-holiday effective mode lookup. Build once so we don't filter the
+  // holidays array in the hot loop.
+  const holidayModeByDate = new Map<string, 'comp-day' | 'cash-ot'>();
+  for (const h of holidays) holidayModeByDate.set(h.date, h.compMode ?? compMode);
 
   // Per-type leave predicates delegate to the unified helper which handles
   // both v1.7 multi-range leaves AND legacy single-range fields.
@@ -424,15 +438,16 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
                   if (idx !== undefined) {
                     updatedEmployees[idx] = { ...updatedEmployees[idx], holidayBank: (updatedEmployees[idx].holidayBank || 0) + 1 };
                   }
-                  // Track comp-day debt: each PH-work increments by 1; the
-                  // after-day OFF/leave pass decrements (capped at 0). Only
-                  // counts the FIRST shift of the day per employee — multi-
-                  // shift days are still one PH-work day owed one comp day.
-                  if (!phWorkDays.has(candidate.empId)) phWorkDays.set(candidate.empId, []);
-                  const log = phWorkDays.get(candidate.empId)!;
-                  if (log[log.length - 1] !== day) {
-                    log.push(day);
-                    phDebt.set(candidate.empId, (phDebt.get(candidate.empId) || 0) + 1);
+                  // Track comp-day debt only when this holiday is in
+                  // 'comp-day' mode — 'cash-ot' holidays don't owe a comp
+                  // day, payroll absorbs the 2× premium instead.
+                  if ((holidayModeByDate.get(dateStr) ?? compMode) === 'comp-day') {
+                    if (!phWorkDays.has(candidate.empId)) phWorkDays.set(candidate.empId, []);
+                    const log = phWorkDays.get(candidate.empId)!;
+                    if (log[log.length - 1] !== day) {
+                      log.push(day);
+                      phDebt.set(candidate.empId, (phDebt.get(candidate.empId) || 0) + 1);
+                    }
                   }
                 }
 
@@ -457,7 +472,31 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
       const onSick = !onMaternity && isOnSickLeave(e, dateStr);
       const onAnnual = !onMaternity && !onSick && isOnAnnualLeave(e, dateStr);
       const onLeave = onMaternity || onSick || onAnnual;
-      const code = onMaternity ? 'MAT' : onSick ? 'SL' : onAnnual ? 'AL' : 'OFF';
+
+      // Comp-day satisfaction: an OFF / leave day after a tracked PH-work
+      // pays down one unit of debt. Window expanded to `compWindowDays`
+      // (default 30, configurable) so the supervisor has up to a month
+      // to land the rest day. The recommended threshold (7 days) is what
+      // the candidate sort still biases towards — anything further out is
+      // legal but flagged later by the compliance engine as a soft note.
+      const log = phWorkDays.get(e.empId);
+      let payingDownDebt = false;
+      if (log && log.length > 0) {
+        while (log.length > 0 && log[0] < day - compWindowDays) log.shift();
+        if (log.length > 0) {
+          log.shift();
+          const newDebt = Math.max(0, (phDebt.get(e.empId) || 0) - 1);
+          phDebt.set(e.empId, newDebt);
+          payingDownDebt = true;
+        }
+      }
+
+      // Mark the rest day as CP iff the employee owes comp from a prior
+      // PH-work and they're not on protected leave today. Otherwise it's
+      // just a regular OFF (or leave) day. CP fills the same scheduling
+      // role as OFF (non-work, breaks consecutive-work runs) but is
+      // distinct so payroll + reports can attribute it as the comp day.
+      const code = onMaternity ? 'MAT' : onSick ? 'SL' : onAnnual ? 'AL' : (payingDownDebt ? compCode : 'OFF');
       newSchedule[e.empId][day] = { shiftCode: code };
       consecutiveWork.set(e.empId, 0);
 
@@ -468,22 +507,6 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
         if (idx !== undefined && updatedEmployees[idx].holidayBank > 0) {
           updatedEmployees[idx].holidayBank -= 1;
           usedHolidayBankThisMonth.set(e.empId, (usedHolidayBankThisMonth.get(e.empId) || 0) + 1);
-        }
-      }
-
-      // Comp-day satisfaction: an OFF / leave day after a tracked PH-work
-      // pays down one unit of debt. Only counts the days within the rolling
-      // 7-day window after each PH-work; older entries are dropped so the
-      // bias doesn't linger past the comp window.
-      const log = phWorkDays.get(e.empId);
-      if (log && log.length > 0) {
-        // Drop expired entries (more than 7 days behind today).
-        while (log.length > 0 && log[0] < day - 7) log.shift();
-        if (log.length > 0) {
-          // Pay down one unit; the earliest pending PH gets compensated first.
-          log.shift();
-          const newDebt = Math.max(0, (phDebt.get(e.empId) || 0) - 1);
-          phDebt.set(e.empId, newDebt);
         }
       }
     }

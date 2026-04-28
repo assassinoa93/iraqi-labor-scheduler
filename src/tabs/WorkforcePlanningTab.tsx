@@ -239,7 +239,7 @@ export function WorkforcePlanningTab(props: Props) {
           <Card className="overflow-hidden">
             <button
               onClick={() => setShowAnnualRollup(s => !s)}
-              className="w-full p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 hover:bg-slate-100/50 transition-colors text-left"
+              className="w-full p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 hover:bg-slate-100/50 transition-colors text-start"
             >
               <Activity className="w-4 h-4 text-blue-600 shrink-0" />
               <div className="min-w-0 flex-1">
@@ -427,7 +427,7 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
     <div className="hover:bg-slate-50/40 transition-colors">
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full p-5 text-left flex items-start gap-4"
+        className="w-full p-5 text-start flex items-start gap-4"
       >
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white shadow-sm"

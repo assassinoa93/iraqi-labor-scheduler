@@ -140,12 +140,27 @@ export interface Shift {
   description: string;
 }
 
+// v2.1 — Art. 74 holiday-OT model. Per the practitioner reading the user
+// adopted, the worker is owed EITHER a compensation rest day OR the 2×
+// cash premium for hours worked on a public holiday — not both. The mode
+// drives whether the auto-scheduler grants a comp day (and the payroll
+// treats holiday hours as regular pay) or skips compensation and pays the
+// premium. The default is `comp-day` because the auto-scheduler can
+// usually rotate OFF days to land within the comp window, eliminating the
+// premium pool entirely.
+export type HolidayCompMode = 'comp-day' | 'cash-ot';
+
 export interface PublicHoliday {
   date: string; // YYYY-MM-DD
   name: string;
   type: string;
   legalReference: string;
   isFixed?: boolean; // True for fixed-Gregorian holidays; false for lunar/movable
+  // Optional per-holiday override of the global Art. 74 mode. When unset,
+  // the holiday inherits `config.holidayCompMode`. Use this to flip a
+  // single holiday to 'cash-ot' when the team can't absorb the comp-day
+  // rotation (e.g. a holiday inside a peak week with no spare HC).
+  compMode?: HolidayCompMode;
 }
 
 // Optional per-day-of-week opening/closing override. Days are 1=Sun..7=Sat to
@@ -205,6 +220,19 @@ export interface Config {
   enforceArt86NightWork?: boolean;
   art86NightStart?: string; // HH:mm — default '22:00'
   art86NightEnd?: string;   // HH:mm — default '07:00'
+  // v2.1 — Art. 74 holiday OT model. `comp-day` (default) tells the auto-
+  // scheduler to grant a CP rest day within `holidayCompWindowDays`; the
+  // payroll then treats the holiday hours as regular pay (no 2× premium).
+  // `cash-ot` skips the comp rotation and pays 2× cash for holiday hours.
+  // Per-holiday overrides on PublicHoliday.compMode take precedence.
+  holidayCompMode?: HolidayCompMode;
+  // Maximum allowed delay between a PH-work day and the comp rest day, in
+  // days. Default 30 (one month). The compliance engine flags the comp
+  // day "owed" if no CP/OFF/leave appears in this window after the PH-work
+  // day. The recommended threshold (7) is a softer bar — comp days landed
+  // beyond 7 days surface a `recommendation` info note but don't block.
+  holidayCompWindowDays?: number;
+  holidayCompRecommendedDays?: number; // Default 7
 }
 
 // Severity tiers for compliance findings:

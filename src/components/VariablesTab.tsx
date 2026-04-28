@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle, Moon, Users } from 'lucide-react';
+import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle, Moon, Users, Gift } from 'lucide-react';
 import { Config, DayOfWeek } from '../types';
 import { SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
@@ -331,6 +331,67 @@ export function VariablesTab({ config, setConfig }: Props) {
         </div>
         <div className="p-5 pt-0 text-[11px] text-slate-500 leading-relaxed">
           {t('variables.ramadan.note')}
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-100 flex items-center gap-4">
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center">
+            <Gift className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-slate-800 text-sm tracking-tight">{t('variables.art74.title')}</h3>
+            <p className="text-[10px] text-slate-500 font-medium">{t('variables.art74.subtitle')}</p>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'comp-day' }))}
+              className={`p-4 rounded-xl border-2 text-start transition-all ${
+                (config.holidayCompMode ?? 'comp-day') === 'comp-day'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <p className="text-[11px] font-black uppercase tracking-widest text-emerald-800">{t('variables.art74.compDay.title')}</p>
+              <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.compDay.body')}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'cash-ot' }))}
+              className={`p-4 rounded-xl border-2 text-start transition-all ${
+                config.holidayCompMode === 'cash-ot'
+                  ? 'border-amber-500 bg-amber-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <p className="text-[11px] font-black uppercase tracking-widest text-amber-800">{t('variables.art74.cashOt.title')}</p>
+              <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.cashOt.body')}</p>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SettingField
+              label={t('variables.art74.recommended')}
+              type="number"
+              value={config.holidayCompRecommendedDays ?? 7}
+              onChange={v => {
+                const n = parseInt(v, 10);
+                setConfig(prev => ({ ...prev, holidayCompRecommendedDays: Number.isFinite(n) && n > 0 ? n : 7 }));
+              }}
+            />
+            <SettingField
+              label={t('variables.art74.window')}
+              type="number"
+              value={config.holidayCompWindowDays ?? 30}
+              onChange={v => {
+                const n = parseInt(v, 10);
+                setConfig(prev => ({ ...prev, holidayCompWindowDays: Number.isFinite(n) && n > 0 ? n : 30 }));
+              }}
+            />
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed">{t('variables.art74.note')}</p>
         </div>
       </div>
 

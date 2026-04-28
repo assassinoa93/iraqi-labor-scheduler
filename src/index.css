@@ -91,6 +91,45 @@
 /* The tab nav uses a leading colored stripe (border-l-4); mirror it for RTL. */
 [dir="rtl"] .border-l-4 { border-left: 0; border-right: 4px solid; }
 
+/* Logical-prop helpers for the elements that already use ms-/me-/ps-/pe-
+   (Tailwind v4 logical utilities). Native browsers map these to the
+   correct physical edge automatically. The `text-start` / `text-end`
+   utilities are also natively logical. We list them here only as a
+   safety net in case the Tailwind build hasn't regenerated. */
+[dir="rtl"] .text-start { text-align: right; }
+[dir="rtl"] .text-end { text-align: left; }
+
+/* Common absolute-positioning helpers used in toasts, dropdowns, badges.
+   Hardcoded right-/left- doesn't auto-flip; mirror the most common
+   offsets so badges (e.g. -top-1 -right-1) and floating buttons stay
+   on the inline-end edge in both directions. */
+[dir="rtl"] .left-0 { left: auto; right: 0; }
+[dir="rtl"] .right-0 { right: auto; left: 0; }
+[dir="rtl"] .-left-1 { left: auto; right: -0.25rem; }
+[dir="rtl"] .-right-1 { right: auto; left: -0.25rem; }
+[dir="rtl"] .left-1 { left: auto; right: 0.25rem; }
+[dir="rtl"] .right-1 { right: auto; left: 0.25rem; }
+[dir="rtl"] .left-2 { left: auto; right: 0.5rem; }
+[dir="rtl"] .right-2 { right: auto; left: 0.5rem; }
+[dir="rtl"] .left-3 { left: auto; right: 0.75rem; }
+[dir="rtl"] .right-3 { right: auto; left: 0.75rem; }
+[dir="rtl"] .left-4 { left: auto; right: 1rem; }
+[dir="rtl"] .right-4 { right: auto; left: 1rem; }
+[dir="rtl"] .right-0\.5 { right: auto; left: 0.125rem; }
+[dir="rtl"] .-top-0\.5.right-0\.5 { right: auto; left: 0.125rem; }
+
+/* Decoration shadows used as edge fades on sticky columns flip too —
+   the left-edge shadow becomes a right-edge shadow in RTL. */
+[dir="rtl"] .shadow-\[4px_0_8px_rgba\(0\,0\,0\,0\.04\)\] {
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.04);
+}
+[dir="rtl"] .shadow-\[4px_0_10px_rgba\(0\,0\,0\,0\.03\)\] {
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.03);
+}
+[dir="rtl"] .shadow-\[4px_0_10px_rgba\(0\,0\,0\,0\.05\)\] {
+  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.05);
+}
+
 /* ─── Schedule top-rail scrollbar (v1.13) ──────────────────────────────────────
    The schedule grid's native scrollbar lives at the bottom — off-screen for
    tall rosters. The Schedule tab adds a synchronized "rail" scrollbar at the

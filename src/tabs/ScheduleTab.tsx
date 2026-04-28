@@ -484,6 +484,12 @@ export function ScheduleTab({
           to the outer horizontal scroll, so it stays visible while you scroll
           across the days.
       */}
+      {/* Schedule grid is locked to LTR regardless of UI language. The
+          calendar (day 1 → day 31) reads naturally left-to-right in both
+          locales, scrollLeft semantics stay consistent across browsers,
+          and the JS sticky-left translate works without per-engine
+          quirks. Only the grid itself uses dir="ltr"; the toolbar and
+          surrounding UI follow the document direction. */}
       {staleness?.isStale && (
         <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
           <Wrench className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -507,7 +513,7 @@ export function ScheduleTab({
           </div>
         </div>
       )}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div dir="ltr" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {paintMode && (
           <div className="bg-blue-600 text-white px-4 py-1 text-[9px] font-bold uppercase tracking-widest text-center shadow-lg border-b border-blue-700 animate-pulse">
             {t('schedule.paintBanner', { code: paintMode.shiftCode })}

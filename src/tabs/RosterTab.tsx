@@ -150,7 +150,7 @@ export function RosterTab({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-[10px] uppercase text-slate-400 font-black border-b border-slate-100">
             <tr>
               <th className="px-4 py-3 text-center">
@@ -171,7 +171,7 @@ export function RosterTab({
               <SortableHeader label={t('roster.col.name')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('roster.col.role')} sortKey="role" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <th className="px-6 py-3 tracking-wider">{t('roster.col.stations')}</th>
-              <th className="px-6 py-3 tracking-wider text-right">{t('roster.col.actions')}</th>
+              <th className="px-6 py-3 tracking-wider text-end">{t('roster.col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -241,7 +241,7 @@ export function RosterTab({
                     {(!emp.eligibleStations || emp.eligibleStations.length === 0) && <span className="text-[8px] text-slate-300 uppercase font-black tracking-widest">{t('roster.unassigned')}</span>}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-4 text-end">
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => onEdit(emp)} aria-label={t('roster.editEmployee', { name: emp.name })} className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-md text-slate-500 transition-colors border border-slate-200">
                       <Edit3 className="w-4 h-4" />

@@ -1905,10 +1905,11 @@ export default function App() {
 
         <div className={cn(
           "flex-1 overflow-auto p-8 transition-[padding] duration-200",
-          // The right-side suggestion pane is fixed-positioned. When it's
-          // open on the Schedule tab we shift the content right margin so
-          // the grid doesn't slide under the pane.
-          activeTab === 'schedule' && !paneCollapsed && "pr-[356px]"
+          // The suggestion pane is fixed-positioned to the inline-end edge
+          // of the viewport (visual right in LTR, visual left in RTL).
+          // Shift the content's inline-end padding so the grid doesn't
+          // slide under the pane in either direction.
+          activeTab === 'schedule' && !paneCollapsed && "pe-[356px]"
         )}>
           <AnimatePresence mode="wait">
           <motion.div
@@ -2086,6 +2087,7 @@ export default function App() {
             {activeTab === 'holidays' && (
               <HolidaysTab
                 holidays={holidays}
+                config={config}
                 onAddNew={() => setIsHolidayModalOpen(true)}
                 onDelete={(holi) => setConfirmState({
                   isOpen: true,
@@ -2093,6 +2095,7 @@ export default function App() {
                   message: t('confirm.eraseHoliday.body', { name: holi.name }),
                   onConfirm: () => setHolidays(prev => prev.filter(h => h.date !== holi.date)),
                 })}
+                onUpdate={(holi) => setHolidays(prev => prev.map(h => h.date === holi.date ? holi : h))}
               />
             )}
 

@@ -142,16 +142,46 @@ describe('analyzeOT — does not double-count holiday hours', () => {
   });
 });
 
-describe('analyzeOT — holiday hours always pay 2× per Art. 74', () => {
+describe('analyzeOT — Art. 74 comp-day vs cash-ot (v2.1)', () => {
   const holiday: PublicHoliday = { date: '2026-01-05', name: 'Test', type: 'National', legalReference: 'Art. 74' };
 
-  it('pays 2× for every holiday hour worked, regardless of any compensation field', () => {
-    // v1.14: Art. 74 entitles the worker to BOTH the 2× cash premium AND a
-    // comp rest day. The pay always reflects 2× for the hours; the comp
-    // rest day is tracked separately (compliance engine + holidayBank).
+  it('pays 2× when no comp day is scheduled within the window', () => {
+    // Default mode is comp-day, but with no CP/OFF granted after the
+    // holiday the premium is owed.
     const emp = mkEmp('A', 1_500_000);
     const hourly = baseHourlyRate(emp, config);
     const a = analyzeOT([emp], sched('A', 'ST-A', [5]), [FS, OFF], [STATION_A], [holiday], config);
+    expect(a.totalHolidayHours).toBe(8);
+    expect(a.totalHolidayPay).toBe(Math.round(8 * hourly * 2.0));
+  });
+
+  it('pays 1× (no premium) when a CP comp day lands inside the window', () => {
+    // CP scheduled 3 days after the holiday — premium is NOT owed.
+    const CP: Shift = { code: 'CP', name: 'Comp', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
+    const emp = mkEmp('A', 1_500_000);
+    const schedule: Schedule = {
+      A: {
+        5: { shiftCode: 'FS', stationId: 'ST-A' },
+        8: { shiftCode: 'CP' },
+      },
+    };
+    const a = analyzeOT([emp], schedule, [FS, OFF, CP], [STATION_A], [holiday], config);
+    expect(a.totalHolidayHours).toBe(8);
+    expect(a.totalHolidayPay).toBe(0);
+  });
+
+  it('pays 2× when the holiday is in cash-ot mode regardless of CP', () => {
+    const cashHoliday: PublicHoliday = { ...holiday, compMode: 'cash-ot' };
+    const CP: Shift = { code: 'CP', name: 'Comp', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
+    const emp = mkEmp('A', 1_500_000);
+    const hourly = baseHourlyRate(emp, config);
+    const schedule: Schedule = {
+      A: {
+        5: { shiftCode: 'FS', stationId: 'ST-A' },
+        8: { shiftCode: 'CP' },
+      },
+    };
+    const a = analyzeOT([emp], schedule, [FS, OFF, CP], [STATION_A], [cashHoliday], config);
     expect(a.totalHolidayHours).toBe(8);
     expect(a.totalHolidayPay).toBe(Math.round(8 * hourly * 2.0));
   });
