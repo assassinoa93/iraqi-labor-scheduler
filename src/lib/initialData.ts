@@ -1,5 +1,5 @@
 import { getDaysInMonth } from 'date-fns';
-import { Employee, Shift, Station, PublicHoliday, Config, Company } from '../types';
+import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Company } from '../types';
 import { baseHourlyRate } from './payroll';
 
 // Default company id — kept stable across versions so legacy single-company
@@ -43,6 +43,19 @@ const VEHICLE_STATION_IDS = ['ST-V1', 'ST-V2', 'ST-V3', 'ST-V4'];
 const CASHIER_STATION_IDS = ['ST-C1', 'ST-C2', 'ST-C3', 'ST-C4'];
 const MACHINE_STATION_IDS = ['ST-M1', 'ST-M2', 'ST-M3', 'ST-M4', 'ST-M5', 'ST-M6', 'ST-M7', 'ST-M8', 'ST-M9', 'ST-M10'];
 
+// v2.0.0 — sample station groups. These mirror the typical venue layout
+// (cashier counters, ride/game machines, vehicles) and let new installs
+// land with a sensible kanban setup so the supervisor can see how groups
+// + station-level eligibility work without hand-rolling them.
+export const GROUP_CASHIERS = 'grp-cashiers';
+export const GROUP_MACHINES = 'grp-machines';
+export const GROUP_VEHICLES = 'grp-vehicles';
+export const INITIAL_STATION_GROUPS: StationGroup[] = [
+  { id: GROUP_CASHIERS, name: 'Cashier Counters', color: '#7c3aed', description: 'Front-of-house payment processing' },
+  { id: GROUP_MACHINES, name: 'Game Machines', color: '#059669', description: 'Rides, machines, and play stations' },
+  { id: GROUP_VEHICLES, name: 'Vehicles', color: '#0e7490', description: 'Drivers and vehicle assets' },
+];
+
 export const INITIAL_EMPLOYEES: Employee[] = [
   ...Array.from({ length: 35 }, (_, i) => ({
     empId: `EMP-${1000 + i}`,
@@ -60,6 +73,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     hireDate: '2022-01-01',
     notes: '',
     eligibleStations: MACHINE_STATION_IDS,
+    eligibleGroups: [GROUP_MACHINES],
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1200000,
@@ -90,6 +104,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     hireDate: '2022-01-01',
     notes: '',
     eligibleStations: CASHIER_STATION_IDS,
+    eligibleGroups: [GROUP_CASHIERS],
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1000000,
@@ -119,6 +134,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     // means each driver row shows the vehicles it can drive instead of
     // rendering as "Unassigned".
     eligibleStations: VEHICLE_STATION_IDS,
+    eligibleGroups: [GROUP_VEHICLES],
     holidayBank: 0,
     annualLeaveBalance: 21,
     baseMonthlySalary: 1400000,
@@ -130,26 +146,28 @@ export const INITIAL_EMPLOYEES: Employee[] = [
 ];
 
 export const INITIAL_STATIONS: Station[] = [
-  { id: 'ST-C1', name: 'Cashier Point 1', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#7c3aed', description: 'Payment processing 1' },
-  { id: 'ST-C2', name: 'Cashier Point 2', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#8b5cf6', description: 'Payment processing 2' },
-  { id: 'ST-C3', name: 'Cashier Point 3', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#a78bfa', description: 'Payment processing 3' },
-  { id: 'ST-C4', name: 'Cashier Point 4', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#c4b5fd', description: 'Payment processing 4' },
-  { id: 'ST-M1', name: 'Ice Hockey', normalMinHC: 1, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#2563eb', description: 'Air hockey station' },
-  { id: 'ST-M2', name: 'Arcade Zone', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#059669', description: 'Video games area' },
-  { id: 'ST-M3', name: 'Giant Slide', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#10b981', description: 'Inflatable slide' },
-  { id: 'ST-M4', name: 'Bumping Cars', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#d97706', description: 'Safe collision cars' },
-  { id: 'ST-M5', name: 'Carousel', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#ea580c', description: 'Merry-go-round' },
-  { id: 'ST-M6', name: 'VR Simulator', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#0891b2', description: 'Virtual reality pods' },
-  { id: 'ST-M7', name: 'Bowling Alley', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#475569', description: 'Family bowling lanes' },
-  { id: 'ST-M8', name: 'Trampoline Park', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#db2777', description: 'Active jumping area' },
-  { id: 'ST-M9', name: 'Mini-Train', normalMinHC: 1, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#dc2626', description: 'Mall tour train' },
-  { id: 'ST-M10', name: 'Claw Machine', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#f59e0b', description: 'Prize pickers' },
-  // Vehicle / driver assets — gated to category=Driver via requiredRoles. Operating
-  // times define when each vehicle needs a driver assigned by the auto-scheduler.
-  { id: 'ST-V1', name: 'Delivery Van A', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '08:00', closingTime: '17:00', color: '#0f766e', description: 'Daytime parts and supply runs' },
-  { id: 'ST-V2', name: 'Delivery Van B', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '14:00', closingTime: '22:00', color: '#0e7490', description: 'Afternoon / evening logistics' },
-  { id: 'ST-V3', name: 'Mall Shuttle', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '10:00', closingTime: '23:00', color: '#1d4ed8', description: 'Customer shuttle (full operating window)' },
-  { id: 'ST-V4', name: 'Service Pickup', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '06:00', closingTime: '12:00', color: '#92400e', description: 'Early-morning supply pickup' },
+  // Cashier counters group — payment processing.
+  { id: 'ST-C1', name: 'Cashier Point 1', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#7c3aed', description: 'Payment processing 1', groupId: GROUP_CASHIERS },
+  { id: 'ST-C2', name: 'Cashier Point 2', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#8b5cf6', description: 'Payment processing 2', groupId: GROUP_CASHIERS },
+  { id: 'ST-C3', name: 'Cashier Point 3', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#a78bfa', description: 'Payment processing 3', groupId: GROUP_CASHIERS },
+  { id: 'ST-C4', name: 'Cashier Point 4', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#c4b5fd', description: 'Payment processing 4', groupId: GROUP_CASHIERS },
+  // Game machines / rides group — operators rotate across these.
+  { id: 'ST-M1', name: 'Ice Hockey', normalMinHC: 1, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#2563eb', description: 'Air hockey station', groupId: GROUP_MACHINES },
+  { id: 'ST-M2', name: 'Arcade Zone', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#059669', description: 'Video games area', groupId: GROUP_MACHINES },
+  { id: 'ST-M3', name: 'Giant Slide', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#10b981', description: 'Inflatable slide', groupId: GROUP_MACHINES },
+  { id: 'ST-M4', name: 'Bumping Cars', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#d97706', description: 'Safe collision cars', groupId: GROUP_MACHINES },
+  { id: 'ST-M5', name: 'Carousel', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#ea580c', description: 'Merry-go-round', groupId: GROUP_MACHINES },
+  { id: 'ST-M6', name: 'VR Simulator', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#0891b2', description: 'Virtual reality pods', groupId: GROUP_MACHINES },
+  { id: 'ST-M7', name: 'Bowling Alley', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#475569', description: 'Family bowling lanes', groupId: GROUP_MACHINES },
+  { id: 'ST-M8', name: 'Trampoline Park', normalMinHC: 1, peakMinHC: 2, openingTime: '11:00', closingTime: '23:00', color: '#db2777', description: 'Active jumping area', groupId: GROUP_MACHINES },
+  { id: 'ST-M9', name: 'Mini-Train', normalMinHC: 1, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#dc2626', description: 'Mall tour train', groupId: GROUP_MACHINES },
+  { id: 'ST-M10', name: 'Claw Machine', normalMinHC: 0, peakMinHC: 1, openingTime: '11:00', closingTime: '23:00', color: '#f59e0b', description: 'Prize pickers', groupId: GROUP_MACHINES },
+  // Vehicle / driver assets — gated to category=Driver via requiredRoles.
+  // Operating times define when each vehicle needs a driver assigned.
+  { id: 'ST-V1', name: 'Delivery Van A', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '08:00', closingTime: '17:00', color: '#0f766e', description: 'Daytime parts and supply runs', groupId: GROUP_VEHICLES },
+  { id: 'ST-V2', name: 'Delivery Van B', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '14:00', closingTime: '22:00', color: '#0e7490', description: 'Afternoon / evening logistics', groupId: GROUP_VEHICLES },
+  { id: 'ST-V3', name: 'Mall Shuttle', normalMinHC: 1, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '10:00', closingTime: '23:00', color: '#1d4ed8', description: 'Customer shuttle (full operating window)', groupId: GROUP_VEHICLES },
+  { id: 'ST-V4', name: 'Service Pickup', normalMinHC: 0, peakMinHC: 1, requiredRoles: ['Driver'], openingTime: '06:00', closingTime: '12:00', color: '#92400e', description: 'Early-morning supply pickup', groupId: GROUP_VEHICLES },
 ];
 
 // Iraqi public holidays for the current planning year. Religious holidays are

@@ -2,6 +2,34 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v2.0.0 — 2026-04-28
+
+**Maturity milestone.** 25 releases since v1.0's MVP — the data model, feature surface, and analytical layer have evolved enough that a major bump is warranted. Conservative-mode workforce planning, station groups, holiday compensation tracking, multi-range leaves, group-level eligibility, and the cross-tab analytics (Compliance / Coverage & OT / Workforce Planning) all post-date v1.0 and form the new baseline. v2.0.0 isn't breaking — pre-2.0 backups load via the migration normalisers — but the app you see in v2.0.0 is fundamentally a different product from v1.0.
+
+The v2.0.0 release also addresses four user-reported items in this batch:
+
+**Leave-history sync (hotfix)**
+- The `LeaveManagerModal` now also surfaces leaves painted directly on the schedule grid (read-only entries with a "Painted" tag). Pre-2.0 the count + tooltip on the Credits & Payroll row included painted leaves, but clicking Manage only showed manually-managed ranges — confusing for supervisors who paint leaves in the schedule.
+- After the auto-scheduler in fresh mode overwrites AL/SL/MAT cells, the painted ranges in the modal disappear automatically since the schedule is the single source of truth (the modal re-derives via `useMemo` keyed on the schedule).
+
+**Credits & Payroll month selector**
+- New month-navigation header matching the Schedule, Compliance Dashboard, and Coverage & OT tabs. Credits / OT / leave figures now pivot on the active month — pre-2.0 it always reflected the last-edited month with no way to navigate.
+
+**Auto-scheduler comp-day insufficiency warning**
+- When the scheduler can't place an OFF/leave inside the 7-day comp window after a PH-work day (Art. 74 obligation), the residual debt is reported per-employee on `RunResult.compDayShortfall`. The Schedule Preview modal surfaces this as an amber "Insufficient HC for full comp-day rotation" warning with the count of unplaced comp-days and affected employees.
+- Workforce Planning now factors the comp-day overhead into demand-hours: every hour worked on a public holiday creates a 1-hour comp-rest-day obligation in the days following, which is real workforce demand. The recommended FTE accounts for this, surfacing the true HC need.
+
+**Station groups + group-level eligibility**
+- New `StationGroup` data model: each group has an id, name, color, and optional description. Stations can declare a `groupId`; employees can declare `eligibleGroups` (a list of group IDs).
+- Stations / Assets tab redesigned around a kanban view — each group is a column with its member stations as cards. Add / rename / re-colour groups inline. Move a station to a different group via the card's "Move to" dropdown. Stations without a group land in the "Ungrouped" column at the end. The auto-scheduler is unchanged at station granularity; groups are purely metadata that drive (a) one-click eligibility and (b) the workforce-planning rollup.
+- The Workforce Planning tab now shows a **per-group rollup** as the primary view when groups exist. Rows aggregate demand across the group's stations and show "X people eligible to staff any cashier station today" instead of the per-station drill. The per-station view is still available by expanding a group row.
+- Seeded data in factory reset now includes three sample groups — Cashier Counters, Game Machines, Vehicles — and the seed employees declare matching `eligibleGroups`. New installs land with the kanban pre-populated.
+
+**Tests** — 89 passing across compliance, auto-scheduler, coverage hints, staffing advisory, OT analysis, and workforce planning.
+
+**Migration**
+- All pre-2.0 backups load cleanly. `holidayCompensations` field on Employee retained as no-op (it was removed in v1.14 but we keep the field on the data model so older backups don't fail validation). New `eligibleGroups` field defaults to undefined for legacy data, which the auto-scheduler treats as "open eligibility unless `eligibleStations` is set".
+
 ## v1.15.0 — 2026-04-28
 
 Six user-reported quality-of-life fixes.

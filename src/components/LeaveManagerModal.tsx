@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Plus, Trash2, Calendar, Heart, Stethoscope, Baby } from 'lucide-react';
-import { Employee, LeaveRange, LeaveType } from '../types';
+import { X, Plus, Trash2, Calendar, Heart, Stethoscope, Baby, Paintbrush } from 'lucide-react';
+import { Employee, LeaveRange, LeaveType, Schedule, Config } from '../types';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
-import { listAllLeaveRanges, newLeaveRangeId, applyLeaveRanges } from '../lib/leaves';
+import { listAllLeaveRanges, newLeaveRangeId, applyLeaveRanges, deriveLeaveRangesFromSchedule } from '../lib/leaves';
 import { cn } from '../lib/utils';
 
 interface Props {
@@ -12,6 +12,12 @@ interface Props {
   onClose: () => void;
   employee: Employee | null;
   onSave: (next: Employee) => void;
+  // Optional schedule + config so the modal can show painted leave ranges
+  // (AL/SL/MAT cells the supervisor stamped directly on the schedule grid)
+  // alongside the manually-managed ones. Painted ranges render as read-
+  // only since their source of truth is the schedule, not the employee.
+  schedule?: Schedule;
+  config?: Config;
 }
 
 const TYPE_META: Record<LeaveType, { icon: React.ComponentType<{ className?: string }>; tone: string; labelKey: string; articleKey: string }> = {
@@ -25,7 +31,7 @@ const TYPE_META: Record<LeaveType, { icon: React.ComponentType<{ className?: str
 // Replaces the single-range fields that used to live on the Employee modal.
 // Save flushes to the new `leaveRanges` field and clears the legacy
 // single-range fields, so this becomes the canonical source of truth.
-export function LeaveManagerModal({ isOpen, onClose, employee, onSave }: Props) {
+export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule, config }: Props) {
   const { t } = useI18n();
   const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   const [draft, setDraft] = useState<LeaveRange[]>([]);
@@ -36,6 +42,17 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave }: Props) 
   useEffect(() => {
     if (isOpen && employee) setDraft(listAllLeaveRanges(employee).map(r => ({ ...r })));
   }, [isOpen, employee]);
+
+  // Painted ranges (v1.16): derived live from the current schedule each
+  // render so the modal stays in sync after the auto-scheduler overwrites
+  // AL/SL/MAT cells. These are READ-ONLY in the modal — their source of
+  // truth is the schedule grid, not the employee record. Surfaced here
+  // alongside the editable manual ranges so the supervisor sees a single
+  // unified leave history.
+  const paintedRanges = useMemo(() => {
+    if (!employee || !schedule || !config) return [];
+    return deriveLeaveRangesFromSchedule(employee, schedule, config);
+  }, [employee, schedule, config]);
 
   const totalDaysByType = useMemo(() => {
     const out: Record<LeaveType, number> = { annual: 0, sick: 0, maternity: 0 };
@@ -221,6 +238,61 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave }: Props) 
                   </div>
                 );
               })}
+
+              {/* Painted ranges (v1.16) — derived live from the schedule and
+                  rendered read-only. Source of truth is the schedule grid;
+                  to edit them, the supervisor goes back to the schedule
+                  and re-paints. We dedupe against manual ranges of the
+                  same type that fully cover the painted period. */}
+              {paintedRanges.length > 0 && (() => {
+                const filtered = paintedRanges.filter(p => !draft.some(m =>
+                  m.type === p.type && m.start <= p.start && m.end >= p.end));
+                if (filtered.length === 0) return null;
+                return (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <Paintbrush className="w-3 h-3" />
+                      <span>{t('leaves.modal.painted.header')}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">{t('leaves.modal.painted.body')}</p>
+                    {filtered.map(r => {
+                      const meta = TYPE_META[r.type];
+                      const Icon = meta.icon;
+                      return (
+                        <div
+                          key={r.id}
+                          className={cn(
+                            "p-3 rounded-xl border bg-slate-50 opacity-90",
+                            meta.tone === 'emerald' && "border-emerald-200/70",
+                            meta.tone === 'amber' && "border-amber-200/70",
+                            meta.tone === 'rose' && "border-rose-200/70",
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn(
+                              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                              meta.tone === 'emerald' && "bg-emerald-100 text-emerald-700",
+                              meta.tone === 'amber' && "bg-amber-100 text-amber-700",
+                              meta.tone === 'rose' && "bg-rose-100 text-rose-700",
+                            )}>
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-slate-700">{t(meta.labelKey)}</span>
+                                <span className="font-mono text-[10px] text-slate-500">{r.start} → {r.end}</span>
+                                <span className="font-mono text-[8px] font-black uppercase tracking-widest bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                                  {t('leaves.modal.painted.tag')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">

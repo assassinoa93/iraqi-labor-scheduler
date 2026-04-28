@@ -27,6 +27,14 @@ interface RunArgs {
 export interface RunResult {
   schedule: Schedule;
   updatedEmployees: Employee[];
+  // v1.16: residual comp-day debt at the end of the run. Each entry is an
+  // employee whose PH-work days inside this month never received an
+  // OFF/leave within the comp window — i.e. the schedule could not fully
+  // satisfy Art. 74's comp-rest-day requirement, usually because the
+  // current HC is too thin to spare anyone for OFF on the busy days
+  // following the holiday. Consumers (preview modal, workforce planner)
+  // surface this as a compliance + capacity signal.
+  compDayShortfall: Array<{ empId: string; debtDays: number }>;
 }
 
 const ART86_DEFAULT_NIGHT_START = '22:00';
@@ -232,8 +240,17 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
     if (driver) {
       if (!station.requiredRoles?.includes('Driver')) return false;
     } else {
-      const isEligible = emp.eligibleStations.length === 0 || emp.eligibleStations.includes(stationId);
-      if (!isEligible) return false;
+      // v1.16: eligibility = direct station list ∪ groups containing this
+      // station. The "any station" fallback only kicks in when BOTH lists
+      // are empty (legacy pre-1.16 employees). Otherwise the employee
+      // must have an explicit match — otherwise someone with only a
+      // group declared would accidentally fall through to the open path.
+      const hasAny = emp.eligibleStations.length > 0 || (emp.eligibleGroups || []).length > 0;
+      if (hasAny) {
+        const directOk = emp.eligibleStations.includes(stationId);
+        const groupOk = !!station.groupId && (emp.eligibleGroups || []).includes(station.groupId);
+        if (!directOk && !groupOk) return false;
+      }
       if (station.requiredRoles?.length && !station.requiredRoles.some(r => r === emp.role || r === 'Standard')) return false;
     }
 
@@ -472,5 +489,15 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
     }
   }
 
-  return { schedule: newSchedule, updatedEmployees };
+  // v1.16: residual comp-day debt = anyone who worked a PH this month and
+  // ended the month with debt > 0 (no OFF/leave appeared within their
+  // 7-day comp window). This surfaces "insufficient HC to fully comply
+  // with comp-day rotation" so the workforce planner and the preview
+  // modal can flag it.
+  const compDayShortfall: Array<{ empId: string; debtDays: number }> = [];
+  for (const [empId, debt] of phDebt) {
+    if (debt > 0) compDayShortfall.push({ empId, debtDays: debt });
+  }
+
+  return { schedule: newSchedule, updatedEmployees, compDayShortfall };
 }

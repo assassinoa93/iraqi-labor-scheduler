@@ -1,4 +1,4 @@
-import { Employee, Shift, Station, PublicHoliday, Config } from '../types';
+import { Employee, Shift, Station, StationGroup, PublicHoliday, Config } from '../types';
 import { format, getDaysInMonth } from 'date-fns';
 import { parseHour, getOperatingHoursForDow } from './time';
 import { monthlyHourCap } from './payroll';
@@ -118,15 +118,26 @@ function stationOpenHours(st: Station): number {
   return (24 - open) + close;
 }
 
-// Compute each station's monthly demand split by peak vs non-peak.
+// Compute each station's monthly demand split by peak vs non-peak. Adds a
+// comp-day overhead pool (v1.16): every hour worked on a public holiday
+// creates a 1-hour comp-rest-day obligation in the following 7 days
+// (Art. 74 = both 2× pay AND comp day). The replacement coverage during
+// that comp day is real workforce demand, so we fold it into the
+// monthly hours total. Without this, the planner under-counted the FTE
+// need for venues that operate on holidays.
 function stationDemand(args: AnalyzeArgs): Map<string, StationDemand> {
-  const { stations, config, isPeakDay } = args;
+  const { stations, config, isPeakDay, holidays } = args;
   const out = new Map<string, StationDemand>();
   const daysInMonth = getDaysInMonth(new Date(config.year, config.month - 1, 1));
+  const monthPrefix = `${config.year}-${String(config.month).padStart(2, '0')}-`;
+  const holidaysThisMonth = new Set(
+    holidays.filter(h => h.date.startsWith(monthPrefix)).map(h => h.date),
+  );
 
   for (const st of stations) {
     let peakHours = 0;
     let nonPeakHours = 0;
+    let holidayWorkHours = 0;
     const openHrs = stationOpenHours(st);
     if (openHrs <= 0) {
       out.set(st.id, {
@@ -141,11 +152,20 @@ function stationDemand(args: AnalyzeArgs): Map<string, StationDemand> {
       const peak = isPeakDay(day);
       const minHC = peak ? st.peakMinHC : st.normalMinHC;
       if (minHC <= 0) continue;
-      // Hours across the open window × headcount = labour demand.
       const dayHours = openHrs * minHC;
       if (peak) peakHours += dayHours;
       else nonPeakHours += dayHours;
+      // Track holiday-specific work hours. Each one becomes 1 hour of
+      // comp-day absence to cover later in the month — added to the
+      // peak pool since those absences typically need urgent backfill.
+      const ds = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
+      if (holidaysThisMonth.has(ds)) holidayWorkHours += dayHours;
     }
+    // Comp-day overhead = hours of replacement coverage owed because
+    // someone has to cover the comp-day-taker's normal shift. Add to the
+    // peak pool (these absences cluster in the days right after holidays,
+    // which usually overlap peak weekend stretches).
+    peakHours += holidayWorkHours;
     out.set(st.id, {
       stationId: st.id, stationName: st.name,
       monthlyHours: peakHours + nonPeakHours,
@@ -154,7 +174,6 @@ function stationDemand(args: AnalyzeArgs): Map<string, StationDemand> {
       openHrsPerDay: openHrs,
     });
   }
-  // Suppress unused-import warning during development.
   void format; void getOperatingHoursForDow;
   return out;
 }
@@ -487,9 +506,36 @@ export interface AnnualRollupStation {
   action: 'hire' | 'hold';
 }
 
+// Per-group rollup (v1.16). Groups are the supervisor's mental model —
+// "I need N cashiers across all 4 cashier counters" is more useful than
+// "I need 1 at C1, 1 at C2, 1 at C3, 1 at C4". Stations roll up into the
+// parent group; the group row aggregates demand and current eligibility
+// across its member stations. Groups with no demand or no member
+// stations are omitted from the rollup output.
+export interface AnnualRollupGroup {
+  groupId: string;
+  groupName: string;
+  groupColor?: string;
+  stationIds: string[];
+  annualRequiredHours: number;
+  peakMonthIndex: number;
+  peakMonthFTE: number;
+  recommendedFTE: number;
+  recommendedPartTime: number;
+  reasoning: string;
+  // Number of CURRENT employees who can staff this group via either
+  // eligibleGroups membership or eligibleStations covering ≥1 of its
+  // member stations. The supervisor reads this as "I have X people
+  // ready to cover any cashier station today".
+  currentEligibleCount: number;
+  delta: number;
+  action: 'hire' | 'hold';
+}
+
 export interface AnnualRollup {
   byRole: AnnualRollupRole[];
   byStation: AnnualRollupStation[];
+  byGroup: AnnualRollupGroup[];
   // Year-level totals.
   totalRecommendedFTE: number;
   totalRecommendedPartTime: number;
@@ -592,7 +638,7 @@ export function analyzeWorkforceAnnual({
 // supervisor holds excess capacity through valleys (Art. 36/40 of the
 // Iraqi Labor Law makes releases legally fraught, see comments at the top
 // of this module).
-export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], stations: Station[], mode: PlanMode): AnnualRollup {
+export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], stations: Station[], mode: PlanMode, stationGroups: StationGroup[] = []): AnnualRollup {
   // Walk each role across all 12 months, picking up the per-role demand.
   type RolePerMonth = {
     role: string;
@@ -805,9 +851,102 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
   }
   byStation.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
+  // ── Per-group rollup (v1.16) ────────────────────────────────────────────
+  // Aggregate station demand into the parent groups. The recommendation is
+  // computed from each month's TOTAL group demand (not by summing
+  // per-station FTE counts) so the cap math reflects pooling efficiency:
+  // 200 hours of demand split across 5 stations with ceil-rounding wastes
+  // capacity if treated as 5 separate FTE buckets.
+  const byGroup: AnnualRollupGroup[] = [];
+  for (const grp of stationGroups) {
+    const memberStations = stations.filter(s => s.groupId === grp.id);
+    if (memberStations.length === 0) continue;
+    // Per-month aggregate demand for this group.
+    const groupDemandPerMonth: Array<{ idx: number; required: number; peakHrs: number; nonPeakHrs: number; cap: number }> = [];
+    for (const m of annual.byMonth) {
+      let monthRequired = 0;
+      let monthPeak = 0;
+      let monthNonPeak = 0;
+      let monthCap = 0;
+      for (const r of m.plan.byRole) {
+        for (const st of r.byStation) {
+          if (memberStations.some(ms => ms.id === st.stationId)) {
+            monthRequired += st.monthlyHours;
+            monthPeak += st.peakHours;
+            monthNonPeak += st.nonPeakHours;
+            monthCap = Math.max(monthCap, r.cap);
+          }
+        }
+      }
+      if (monthRequired > 0) {
+        groupDemandPerMonth.push({ idx: m.monthIndex, required: monthRequired, peakHrs: monthPeak, nonPeakHrs: monthNonPeak, cap: monthCap });
+      }
+    }
+    if (groupDemandPerMonth.length === 0) continue;
+
+    const annualReq = groupDemandPerMonth.reduce((s, p) => s + p.required, 0);
+    // Peak month = the month whose aggregate group demand is highest.
+    let peakIdx = groupDemandPerMonth[0].idx;
+    let peakReq = groupDemandPerMonth[0].required;
+    for (const p of groupDemandPerMonth) {
+      if (p.required > peakReq) { peakReq = p.required; peakIdx = p.idx; }
+    }
+    const peakMonth = groupDemandPerMonth.find(p => p.idx === peakIdx)!;
+    const peakMix = recommendMix(peakMonth.required, peakMonth.peakHrs, peakMonth.nonPeakHrs, peakMonth.cap, mode);
+    const peakMonthFTE = peakMix.recommendedFTE + peakMix.recommendedPartTime;
+
+    let recommendedFTE: number;
+    let recommendedPartTime: number;
+    if (mode === 'conservative') {
+      recommendedFTE = peakMix.recommendedFTE;
+      recommendedPartTime = 0;
+    } else {
+      // Optimal: average across months.
+      const ftes: number[] = [];
+      const pts: number[] = [];
+      for (const p of groupDemandPerMonth) {
+        const mix = recommendMix(p.required, p.peakHrs, p.nonPeakHrs, p.cap, 'optimal');
+        ftes.push(mix.recommendedFTE);
+        pts.push(mix.recommendedPartTime);
+      }
+      recommendedFTE = Math.round(ftes.reduce((s, x) => s + x, 0) / ftes.length);
+      recommendedPartTime = Math.round(pts.reduce((s, x) => s + x, 0) / pts.length);
+    }
+
+    // Eligible employees for this group: employees with the group in
+    // eligibleGroups OR with any member station in eligibleStations.
+    const memberStationIds = new Set(memberStations.map(s => s.id));
+    const eligibleCount = employees.filter(e =>
+      (e.eligibleGroups || []).includes(grp.id)
+      || e.eligibleStations.some(s => memberStationIds.has(s))
+    ).length;
+    const delta = (recommendedFTE + recommendedPartTime) - eligibleCount;
+    const action: AnnualRollupGroup['action'] = delta > 0 ? 'hire' : 'hold';
+    const reasoning = mode === 'conservative'
+      ? `${memberStations.length} station(s) under "${grp.name}" peak together in ${MONTH_NAMES[peakIdx - 1]} requiring ${peakMonthFTE} FTE pooled. Conservative carries that headcount through valley months.`
+      : `Year-average across ${memberStations.length} station(s) gives ${recommendedFTE} FTE + ${recommendedPartTime} part-time. Peak in ${MONTH_NAMES[peakIdx - 1]} needs ${peakMonthFTE}.`;
+    byGroup.push({
+      groupId: grp.id,
+      groupName: grp.name,
+      groupColor: grp.color,
+      stationIds: memberStations.map(s => s.id),
+      annualRequiredHours: annualReq,
+      peakMonthIndex: peakIdx,
+      peakMonthFTE,
+      recommendedFTE,
+      recommendedPartTime,
+      reasoning,
+      currentEligibleCount: eligibleCount,
+      delta,
+      action,
+    });
+  }
+  byGroup.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
   return {
     byRole,
     byStation,
+    byGroup,
     totalRecommendedFTE,
     totalRecommendedPartTime,
     totalCurrentEmployees: employees.length,

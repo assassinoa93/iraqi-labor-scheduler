@@ -18,7 +18,14 @@ export interface Employee {
   phone: string;
   hireDate: string;
   notes: string;
-  eligibleStations: string[]; // IDs of stations
+  eligibleStations: string[]; // IDs of stations (legacy + per-station overrides)
+  // v1.16: group-level eligibility. When a group ID appears here, the
+  // employee is eligible for every station whose `groupId` equals it.
+  // Stored as IDs so renaming a group doesn't break references. The auto-
+  // scheduler unions eligibleGroups → all stations in those groups with
+  // eligibleStations to compute final eligibility, so existing data works
+  // as-is and groups are purely additive.
+  eligibleGroups?: string[];
   holidayBank: number; // Balance of extra off days earned from working holidays (Days)
   annualLeaveBalance: number; // Regular vacations balance (Days)
   baseMonthlySalary: number; // Fixed monthly wage
@@ -88,9 +95,29 @@ export interface LeaveRange {
   notes?: string;
 }
 
+// Station groups (v1.16). Stations of the same physical/operational type
+// (cashier counters, game machines, vehicles) belong to a group. Employees
+// declare eligibility at the GROUP level (eligibleGroups), so a single
+// "cashier" employee covers every cashier station automatically. The
+// auto-scheduler still operates at station granularity — group is just
+// metadata that drives eligibility expansion + workforce-planning rollup.
+export interface StationGroup {
+  id: string;
+  name: string;
+  // Optional accent colour for the kanban container in the Stations tab.
+  color?: string;
+  // Optional description shown above the group's station list.
+  description?: string;
+}
+
 export interface Station {
   id: string;
   name: string;
+  // Optional group membership. When set, employees with this group in
+  // their `eligibleGroups` are automatically eligible for this station.
+  // Pre-1.16 stations have `groupId` = undefined; the auto-scheduler
+  // falls back to direct `eligibleStations` checks (legacy behaviour).
+  groupId?: string;
   normalMinHC: number; // Min Headcount for normal days
   peakMinHC: number;   // Min Headcount for peak days
   requiredRoles?: string[]; // Roles allowed to work here
@@ -225,6 +252,11 @@ export interface CompanyData {
   shifts: Shift[];
   holidays: PublicHoliday[];
   stations: Station[];
+  // v1.16: optional list of station groups (kanban categories). Pre-1.16
+  // companies don't have any; everything just keeps working at station
+  // granularity. Defining groups unlocks group-level employee eligibility
+  // and the cleaner workforce-planning rollup.
+  stationGroups?: StationGroup[];
   config: Config;
   allSchedules: Record<string, Schedule>;
 }

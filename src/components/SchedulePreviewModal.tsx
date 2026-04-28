@@ -13,6 +13,12 @@ interface PreviewStats {
   violationCount: number;
   topViolations: Violation[];
   perRoleHours: Record<string, number>;
+  // v1.16: residual comp-day debt — the count of (employee × PH-work day)
+  // pairs where the schedule could not place an OFF/leave inside the
+  // 7-day comp window. Surfaces as "insufficient HC" warning so the
+  // supervisor knows the auto-scheduler is at capacity.
+  compDayShortfallTotal: number;
+  compDayShortfallEmployees: number;
 }
 
 export function buildPreviewStats(
@@ -23,6 +29,7 @@ export function buildPreviewStats(
   daysInMonth: number,
   totalRequiredStationDays: number,
   filledStationDays: number,
+  compDayShortfall: Array<{ empId: string; debtDays: number }> = [],
 ): PreviewStats {
   const shiftMap = new Map(shifts.map(s => [s.code, s]));
   let totalAssignments = 0;
@@ -65,6 +72,8 @@ export function buildPreviewStats(
     violationCount: totalViolationInstances,
     topViolations,
     perRoleHours,
+    compDayShortfallTotal: compDayShortfall.reduce((s, e) => s + e.debtDays, 0),
+    compDayShortfallEmployees: compDayShortfall.length,
   };
 }
 
@@ -175,6 +184,26 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
               tone={violationLevel === 'clean' ? 'ok' : violationLevel === 'mild' ? 'warn' : 'bad'}
             />
           </div>
+
+          {/* v1.16 — comp-day shortfall warning. When the auto-scheduler can't
+              place an OFF inside the 7-day comp window after a PH-work day,
+              it accumulates as residual debt. The most common cause is HC
+              being too thin to spare anyone for OFF — this row tells the
+              supervisor that hiring is the real fix, not re-running. */}
+          {stats.compDayShortfallTotal > 0 && (
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black text-amber-800 uppercase tracking-widest">{t('modal.preview.compShortfall.title')}</p>
+                <p className="text-[11px] text-amber-700 leading-relaxed mt-1">
+                  {t('modal.preview.compShortfall.body', {
+                    days: stats.compDayShortfallTotal,
+                    emps: stats.compDayShortfallEmployees,
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Hours-by-role visual bar chart */}
           {roleEntries.length > 0 && (

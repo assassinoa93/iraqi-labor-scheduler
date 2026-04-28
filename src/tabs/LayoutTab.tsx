@@ -1,19 +1,86 @@
-import React from 'react';
-import { Plus, Edit3, Trash2, Layout } from 'lucide-react';
-import { Employee, Station } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit3, Trash2, Layout, FolderPlus, Boxes, ChevronDown, X } from 'lucide-react';
+import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
+import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 
 interface LayoutTabProps {
   stations: Station[];
   employees: Employee[];
+  stationGroups: StationGroup[];
   onAddNew: () => void;
   onEdit: (st: Station) => void;
   onDelete: (st: Station) => void;
+  onUpdateStation: (st: Station) => void;
+  onSaveGroups: (groups: StationGroup[]) => void;
 }
 
-export function LayoutTab({ stations, employees, onAddNew, onEdit, onDelete }: LayoutTabProps) {
+const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#059669', '#d97706', '#1d4ed8', '#9333ea', '#be123c', '#475569'];
+
+// v1.16: Stations / Assets tab redesigned around station GROUPS — kanban-
+// style containers where each column is a group (Cashier Counters, Game
+// Machines, Vehicles, …) and stations are cards inside. Stations not yet
+// assigned to a group land in the "Ungrouped" column at the end. Click a
+// station card's "Move" dropdown to reassign it. Click a group's edit
+// pencil to rename / re-colour it. Click X to delete a group (its
+// stations fall back to Ungrouped automatically).
+//
+// The auto-scheduler still operates at station granularity; groups are
+// purely metadata that drive (a) one-click employee eligibility and
+// (b) the workforce planner's group-level rollup.
+export function LayoutTab({
+  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups,
+}: LayoutTabProps) {
   const { t } = useI18n();
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // Bucket stations by group. The "ungrouped" pseudo-column gets all
+  // stations whose groupId is missing or points to a group that no
+  // longer exists (e.g. a deleted group).
+  const grouped = useMemo(() => {
+    const groupIds = new Set(stationGroups.map(g => g.id));
+    const map = new Map<string, Station[]>();
+    for (const g of stationGroups) map.set(g.id, []);
+    map.set('__ungrouped__', []);
+    for (const st of stations) {
+      const key = st.groupId && groupIds.has(st.groupId) ? st.groupId : '__ungrouped__';
+      map.get(key)!.push(st);
+    }
+    return map;
+  }, [stations, stationGroups]);
+
+  const handleAddGroup = (name: string, color: string) => {
+    if (!name.trim()) return;
+    const id = `grp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    onSaveGroups([...stationGroups, { id, name: name.trim(), color }]);
+    setCreatingGroup(false);
+  };
+
+  const handleUpdateGroup = (id: string, patch: Partial<StationGroup>) => {
+    onSaveGroups(stationGroups.map(g => g.id === id ? { ...g, ...patch } : g));
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    // Drop the group; stations that referenced it fall through to
+    // ungrouped because the bucketing logic above falls back when the
+    // station's groupId points to a vanished id.
+    onSaveGroups(stationGroups.filter(g => g.id !== id));
+    // Also clear groupId on stations that pointed to the deleted group
+    // so the data stays clean (otherwise the station carries a dangling
+    // reference until the user re-saves it).
+    for (const st of stations) {
+      if (st.groupId === id) onUpdateStation({ ...st, groupId: undefined });
+    }
+  };
+
+  const moveStationToGroup = (stationId: string, groupId: string | undefined) => {
+    const st = stations.find(s => s.id === stationId);
+    if (!st) return;
+    onUpdateStation({ ...st, groupId });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -21,83 +88,272 @@ export function LayoutTab({ stations, employees, onAddNew, onEdit, onDelete }: L
           <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">{t('layout.title')}</h3>
           <p className="text-xs text-slate-400 font-medium tracking-widest leading-none">{t('layout.subtitle')}</p>
         </div>
-        <button
-          onClick={onAddNew}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95 whitespace-nowrap min-w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          {t('layout.new')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCreatingGroup(true)}
+            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-indigo-600" />
+            {t('layout.group.new')}
+          </button>
+          <button
+            onClick={onAddNew}
+            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95 whitespace-nowrap min-w-fit"
+          >
+            <Plus className="w-4 h-4" />
+            {t('layout.new')}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stations.map(st => (
-          <Card key={st.id} className="p-6 relative group overflow-hidden border-slate-200">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rotate-45 translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform -z-10" />
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 rounded-xl shadow-lg border-2 border-white" style={{ backgroundColor: st.color || '#3b82f6' }}>
-                <Layout className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-800 text-lg leading-tight">{st.name}</h4>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{st.id}</span>
-              </div>
-            </div>
+      {creatingGroup && (
+        <NewGroupForm
+          onCancel={() => setCreatingGroup(false)}
+          onSave={handleAddGroup}
+        />
+      )}
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase tracking-tighter">{t('layout.normalStaffing')}</span>
-                <span className="text-slate-800">{st.normalMinHC} {t('layout.persons')}</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase tracking-tighter">{t('layout.peakStaffing')}</span>
-                <span className="text-blue-600">{st.peakMinHC} {t('layout.persons')}</span>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-bold">
-                <span className="text-slate-400 uppercase tracking-tighter">{t('layout.opHours')}</span>
-                <span className="text-slate-800 font-mono tracking-tighter uppercase">{st.openingTime} - {st.closingTime}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 p-4 bg-slate-50 rounded-lg border border-slate-100 mb-6">
-              <div className="flex-1 text-center border-r border-slate-200">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('layout.eligible')}</p>
-                <p className="text-lg font-light text-slate-800">
-                  {employees.filter(e => e.eligibleStations?.includes(st.id)).length}
-                </p>
-              </div>
-              <div className="flex-1 text-center">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('layout.status')}</p>
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest py-1.5">{t('layout.active')}</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-              <button
-                onClick={() => onEdit(st)}
-                aria-label={`${t('action.edit')}: ${st.name}`}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-all border border-transparent hover:border-slate-200"
+      {/* Kanban columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {[...stationGroups.map(g => ({ kind: 'group' as const, group: g })), { kind: 'ungrouped' as const }].map((entry, i) => {
+          const isUngrouped = entry.kind === 'ungrouped';
+          const id = isUngrouped ? '__ungrouped__' : entry.group.id;
+          const items = grouped.get(id) || [];
+          if (isUngrouped && items.length === 0 && stationGroups.length > 0) return null;
+          const groupColor = isUngrouped ? '#94a3b8' : (entry.group.color || GROUP_COLOR_PALETTE[i % GROUP_COLOR_PALETTE.length]);
+          const groupName = isUngrouped ? t('layout.group.ungrouped') : entry.group.name;
+          const editing = !isUngrouped && editingGroupId === entry.group.id;
+          const eligibleEmps = isUngrouped ? 0 : employees.filter(e =>
+            (e.eligibleGroups || []).includes(entry.group.id)
+            || items.some(s => e.eligibleStations.includes(s.id))
+          ).length;
+          return (
+            <div
+              key={id}
+              className="bg-slate-50/60 rounded-2xl border border-slate-200 overflow-hidden flex flex-col"
+            >
+              <div
+                className="px-4 py-3 flex items-center gap-3 border-b border-slate-200"
+                style={{ backgroundColor: `${groupColor}15`, borderTopColor: groupColor, borderTopWidth: 3 }}
               >
-                <Edit3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(st)}
-                aria-label={`${t('action.delete')}: ${st.name}`}
-                className="p-2 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-red-100"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: groupColor }}>
+                  <Boxes className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  {editing && !isUngrouped ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      defaultValue={entry.group.name}
+                      onBlur={e => { handleUpdateGroup(entry.group.id, { name: e.target.value.trim() || entry.group.name }); setEditingGroupId(null); }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+                        if (e.key === 'Escape') setEditingGroupId(null);
+                      }}
+                      className="w-full px-2 py-0.5 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded"
+                    />
+                  ) : (
+                    <p className="text-sm font-bold text-slate-800 truncate">{groupName}</p>
+                  )}
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    {items.length} {t('layout.group.stations')} · {eligibleEmps} {t('layout.group.eligible')}
+                  </p>
+                </div>
+                {!isUngrouped && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setEditingGroupId(editing ? null : entry.group.id)}
+                      title={t('action.edit')}
+                      className="p-1.5 rounded hover:bg-white/60 text-slate-500 hover:text-slate-800"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteGroup(entry.group.id)}
+                      title={t('action.delete')}
+                      className="p-1.5 rounded hover:bg-rose-50 text-slate-500 hover:text-rose-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 space-y-2 min-h-[120px]">
+                {items.length === 0 && (
+                  <div className="text-[10px] text-slate-400 italic text-center py-6">
+                    {isUngrouped ? t('layout.group.ungroupedEmpty') : t('layout.group.empty')}
+                  </div>
+                )}
+                {items.map(st => (
+                  <StationCard
+                    key={st.id}
+                    station={st}
+                    employees={employees}
+                    groups={stationGroups}
+                    onEdit={() => onEdit(st)}
+                    onDelete={() => onDelete(st)}
+                    onMoveToGroup={(groupId) => moveStationToGroup(st.id, groupId)}
+                  />
+                ))}
+              </div>
             </div>
-          </Card>
-        ))}
-        {stations.length === 0 && (
-          <div className="col-span-1 md:col-span-2 lg:col-span-3 p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-inner">
-            <Layout className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
-            <p className="text-[11px] text-slate-300 font-medium uppercase tracking-tighter mt-1">{t('layout.emptyHint')}</p>
-          </div>
-        )}
+          );
+        })}
+      </div>
+
+      {stations.length === 0 && (
+        <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-inner">
+          <Layout className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+          <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
+          <p className="text-[11px] text-slate-300 font-medium uppercase tracking-tighter mt-1">{t('layout.emptyHint')}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StationCard({
+  station, employees, groups, onEdit, onDelete, onMoveToGroup,
+}: {
+  station: Station;
+  employees: Employee[];
+  groups: StationGroup[];
+  onEdit: () => void;
+  onDelete: () => void;
+  onMoveToGroup: (groupId: string | undefined) => void;
+}) {
+  const { t } = useI18n();
+  const [moveOpen, setMoveOpen] = useState(false);
+  const eligibleCount = employees.filter(e =>
+    e.eligibleStations.includes(station.id)
+    || (station.groupId && (e.eligibleGroups || []).includes(station.groupId))
+  ).length;
+
+  return (
+    <div className="p-3 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all group">
+      <div className="flex items-start gap-2.5">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-white"
+          style={{ backgroundColor: station.color || '#3b82f6' }}
+        >
+          <Layout className="w-4 h-4 text-white" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-slate-800 truncate">{station.name}</p>
+          <p className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest">{station.id}</p>
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] font-bold text-slate-500">
+        <div>
+          <p className="text-slate-400 uppercase tracking-widest">{t('layout.normalStaffing')}</p>
+          <p className="text-slate-800 font-mono">{station.normalMinHC}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 uppercase tracking-widest">{t('layout.peakStaffing')}</p>
+          <p className="text-blue-700 font-mono">{station.peakMinHC}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 uppercase tracking-widest">{t('layout.eligible')}</p>
+          <p className="text-emerald-700 font-mono">{eligibleCount}</p>
+        </div>
+      </div>
+
+      <p className="text-[9px] text-slate-400 font-mono mt-2">{station.openingTime} → {station.closingTime}</p>
+
+      <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100">
+        <div className="relative">
+          <button
+            onClick={() => setMoveOpen(o => !o)}
+            className="text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest flex items-center gap-1"
+          >
+            {t('layout.station.moveTo')} <ChevronDown className="w-3 h-3" />
+          </button>
+          {moveOpen && (
+            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[180px]">
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => { onMoveToGroup(g.id); setMoveOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-1.5 text-[11px] hover:bg-slate-50 flex items-center gap-2",
+                    station.groupId === g.id && "bg-slate-50 font-bold",
+                  )}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: g.color || '#94a3b8' }} />
+                  {g.name}
+                </button>
+              ))}
+              {(station.groupId || groups.length === 0) && (
+                <button
+                  onClick={() => { onMoveToGroup(undefined); setMoveOpen(false); }}
+                  className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-slate-50 text-slate-500 italic border-t border-slate-100"
+                >
+                  {t('layout.station.unassign')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600">
+            <Edit3 className="w-3 h-3" />
+          </button>
+          <button onClick={onDelete} title={t('action.delete')} className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600">
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: string) => void; onCancel: () => void }) {
+  const { t } = useI18n();
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(GROUP_COLOR_PALETTE[0]);
+  return (
+    <Card className="p-4 bg-indigo-50/50 border-indigo-200">
+      <div className="flex items-center gap-3">
+        <FolderPlus className="w-4 h-4 text-indigo-700 shrink-0" />
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSave(name, color); if (e.key === 'Escape') onCancel(); }}
+          placeholder={t('layout.group.namePlaceholder')}
+          className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+        <div className="flex items-center gap-1 shrink-0">
+          {GROUP_COLOR_PALETTE.map(c => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className={cn(
+                "w-6 h-6 rounded-full transition-all",
+                color === c ? "ring-2 ring-offset-2 ring-slate-900" : "hover:scale-110",
+              )}
+              style={{ backgroundColor: c }}
+              aria-label={c}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => onSave(name, color)}
+          disabled={!name.trim()}
+          className={cn(
+            "px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all shrink-0",
+            name.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-200 text-slate-400 cursor-not-allowed",
+          )}
+        >
+          {t('action.save')}
+        </button>
+        <button onClick={onCancel} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </Card>
   );
 }

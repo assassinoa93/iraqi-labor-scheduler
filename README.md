@@ -65,11 +65,11 @@ A professional, local-first workforce management and automated scheduling system
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v1.15.0)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.15.0.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v2.0.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-2.0.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.15.0.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-2.0.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
@@ -77,7 +77,7 @@ The easiest way to use the app is to download the pre-built installer:
 ### 🔄 Updating from an earlier version
 Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
 
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.14.x). This wizard will update Iraqi Labor Scheduler to v1.15.0…"*).
+1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.x). This wizard will update Iraqi Labor Scheduler to v2.0.0…"*).
 2. Replaces the program files in the existing install directory.
 3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
 4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
@@ -218,6 +218,20 @@ This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
 - **Article 88** (transport workers): Stricter caps for drivers — 9h daily / 56h weekly, 4.5h max continuous driving with mandatory 30-min break, 11h daily rest.
 
 All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
+
+## 📦 What's new in v2.0
+
+**Major version. Maturity milestone.** The data model and feature surface have evolved enough since v1.0's MVP that a major bump is warranted. v2.0.0 isn't breaking — pre-2.0 backups load via the migration normalisers — but the analytical layer, multi-range leaves, holiday-comp tracking, conservative-mode workforce planning, and now station groups + group-level eligibility are all post-1.0 additions and form the new baseline.
+
+| Area | Change |
+|------|--------|
+| **Station groups + kanban setup** | Stations belong to groups (Cashier Counters, Game Machines, Vehicles…). Stations / Assets tab redesigned as a kanban: each group is a column, stations are cards inside. Inline create / rename / recolour groups; move stations via the card's "Move to" dropdown. Employees declare `eligibleGroups` for one-click coverage of every station in the group. |
+| **Workforce Planning by group** | Primary rollup is now per-group ("Cashier Counters needs N FTE; you have M eligible employees"). Click a row to drill into per-station breakdown. Cleaner than per-station because supervisors hire by category, not by individual asset. |
+| **Auto-scheduler comp-day shortfall warning** | When the scheduler can't place an OFF inside the 7-day comp window after a PH-work day (Art. 74), residual debt is reported per-employee. The Preview modal surfaces "Insufficient HC for full comp-day rotation" with the unplaced day count, pointing at hiring as the structural fix. |
+| **Workforce Planning factors comp-day overhead** | Holiday work creates comp-day-off obligations in subsequent days — that replacement coverage is real workforce demand. v2.0 inflates monthly demand-hours accordingly so the recommended FTE reflects the true HC need on holiday-heavy months. |
+| **Credits & Payroll month selector** | Month-navigation header matching the Schedule and Compliance Dashboard tabs. Credits / OT / leave figures pivot on the active month. |
+| **Leave history sync** | The Manage modal now also surfaces leaves painted directly on the schedule grid (read-only with a "Painted" tag). Auto-scheduler in fresh mode overwrites painted cells; modal re-derives automatically. |
+| **Sample groups in factory reset** | Fresh installs ship with three pre-populated groups (Cashier Counters / Game Machines / Vehicles) and seeded employees declare matching `eligibleGroups`. The kanban view is set up out of the box. |
 
 ## 📦 What's new in v1.15
 

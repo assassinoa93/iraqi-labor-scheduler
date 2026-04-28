@@ -21,6 +21,16 @@ export const en: Dict = {
   'sidebar.group.analytics': 'Analytics',
   'sidebar.group.setup': 'Setup',
   'sidebar.group.system': 'System',
+  // v1.16 — station groups (kanban view in Stations tab)
+  'layout.group.new': 'New group',
+  'layout.group.namePlaceholder': 'Group name (e.g. Cashier Counters, Game Machines, Vehicles)',
+  'layout.group.ungrouped': 'Ungrouped',
+  'layout.group.empty': 'Drag stations here or move them via the card menu',
+  'layout.group.ungroupedEmpty': 'No ungrouped stations',
+  'layout.group.stations': 'stations',
+  'layout.group.eligible': 'eligible employees',
+  'layout.station.moveTo': 'Move to',
+  'layout.station.unassign': 'Remove from group',
 
   // Tabs
   'tab.dashboard': 'Compliance Dashboard',
@@ -159,6 +169,8 @@ export const en: Dict = {
   'modal.preview.applyNote': 'Applying replaces the current schedule. The previous month\'s schedule will be saved for one-step undo.',
   'modal.preview.applyButton': 'Apply Schedule',
   'modal.preview.applyAnyway': 'Apply Anyway',
+  'modal.preview.compShortfall.title': 'Insufficient HC for full comp-day rotation',
+  'modal.preview.compShortfall.body': '{days} comp day(s) across {emps} employee(s) could not be placed inside the 7-day window after the holiday they\'re owed for. This usually means the current roster is too thin to spare workers for OFF on the busy days following holidays. Hiring is the real fix — see the Workforce Planning tab for the FTE shortfall.',
 
   // Settings
   'settings.title': 'Global Configuration',
@@ -819,6 +831,12 @@ export const en: Dict = {
   'workforce.rollup.byStation.subtitle': 'Anchored to physical stations rather than role labels (roles change names; stations don\'t). Each row asks: "this station needs N FTE — do you have enough eligible employees today?". Conservative = peak-month need carried through valleys. Optimal = year-average with PT for surge.',
   'workforce.rollup.byStation.empty': 'No station has demand this year. Define peak/normal headcount on each station in the Stations / Assets tab.',
   'workforce.station.current': 'Eligible now',
+  // v1.16 — group-anchored rollup
+  'workforce.rollup.byGroup.title': 'Annual rollup — per-group recommendation',
+  'workforce.rollup.byGroup.subtitle': 'Demand pooled across each station group (Cashier Counters, Game Machines, Vehicles…). Cleaner than the per-station view because supervisors hire by category, not by individual station. Click a row to drill into the per-station breakdown.',
+  'workforce.group.stations': 'stations',
+  'workforce.group.eligibleNow': 'Eligible now',
+  'workforce.group.drilldown': 'Per-station breakdown',
   // Export
   'workforce.export.button': 'Export PDF',
   // Annual rollup (v1.13)
@@ -881,6 +899,16 @@ export const ar: Dict = {
   'sidebar.group.analytics': 'التحليلات',
   'sidebar.group.setup': 'الإعداد',
   'sidebar.group.system': 'النظام',
+  // مجموعات المحطات
+  'layout.group.new': 'مجموعة جديدة',
+  'layout.group.namePlaceholder': 'اسم المجموعة (مثل: نقاط البيع، آلات الألعاب، المركبات)',
+  'layout.group.ungrouped': 'بدون مجموعة',
+  'layout.group.empty': 'اسحب محطات هنا أو انقلها عبر قائمة البطاقة',
+  'layout.group.ungroupedEmpty': 'لا توجد محطات بدون مجموعة',
+  'layout.group.stations': 'محطات',
+  'layout.group.eligible': 'موظفون مؤهلون',
+  'layout.station.moveTo': 'نقل إلى',
+  'layout.station.unassign': 'إزالة من المجموعة',
 
   // Tabs
   'tab.dashboard': 'لوحة الامتثال',
@@ -1019,6 +1047,8 @@ export const ar: Dict = {
   'modal.preview.applyNote': 'يحل التطبيق محل الجدول الحالي. سيتم حفظ الجدول السابق للتراجع بخطوة واحدة.',
   'modal.preview.applyButton': 'تطبيق الجدول',
   'modal.preview.applyAnyway': 'تطبيق على أي حال',
+  'modal.preview.compShortfall.title': 'الموظفون غير كافين لتدوير أيام التعويض كاملة',
+  'modal.preview.compShortfall.body': '{days} يوم تعويضي عبر {emps} موظف لم يتمكن من تخصيصه ضمن نافذة 7 أيام بعد العطلة المستحقة. عادةً يعني أن الكادر الحالي ضيق جدًا لتوفير راحة لأحدهم في الأيام المزدحمة بعد العطل. التوظيف هو الحل الفعلي — انظر تبويب تخطيط القوى العاملة للنقص.',
 
   // Settings
   'settings.title': 'الإعداد العام',
@@ -1672,6 +1702,12 @@ export const ar: Dict = {
   'workforce.rollup.byStation.subtitle': 'مرتبط بالمحطات الفعلية بدلًا من مسميات الأدوار (الأدوار تتغير أسماؤها، المحطات لا تتغير). يجيب كل صف: "هذه المحطة تحتاج N دائمًا — هل لديك ما يكفي من الموظفين المؤهلين اليوم؟". محافظ = الحاجة في شهر الذروة محمولة طوال السنة. مثالي = متوسط مع جزئيين للذروة.',
   'workforce.rollup.byStation.empty': 'لا يوجد طلب على أي محطة هذه السنة. حدّد الحد الأدنى للذروة/العادي لكل محطة في تبويب المحطات.',
   'workforce.station.current': 'مؤهلون الآن',
+  // التوصية حسب المجموعة
+  'workforce.rollup.byGroup.title': 'الملخص السنوي — توصية حسب المجموعة',
+  'workforce.rollup.byGroup.subtitle': 'الطلب مُجمَّع لكل مجموعة محطات (نقاط البيع، آلات الألعاب، المركبات...). أوضح من العرض حسب المحطة لأن المدراء يوظّفون حسب الفئة لا حسب المحطة الفردية. اضغط صفًا للتعمّق في تفصيل المحطات.',
+  'workforce.group.stations': 'محطات',
+  'workforce.group.eligibleNow': 'مؤهلون الآن',
+  'workforce.group.drilldown': 'تفصيل حسب المحطة',
   'workforce.export.button': 'تصدير PDF',
   // التحليل السنوي
   'workforce.role.currentShort': 'الآن',

@@ -30,13 +30,14 @@ import {
   Violation,
   Schedule,
   Station,
+  StationGroup,
   Company,
   CompanyData,
 } from './types';
 import { ComplianceEngine, previewAssignmentWarnings } from './lib/compliance';
 import { format, getDaysInMonth, addMonths, subMonths } from 'date-fns';
 import {
-  INITIAL_SHIFTS, INITIAL_EMPLOYEES, INITIAL_STATIONS, INITIAL_HOLIDAYS,
+  INITIAL_SHIFTS, INITIAL_EMPLOYEES, INITIAL_STATIONS, INITIAL_STATION_GROUPS, INITIAL_HOLIDAYS,
   DEFAULT_CONFIG, INITIAL_COMPANIES, DEFAULT_COMPANY_ID,
 } from './lib/initialData';
 import { APP_VERSION } from './lib/appMeta';
@@ -89,6 +90,7 @@ const emptyCompanyData = (): CompanyData => ({
   employees: [],
   shifts: INITIAL_SHIFTS,
   stations: [],
+  stationGroups: [],
   holidays: [],
   config: { ...DEFAULT_CONFIG },
   allSchedules: {},
@@ -131,6 +133,10 @@ export default function App() {
   // a company exists in the registry but has no rows yet (e.g. just created).
   const data: CompanyData = companyData[activeCompanyId] ?? emptyCompanyData();
   const { employees, shifts, holidays, config, stations, allSchedules } = data;
+  // v1.16: station groups live alongside stations. Pre-1.16 saves don't
+  // include this; default to an empty list so consumers can treat it
+  // uniformly without null-checks.
+  const stationGroups = data.stationGroups ?? [];
   const scheduleKey = `scheduler_schedule_${config.year}_${config.month}`;
   const schedule: Schedule = allSchedules[scheduleKey] ?? {};
 
@@ -156,6 +162,7 @@ export default function App() {
   const setEmployees = React.useCallback((u: Updater<Employee[]>) => updateActive('employees', u), [updateActive]);
   const setShifts = React.useCallback((u: Updater<Shift[]>) => updateActive('shifts', u), [updateActive]);
   const setStations = React.useCallback((u: Updater<Station[]>) => updateActive('stations', u), [updateActive]);
+  const setStationGroups = React.useCallback((u: Updater<StationGroup[] | undefined>) => updateActive('stationGroups', u), [updateActive]);
   const setHolidays = React.useCallback((u: Updater<PublicHoliday[]>) => updateActive('holidays', u), [updateActive]);
   const setConfig = React.useCallback((u: Updater<Config>) => updateActive('config', u), [updateActive]);
   const setAllSchedules = React.useCallback((u: Updater<Record<string, Schedule>>) => updateActive('allSchedules', u), [updateActive]);
@@ -201,11 +208,16 @@ export default function App() {
           const rawHolidays = data.holidays?.[c.id] ?? (c.id === DEFAULT_COMPANY_ID ? INITIAL_HOLIDAYS : []);
           const rawConfig = data.config?.[c.id] ?? {};
           const rawSchedules = data.allSchedules?.[c.id] ?? {};
+          // v2.0.0: station groups. Pre-2.0 saves don't have them; default
+          // companies seed the new groups so the kanban view in Stations
+          // ships pre-populated. Custom companies start empty.
+          const rawGroups = data.stationGroups?.[c.id] ?? (c.id === DEFAULT_COMPANY_ID ? INITIAL_STATION_GROUPS : []);
           map[c.id] = {
             employees: normalizeEmployees(rawEmps),
             shifts: normalizeShifts(rawShifts),
             stations: normalizeStations(rawStations),
             holidays: normalizeHolidays(rawHolidays),
+            stationGroups: Array.isArray(rawGroups) ? rawGroups : [],
             config: normalizeConfig(rawConfig),
             allSchedules: normalizeAllSchedules(rawSchedules),
           };
@@ -227,6 +239,7 @@ export default function App() {
             employees: INITIAL_EMPLOYEES,
             shifts: INITIAL_SHIFTS,
             stations: INITIAL_STATIONS,
+            stationGroups: INITIAL_STATION_GROUPS,
             holidays: INITIAL_HOLIDAYS,
             config: { ...DEFAULT_CONFIG },
             allSchedules: {},
@@ -816,6 +829,10 @@ export default function App() {
                   employees: normalizeEmployees(raw.employees?.[c.id] ?? []),
                   shifts: normalizeShifts(raw.shifts?.[c.id] ?? INITIAL_SHIFTS),
                   stations: normalizeStations(raw.stations?.[c.id] ?? []),
+                  // v2.0.0: optional groups list. Pre-2.0 backups land
+                  // with no groups; the kanban view shows everything in
+                  // "Ungrouped" until the user creates groups.
+                  stationGroups: Array.isArray(raw.stationGroups?.[c.id]) ? raw.stationGroups[c.id] : [],
                   holidays: normalizeHolidays(raw.holidays?.[c.id] ?? []),
                   config: normalizeConfig(raw.config?.[c.id] ?? {}),
                   allSchedules: normalizeAllSchedules(raw.allSchedules?.[c.id] ?? {}),
@@ -835,6 +852,7 @@ export default function App() {
                 employees: normalizeEmployees(raw.employees ?? []),
                 shifts: normalizeShifts(raw.shifts ?? INITIAL_SHIFTS),
                 stations: normalizeStations(raw.stations ?? INITIAL_STATIONS),
+                stationGroups: Array.isArray(raw.stationGroups) ? raw.stationGroups : INITIAL_STATION_GROUPS,
                 holidays: normalizeHolidays(raw.holidays ?? []),
                 config: cfg,
                 allSchedules: allSched,
@@ -900,6 +918,9 @@ export default function App() {
 
   const loadSampleData = () => {
     setStations(INITIAL_STATIONS);
+    // v2.0.0: also seed the kanban groups so a fresh sample lands with the
+    // pre-populated Cashier Counters / Game Machines / Vehicles columns.
+    setStationGroups(INITIAL_STATION_GROUPS);
     setEmployees(INITIAL_EMPLOYEES);
     setSchedule({});
     showInfo(t('info.seed.title'), t('info.seed.body'));
@@ -1074,7 +1095,7 @@ export default function App() {
   // `preserve` so manual leave / vacation / shift edits stay locked.
   const handleRunAutoScheduler = (mode: 'fresh' | 'preserve' = 'fresh') => {
     try {
-      const { schedule: newSchedule, updatedEmployees } = runAutoScheduler({
+      const { schedule: newSchedule, updatedEmployees, compDayShortfall } = runAutoScheduler({
         employees, shifts, stations, holidays, config, isPeakDay,
         // Pass the entire allSchedules map so the rolling-7-day window can
         // see the trailing days of the prior month.
@@ -1117,6 +1138,7 @@ export default function App() {
       const stats = buildPreviewStats(
         newSchedule, shifts, updatedEmployees, previewViolations,
         config.daysInMonth, totalRequired, totalFilled,
+        compDayShortfall,
       );
 
       setPendingScheduleResult({ schedule: newSchedule, employees: updatedEmployees, stats, runId: Date.now() });
@@ -1944,6 +1966,7 @@ export default function App() {
                 employees={employees}
                 shifts={shifts}
                 stations={stations}
+                stationGroups={stationGroups}
                 holidays={holidays}
                 config={config}
                 schedule={schedule}
@@ -1962,6 +1985,8 @@ export default function App() {
                 shifts={shifts}
                 holidays={holidays}
                 config={config}
+                prevMonth={prevMonth}
+                nextMonth={nextMonth}
                 onExport={exportScheduleCSV}
                 onUpdateEmployee={(next) => {
                   // Diff against the prior employee record so we can:
@@ -2003,6 +2028,7 @@ export default function App() {
               <LayoutTab
                 stations={stations}
                 employees={employees}
+                stationGroups={stationGroups}
                 onAddNew={() => { setSelectedStation(null); setIsStationModalOpen(true); }}
                 onEdit={(st) => { setSelectedStation(st); setIsStationModalOpen(true); }}
                 onDelete={(st) => setConfirmState({
@@ -2011,6 +2037,8 @@ export default function App() {
                   message: t('confirm.removeStation.body', { name: st.name }),
                   onConfirm: () => setStations(prev => prev.filter(s => s.id !== st.id)),
                 })}
+                onUpdateStation={(st) => setStations(prev => prev.map(s => s.id === st.id ? st : s))}
+                onSaveGroups={(groups) => setStationGroups(groups)}
               />
             )}
 

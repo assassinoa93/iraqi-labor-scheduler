@@ -91,6 +91,12 @@ export function normalizeEmployee(raw: Partial<Employee> & Record<string, unknow
     holidayCompensations: Array.isArray(raw.holidayCompensations)
       ? (raw.holidayCompensations as unknown[]).filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d as string)) as string[]
       : undefined,
+    // v1.16: group-level eligibility. Strings only; unknown group IDs are
+    // simply ignored at scheduling time (no error), so reordering or
+    // renaming groups stays safe.
+    eligibleGroups: Array.isArray(raw.eligibleGroups)
+      ? (raw.eligibleGroups as unknown[]).filter(g => typeof g === 'string') as string[]
+      : undefined,
   };
 }
 
@@ -120,6 +126,20 @@ export function normalizeStation(raw: Partial<Station> & Record<string, unknown>
     requiredRoles: Array.isArray(raw.requiredRoles) ? (raw.requiredRoles as string[]) : undefined,
     openingTime: String(raw.openingTime ?? '00:00'),
     closingTime: String(raw.closingTime ?? '00:00'),
+    color: typeof raw.color === 'string' ? raw.color : undefined,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
+    // v1.16: optional group membership.
+    groupId: typeof raw.groupId === 'string' && raw.groupId.length > 0 ? raw.groupId : undefined,
+  };
+}
+
+// v1.16: station groups are persisted alongside stations. Pre-1.16 saves
+// don't include this list — defaults to empty so consumers can treat it
+// uniformly without null-checks.
+export function normalizeStationGroup(raw: Record<string, unknown>): { id: string; name: string; color?: string; description?: string } {
+  return {
+    id: String(raw.id ?? ''),
+    name: String(raw.name ?? ''),
     color: typeof raw.color === 'string' ? raw.color : undefined,
     description: typeof raw.description === 'string' ? raw.description : undefined,
   };

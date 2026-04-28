@@ -4,13 +4,13 @@ import {
   MapPin, ChevronDown, ChevronUp, Calendar, Activity, ShieldCheck,
   Zap, Download, Eye, GitCompareArrows,
 } from 'lucide-react';
-import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
+import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule } from '../types';
 import { Card } from '../components/Primitives';
 import { Switch } from '../components/ui/Switch';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import {
-  analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupStation, MonthlyPlanSummary,
+  analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupStation, AnnualRollupGroup, MonthlyPlanSummary,
   PlanMode,
 } from '../lib/workforcePlanning';
 
@@ -18,6 +18,7 @@ interface Props {
   employees: Employee[];
   shifts: Shift[];
   stations: Station[];
+  stationGroups: StationGroup[];
   holidays: PublicHoliday[];
   config: Config;
   schedule: Schedule;
@@ -46,7 +47,7 @@ interface Props {
 // Export to PDF for sharing with HR Director / CEO.
 export function WorkforcePlanningTab(props: Props) {
   const {
-    employees, shifts, stations, holidays, config, isPeakDayFor,
+    employees, shifts, stations, stationGroups, holidays, config, isPeakDayFor,
     onGoToRoster, onGoToLayout,
   } = props;
   const { t } = useI18n();
@@ -61,8 +62,8 @@ export function WorkforcePlanningTab(props: Props) {
     [employees, shifts, stations, holidays, config, isPeakDayFor, mode],
   );
   const rollup = useMemo(
-    () => buildAnnualRollup(annual, employees, stations, mode),
-    [annual, employees, stations, mode],
+    () => buildAnnualRollup(annual, employees, stations, mode, stationGroups),
+    [annual, employees, stations, mode, stationGroups],
   );
   const drillMonth = drillMonthIndex
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
@@ -230,12 +231,11 @@ export function WorkforcePlanningTab(props: Props) {
             </div>
           )}
 
-          {/* ── Annual rollup table — anchored to STATIONS (v1.15) ───────
-              Pre-1.15 the rollup grouped by role label, which created
-              meaningless "Standard" buckets when stations didn't have
-              required-roles set. v1.15 anchors to physical stations: each
-              row asks "Cashier Point 1 needs N FTE; do you have enough
-              eligible staff?". Roles change names; stations don't. */}
+          {/* ── Annual rollup table (v1.16: prefers GROUP rollup when
+              groups exist, falls back to per-station). Groups give the
+              clearest signal — "I need N cashiers" beats listing every
+              individual cashier station. Stations are still available
+              underneath as drill-down for finer-grained decisions. */}
           <Card className="overflow-hidden">
             <button
               onClick={() => setShowAnnualRollup(s => !s)}
@@ -244,15 +244,21 @@ export function WorkforcePlanningTab(props: Props) {
               <Activity className="w-4 h-4 text-blue-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                  {t('workforce.rollup.byStation.title')}
+                  {rollup.byGroup.length > 0 ? t('workforce.rollup.byGroup.title') : t('workforce.rollup.byStation.title')}
                 </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">{t('workforce.rollup.byStation.subtitle')}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {rollup.byGroup.length > 0 ? t('workforce.rollup.byGroup.subtitle') : t('workforce.rollup.byStation.subtitle')}
+                </p>
               </div>
               {showAnnualRollup ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
             {showAnnualRollup && (
               <div className="divide-y divide-slate-100">
-                {rollup.byStation.length === 0 ? (
+                {rollup.byGroup.length > 0 ? (
+                  rollup.byGroup.map(g => (
+                    <RollupGroupRow key={g.groupId} group={g} stationsLookup={stations} stationRollups={rollup.byStation} idealOnly={idealOnly} />
+                  ))
+                ) : rollup.byStation.length === 0 ? (
                   <div className="p-6 text-center text-[11px] text-slate-500 italic">
                     {t('workforce.rollup.byStation.empty')}
                   </div>
@@ -394,6 +400,107 @@ function ModeToggle({ mode, onChange }: { mode: PlanMode; onChange: (m: PlanMode
       >
         {t('workforce.mode.optimal.label')}
       </button>
+    </div>
+  );
+}
+
+// Per-group rollup row (v1.16). Aggregates demand across the group's
+// member stations and shows a drill-down to per-station rows when the
+// supervisor expands it.
+function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
+  group: AnnualRollupGroup;
+  stationsLookup: Station[];
+  stationRollups: AnnualRollupStation[];
+  idealOnly: boolean;
+}) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const actionTone =
+    group.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
+      : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
+  const ActionIcon = actionTone.Icon;
+  const actionLabel = group.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
+  const memberStationRollups = stationRollups.filter(s => group.stationIds.includes(s.stationId));
+  void stationsLookup;
+
+  return (
+    <div className="hover:bg-slate-50/40 transition-colors">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full p-5 text-left flex items-start gap-4"
+      >
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white shadow-sm"
+          style={{ backgroundColor: group.groupColor || '#475569' }}
+        >
+          <MapPin className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">{group.groupName}</h3>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-1.5 py-0.5 rounded">
+              {group.stationIds.length} {t('workforce.group.stations')}
+            </span>
+            <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-lg border", actionTone.bg, actionTone.border)}>
+              <ActionIcon className={cn("w-3 h-3", actionTone.text)} />
+              <span className={cn("text-[9px] font-black uppercase tracking-widest", actionTone.text)}>{actionLabel}</span>
+            </div>
+          </div>
+
+          <div className={cn("grid gap-3", idealOnly ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-5")}>
+            {!idealOnly && (
+              <KpiBlock label={t('workforce.group.eligibleNow')} value={group.currentEligibleCount.toString()} />
+            )}
+            <KpiBlock label={t('workforce.rollup.recommendedFTE')} value={group.recommendedFTE.toString()} tone="emerald" />
+            <KpiBlock label={t('workforce.rollup.recommendedPT')} value={group.recommendedPartTime.toString()} tone="blue" />
+            {!idealOnly && (
+              <KpiBlock
+                label={t('workforce.role.delta')}
+                value={`${group.delta > 0 ? '+' : ''}${group.delta}`}
+                tone={group.delta > 0 ? 'rose' : 'neutral'}
+                hint={group.action === 'hire'
+                  ? t('workforce.role.hireBy', { count: group.delta })
+                  : t('workforce.role.matchesNeed')}
+              />
+            )}
+            <KpiBlock
+              label={t('workforce.rollup.peakMonth')}
+              value={MONTH_NAMES[group.peakMonthIndex - 1]}
+              hint={`${group.peakMonthFTE} FTE`}
+            />
+          </div>
+
+          <div className="p-3 rounded-lg bg-slate-50/60 border border-slate-100 flex items-start gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-slate-700 leading-relaxed">{group.reasoning}</p>
+          </div>
+        </div>
+        <div className="shrink-0 pt-1">
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        </div>
+      </button>
+
+      {expanded && memberStationRollups.length > 0 && (
+        <div className="px-5 pb-5 -mt-2">
+          <div className="ml-14 pl-4 border-l-2 border-slate-200 space-y-2">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.group.drilldown')}</p>
+            {memberStationRollups.map(s => (
+              <div key={s.stationId} className="bg-white rounded-lg border border-slate-100 p-3 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-800 truncate">{s.stationName}</p>
+                  <p className="text-[10px] text-slate-500 font-mono">{Math.round(s.annualRequiredHours).toLocaleString()}h/yr · peak {MONTH_NAMES[s.peakMonthIndex - 1]}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-black text-emerald-700">{s.recommendedFTE} FTE</p>
+                  {s.recommendedPartTime > 0 && (
+                    <p className="text-[10px] text-blue-700">+ {s.recommendedPartTime} PT</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
