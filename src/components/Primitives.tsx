@@ -8,6 +8,17 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string }> =
   </div>
 );
 
+// Sidebar section header used to group navigation tabs by purpose
+// (Operations / Analytics / Setup / System). Renders a small caps label
+// with subtle separators above and below so the navigation reads as a
+// hierarchical menu rather than a long flat list.
+export const SidebarGroup = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="mb-3">
+    <div className="px-6 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{label}</div>
+    <div>{children}</div>
+  </div>
+);
+
 export const TabButton = ({ active, label, index, onClick }: { active: boolean; icon?: any; label: string; index: string; onClick: () => void }) => (
   <button
     onClick={onClick}

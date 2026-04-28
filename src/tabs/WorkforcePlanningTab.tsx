@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Users, TrendingUp, Minus, Briefcase, Sparkles, Info,
+  Users, TrendingUp, Minus, Sparkles, Info,
   MapPin, ChevronDown, ChevronUp, Calendar, Activity, ShieldCheck,
   Zap, Download, Eye, GitCompareArrows,
 } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Switch } from '../components/ui/Switch';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import {
-  analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupRole, MonthlyPlanSummary,
+  analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupStation, MonthlyPlanSummary,
   PlanMode,
 } from '../lib/workforcePlanning';
 
@@ -61,8 +61,8 @@ export function WorkforcePlanningTab(props: Props) {
     [employees, shifts, stations, holidays, config, isPeakDayFor, mode],
   );
   const rollup = useMemo(
-    () => buildAnnualRollup(annual, employees, mode),
-    [annual, employees, mode],
+    () => buildAnnualRollup(annual, employees, stations, mode),
+    [annual, employees, stations, mode],
   );
   const drillMonth = drillMonthIndex
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
@@ -230,7 +230,12 @@ export function WorkforcePlanningTab(props: Props) {
             </div>
           )}
 
-          {/* ── Annual rollup table ────────────────────────────────────── */}
+          {/* ── Annual rollup table — anchored to STATIONS (v1.15) ───────
+              Pre-1.15 the rollup grouped by role label, which created
+              meaningless "Standard" buckets when stations didn't have
+              required-roles set. v1.15 anchors to physical stations: each
+              row asks "Cashier Point 1 needs N FTE; do you have enough
+              eligible staff?". Roles change names; stations don't. */}
           <Card className="overflow-hidden">
             <button
               onClick={() => setShowAnnualRollup(s => !s)}
@@ -239,17 +244,23 @@ export function WorkforcePlanningTab(props: Props) {
               <Activity className="w-4 h-4 text-blue-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                  {t('workforce.rollup.title')}
+                  {t('workforce.rollup.byStation.title')}
                 </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">{t('workforce.rollup.subtitle')}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{t('workforce.rollup.byStation.subtitle')}</p>
               </div>
               {showAnnualRollup ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
             {showAnnualRollup && (
               <div className="divide-y divide-slate-100">
-                {rollup.byRole.map(r => (
-                  <RollupRoleRow key={r.role} role={r} idealOnly={idealOnly} />
-                ))}
+                {rollup.byStation.length === 0 ? (
+                  <div className="p-6 text-center text-[11px] text-slate-500 italic">
+                    {t('workforce.rollup.byStation.empty')}
+                  </div>
+                ) : (
+                  rollup.byStation.map(s => (
+                    <RollupStationRow key={s.stationId} station={s} idealOnly={idealOnly} />
+                  ))
+                )}
               </div>
             )}
           </Card>
@@ -387,23 +398,32 @@ function ModeToggle({ mode, onChange }: { mode: PlanMode; onChange: (m: PlanMode
   );
 }
 
-function RollupRoleRow({ role, idealOnly }: { role: AnnualRollupRole; idealOnly: boolean }) {
+// Per-station rollup row (v1.15). Anchored to physical stations rather
+// than role labels, so the supervisor reads "Cashier Point 1 needs 2 FTE
+// — you have 3 eligible employees, hold" rather than the abstract
+// "Standard role needs 2 FTE".
+function RollupStationRow({ station, idealOnly }: { station: AnnualRollupStation; idealOnly: boolean }) {
   const { t } = useI18n();
   const actionTone =
-    role.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
+    station.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
       : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
   const ActionIcon = actionTone.Icon;
-  const actionLabel = role.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
+  const actionLabel = station.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
 
   return (
     <div className="p-5 hover:bg-slate-50/40 transition-colors">
       <div className="flex items-start gap-4">
         <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-          <Briefcase className="w-5 h-5" />
+          <MapPin className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-base font-bold text-slate-800 tracking-tight">{role.role}</h3>
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">{station.stationName}</h3>
+            {station.roleHint && (
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-1.5 py-0.5 rounded">
+                {station.roleHint}
+              </span>
+            )}
             <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-lg border", actionTone.bg, actionTone.border)}>
               <ActionIcon className={cn("w-3 h-3", actionTone.text)} />
               <span className={cn("text-[9px] font-black uppercase tracking-widest", actionTone.text)}>{actionLabel}</span>
@@ -412,30 +432,30 @@ function RollupRoleRow({ role, idealOnly }: { role: AnnualRollupRole; idealOnly:
 
           <div className={cn("grid gap-3", idealOnly ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-5")}>
             {!idealOnly && (
-              <KpiBlock label={t('workforce.role.current')} value={role.currentCount.toString()} />
+              <KpiBlock label={t('workforce.station.current')} value={station.currentEligibleCount.toString()} />
             )}
-            <KpiBlock label={t('workforce.rollup.recommendedFTE')} value={role.recommendedFTE.toString()} tone="emerald" />
-            <KpiBlock label={t('workforce.rollup.recommendedPT')} value={role.recommendedPartTime.toString()} tone="blue" />
+            <KpiBlock label={t('workforce.rollup.recommendedFTE')} value={station.recommendedFTE.toString()} tone="emerald" />
+            <KpiBlock label={t('workforce.rollup.recommendedPT')} value={station.recommendedPartTime.toString()} tone="blue" />
             {!idealOnly && (
               <KpiBlock
                 label={t('workforce.role.delta')}
-                value={`${role.delta > 0 ? '+' : ''}${role.delta}`}
-                tone={role.delta > 0 ? 'rose' : 'neutral'}
-                hint={role.action === 'hire'
-                  ? t('workforce.role.hireBy', { count: role.delta })
+                value={`${station.delta > 0 ? '+' : ''}${station.delta}`}
+                tone={station.delta > 0 ? 'rose' : 'neutral'}
+                hint={station.action === 'hire'
+                  ? t('workforce.role.hireBy', { count: station.delta })
                   : t('workforce.role.matchesNeed')}
               />
             )}
             <KpiBlock
               label={t('workforce.rollup.peakMonth')}
-              value={MONTH_NAMES[role.peakMonthIndex - 1]}
-              hint={`${role.peakMonthFTE} FTE`}
+              value={MONTH_NAMES[station.peakMonthIndex - 1]}
+              hint={`${station.peakMonthFTE} FTE`}
             />
           </div>
 
           <div className="p-3 rounded-lg bg-slate-50/60 border border-slate-100 flex items-start gap-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-slate-700 leading-relaxed">{role.reasoning}</p>
+            <p className="text-[11px] text-slate-700 leading-relaxed">{station.reasoning}</p>
           </div>
         </div>
       </div>
@@ -564,26 +584,27 @@ async function exportWorkforcePlanToPDF(args: {
   cursor += 4;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('Per-role Recommendation', 14, cursor);
+  doc.text('Per-station Recommendation', 14, cursor);
   cursor += 4;
   autoTable(doc, {
     startY: cursor,
-    head: [['Role', 'Current', 'Rec. FTE', 'Rec. PT', 'Delta', 'Action', 'Peak Month', 'Reasoning']],
-    body: rollup.byRole.map(r => [
-      r.role,
-      r.currentCount.toString(),
-      r.recommendedFTE.toString(),
-      r.recommendedPartTime.toString(),
-      `${r.delta > 0 ? '+' : ''}${r.delta}`,
-      r.action.toUpperCase(),
-      MONTH_NAMES[r.peakMonthIndex - 1],
-      r.reasoning,
+    head: [['Station', 'Role hint', 'Current', 'Rec. FTE', 'Rec. PT', 'Delta', 'Action', 'Peak Month', 'Reasoning']],
+    body: rollup.byStation.map(s => [
+      s.stationName,
+      s.roleHint || '—',
+      s.currentEligibleCount.toString(),
+      s.recommendedFTE.toString(),
+      s.recommendedPartTime.toString(),
+      `${s.delta > 0 ? '+' : ''}${s.delta}`,
+      s.action.toUpperCase(),
+      MONTH_NAMES[s.peakMonthIndex - 1],
+      s.reasoning,
     ]),
     headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
-      0: { cellWidth: 22 }, 1: { cellWidth: 14 }, 2: { cellWidth: 16 }, 3: { cellWidth: 14 },
-      4: { cellWidth: 12 }, 5: { cellWidth: 14 }, 6: { cellWidth: 18 }, 7: { cellWidth: 'auto' },
+      0: { cellWidth: 28 }, 1: { cellWidth: 18 }, 2: { cellWidth: 14 }, 3: { cellWidth: 14 }, 4: { cellWidth: 12 },
+      5: { cellWidth: 12 }, 6: { cellWidth: 14 }, 7: { cellWidth: 16 }, 8: { cellWidth: 'auto' },
     },
     margin: { left: 14, right: 14 },
     styles: { overflow: 'linebreak' },

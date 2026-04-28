@@ -118,6 +118,27 @@
   border: 2px solid transparent;
 }
 
+/* ─── Sidebar scrollbar (v1.15) ────────────────────────────────────────────────
+   The dark sidebar nav uses a thin pill scrollbar tinted to match the slate-
+   800 palette so it doesn't stand out as a generic OS chrome element. Same
+   Apple-style as the schedule top rail, just darker. */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar { width: 8px; background: transparent; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+
 /* ─── Apple-style modern slider (v1.13) ────────────────────────────────────────
    Replaces the chunky default range input with a thin track + circular thumb.
    Used by the new <Slider> component everywhere we used to have raw

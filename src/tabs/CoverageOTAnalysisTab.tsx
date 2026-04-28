@@ -332,8 +332,11 @@ function MitigationRow({ m, avgSalary, onGoToSchedule }: { m: OTMitigation; avgS
           </p>
         )}
       </div>
-      {m.id === 'rebalance' && (
-        <button onClick={onGoToSchedule} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shrink-0">
+      {(m.id === 'rebalance' || m.id === 'comp-day-holiday') && (
+        <button onClick={onGoToSchedule} className={cn(
+          "px-3 py-1.5 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+          m.id === 'rebalance' ? "bg-blue-600 hover:bg-blue-700" : "bg-amber-600 hover:bg-amber-700",
+        )}>
           {cfg.cta}
         </button>
       )}

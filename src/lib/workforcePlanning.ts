@@ -463,8 +463,33 @@ export interface AnnualRollupRole {
   action: 'hire' | 'hold';
 }
 
+// Per-station rollup row (v1.15). Anchors the recommendation to the
+// station/asset rather than the volatile role label — venues rename roles
+// over time but stations are stable physical assets. Each row tells the
+// supervisor "Cashier Point 1 needs N FTE; you currently have M employees
+// eligible to staff it".
+export interface AnnualRollupStation {
+  stationId: string;
+  stationName: string;
+  // The role gating the station (e.g. 'Driver' for vehicle stations) or
+  // null when any eligible employee can work there.
+  roleHint: string | null;
+  annualRequiredHours: number;
+  peakMonthIndex: number;
+  peakMonthFTE: number;            // FTE need at the busiest month
+  recommendedFTE: number;          // year-round recommendation
+  recommendedPartTime: number;
+  reasoning: string;
+  // Current count of employees ELIGIBLE to staff this station (i.e.
+  // station appears in their eligibleStations or they match requiredRoles).
+  currentEligibleCount: number;
+  delta: number;                   // recommended - currentEligibleCount
+  action: 'hire' | 'hold';
+}
+
 export interface AnnualRollup {
   byRole: AnnualRollupRole[];
+  byStation: AnnualRollupStation[];
   // Year-level totals.
   totalRecommendedFTE: number;
   totalRecommendedPartTime: number;
@@ -567,7 +592,7 @@ export function analyzeWorkforceAnnual({
 // supervisor holds excess capacity through valleys (Art. 36/40 of the
 // Iraqi Labor Law makes releases legally fraught, see comments at the top
 // of this module).
-export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], mode: PlanMode): AnnualRollup {
+export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], stations: Station[], mode: PlanMode): AnnualRollup {
   // Walk each role across all 12 months, picking up the per-role demand.
   type RolePerMonth = {
     role: string;
@@ -694,8 +719,95 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
   }
   const legalSafetyPremium = Math.max(0, Math.round(annualConservativeSalary - annualOptimalSalary));
 
+  // ── Per-station rollup (v1.15) ──────────────────────────────────────────
+  // Anchor the recommendation to stations rather than role labels (roles
+  // change names; stations are stable physical assets). For each station,
+  // walk the year's monthly demand and compute the year-round FTE need
+  // following the same conservative/optimal logic.
+  const stationDemandPerMonth = new Map<string, Array<{ idx: number; fte: number; pt: number; required: number }>>();
+  for (const m of annual.byMonth) {
+    for (const r of m.plan.byRole) {
+      for (const st of r.byStation) {
+        let arr = stationDemandPerMonth.get(st.stationId);
+        if (!arr) { arr = []; stationDemandPerMonth.set(st.stationId, arr); }
+        // Per-station per-month FTE = ceil(stationMonthlyHours / cap)
+        const mix = recommendMix(
+          st.monthlyHours, st.peakHours, st.nonPeakHours, r.cap, mode);
+        arr.push({
+          idx: m.monthIndex,
+          fte: mix.recommendedFTE,
+          pt: mix.recommendedPartTime,
+          required: st.monthlyHours,
+        });
+      }
+    }
+  }
+
+  // Eligibility: how many current employees can staff each station today.
+  const eligibilityCount = (st: Station): number => {
+    let count = 0;
+    for (const e of employees) {
+      if (st.requiredRoles?.includes('Driver')) {
+        if (e.category === 'Driver') count++;
+      } else {
+        const eligible = e.eligibleStations.length === 0 || e.eligibleStations.includes(st.id);
+        if (!eligible) continue;
+        if (st.requiredRoles?.length && !st.requiredRoles.some(r => r === e.role || r === 'Standard')) continue;
+        count++;
+      }
+    }
+    return count;
+  };
+
+  const byStation: AnnualRollupStation[] = [];
+  for (const st of stations) {
+    const months = stationDemandPerMonth.get(st.id);
+    if (!months || months.length === 0) continue;
+    const annualReq = months.reduce((s, p) => s + p.required, 0);
+    if (annualReq <= 0) continue;
+    let peakIdx = months[0].idx;
+    let peakFTE = months[0].fte;
+    let peakPT = months[0].pt;
+    for (const p of months) {
+      if (p.fte + p.pt > peakFTE + peakPT) {
+        peakIdx = p.idx;
+        peakFTE = p.fte;
+        peakPT = p.pt;
+      }
+    }
+    const recommendedFTE = mode === 'conservative'
+      ? peakFTE
+      : Math.round(months.reduce((s, p) => s + p.fte, 0) / months.length);
+    const recommendedPartTime = mode === 'conservative'
+      ? 0
+      : Math.round(months.reduce((s, p) => s + p.pt, 0) / months.length);
+    const currentEligible = eligibilityCount(st);
+    const delta = (recommendedFTE + recommendedPartTime) - currentEligible;
+    const action: AnnualRollupStation['action'] = delta > 0 ? 'hire' : 'hold';
+    const roleHint = st.requiredRoles?.find(r => r !== 'Standard' && r !== '') || null;
+    const reasoning = mode === 'conservative'
+      ? `Station peaks in ${MONTH_NAMES[peakIdx - 1]} needing ${peakFTE} FTE. Hire to that level and hold through valleys; releases are legally hard under Iraqi Labor Law.`
+      : `Avg ${recommendedFTE} FTE + ${recommendedPartTime} part-time across the year. Peak month is ${MONTH_NAMES[peakIdx - 1]}. Optimal mode assumes flexible staffing — review against PT contract limits.`;
+    byStation.push({
+      stationId: st.id,
+      stationName: st.name,
+      roleHint,
+      annualRequiredHours: annualReq,
+      peakMonthIndex: peakIdx,
+      peakMonthFTE: peakFTE,
+      recommendedFTE,
+      recommendedPartTime,
+      reasoning,
+      currentEligibleCount: currentEligible,
+      delta,
+      action,
+    });
+  }
+  byStation.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
   return {
     byRole,
+    byStation,
     totalRecommendedFTE,
     totalRecommendedPartTime,
     totalCurrentEmployees: employees.length,

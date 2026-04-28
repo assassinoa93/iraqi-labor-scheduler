@@ -1,4 +1,5 @@
-import { Employee, LeaveRange, LeaveType } from '../types';
+import { Employee, LeaveRange, LeaveType, Schedule, Config } from '../types';
+import { format } from 'date-fns';
 
 // Single source of truth for "is this employee on leave on this date".
 // Reads `leaveRanges` first; falls back to the legacy single-range fields
@@ -56,6 +57,80 @@ export function listAllLeaveRanges(emp: Employee): LeaveRange[] {
 // just unique within the employee's list so React can use it as a key.
 export function newLeaveRangeId(): string {
   return `lv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+// Walk an employee's painted schedule cells in the active month and derive
+// LeaveRange entries from contiguous runs of AL / SL / MAT codes (v1.15).
+// Pre-1.15 the leave-history view in the Roster + Credits & Payroll tabs
+// only showed entries the user had created via the LeaveManagerModal —
+// but the supervisor often paints leaves directly on the schedule grid,
+// which previously left no trace in the leave history. This helper closes
+// that gap by reading the schedule and emitting synthetic ranges so both
+// surfaces stay consistent. Synthetic ranges use ids prefixed with
+// `__sched_` so callers can tell them apart from manually-created ones.
+export function deriveLeaveRangesFromSchedule(
+  emp: Employee, schedule: Schedule, config: Config,
+): LeaveRange[] {
+  const empSched = schedule[emp.empId] || {};
+  const codeToType: Record<string, LeaveType> = { AL: 'annual', SL: 'sick', MAT: 'maternity' };
+  const out: LeaveRange[] = [];
+  type Run = { type: LeaveType; startDay: number; endDay: number };
+  let active: Run | null = null;
+  for (let day = 1; day <= config.daysInMonth; day++) {
+    const entry = empSched[day];
+    const t = entry?.shiftCode ? codeToType[entry.shiftCode] : undefined;
+    if (t) {
+      if (active && active.type === t) {
+        active.endDay = day;
+      } else {
+        if (active) {
+          out.push({
+            id: `__sched_${active.type}_${active.startDay}`,
+            type: active.type,
+            start: format(new Date(config.year, config.month - 1, active.startDay), 'yyyy-MM-dd'),
+            end: format(new Date(config.year, config.month - 1, active.endDay), 'yyyy-MM-dd'),
+            notes: 'Painted on schedule',
+          });
+        }
+        active = { type: t, startDay: day, endDay: day };
+      }
+    } else if (active) {
+      out.push({
+        id: `__sched_${active.type}_${active.startDay}`,
+        type: active.type,
+        start: format(new Date(config.year, config.month - 1, active.startDay), 'yyyy-MM-dd'),
+        end: format(new Date(config.year, config.month - 1, active.endDay), 'yyyy-MM-dd'),
+        notes: 'Painted on schedule',
+      });
+      active = null;
+    }
+  }
+  if (active) {
+    out.push({
+      id: `__sched_${active.type}_${active.startDay}`,
+      type: active.type,
+      start: format(new Date(config.year, config.month - 1, active.startDay), 'yyyy-MM-dd'),
+      end: format(new Date(config.year, config.month - 1, active.endDay), 'yyyy-MM-dd'),
+      notes: 'Painted on schedule',
+    });
+  }
+  return out;
+}
+
+// Same as `listAllLeaveRanges` but also folds in the synthetic ranges
+// derived from the active month's painted schedule, with deduplication
+// against any manually-created range that overlaps the same dates.
+// Callers that have access to the schedule + config should prefer this so
+// leaves painted on the grid show up in the leave-history view.
+export function listAllLeaveRangesIncludingPainted(
+  emp: Employee, schedule: Schedule, config: Config,
+): LeaveRange[] {
+  const manual = listAllLeaveRanges(emp);
+  const painted = deriveLeaveRangesFromSchedule(emp, schedule, config);
+  // Drop a painted range if a manual range fully covers it (avoid duplicates).
+  const filteredPainted = painted.filter(p => !manual.some(m =>
+    m.type === p.type && m.start <= p.start && m.end >= p.end));
+  return [...manual, ...filteredPainted].sort((a, b) => a.start.localeCompare(b.start));
 }
 
 // When the user commits the leave editor, write back a clean `leaveRanges`

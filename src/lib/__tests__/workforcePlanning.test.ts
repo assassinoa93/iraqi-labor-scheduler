@@ -156,7 +156,7 @@ describe('buildAnnualRollup', () => {
       employees: [], shifts: [], stations: [station], holidays: [], baseConfig: config, isPeakDayFor,
       mode: 'conservative',
     });
-    const rollup = buildAnnualRollup(annual, [], 'conservative');
+    const rollup = buildAnnualRollup(annual, [], [station], 'conservative');
     expect(rollup.byRole.length).toBeGreaterThan(0);
     const role = rollup.byRole[0];
     expect(role.recommendedPartTime).toBe(0); // conservative never uses PT
@@ -164,9 +164,34 @@ describe('buildAnnualRollup', () => {
     expect(role.recommendedFTE).toBe(role.peakMonthFTE);
   });
 
+  it('also produces a per-station rollup keyed by station id (v1.15)', () => {
+    const annual = analyzeWorkforceAnnual({
+      employees: [], shifts: [], stations: [station], holidays: [], baseConfig: config, isPeakDayFor,
+      mode: 'conservative',
+    });
+    const rollup = buildAnnualRollup(annual, [], [station], 'conservative');
+    expect(rollup.byStation.length).toBeGreaterThan(0);
+    const st = rollup.byStation.find(s => s.stationId === 'ST-A');
+    expect(st).toBeDefined();
+    expect(st?.stationName).toBe('Counter');
+    expect(st?.recommendedFTE).toBe(st?.peakMonthFTE); // conservative
+  });
+
+  it('counts current eligible employees per station for the comparative view', () => {
+    const cashier1 = mkEmp('A');
+    cashier1.eligibleStations = ['ST-A'];
+    const cashier2 = mkEmp('B');
+    cashier2.eligibleStations = ['ST-A'];
+    const annual = analyzeWorkforceAnnual({
+      employees: [cashier1, cashier2], shifts: [], stations: [station], holidays: [], baseConfig: config, isPeakDayFor,
+      mode: 'conservative',
+    });
+    const rollup = buildAnnualRollup(annual, [cashier1, cashier2], [station], 'conservative');
+    const st = rollup.byStation.find(s => s.stationId === 'ST-A');
+    expect(st?.currentEligibleCount).toBe(2);
+  });
+
   it('reports a non-zero legal-safety premium when conservative > optimal', () => {
-    // Station with peak surge → optimal would use PT, conservative carries
-    // peak FTE through valleys → the cost diff is the legal-safety premium.
     const surgeStation: Station = {
       id: 'ST-S', name: 'Surge', normalMinHC: 1, peakMinHC: 3,
       openingTime: '11:00', closingTime: '23:00',
@@ -175,7 +200,7 @@ describe('buildAnnualRollup', () => {
       employees: [], shifts: [], stations: [surgeStation], holidays: [], baseConfig: config, isPeakDayFor,
       mode: 'conservative',
     });
-    const rollup = buildAnnualRollup(annual, [], 'conservative');
+    const rollup = buildAnnualRollup(annual, [], [surgeStation], 'conservative');
     expect(rollup.legalSafetyPremium).toBeGreaterThan(0);
   });
 
@@ -185,10 +210,9 @@ describe('buildAnnualRollup', () => {
       shifts: [], stations: [station], holidays: [], baseConfig: config, isPeakDayFor,
       mode: 'conservative',
     });
-    const rollup = buildAnnualRollup(annual, Array.from({ length: 10 }, (_, i) => mkEmp(`E${i}`)), 'conservative');
+    const rollup = buildAnnualRollup(annual, Array.from({ length: 10 }, (_, i) => mkEmp(`E${i}`)), [station], 'conservative');
     expect(rollup.byRole.every(r => r.action !== 'hire' || r.delta > 0)).toBe(true);
     expect(rollup.byRole.some(r => r.delta < 0)).toBe(true);
-    // Every negative-delta role uses hold, never release.
     rollup.byRole.filter(r => r.delta < 0).forEach(r => expect(r.action).toBe('hold'));
   });
 });

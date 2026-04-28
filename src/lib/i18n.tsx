@@ -17,6 +17,10 @@ export const en: Dict = {
   'sidebar.quitApp': 'Quit Application',
   'sidebar.locale.switch': 'العربية',
   'sidebar.locale.tooltip': 'Switch language',
+  'sidebar.group.operations': 'Operations',
+  'sidebar.group.analytics': 'Analytics',
+  'sidebar.group.setup': 'Setup',
+  'sidebar.group.system': 'System',
 
   // Tabs
   'tab.dashboard': 'Compliance Dashboard',
@@ -732,9 +736,9 @@ export const en: Dict = {
   'otAnalysis.mitigations.hire.title': 'Hire +{count} to absorb over-cap OT',
   'otAnalysis.mitigations.hire.body': 'Each new FTE relieves up to one monthly cap of over-cap pressure. Salary added is approximately {cost} IQD/mo at the roster average. See the Compliance Dashboard for per-station breakdown + simulation.',
   'otAnalysis.mitigations.hire.cta': 'See advisory',
-  'otAnalysis.mitigations.compDay.title': 'Grant {count} comp day(s) for holiday work',
-  'otAnalysis.mitigations.compDay.body': 'Iraqi Labor Law (Art. 74) lets you replace the 2× holiday premium with a paid day off within 7 days. Pick which holidays to compensate per employee — pay drops from 2× to 1× regular wage for those dates (already covered by base salary). The supervisor must ensure an OFF day appears in the schedule within 7 days; the compliance engine will flag any that don\'t.',
-  'otAnalysis.mitigations.compDay.cta': 'Choose comps',
+  'otAnalysis.mitigations.compDay.title': 'Schedule {count} comp day(s) for holiday work',
+  'otAnalysis.mitigations.compDay.body': 'Iraqi Labor Law (Art. 74) entitles workers to BOTH the 2× cash premium AND a comp rest day within 7 days of working a public holiday. The cash premium is already in the OT total above; this row is a compliance reminder to schedule the OFF day too. The compliance engine will flag any PH-work day with no OFF/leave in the following 7 days.',
+  'otAnalysis.mitigations.compDay.cta': 'Open schedule',
   'otAnalysis.mitigations.rebalance.title': 'Re-run the auto-scheduler in strict mode',
   'otAnalysis.mitigations.rebalance.body': 'Sometimes a manually-edited schedule has skewed someone\'s weekly load. Strict-mode auto-scheduling re-distributes hours subject to all caps, so the over-cap pool can shrink without any new hires.',
   'otAnalysis.mitigations.rebalance.cta': 'Open schedule',
@@ -810,6 +814,11 @@ export const en: Dict = {
   'workforce.rollup.recommendedFTE': 'FTE',
   'workforce.rollup.recommendedPT': 'Part-time',
   'workforce.rollup.peakMonth': 'Peak month',
+  // v1.15 — station-anchored rollup
+  'workforce.rollup.byStation.title': 'Annual rollup — per-station recommendation',
+  'workforce.rollup.byStation.subtitle': 'Anchored to physical stations rather than role labels (roles change names; stations don\'t). Each row asks: "this station needs N FTE — do you have enough eligible employees today?". Conservative = peak-month need carried through valleys. Optimal = year-average with PT for surge.',
+  'workforce.rollup.byStation.empty': 'No station has demand this year. Define peak/normal headcount on each station in the Stations / Assets tab.',
+  'workforce.station.current': 'Eligible now',
   // Export
   'workforce.export.button': 'Export PDF',
   // Annual rollup (v1.13)
@@ -868,6 +877,10 @@ export const ar: Dict = {
   'sidebar.quitApp': 'إنهاء التطبيق',
   'sidebar.locale.switch': 'English',
   'sidebar.locale.tooltip': 'تبديل اللغة',
+  'sidebar.group.operations': 'العمليات',
+  'sidebar.group.analytics': 'التحليلات',
+  'sidebar.group.setup': 'الإعداد',
+  'sidebar.group.system': 'النظام',
 
   // Tabs
   'tab.dashboard': 'لوحة الامتثال',
@@ -1583,9 +1596,9 @@ export const ar: Dict = {
   'otAnalysis.mitigations.hire.title': 'وظِّف +{count} لاستيعاب الإضافي فوق الحد',
   'otAnalysis.mitigations.hire.body': 'كل موظف جديد يخفّف عن الموجودين ما يصل إلى حد شهري كامل من ساعات تجاوز الحد. الراتب المضاف ≈ {cost} د.ع/شهر بمتوسط الرواتب. انظر لوحة الامتثال للتفصيل والمحاكاة.',
   'otAnalysis.mitigations.hire.cta': 'اطلع على التوصية',
-  'otAnalysis.mitigations.compDay.title': 'امنح {count} يومًا تعويضيًا لعمل العطل',
-  'otAnalysis.mitigations.compDay.body': 'يسمح القانون (المادة 74) باستبدال علاوة 2× بيوم راحة مدفوع خلال 7 أيام. اختر العطل المراد تعويضها لكل موظف — سيُدفع 1× عادي بدلًا من 2× (مغطى بالراتب الأساسي). يجب التأكد من ظهور يوم راحة خلال 7 أيام؛ سينبّه محرك الامتثال إلى أي حالة لا تلتزم.',
-  'otAnalysis.mitigations.compDay.cta': 'اختيار التعويضات',
+  'otAnalysis.mitigations.compDay.title': 'جدولة {count} يومًا تعويضيًا لعمل العطل',
+  'otAnalysis.mitigations.compDay.body': 'تمنح المادة 74 من قانون العمل العراقي العامل كلًا من علاوة 2× نقدًا و يوم راحة تعويضي خلال 7 أيام من العمل في عطلة رسمية. العلاوة النقدية مدرجة في الإجمالي أعلاه؛ هذا التذكير لجدولة يوم الراحة. سينبّه محرك الامتثال إلى أي يوم عطلة عُمل ولم تظهر له راحة في الأيام السبعة التالية.',
+  'otAnalysis.mitigations.compDay.cta': 'افتح الجدول',
   'otAnalysis.mitigations.rebalance.title': 'أعد تشغيل المُجدوِل التلقائي بالوضع الصارم',
   'otAnalysis.mitigations.rebalance.body': 'أحيانًا يُحدث التحرير اليدوي اختلالًا في عبء أحدهم الأسبوعي. الجدولة الصارمة تُعيد التوزيع ضمن جميع الحدود، فيمكن أن تتقلص ساعات تجاوز الحد دون توظيف جديد.',
   'otAnalysis.mitigations.rebalance.cta': 'افتح الجدول',
@@ -1654,6 +1667,11 @@ export const ar: Dict = {
   'workforce.rollup.recommendedFTE': 'دائم',
   'workforce.rollup.recommendedPT': 'جزئي',
   'workforce.rollup.peakMonth': 'شهر الذروة',
+  // v1.15 — توصية حسب المحطة
+  'workforce.rollup.byStation.title': 'الملخص السنوي — توصية حسب المحطة',
+  'workforce.rollup.byStation.subtitle': 'مرتبط بالمحطات الفعلية بدلًا من مسميات الأدوار (الأدوار تتغير أسماؤها، المحطات لا تتغير). يجيب كل صف: "هذه المحطة تحتاج N دائمًا — هل لديك ما يكفي من الموظفين المؤهلين اليوم؟". محافظ = الحاجة في شهر الذروة محمولة طوال السنة. مثالي = متوسط مع جزئيين للذروة.',
+  'workforce.rollup.byStation.empty': 'لا يوجد طلب على أي محطة هذه السنة. حدّد الحد الأدنى للذروة/العادي لكل محطة في تبويب المحطات.',
+  'workforce.station.current': 'مؤهلون الآن',
   'workforce.export.button': 'تصدير PDF',
   // التحليل السنوي
   'workforce.role.currentShort': 'الآن',

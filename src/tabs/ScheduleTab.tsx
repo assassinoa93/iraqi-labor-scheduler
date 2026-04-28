@@ -94,8 +94,14 @@ function ScheduleRow({
   const tone = capPct >= 1 ? 'over' : capPct >= 0.9 ? 'near' : 'ok';
   return (
     <div style={style} className="flex border-b border-slate-100 hover:bg-slate-50/50 group bg-white">
+      {/* v1.15 — react-window's overflow:auto container intercepts CSS
+          sticky-left, so the JS scroll handler in ScheduleTab translates
+          [data-sticky-left] elements by the current scrollLeft to keep
+          them visually pinned to the viewport edge. The will-change hint
+          keeps the transform on the GPU compositor for smooth panning. */}
       <div
-        className="sticky left-0 bg-white group-hover:bg-slate-50 z-10 px-4 py-2 border-r border-slate-200 shadow-[4px_0_10px_rgba(0,0,0,0.03)] flex flex-col justify-center"
+        data-sticky-left
+        className="bg-white group-hover:bg-slate-50 z-10 px-4 py-2 border-r border-slate-200 shadow-[4px_0_10px_rgba(0,0,0,0.03)] flex flex-col justify-center will-change-transform"
         style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
         title={stats ? formatEmployeeStatsTooltip(stats) : undefined}
       >
@@ -151,11 +157,12 @@ export function ScheduleTab({
   const [isDragPainting, setIsDragPainting] = useState(false);
   const lastClickedCellRef = useRef<{ empId: string; day: number } | null>(null);
 
-  // Refs for the sticky top scrollbar mirror (v1.13). Two separate scroll
-  // containers — the visible "rail" at the top of the grid and the actual
-  // grid container below it — synchronised so dragging either thumb pans
-  // both. A flag ref prevents feedback loops when one scroll triggers the
-  // other.
+  // Refs for the sticky top scrollbar mirror (v1.13) and the manual
+  // sticky-left translate fix for the names column (v1.15). Two separate
+  // scroll containers — the visible "rail" at the top of the grid and the
+  // actual grid container below it — synchronised so dragging either thumb
+  // pans both. A flag ref prevents feedback loops when one scroll triggers
+  // the other.
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const topScrollMirrorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -163,11 +170,27 @@ export function ScheduleTab({
     const top = topScrollMirrorRef.current;
     if (!grid || !top) return;
     let syncing = false;
+    // v1.15: react-window's <List> creates its own overflow:auto scroll
+    // container, which intercepts `position: sticky; left: 0` on the body
+    // rows' name column — so the name column would scroll horizontally
+    // along with the days. We work around it by JS-translating every
+    // `[data-sticky-left]` element by the current scrollLeft, making it
+    // "stick" to the visible viewport-left manually. The day header still
+    // uses CSS sticky since it lives outside the List.
+    const applyStickyLeft = () => {
+      const x = grid.scrollLeft;
+      const els = grid.querySelectorAll<HTMLElement>('[data-sticky-left]');
+      for (let i = 0; i < els.length; i++) {
+        els[i].style.transform = `translateX(${x}px)`;
+      }
+    };
     const onGrid = () => {
-      if (syncing) return;
-      syncing = true;
-      top.scrollLeft = grid.scrollLeft;
-      requestAnimationFrame(() => { syncing = false; });
+      if (!syncing) {
+        syncing = true;
+        top.scrollLeft = grid.scrollLeft;
+        requestAnimationFrame(() => { syncing = false; });
+      }
+      applyStickyLeft();
     };
     const onTop = () => {
       if (syncing) return;
@@ -177,9 +200,17 @@ export function ScheduleTab({
     };
     grid.addEventListener('scroll', onGrid, { passive: true });
     top.addEventListener('scroll', onTop, { passive: true });
+    // Run once to handle any initial scrollLeft (e.g. RTL reset).
+    applyStickyLeft();
+    // Also re-apply when rows mount/update — a MutationObserver catches
+    // the React re-renders that virtualization triggers without us needing
+    // to thread a "schedule version" prop through the row component.
+    const obs = new MutationObserver(applyStickyLeft);
+    obs.observe(grid, { childList: true, subtree: true });
     return () => {
       grid.removeEventListener('scroll', onGrid);
       top.removeEventListener('scroll', onTop);
+      obs.disconnect();
     };
   }, []);
 

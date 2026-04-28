@@ -44,7 +44,7 @@ import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './li
 import { parseHour, getOperatingHoursForDow } from './lib/time';
 import { cn } from './lib/utils';
 import { runAutoScheduler } from './lib/autoScheduler';
-import { TabButton } from './components/Primitives';
+import { TabButton, SidebarGroup } from './components/Primitives';
 import { EmployeeModal } from './components/EmployeeModal';
 import { StationModal } from './components/StationModal';
 import { ShiftModal } from './components/ShiftModal';
@@ -1777,20 +1777,30 @@ export default function App() {
           </div>
         )}
 
-        <nav className="flex-1 py-4 overflow-y-auto">
-          <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />
-          <TabButton active={activeTab === 'coverageOT'} label={t('tab.coverageOT')} index="02" icon={TrendingUp} onClick={() => setActiveTab('coverageOT')} />
-          <TabButton active={activeTab === 'workforce'} label={t('tab.workforce')} index="03" icon={Building2} onClick={() => setActiveTab('workforce')} />
-          <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="04" icon={Users} onClick={() => setActiveTab('roster')} />
-          <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="05" icon={Clock} onClick={() => setActiveTab('shifts')} />
-          <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="06" icon={BarChart3} onClick={() => setActiveTab('payroll')} />
-          <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="07" icon={Flag} onClick={() => setActiveTab('holidays')} />
-          <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="08" icon={Layout} onClick={() => setActiveTab('layout')} />
-          <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="09" icon={Calendar} onClick={() => setActiveTab('schedule')} />
-          <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="10" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />
-          <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="11" icon={Scale} onClick={() => setActiveTab('variables')} />
-          <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="12" icon={Database} onClick={() => setActiveTab('audit')} />
-          <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="13" icon={Settings} onClick={() => setActiveTab('settings')} />
+        {/* v1.15: tabs grouped by usage frequency. Operations (daily) →
+            Analytics (weekly) → Setup (occasional) → System (rare). */}
+        <nav className="flex-1 py-4 overflow-y-auto sidebar-scrollbar">
+          <SidebarGroup label={t('sidebar.group.operations')}>
+            <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />
+            <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="02" icon={Calendar} onClick={() => setActiveTab('schedule')} />
+            <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="03" icon={Users} onClick={() => setActiveTab('roster')} />
+            <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="04" icon={BarChart3} onClick={() => setActiveTab('payroll')} />
+          </SidebarGroup>
+          <SidebarGroup label={t('sidebar.group.analytics')}>
+            <TabButton active={activeTab === 'coverageOT'} label={t('tab.coverageOT')} index="05" icon={TrendingUp} onClick={() => setActiveTab('coverageOT')} />
+            <TabButton active={activeTab === 'workforce'} label={t('tab.workforce')} index="06" icon={Building2} onClick={() => setActiveTab('workforce')} />
+            <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="07" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />
+          </SidebarGroup>
+          <SidebarGroup label={t('sidebar.group.setup')}>
+            <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="08" icon={Layout} onClick={() => setActiveTab('layout')} />
+            <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="09" icon={Clock} onClick={() => setActiveTab('shifts')} />
+            <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="10" icon={Flag} onClick={() => setActiveTab('holidays')} />
+            <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="11" icon={Scale} onClick={() => setActiveTab('variables')} />
+          </SidebarGroup>
+          <SidebarGroup label={t('sidebar.group.system')}>
+            <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="12" icon={Database} onClick={() => setActiveTab('audit')} />
+            <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="13" icon={Settings} onClick={() => setActiveTab('settings')} />
+          </SidebarGroup>
         </nav>
 
         <div className="p-4 border-t border-slate-700 bg-[#0F172A]/50 space-y-2">

@@ -2,6 +2,24 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.15.0 — 2026-04-28
+
+Six user-reported quality-of-life fixes.
+
+**1. Comp-day mitigation reframed.** The OT analysis tab's comp-day row used to suggest "replace 2× premium with comp day" — wrong post-1.14 since Art. 74 entitles workers to BOTH. The text and CTA now read as a compliance reminder ("Schedule the OFF day too — engine will flag any PH-work day with no rest in 7 days") and the button deep-links to the schedule.
+
+**2. Painted leaves now show in the roster's leave history.** New `deriveLeaveRangesFromSchedule` walks contiguous AL/SL/MAT runs in the active month and synthesises LeaveRange entries. The Credits & Payroll tab's leave-count + tooltip merges manual ranges with painted ones via the new `listAllLeaveRangesIncludingPainted` helper, so painting a leave on the schedule is visible from the roster card immediately.
+
+**3. Workforce planning anchored to stations.** Pre-1.15 the rollup grouped by role label (Cashier, Driver, Standard…) — but role names change while station identities don't. v1.15 adds a per-station rollup as the primary view: each row is a physical station with its annual demand-hours, peak-month FTE need, current eligible employee count, and hire/hold action. The phantom "Standard" bucket is gone — the supervisor reads "Cashier Point 1 needs 2 FTE, you have 3 eligible" rather than abstract role categories. PDF export updated to match.
+
+**4. Names column actually sticky during horizontal scroll.** react-window's overflow:auto container was intercepting the body row's `position: sticky; left: 0`, so the names column scrolled away with the day cells. Replaced the CSS sticky with a JS scroll handler that translates `[data-sticky-left]` elements by `-scrollLeft` to keep them visually pinned. Also re-applies on row mount/update via MutationObserver so virtualization re-renders don't lose the offset. The day header still uses CSS sticky since it lives outside the List.
+
+**5. Sidebar scrollbar restyled.** Apple-style thin pill thumb on a faded track, matching the schedule top-rail and OT-analysis scrollbars. The OS default chunky scrollbar is gone.
+
+**6. Sidebar tabs reorganised.** Tabs are now grouped by usage frequency: **Operations** (Compliance, Schedule, Roster, Payroll), **Analytics** (Coverage&OT, Workforce, Reports), **Setup** (Stations, Shifts, Holidays, Variables), **System** (Audit, Settings). Group headers use a small caps label so the navigation reads as a hierarchical menu rather than a long flat list.
+
+**Tests** — 89 total (2 new station-rollup tests, all passing).
+
 ## v1.14.0 — 2026-04-28
 
 Legal-correctness pass + Workforce Planning v2.

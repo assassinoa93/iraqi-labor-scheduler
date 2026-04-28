@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { LeaveManagerModal } from '../components/LeaveManagerModal';
-import { listAllLeaveRanges } from '../lib/leaves';
+import { listAllLeaveRangesIncludingPainted } from '../lib/leaves';
 
 interface PayrollTabProps {
   employees: Employee[];
@@ -115,7 +115,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                     </td>
                     <td className="px-6 py-4">
                       {(() => {
-                        const ranges = listAllLeaveRanges(emp);
+                        const ranges = listAllLeaveRangesIncludingPainted(emp, schedule, config);
                         return (
                           <button
                             onClick={() => setLeaveEditFor(emp)}
