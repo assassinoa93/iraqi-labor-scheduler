@@ -56,6 +56,7 @@ import { CoverageHintToast } from './components/CoverageHintToast';
 import { BulkAssignModal } from './components/BulkAssignModal';
 import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
+import { getEmployeeLeaveOnDate } from './lib/leaves';
 import {
   normalizeEmployees, normalizeShifts, normalizeStations, normalizeHolidays,
   normalizeConfig, normalizeAllSchedules, normalizeCompanies,
@@ -430,53 +431,47 @@ export default function App() {
     };
   }, [schedule, employees, shifts, stations]);
 
+  // Surface a single coverage-hint toast for the most impactful day where the
+  // given employee just transitioned from "available" to "on leave". Diffs the
+  // employee's leave state across the entire active month using the unified
+  // helper so it works whether leaves were edited via the legacy single-range
+  // fields or the new multi-range LeaveManagerModal. Picks the day with the
+  // highest required headcount (peak vs normal) and only surfaces one toast —
+  // the rest surface naturally as the user repaints.
+  const surfaceLeaveCoverageHint = React.useCallback((prevEmp: Employee, nextEmp: Employee) => {
+    const newlyOnLeave: number[] = [];
+    for (let day = 1; day <= config.daysInMonth; day++) {
+      const ds = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
+      const wasOnLeave = !!getEmployeeLeaveOnDate(prevEmp, ds);
+      const isOnLeave = !!getEmployeeLeaveOnDate(nextEmp, ds);
+      if (!wasOnLeave && isOnLeave) newlyOnLeave.push(day);
+    }
+    if (newlyOnLeave.length === 0) return;
+    let best: { day: number; gap: CoverageGap } | null = null;
+    for (const d of newlyOnLeave) {
+      const prevEntry = schedule[nextEmp.empId]?.[d];
+      const gap = detectCoverageGap({
+        employees, shifts, stations, holidays, config, schedule,
+        empId: nextEmp.empId, day: d, prevEntry, newEntry: undefined, isPeakDay,
+      });
+      if (!gap) continue;
+      const need = isPeakDay(d) ? gap.station.peakMinHC : gap.station.normalMinHC;
+      if (!best || need > (isPeakDay(best.day) ? best.gap.station.peakMinHC : best.gap.station.normalMinHC)) {
+        best = { day: d, gap };
+      }
+    }
+    if (best) {
+      const suggestions = findSwapCandidates(best.gap, {
+        employees, shifts, stations, holidays, config, schedule, isPeakDay,
+      });
+      setCoverageHint({ gap: best.gap, suggestions });
+    }
+  }, [employees, shifts, stations, holidays, config, schedule, isPeakDay]);
+
   const handleSaveEmployee = (emp: Employee) => {
     if (editingEmployee) {
       setEmployees(prev => prev.map(e => e.empId === editingEmployee.empId ? emp : e));
-      // After a leave-date change, scan the active month for newly-vacated
-      // station-bound work shifts. Pick the most-impactful one (largest peak
-      // requirement) and surface a single hint so the user isn't spammed.
-      const newlyOnLeave: number[] = [];
-      const expandedRange = (
-        oldStart: string | undefined, oldEnd: string | undefined,
-        newStart: string | undefined, newEnd: string | undefined,
-      ): { start: string; end: string } | null => {
-        if (!newStart || !newEnd) return null;
-        if (oldStart === newStart && oldEnd === newEnd) return null;
-        return { start: newStart, end: newEnd };
-      };
-      const al = expandedRange(editingEmployee.annualLeaveStart, editingEmployee.annualLeaveEnd, emp.annualLeaveStart, emp.annualLeaveEnd);
-      const sl = expandedRange(editingEmployee.sickLeaveStart, editingEmployee.sickLeaveEnd, emp.sickLeaveStart, emp.sickLeaveEnd);
-      const mat = expandedRange(editingEmployee.maternityLeaveStart, editingEmployee.maternityLeaveEnd, emp.maternityLeaveStart, emp.maternityLeaveEnd);
-      const ranges = [al, sl, mat].filter((r): r is { start: string; end: string } => !!r);
-      if (ranges.length > 0) {
-        for (let day = 1; day <= config.daysInMonth; day++) {
-          const ds = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
-          if (ranges.some(r => ds >= r.start && ds <= r.end)) newlyOnLeave.push(day);
-        }
-        // Choose the single most-impactful affected day (highest required HC)
-        // and surface a hint for it. Subsequent gaps surface naturally as the
-        // user repaints.
-        let best: { day: number; gap: CoverageGap } | null = null;
-        for (const d of newlyOnLeave) {
-          const prevEntry = schedule[emp.empId]?.[d];
-          const gap = detectCoverageGap({
-            employees, shifts, stations, holidays, config, schedule,
-            empId: emp.empId, day: d, prevEntry, newEntry: undefined, isPeakDay,
-          });
-          if (!gap) continue;
-          const need = isPeakDay(d) ? gap.station.peakMinHC : gap.station.normalMinHC;
-          if (!best || need > (isPeakDay(best.day) ? best.gap.station.peakMinHC : best.gap.station.normalMinHC)) {
-            best = { day: d, gap };
-          }
-        }
-        if (best) {
-          const suggestions = findSwapCandidates(best.gap, {
-            employees, shifts, stations, holidays, config, schedule, isPeakDay,
-          });
-          setCoverageHint({ gap: best.gap, suggestions });
-        }
-      }
+      surfaceLeaveCoverageHint(editingEmployee, emp);
     } else {
       setEmployees(prev => [...prev, emp]);
     }
@@ -893,11 +888,14 @@ export default function App() {
     setCellUndoStack([]);
   };
 
-  // Preview-then-apply for the auto-scheduler.
+  // Preview-then-apply for the auto-scheduler. `runId` is a fresh nonce on
+  // every run; passed as the React key on the modal so consecutive runs
+  // always remount cleanly even if the modal was already open.
   const [pendingScheduleResult, setPendingScheduleResult] = useState<{
     schedule: Schedule;
     employees: Employee[];
     stats: ReturnType<typeof buildPreviewStats>;
+    runId: number;
   } | null>(null);
   const [scheduleUndoStack, setScheduleUndoStack] = useState<Array<{ schedule: Schedule; employees: Employee[]; appliedAt: number }>>([]);
 
@@ -952,7 +950,7 @@ export default function App() {
         config.daysInMonth, totalRequired, totalFilled,
       );
 
-      setPendingScheduleResult({ schedule: newSchedule, employees: updatedEmployees, stats });
+      setPendingScheduleResult({ schedule: newSchedule, employees: updatedEmployees, stats, runId: Date.now() });
     } catch (e) {
       showInfo(t('info.error.title'), e instanceof Error ? e.message : 'Auto-scheduler failed.');
     }
@@ -1707,7 +1705,17 @@ export default function App() {
                 holidays={holidays}
                 config={config}
                 onExport={exportScheduleCSV}
-                onUpdateEmployee={(next) => setEmployees(prev => prev.map(e => e.empId === next.empId ? next : e))}
+                onUpdateEmployee={(next) => {
+                  // Diff against the prior employee record so the coverage-hint
+                  // toast can fire when a leave addition vacates a station-bound
+                  // assignment. Without this, leaves added via the
+                  // LeaveManagerModal silently leave the schedule in conflict
+                  // with the new leave window — the compliance engine flags it
+                  // but no proactive swap suggestion appears.
+                  const prev = employees.find(e => e.empId === next.empId);
+                  setEmployees(arr => arr.map(e => e.empId === next.empId ? next : e));
+                  if (prev) surfaceLeaveCoverageHint(prev, next);
+                }}
               />
             )}
 
@@ -1881,7 +1889,12 @@ export default function App() {
         infoOnly
       />
 
+      {/* The mount key changes on every new auto-scheduler run (`runId` is a
+          fresh Date.now() per run). This forces React to remount the modal on
+          every consecutive open so it can never get stuck in a partially-
+          animated state from a prior preview. */}
       <SchedulePreviewModal
+        key={pendingScheduleResult ? `preview-${pendingScheduleResult.runId}` : 'preview-empty'}
         isOpen={pendingScheduleResult !== null}
         stats={pendingScheduleResult?.stats ?? null}
         monthLabel={format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy')}

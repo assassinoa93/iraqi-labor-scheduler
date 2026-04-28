@@ -2,6 +2,14 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.7.1 — 2026-04-28
+
+Hotfix on top of v1.7.0 — surfaces the coverage-hint toast when a leave is added through the new LeaveManagerModal, and reverts the v1.7.0 AnimatePresence wrapper on the auto-scheduler preview that turned out to interact badly with React StrictMode (the modal could get stuck at opacity:0 between consecutive runs).
+
+**Fixes**
+- **Leave additions now suggest replacements.** The PayrollTab → LeaveManagerModal save path was missing the leave→coverage-gap pipeline that the legacy EmployeeModal had. Refactored both code paths to share a new `surfaceLeaveCoverageHint(prevEmp, nextEmp)` helper that diffs the employee's leave state across the active month using `getEmployeeLeaveOnDate` (so it works for both v1.7 multi-range and legacy single-range fields), picks the most-impactful newly-vacated day, and surfaces a single coverage-hint toast with swap candidates.
+- **Auto-scheduler preview reliability.** Reverted the `AnimatePresence` wrapper introduced in v1.7.0 — combined with React StrictMode's double-mount in dev, it could cause the entry animation to be cancelled by a stray exit and leave the modal at opacity:0. Restored the original direct conditional render (`if (!isOpen || !stats) return null`) and added a `runId` field to `pendingScheduleResult` that's used as the modal's React `key`, so consecutive auto-scheduler runs always force a fresh remount with no stale animation state to recover from.
+
 ## v1.7.0 — 2026-04-28
 
 Two-batch release: a focused bug-fix round followed by a feature push. Schema gains an optional multi-range `leaveRanges` field on Employee; old single-range fields stay supported via a unified read helper, so v1.6.x backups load without conversion.
