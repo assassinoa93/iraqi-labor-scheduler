@@ -2,6 +2,17 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.10.1 — 2026-04-28
+
+Hotfix on top of v1.10.0.
+
+**Suggestion pane — final fix for the disappearing hint**
+- v1.10.0's auto-dismiss was still wrong for stations with overlapping multi-shift coverage. Example: cashier station with `peakMinHC: 1` covered by Morning + Evening shifts on the same day means TWO employees are at the station (different hours). Painting OFF on the morning worker left the evening worker visible, so the heuristic counted "still filled" and dismissed the hint — even though the morning hours are now actually uncovered.
+- v1.10.1 simplifies the rule: auto-dismiss ONLY when the originally-vacated employee has been reassigned back to the station (typical undo case). All other paths leave the hint open until the user explicitly dismisses (X) or picks a candidate. This matches the user-reported expectation that hints should persist after a paint until acted on.
+
+**Dashboard OT premium — visible breakdown**
+- The "Monthly OT Premium" cell on the Compliance Dashboard now shows the over-cap : holiday split inline beneath the total. e.g. `12,300,000 IQD` headline with `2,900,000 over-cap · 9,400,000 holiday` underneath. Pre-1.10.1 the IQD figure mixed both pools and didn't tell the supervisor which lever to pull. The Coverage & OT Analysis tab continues to be the deep-dive view; this is a pointer.
+
 ## v1.10.0 — 2026-04-28
 
 OT-truth release. Two user-reported bugs from v1.9.0 + a substantial new tab to answer "why is the OT bill so high?".

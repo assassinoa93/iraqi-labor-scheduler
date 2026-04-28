@@ -75,8 +75,15 @@ export function DashboardTab(props: DashboardTabProps) {
   const holidayDateSet = new Set(holidays.map(h => h.date));
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
 
+  // Split OT into the two pools that pay at different rates under Iraqi
+  // Labor Law: over-cap (Art. 70, 1.5×) and public-holiday hours (Art. 74,
+  // 2.0×). Reporting them together as a single "OT Premium" used to confuse
+  // supervisors when a clean at-cap month still produced significant
+  // premium pay (all holiday hours). The Coverage & OT Analysis tab uses
+  // the same split — these locals just power the dashboard headline.
   let totalOTHours = 0;
-  let totalOTPay = 0;
+  let totalOverCapPay = 0;
+  let totalHolidayPay = 0;
   for (const emp of employees) {
     const empSched = schedule[emp.empId] || {};
     let totalHrs = 0;
@@ -91,8 +98,10 @@ export function DashboardTab(props: DashboardTabProps) {
     const hourly = baseHourlyRate(emp, config);
     const stdOT = Math.max(0, totalHrs - cap - holiHrs);
     totalOTHours += Math.max(0, totalHrs - cap);
-    totalOTPay += stdOT * hourly * otRateDay + holiHrs * hourly * otRateNight;
+    totalOverCapPay += stdOT * hourly * otRateDay;
+    totalHolidayPay += holiHrs * hourly * otRateNight;
   }
+  const totalOTPay = totalOverCapPay + totalHolidayPay;
   const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));
   const hireCost = potentialHires * DEFAULT_MONTHLY_SALARY_IQD;
   const savings = Math.max(0, totalOTPay - hireCost);
@@ -285,6 +294,11 @@ export function DashboardTab(props: DashboardTabProps) {
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.otPremium')}</p>
                   <p className="text-xl font-black text-rose-400">{Math.round(totalOTPay).toLocaleString()} IQD</p>
+                  {(totalOverCapPay > 0 || totalHolidayPay > 0) && (
+                    <p className="text-[9px] text-white/50 font-mono leading-tight mt-1">
+                      {Math.round(totalOverCapPay).toLocaleString()} {t('dashboard.optim.overCapShort')} · {Math.round(totalHolidayPay).toLocaleString()} {t('dashboard.optim.holidayShort')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.staffDeficit')}</p>

@@ -1483,41 +1483,39 @@ export default function App() {
   // list goes stale (shows employees who are no longer off, or omits people
   // who just became free).
   //
-  // Auto-dismiss is conservative: pre-v1.10 we dismissed the moment ANY work
-  // shift appeared at the gap's station, which (a) flashed the hint on/off
-  // for stations with peakMinHC>1 where one worker remained, and (b) failed
-  // to surface multi-employee leave scenarios because the next paint would
-  // immediately replace + dismiss the prior hint. The new rule only
-  // dismisses when the gap is genuinely closed: either the original employee
-  // came back to the station as a work shift, or another employee has taken
-  // a station-bound work shift such that the headcount meets the requirement.
+  // Auto-dismiss policy (v1.10.1):
+  //   ONLY when the user has explicitly closed the gap (`reassigned` — i.e.
+  //   the originally-vacated employee got their station-bound work shift
+  //   back, typical of an undo). We do NOT dismiss based on "some other
+  //   employee is at this station" because:
+  //     - peakMinHC > 1 stations may have remaining workers but still need
+  //       a replacement.
+  //     - Auto-scheduled multi-shift days have overlapping coverage at the
+  //       same station — pre-1.10.1 the dismiss heuristic kept treating
+  //       those as "filled" and flashed the hint off the moment any paint
+  //       fired.
+  //     - A station with normalMinHC=0 on a non-peak day still wants the
+  //       supervisor to see substitutes (permissive-mode intent).
+  //
+  // Net effect: hints persist until the user explicitly dismisses (X
+  // button), picks a candidate (acceptCoverageSwap), or undoes the paint
+  // that opened the gap. Subsequent paints replace the displayed hint with
+  // the most recent gap, but the previous one is treated as "still open"
+  // until acted on — matching the supervisor's mental model.
   useEffect(() => {
     if (!coverageHint) return;
     const { gap } = coverageHint;
-    const peak = isPeakDay(gap.day);
-    const required = peak ? gap.station.peakMinHC : gap.station.normalMinHC;
 
     // Did the originally-vacated employee come back to the station as a work
-    // shift? (e.g. user undid the paint that opened the gap.)
+    // shift? (Typical: user pressed Ctrl+Z right after the paint that opened
+    // the gap, or re-painted the same cell back to the original shift.) In
+    // that case the hint is talking about a gap that no longer exists, so
+    // we silently retire it.
     const currentVacatedEntry = schedule[gap.vacatedEmpId]?.[gap.day];
     const reassigned =
       currentVacatedEntry?.stationId === gap.station.id &&
       !!shifts.find(s => s.code === currentVacatedEntry.shiftCode)?.isWork;
-
-    // How many other employees now hold a station-bound work shift here?
-    let replacementCount = 0;
-    for (const e of employees) {
-      if (e.empId === gap.vacatedEmpId) continue;
-      const entry = schedule[e.empId]?.[gap.day];
-      if (entry?.stationId !== gap.station.id) continue;
-      if (shifts.find(s => s.code === entry.shiftCode)?.isWork) replacementCount++;
-    }
-
-    // Genuinely closed only if a real replacement exists or the vacated cell
-    // was reassigned. For permissive-mode hints (required === 0) we keep the
-    // hint until the user dismisses or picks — the supervisor's intent is to
-    // see substitutes, not to be told the station "doesn't need one".
-    if (reassigned || (required > 0 && replacementCount >= required)) {
+    if (reassigned) {
       setCoverageHint(null);
       return;
     }
