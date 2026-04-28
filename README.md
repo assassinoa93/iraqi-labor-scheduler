@@ -59,17 +59,17 @@ A professional, local-first workforce management and automated scheduling system
 - **🧬 Backward-compatible data layer**: A central `src/lib/migration.ts` normaliser runs every loaded record through field-by-field defaults. Schemas can grow (new optional fields, future structural changes via `CURRENT_DATA_VERSION`) without breaking older backups.
 - **🔐 Verifiable builds**: Every release ships with a `SHA256SUMS.txt` so you can confirm the installer is byte-identical to what GitHub Actions built from this open-source code.
 - **♿ Accessible**: All modals trap focus and close on Escape. Every icon-only button has an `aria-label`. Tables use semantic markup with sortable column headers.
-- **🧪 Tested**: 18 Vitest unit tests lock down the compliance engine — daily / weekly caps, rest periods, consecutive days, holiday OT, driver caps, Ramadan, maternity, sick leave, violation grouping. Run `npm test` to verify.
+- **🧪 Tested**: 53 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, and staffing advisory math — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown. Run `npm test` to verify.
 
 ## 🚀 Quick Start (Recommended)
 The easiest way to use the app is to download the pre-built installer:
 
 1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v1.8.0)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-1.8.0.exe` **and** `SHA256SUMS.txt`.
+2. Under the **latest release (v1.9.0)**, scroll down to the **Assets** section.
+3. Download `Iraqi-Labor-Scheduler-Setup-1.9.0.exe` **and** `SHA256SUMS.txt`.
 4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.8.0.exe
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-1.9.0.exe
    ```
    Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
 5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
@@ -77,7 +77,7 @@ The easiest way to use the app is to download the pre-built installer:
 ### 🔄 Updating from an earlier version
 Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
 
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.7.x). This wizard will update Iraqi Labor Scheduler to v1.8.0…"*).
+1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.8.x). This wizard will update Iraqi Labor Scheduler to v1.9.0…"*).
 2. Replaces the program files in the existing install directory.
 3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
 4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
@@ -219,16 +219,18 @@ This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
 
 All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
 
-## 📦 What's new in v1.8
+## 📦 What's new in v1.9
 
 | Area | Change |
 |------|--------|
-| **Live Suggestion Pane** | The bottom-right `CoverageHintToast` is replaced on the Schedule tab with a persistent right rail (`SuggestionPane`). Two sections: live coverage candidates when there's a gap, and a recent-changes log with **one-click undo per entry**. Capped at 50 entries, "show more" beyond the first 10. Collapsible to a thin tab against the right edge with a status dot for active gaps and a count badge for unread changes. The toast still ships and is shown on non-Schedule tabs so cross-tab edits keep surfacing hints. |
-| **3-Mode Staffing Advisory** | Dashboard advisory card now has a tab strip — **Eliminate Overtime / Optimal Coverage / Best of Both**. Each mode shows hires needed, OT saved (IQD/mo), salary added (IQD/mo), and net monthly delta. Footnote explains that re-running the auto-scheduler is needed for the recommendation to update after hires (addresses the "I followed the suggestion but it still says I need more HC" report). |
-| **Public-holiday comp days** | Auto-scheduler tracks per-employee PH comp-day debt and biases the candidate sort to push debtors toward OFF in the days after a holiday — naturally satisfying Art. 74's compensation-day expectation without scheduling extra rest arbitrarily. New `Comp day owed` info-finding fires when no OFF/leave appears within 7 days of a PH-work day. |
-| **Master Schedule UX** | Day-header overhaul: today indicator (blue ring + ●), holiday dot top-left, full holiday name in tooltip, better weekend/holiday contrast. Footer summary bar with total work hours, employees at-cap (≥100% weekly) and near-cap (≥90%), and a count of employees with any leave-day this month. |
-| **Compliance findings — severity tier** | New `severity?: 'violation' \| 'info'` field on the Violation type. Reclassified `Public holiday worked` as `info` (Art. 74 makes it legal — just compensable). Added `Comp day owed` as `info`. App splits the engine output into `violations` (countable, drives the score) and `infoFindings` (notes only). |
-| **Carried from v1.7** | Multi-range leave manager (annual / sick / maternity per employee, multiple windows each); leave additions auto-stamp `AL`/`SL`/`MAT` on the schedule grid; drag-to-paint, Shift+click range fill, per-cell undo (Ctrl+Z); bulk shift assignment from the Roster; per-employee labor-law tooltip with cap badge; compliance trendline sparkline; print view (A3 landscape); dark mode (Light / Dark / System); daily auto-snapshot in Electron; RTL CSS shim. |
+| **Leave-driven coverage hints — every category** | Adding annual / sick / maternity leave on a non-driver employee (cashier, operator) now surfaces substitute candidates the same way driver leaves always did. The leave-pipeline uses a permissive detection mode that fires regardless of station minimum-headcount, so cashier stations with `normalMinHC: 0` on non-peak days no longer silently swallow the hint. Manual-paint detection stays strict — cycling a cell at a non-required station doesn't spam toasts. |
+| **Setup-completeness gating on the Dashboard** | The Strategic Growth Path + Staffing Advisory cards no longer pretend to give actionable advice when the supervisor hasn't finished basic setup. A 5-item checklist banner shows exactly what's still missing (roster, stations, shifts, eligibility, painted schedule) until everything is in place; advisory cards then appear automatically. |
+| **Staffing Advisory — per-station breakdown + simulation** | Each of the three modes (Eliminate OT / Optimal Coverage / Best of Both) now lists exactly **which stations** the recommended hires would land at and **why** (`OT pressure` / `Peak shortfall` / `Both`), with the numerical evidence (monthly OT hours attributed to that station + the peak-hour FTE shortfall). OT is distributed across stations proportionally to where the over-scheduled employee actually worked. A new **Validate with simulation** button injects phantom hires and re-runs the auto-scheduler to report residual OT + coverage gap so the recommendation is a real simulation, not just back-of-envelope arithmetic. The duplicate small "Staffing Advisory" panel from v1.8 is removed (its content is fully covered by the new card). |
+| **Auto-scheduler results UI** | Hero header on the preview modal with the compliance score front-and-centre and a tier-coloured gradient backdrop. Hours-by-role becomes a horizontal bar chart, one colour per role. Findings split into **Hard Violations** vs **Informational Notes** so info-severity findings (PH worked, Comp day owed) no longer read like critical failures alongside hard cap breaches. |
+| **Suggestion pane — narrow viewports** | The 340px right rail starts collapsed below 1280px viewport width and tracks resize crossings until the user manually overrides — so 1366×768 laptops keep the schedule grid full-width by default. The collapsed state still surfaces the unread-changes count and gap dot. |
+| **Comp-day cross-month** | The compliance engine's `Comp day owed` check used to bail at the month boundary. When the next month's schedule has been generated, the check now peeks into it so a late-month PH-work can be compensated by an early-month OFF in the following month. |
+| **Tests** | 28 new unit tests across `staffingAdvisory`, `coverageHints`, `autoScheduler`, plus 5 new compliance tests for `Comp day owed` (incl. cross-month). 53 tests total, all passing. |
+| **Carried from v1.8** | Persistent right-rail Suggestion Pane with one-click per-entry undo; 3-mode Staffing Advisory; PH comp-day bias in the auto-scheduler; severity-tiered compliance findings; Master Schedule day-header overhaul + footer summary bar. |
 
 For a full version-by-version history including the v1.0–v1.7 lineage, see **[CHANGELOG.md](CHANGELOG.md)**.
 

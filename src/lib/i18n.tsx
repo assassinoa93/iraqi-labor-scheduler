@@ -214,16 +214,6 @@ export const en: Dict = {
   'schedule.warningHeader': 'Compliance warnings for {name}',
   'schedule.warningFooter': 'The assignment was applied — undo or repaint if this was unintended.',
 
-  // Staffing Advisory
-  'advisory.title': 'Staffing Advisory',
-  'advisory.gaps': 'Coverage Gaps Detected',
-  'advisory.optimal': 'Optimal Staffing',
-  'advisory.hireToClose': 'Hire to Close Gaps',
-  'advisory.toHire': 'to hire',
-  'advisory.totalNote': 'additional headcount needed across all stations at peak. Hiring this much would resolve every shortfall without leaning on overtime or rest-day waivers.',
-  'advisory.roleHint': 'Role required',
-  'advisory.roleUnset': 'No role pinned — open to any eligible employee.',
-
   // Payroll tab
   'payroll.title': 'Credits & Compensation',
   'payroll.subtitle': 'Suggested overtime and holiday credit tracking based on Iraqi Labor Law (Art. 67-73).',
@@ -345,9 +335,6 @@ export const en: Dict = {
   'dashboard.empty.body': 'No personnel data is stored on remote servers. This instance is local to this PC. Anyone else opening the app starts with a clean slate.',
   'dashboard.empty.create': 'Create First Record',
   'dashboard.empty.sample': 'Seed Sample Data',
-  'advisory.gapsBody': 'Current headcount is insufficient to meet station minimums during peak hours.',
-  'advisory.bankNote': 'Outstanding compensations cannot be granted without further affecting coverage.',
-  'advisory.optimalBody': 'All station requirements are met. {count} personnel are eligible for credit-based off-days.',
 
   // Confirm dialogs (titles + messages — accept name interpolation via {name})
   'confirm.removeEmp.title': 'Remove Personnel Record',
@@ -897,14 +884,6 @@ export const ar: Dict = {
   'schedule.warningFooter': 'تم تطبيق التعيين — تراجع أو أعد الرسم إذا لم يكن هذا مقصودًا.',
 
   // Staffing Advisory
-  'advisory.title': 'استشارة التوظيف',
-  'advisory.gaps': 'تم رصد فجوات تغطية',
-  'advisory.optimal': 'توظيف مثالي',
-  'advisory.hireToClose': 'وظِّف لسد الفجوات',
-  'advisory.toHire': 'للتوظيف',
-  'advisory.totalNote': 'موظفون إضافيون مطلوبون لجميع المحطات في الذروة. توظيف هذا العدد سيحل كل نقص دون اللجوء للعمل الإضافي أو إلغاء أيام الراحة.',
-  'advisory.roleHint': 'الدور المطلوب',
-  'advisory.roleUnset': 'لا دور محدد — مفتوح لأي موظف مؤهل.',
 
   // Payroll tab
   'payroll.title': 'الأرصدة والتعويضات',
@@ -1027,9 +1006,6 @@ export const ar: Dict = {
   'dashboard.empty.body': 'لا تُخزَّن أي بيانات موظفين على خوادم بعيدة. هذه النسخة محلية لهذا الجهاز.',
   'dashboard.empty.create': 'إنشاء أول سجل',
   'dashboard.empty.sample': 'بيانات نموذجية',
-  'advisory.gapsBody': 'العدد الحالي للموظفين غير كافٍ لتلبية الحد الأدنى للمحطات خلال ساعات الذروة.',
-  'advisory.bankNote': 'لا يمكن منح التعويضات المستحقة دون التأثير على التغطية.',
-  'advisory.optimalBody': 'تتم تلبية متطلبات جميع المحطات. {count} موظفين مؤهلون لأيام راحة على أساس الرصيد.',
 
   // Confirm dialogs
   'confirm.removeEmp.title': 'إزالة سجل موظف',
