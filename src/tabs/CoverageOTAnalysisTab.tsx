@@ -17,6 +17,9 @@ interface Props {
   holidays: PublicHoliday[];
   config: Config;
   schedule: Schedule;
+  // v2.1.1 — full schedule map so the Art. 74 comp-window check sees
+  // next-month CP/OFF days for late-month holidays.
+  allSchedules?: Record<string, Schedule>;
   prevMonth: () => void;
   nextMonth: () => void;
   onGoToRoster: () => void;
@@ -33,14 +36,14 @@ interface Props {
 // same `analyzeOT` helper so they never disagree on the totals.
 export function CoverageOTAnalysisTab(props: Props) {
   const {
-    employees, shifts, stations, holidays, config, schedule,
+    employees, shifts, stations, holidays, config, schedule, allSchedules,
     prevMonth, nextMonth, onGoToRoster, onGoToSchedule,
   } = props;
   const { t } = useI18n();
 
   const analysis = useMemo(
-    () => analyzeOT(employees, schedule, shifts, stations, holidays, config),
-    [employees, schedule, shifts, stations, holidays, config],
+    () => analyzeOT(employees, schedule, shifts, stations, holidays, config, allSchedules),
+    [employees, schedule, shifts, stations, holidays, config, allSchedules],
   );
 
   const avgMonthlySalary = useMemo(() => {

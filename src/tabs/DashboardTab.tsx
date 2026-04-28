@@ -15,6 +15,7 @@ import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
 import { StaffingAdvisoryCard } from '../components/StaffingAdvisoryCard';
 import { computeStaffingAdvisory } from '../lib/staffingAdvisory';
+import { computeHolidayPay } from '../lib/holidayCompPay';
 
 interface DashboardTabProps {
   employees: Employee[];
@@ -22,6 +23,9 @@ interface DashboardTabProps {
   holidays: PublicHoliday[];
   config: Config;
   schedule: Schedule;
+  // v2.1.1 — full schedule map so holiday OT premium calcs can peek into
+  // next month for late-month holidays.
+  allSchedules?: Record<string, Schedule>;
   stations: Station[];
   violations: Violation[];
   staffingGapsByStation: Array<{ stationId: string; stationName: string; gap: number; roleHint?: string }>;
@@ -46,7 +50,7 @@ interface DashboardTabProps {
 
 export function DashboardTab(props: DashboardTabProps) {
   const {
-    employees, shifts, holidays, config, schedule, stations,
+    employees, shifts, holidays, config, schedule, allSchedules, stations,
     violations, staffingGapsByStation, hourlyCoverage,
     peakStabilityPercent, overallCoveragePercent,
     isStatsModalOpen, setIsStatsModalOpen,
@@ -71,8 +75,6 @@ export function DashboardTab(props: DashboardTabProps) {
   // cost — both come from the same constants payroll.ts uses elsewhere.
   const cap = monthlyHourCap(config);
   const otRateDay = config.otRateDay ?? 1.5;
-  const otRateNight = config.otRateNight ?? 2.0;
-  const holidayDateSet = new Set(holidays.map(h => h.date));
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
 
   // Split OT into the two pools that pay at different rates under Iraqi
@@ -87,21 +89,19 @@ export function DashboardTab(props: DashboardTabProps) {
   for (const emp of employees) {
     const empSched = schedule[emp.empId] || {};
     let totalHrs = 0;
-    let holiHrs = 0;
-    for (const [dayStr, entry] of Object.entries(empSched)) {
-      const dateStr = format(new Date(config.year, config.month - 1, parseInt(dayStr)), 'yyyy-MM-dd');
+    for (const [, entry] of Object.entries(empSched)) {
       const shift = shiftByCode.get(entry.shiftCode);
       if (!shift?.isWork) continue;
       totalHrs += shift.durationHrs;
-      if (holidayDateSet.has(dateStr)) holiHrs += shift.durationHrs;
     }
     const hourly = baseHourlyRate(emp, config);
-    const stdOT = Math.max(0, totalHrs - cap - holiHrs);
+    // v2.1.1 — Holiday OT honours the Art. 74 either-or model. The 2×
+    // premium fires only when no comp day landed inside the window.
+    const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourly, allSchedules);
+    const stdOT = Math.max(0, totalHrs - cap - breakdown.premiumHolidayHours);
     totalOTHours += Math.max(0, totalHrs - cap);
     totalOverCapPay += stdOT * hourly * otRateDay;
-    // Holiday hours always pay the 2× premium per Art. 74. Worker also
-    // owed a comp rest day (tracked via emp.holidayBank).
-    totalHolidayPay += holiHrs * hourly * otRateNight;
+    totalHolidayPay += breakdown.premiumPay;
   }
   const totalOTPay = totalOverCapPay + totalHolidayPay;
   const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));

@@ -8,6 +8,7 @@ import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { LeaveManagerModal } from '../components/LeaveManagerModal';
 import { listAllLeaveRangesIncludingPainted } from '../lib/leaves';
+import { computeHolidayPay } from '../lib/holidayCompPay';
 
 interface PayrollTabProps {
   employees: Employee[];
@@ -15,6 +16,11 @@ interface PayrollTabProps {
   shifts: Shift[];
   holidays: PublicHoliday[];
   config: Config;
+  // v2.1.1 — full schedule map so the comp-window check can peek into
+  // next month for late-month holidays (a CP on Feb 3 satisfies the
+  // window for a Jan 28 holiday). Without this, every late-month
+  // holiday would falsely report premium owed.
+  allSchedules?: Record<string, Schedule>;
   onExport: () => void;
   onUpdateEmployee: (next: Employee) => void;
   // v1.16: month navigation. Same handlers App.tsx uses for the Schedule
@@ -52,7 +58,7 @@ const parseCSVLine = (line: string): string[] => {
   return out;
 };
 
-export function PayrollTab({ employees, schedule, shifts, holidays, config, onExport, onUpdateEmployee, prevMonth, nextMonth }: PayrollTabProps) {
+export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth }: PayrollTabProps) {
   const { t } = useI18n();
   const holidayDates = new Set(holidays.map(h => h.date));
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
@@ -68,32 +74,33 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
     const cap = monthlyHourCap(config);
     const headers = [
       'Employee ID', 'Name', 'Total Hours', 'Holiday Bank Days', 'Annual Leave Days',
-      'Base Monthly Salary', 'Hourly Rate', 'Standard OT Hours', 'Holiday OT Hours',
+      'Base Monthly Salary', 'Hourly Rate', 'Standard OT Hours',
+      'Holiday Hours Worked', 'Holiday Premium Hours (2× owed)',
       'Standard OT Pay (IQD)', 'Holiday OT Pay (IQD)', 'Net Payable (IQD)',
       'Year', 'Month',
     ];
     const rows = employees.map(emp => {
       const empSched = schedule[emp.empId] || {};
       let totalHours = 0;
-      let holidayOTHours = 0;
-      Object.entries(empSched).forEach(([day, entry]) => {
-        const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
-        const isHoli = holidayDates.has(dateStr);
+      Object.entries(empSched).forEach(([, entry]) => {
         const sh = shiftByCode.get(entry.shiftCode);
-        if (sh?.isWork) {
-          totalHours += sh.durationHrs;
-          if (isHoli) holidayOTHours += sh.durationHrs;
-        }
+        if (sh?.isWork) totalHours += sh.durationHrs;
       });
       const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
       const hourlyRate = baseHourlyRate(emp, config);
-      const standardOTHours = Math.max(0, totalHours - cap - holidayOTHours);
+      const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourlyRate, allSchedules);
+      // Standard OT = hours over the monthly cap, minus the 2×-paid
+      // holiday hours (premium pool) so we don't pay both rates on the
+      // same hour. Hours that earned a comp day fall back into the
+      // 1× regular pool and are eligible for the 1.5× over-cap rate.
+      const standardOTHours = Math.max(0, totalHours - cap - breakdown.premiumHolidayHours);
       const standardOTPay = Math.round(standardOTHours * hourlyRate * (config.otRateDay ?? 1.5));
-      const holidayOTPay = Math.round(holidayOTHours * hourlyRate * (config.otRateNight ?? 2.0));
+      const holidayOTPay = Math.round(breakdown.premiumPay);
       const netPayable = baseMonthly + standardOTPay + holidayOTPay;
       return [
         emp.empId, emp.name, totalHours.toFixed(1), emp.holidayBank, emp.annualLeaveBalance,
-        baseMonthly, Math.round(hourlyRate), standardOTHours.toFixed(1), holidayOTHours.toFixed(1),
+        baseMonthly, Math.round(hourlyRate), standardOTHours.toFixed(1),
+        breakdown.totalHolidayHours.toFixed(1), breakdown.premiumHolidayHours.toFixed(1),
         standardOTPay, holidayOTPay, netPayable, config.year, config.month,
       ];
     });
@@ -246,29 +253,28 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
               {employees.map(emp => {
                 const empSched = schedule[emp.empId] || {};
                 let totalHours = 0;
-                let holidayOTHours = 0;
-
-                Object.entries(empSched).forEach(([day, entry]) => {
-                  const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
-                  const isHoli = holidayDates.has(dateStr);
+                Object.entries(empSched).forEach(([, entry]) => {
                   const shift = shiftByCode.get(entry.shiftCode);
-                  if (shift?.isWork) {
-                    totalHours += shift.durationHrs;
-                    if (isHoli) holidayOTHours += shift.durationHrs;
-                  }
+                  if (shift?.isWork) totalHours += shift.durationHrs;
                 });
 
                 const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
                 const hourlyRate = baseHourlyRate(emp, config);
 
                 const cap = monthlyHourCap(config);
-                const standardOTHours = Math.max(0, totalHours - cap - holidayOTHours);
+                // v2.1.1 — Holiday OT honours the Art. 74 either-or model.
+                // The 2× premium fires only when no comp day (CP / OFF /
+                // leave) lands within `holidayCompWindowDays` after the
+                // PH-work day. For comp-day holidays where the rest day
+                // is granted, holiday hours roll into the regular wage
+                // and stay eligible for the 1.5× over-cap pool.
+                const holidayBreakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourlyRate, allSchedules);
+                const totalHolidayHours = holidayBreakdown.totalHolidayHours;
+                const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
+                const standardOTHours = Math.max(0, totalHours - cap - premiumHolidayHours);
 
                 const standardOTPay = standardOTHours * hourlyRate * (config.otRateDay ?? 1.5);
-                // Holiday hours always pay 2× per Art. 74 (cash premium) AND
-                // the worker is also owed a comp rest day. Tracked separately
-                // via emp.holidayBank — paid both, not "either/or".
-                const holidayOTPay = holidayOTHours * hourlyRate * (config.otRateNight ?? 2.0);
+                const holidayOTPay = holidayBreakdown.premiumPay;
 
                 const isOtEligible = totalHours > cap;
 
@@ -325,7 +331,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                       <div className="text-xs font-bold text-emerald-600">+{Math.round(standardOTPay + holidayOTPay).toLocaleString()}</div>
                       <div className="text-[9px] text-slate-400 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
-                        {holidayOTHours > 0 && `(incl. ${holidayOTHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
+                        {premiumHolidayHours > 0 && `(incl. ${premiumHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
+                        {totalHolidayHours > 0 && premiumHolidayHours === 0 && (
+                          <span className="text-emerald-600">{` (${totalHolidayHours.toFixed(1)}h holiday — comp day granted)`}</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

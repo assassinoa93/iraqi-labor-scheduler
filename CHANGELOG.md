@@ -2,6 +2,21 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v2.1.1 — 2026-04-28
+
+**Hotfix — Art. 74 either-or model now applies to the on-screen Payroll table and Dashboard KPIs.**
+
+The user reported still seeing 2× holiday OT pay in the Credits & Payroll table even with `comp-day` mode selected and CP days granted in the schedule. v2.1.0 fixed the model in `otAnalysis.ts` and the new payroll CSV export, but missed two on-screen call sites that were hardcoding "always 2× for any holiday hour worked":
+
+- **PayrollTab table** — the displayed OT amount and net payable used the v1.14 always-2× math. Now routes through the shared comp-window check; holiday hours with a CP / OFF / leave inside the configured window contribute 1× regular pay (no premium added). The OT cell shows `(8.0h holiday — comp day granted)` in green when the rotation succeeded, vs `(incl. 8.0h @ 200%)` only when the premium is genuinely owed.
+- **DashboardTab KPIs** — the headline "Holiday OT Pay" and total OT projection were also hardcoded to 2×. Same fix.
+
+**Cross-month visibility for late-month holidays.** A holiday on Jan 28 with the comp day landing on Feb 3 was previously reporting "premium owed" everywhere because the analysis couldn't see next month's schedule. v2.1.1 plumbs `allSchedules` through to PayrollTab, DashboardTab, and `analyzeOT` so the look-ahead crosses the month boundary correctly.
+
+**Single source of truth.** New `lib/holidayCompPay.ts` exposes `computeHolidayPay(emp, schedule, shifts, holidays, config, hourlyRate, allSchedules?)` — used by PayrollTab (table + CSV export), DashboardTab (KPIs), and `analyzeOT`. Pre-2.1.1 the gating logic lived inline in three places with subtle drift (otAnalysis was correct but month-bound; PayrollTab + DashboardTab still on v1.14 math). Now they share one implementation and any future Art. 74 change touches a single helper.
+
+**Tests** — 102 passing (9 new in `holidayCompPay.test.ts`): comp granted via CP / OFF inside the window, premium owed past the max, cross-month CP visibility, cash-ot mode override, per-holiday override beating the global default, holidays outside the active month skipped.
+
 ## v2.1.0 — 2026-04-28
 
 **Art. 74 either-or model + CP shift + RTL polish + payroll CSV.**

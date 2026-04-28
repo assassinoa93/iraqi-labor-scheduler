@@ -1931,6 +1931,7 @@ export default function App() {
                 holidays={holidays}
                 config={config}
                 schedule={schedule}
+                allSchedules={allSchedules}
                 stations={stations}
                 violations={violations}
                 staffingGapsByStation={staffingGapsByStation}
@@ -1955,6 +1956,7 @@ export default function App() {
                 holidays={holidays}
                 config={config}
                 schedule={schedule}
+                allSchedules={allSchedules}
                 prevMonth={prevMonth}
                 nextMonth={nextMonth}
                 onGoToRoster={() => setActiveTab('roster')}
@@ -1983,6 +1985,7 @@ export default function App() {
               <PayrollTab
                 employees={employees}
                 schedule={schedule}
+                allSchedules={allSchedules}
                 shifts={shifts}
                 holidays={holidays}
                 config={config}
