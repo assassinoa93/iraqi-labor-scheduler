@@ -1,11 +1,13 @@
-import React from 'react';
-import { Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
+import { LeaveManagerModal } from '../components/LeaveManagerModal';
+import { listAllLeaveRanges } from '../lib/leaves';
 
 interface PayrollTabProps {
   employees: Employee[];
@@ -14,12 +16,14 @@ interface PayrollTabProps {
   holidays: PublicHoliday[];
   config: Config;
   onExport: () => void;
+  onUpdateEmployee: (next: Employee) => void;
 }
 
-export function PayrollTab({ employees, schedule, shifts, holidays, config, onExport }: PayrollTabProps) {
+export function PayrollTab({ employees, schedule, shifts, holidays, config, onExport, onUpdateEmployee }: PayrollTabProps) {
   const { t } = useI18n();
   const holidayDates = new Set(holidays.map(h => h.date));
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
+  const [leaveEditFor, setLeaveEditFor] = useState<Employee | null>(null);
 
   return (
     <div className="space-y-6">
@@ -48,6 +52,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('payroll.col.hours')}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest underline decoration-blue-500/30">{t('payroll.col.holidayBank')}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest underline decoration-emerald-500/30">{t('payroll.col.annualLeave')}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('payroll.col.baseSalary')}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('payroll.col.hourlyRate')}</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
@@ -105,6 +110,22 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
                         {emp.annualLeaveBalance} {t('payroll.days')}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const ranges = listAllLeaveRanges(emp);
+                        return (
+                          <button
+                            onClick={() => setLeaveEditFor(emp)}
+                            title={ranges.length === 0 ? t('payroll.leavesNone') : ranges.map(r => `${r.type}: ${r.start} → ${r.end}`).join('\n')}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all text-[10px] font-bold text-slate-700 uppercase tracking-tight"
+                          >
+                            <Calendar className="w-3 h-3 text-slate-500" />
+                            {ranges.length > 0 ? `${ranges.length} · ` : ''}
+                            {t('payroll.manageLeaves')}
+                          </button>
+                        );
+                      })()}
+                    </td>
                     <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600">{baseMonthly.toLocaleString()} IQD</td>
                     <td className="px-6 py-4 font-mono text-xs text-slate-500">{Math.round(hourlyRate).toLocaleString()} IQD</td>
                     <td className="px-6 py-4">
@@ -134,6 +155,16 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, onEx
           </table>
         </div>
       </Card>
+
+      <LeaveManagerModal
+        isOpen={leaveEditFor !== null}
+        employee={leaveEditFor}
+        onClose={() => setLeaveEditFor(null)}
+        onSave={(next) => {
+          onUpdateEmployee(next);
+          setLeaveEditFor(null);
+        }}
+      />
     </div>
   );
 }

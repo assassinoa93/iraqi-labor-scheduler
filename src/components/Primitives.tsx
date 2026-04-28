@@ -48,12 +48,22 @@ export function KpiCard({ label, value, trend }: { label: string; value: any; tr
   );
 }
 
-export function ScheduleCell({ value, onClick, isRecent }: { value: string; onClick: () => void; isRecent?: boolean }) {
+export function ScheduleCell({
+  value, onClick, isRecent, onMouseDown, onMouseEnter,
+}: {
+  value: string;
+  onClick: (e: React.MouseEvent) => void;
+  isRecent?: boolean;
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onMouseEnter?: (e: React.MouseEvent) => void;
+}) {
   return (
     <button
       onClick={onClick}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
       className={cn(
-        "w-full h-10 border-none transition-all flex items-center justify-center font-bold text-[10px] group-hover:scale-105 relative",
+        "w-full h-10 border-none transition-all flex items-center justify-center font-bold text-[10px] group-hover:scale-105 relative select-none",
         value ? getShiftColor(value) : "bg-transparent hover:bg-slate-50",
         // The "just-swapped" highlight: a soft pulsing ring drawn via outline
         // so it sits over neighbouring cells without nudging the layout.

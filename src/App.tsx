@@ -11,7 +11,6 @@ import {
   FileSpreadsheet,
   Settings,
   Download,
-  Trash2,
   BarChart3,
   Flag,
   Database,
@@ -54,6 +53,8 @@ import { LocaleSwitcher } from './components/LocaleSwitcher';
 import { CompanySwitcher } from './components/CompanySwitcher';
 import { SimulationDeltaPanel, SimDeltaMetric } from './components/SimulationDeltaPanel';
 import { CoverageHintToast } from './components/CoverageHintToast';
+import { BulkAssignModal } from './components/BulkAssignModal';
+import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
 import {
   normalizeEmployees, normalizeShifts, normalizeStations, normalizeHolidays,
@@ -294,7 +295,13 @@ export default function App() {
     setSaveState('pending');
     const timeout = setTimeout(() => {
       setSaveState('saving');
-      fetch('/api/save', {
+      // One-shot audit suppression after factory reset. The flag is set by
+      // handleClearAllData before the page reload; consumed here so the
+      // first save (which would otherwise diff against an empty server
+      // state and emit dozens of "added X" entries) writes silently.
+      const skipAudit = window.localStorage.getItem('iraqi-scheduler-skip-next-audit') === '1';
+      if (skipAudit) window.localStorage.removeItem('iraqi-scheduler-skip-next-audit');
+      fetch('/api/save' + (skipAudit ? '?skipAudit=1' : ''), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -354,6 +361,7 @@ export default function App() {
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
 
   // Lightweight info dialog — single OK button, no destructive action. Used
   // in place of native `alert()` so the message respects RTL layout and the
@@ -554,6 +562,26 @@ export default function App() {
     });
   };
 
+  const handleBulkAssignShift = (shiftCode: string, fromDay: number, toDay: number, overwrite: boolean) => {
+    setSchedule(prev => {
+      const next = { ...prev };
+      for (const empId of selectedEmployees) {
+        const empBucket = { ...(next[empId] || {}) };
+        for (let d = fromDay; d <= toDay; d++) {
+          if (!overwrite && empBucket[d]) continue;
+          empBucket[d] = { shiftCode };
+        }
+        next[empId] = empBucket;
+      }
+      return next;
+    });
+    // Bulk assignments could touch hundreds of cells — clearing the per-cell
+    // undo stack avoids partial-state confusion. The user can use the existing
+    // schedule-level undo (Auto-Schedule undo stack) if available.
+    setCellUndoStack([]);
+    setIsBulkAssignOpen(false);
+  };
+
   const handleClearAllData = () => {
     setConfirmState({
       isOpen: true,
@@ -573,6 +601,12 @@ export default function App() {
           .then(r => r.ok ? r.json() : Promise.reject(r))
           .then(() => {
             localStorage.clear();
+            // The renderer will fall back to INITIAL data on the next load and
+            // immediately auto-save it. Mark that one save so the server
+            // skips the diff — otherwise the audit log fills with dozens of
+            // "added employee" entries that drown out the single "Factory
+            // reset" entry the server just wrote.
+            localStorage.setItem('iraqi-scheduler-skip-next-audit', '1');
             showInfo(t('confirm.factoryReset.title'), t('info.factoryReset.body'));
             setTimeout(() => window.location.reload(), 1500);
           })
@@ -843,6 +877,9 @@ export default function App() {
       month: next.getMonth() + 1,
       daysInMonth: getDaysInMonth(next),
     }));
+    // Per-cell undo entries are scoped to the active month — drop them so
+    // Ctrl+Z doesn't try to revert paints from a month that's no longer open.
+    setCellUndoStack([]);
   };
 
   const prevMonth = () => {
@@ -853,6 +890,7 @@ export default function App() {
       month: prev.getMonth() + 1,
       daysInMonth: getDaysInMonth(prev),
     }));
+    setCellUndoStack([]);
   };
 
   // Preview-then-apply for the auto-scheduler.
@@ -929,6 +967,9 @@ export default function App() {
     setEmployees(pendingScheduleResult.employees);
     setSchedule(pendingScheduleResult.schedule);
     setPendingScheduleResult(null);
+    // Per-cell undo entries reference the prior schedule's cells. After a
+    // wholesale auto-scheduler apply they're meaningless, so drop them.
+    setCellUndoStack([]);
   };
 
   const undoLastSchedule = () => {
@@ -1171,6 +1212,41 @@ export default function App() {
     [employees, shifts, stations, holidays, config, schedule, isPeakDay],
   );
 
+  // Per-cell undo stack — each entry captures the prior contents of a single
+  // (empId, day) cell so Ctrl+Z can revert one paint at a time. A bundled
+  // entry (e.g. shift+click range fill) records every cell it touched so
+  // a single undo restores the entire range.
+  type CellEdit = { empId: string; day: number; prev: { shiftCode: string; stationId?: string } | undefined };
+  const [cellUndoStack, setCellUndoStack] = useState<Array<{ edits: CellEdit[] }>>([]);
+
+  const pushCellUndo = React.useCallback((edits: CellEdit[]) => {
+    if (edits.length === 0) return;
+    // Cap depth at 50 — one paint per second for nearly a minute, plenty for
+    // the "oops, I mispainted that" use case.
+    setCellUndoStack(prev => [{ edits }, ...prev].slice(0, 50));
+  }, []);
+
+  const undoLastCell = React.useCallback(() => {
+    setCellUndoStack(prev => {
+      if (prev.length === 0) return prev;
+      const [last, ...rest] = prev;
+      setSchedule(curr => {
+        const next: typeof curr = { ...curr };
+        for (const edit of last.edits) {
+          const empBucket = { ...(next[edit.empId] || {}) };
+          if (edit.prev === undefined) {
+            delete empBucket[edit.day];
+          } else {
+            empBucket[edit.day] = edit.prev;
+          }
+          next[edit.empId] = empBucket;
+        }
+        return next;
+      });
+      return rest;
+    });
+  }, [setSchedule]);
+
   const handleCellClick = (empId: string, day: number) => {
     const prev = schedule[empId]?.[day];
     if (paintMode) {
@@ -1186,6 +1262,11 @@ export default function App() {
         }
       }
       const next = { shiftCode: paintMode.shiftCode, stationId: paintMode.stationId };
+      // Skip pushing undo when nothing actually changes (drag-paint sweeps
+      // back over a cell that's already correct shouldn't bloat the stack).
+      if (!prev || prev.shiftCode !== next.shiftCode || prev.stationId !== next.stationId) {
+        pushCellUndo([{ empId, day, prev }]);
+      }
       setSchedule(p => ({
         ...p,
         [empId]: {
@@ -1200,6 +1281,7 @@ export default function App() {
       const idx = shifts.findIndex(s => s.code === current);
       const nextShift = shifts[(idx + 1) % shifts.length];
       const next = { shiftCode: nextShift.code };
+      pushCellUndo([{ empId, day, prev }]);
       setSchedule(p => ({
         ...p,
         [empId]: {
@@ -1209,6 +1291,40 @@ export default function App() {
       }));
       surfaceCoverageHint(empId, day, prev, next);
     }
+  };
+
+  // Shift+click range fill: paints every cell in the rectangle from
+  // (anchorEmpId, anchorDay) to (empId, day). The two endpoints define the
+  // employee-ordering rectangle (so users can drag down a roster column or
+  // across a date row). Records all touched cells as a single undo entry so
+  // Ctrl+Z reverts the whole range in one step.
+  const handleCellRangeFill = (anchorEmpId: string, anchorDay: number, empId: string, day: number) => {
+    if (!paintMode) return;
+    const indexById = new Map(filteredScheduleEmployees.map((e, i) => [e.empId, i]));
+    const anchorIdx = indexById.get(anchorEmpId);
+    const targetIdx = indexById.get(empId);
+    if (anchorIdx === undefined || targetIdx === undefined) return;
+    const [empStart, empEnd] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+    const [dStart, dEnd] = anchorDay < day ? [anchorDay, day] : [day, anchorDay];
+    const next = { shiftCode: paintMode.shiftCode, stationId: paintMode.stationId };
+    const edits: CellEdit[] = [];
+    setSchedule(p => {
+      const updated = { ...p };
+      for (let i = empStart; i <= empEnd; i++) {
+        const e = filteredScheduleEmployees[i];
+        const empBucket = { ...(updated[e.empId] || {}) };
+        for (let d = dStart; d <= dEnd; d++) {
+          const prev = empBucket[d];
+          if (!prev || prev.shiftCode !== next.shiftCode || prev.stationId !== next.stationId) {
+            edits.push({ empId: e.empId, day: d, prev });
+            empBucket[d] = next;
+          }
+        }
+        updated[e.empId] = empBucket;
+      }
+      return updated;
+    });
+    pushCellUndo(edits);
   };
 
   // User picked a swap candidate from the coverage hint toast. Move the
@@ -1280,6 +1396,7 @@ export default function App() {
     setPaintMode(null);
     setPendingScheduleResult(null);
     setScheduleUndoStack([]);
+    setCellUndoStack([]);
     setSelectedEmployees(new Set());
   };
 
@@ -1470,13 +1587,6 @@ export default function App() {
         <div className="p-4 border-t border-slate-700 bg-[#0F172A]/50 space-y-2">
           <LocaleSwitcher />
           <button
-            onClick={handleClearAllData}
-            className="w-full flex items-center gap-3 px-4 py-2 text-[10px] font-black text-rose-400 uppercase tracking-widest hover:bg-rose-500/10 rounded-lg transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
-            {t('sidebar.factoryReset')}
-          </button>
-          <button
             onClick={handleQuitApp}
             className="w-full flex items-center gap-3 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-red-900/20"
           >
@@ -1585,6 +1695,7 @@ export default function App() {
                 nextMonth={nextMonth}
                 onGoToRoster={() => setActiveTab('roster')}
                 onLoadSample={loadSampleData}
+                activeCompanyId={activeCompanyId}
               />
             )}
 
@@ -1596,6 +1707,7 @@ export default function App() {
                 holidays={holidays}
                 config={config}
                 onExport={exportScheduleCSV}
+                onUpdateEmployee={(next) => setEmployees(prev => prev.map(e => e.empId === next.empId ? next : e))}
               />
             )}
 
@@ -1613,6 +1725,7 @@ export default function App() {
                 onDelete={handleDeleteEmployee}
                 onBulkDelete={handleBulkDelete}
                 onLoadSample={loadSampleData}
+                onBulkAssignShift={() => setIsBulkAssignOpen(true)}
               />
             )}
 
@@ -1650,7 +1763,10 @@ export default function App() {
                 prevMonth={prevMonth}
                 nextMonth={nextMonth}
                 onCellClick={handleCellClick}
+                onCellRangeFill={handleCellRangeFill}
                 onUndo={undoLastSchedule}
+                onUndoCell={undoLastCell}
+                cellUndoDepth={cellUndoStack.length}
                 onRunAuto={handleRunAutoScheduler}
                 paintWarnings={paintWarnings}
                 onDismissPaintWarnings={() => setPaintWarnings(null)}
@@ -1785,6 +1901,26 @@ export default function App() {
         hint={coverageHint}
         onDismiss={() => setCoverageHint(null)}
         onPickReplacement={acceptCoverageSwap}
+      />
+
+      <BulkAssignModal
+        isOpen={isBulkAssignOpen}
+        onClose={() => setIsBulkAssignOpen(false)}
+        selectedCount={selectedEmployees.size}
+        shifts={shifts}
+        daysInMonth={config.daysInMonth}
+        onApply={handleBulkAssignShift}
+      />
+
+      {/* Print-only view of the master schedule. Hidden via CSS in normal display
+          mode; @media print swaps it in so users can print all employees on a
+          single A3 landscape sheet without the virtualised grid clipping rows. */}
+      <PrintScheduleView
+        employees={employees}
+        shifts={shifts}
+        holidays={holidays}
+        config={config}
+        schedule={schedule}
       />
     </div>
     </>

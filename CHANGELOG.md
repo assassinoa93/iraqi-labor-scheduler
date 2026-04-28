@@ -2,6 +2,39 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.7.0 — 2026-04-28
+
+Two-batch release: a focused bug-fix round followed by a feature push. Schema gains an optional multi-range `leaveRanges` field on Employee; old single-range fields stay supported via a unified read helper, so v1.6.x backups load without conversion.
+
+**Workforce features**
+- **Multi-range leave manager.** New `LeaveManagerModal` accessed from the Credits & Payroll tab (one button per employee). Each employee can have any number of annual / sick / maternity windows, each with its own start/end and optional notes. Replaces the single date-range fields that used to live on the EmployeeModal — those were misleading because employees rarely take exactly one block of leave per type. The auto-scheduler, compliance engine, and coverage-hint toast now read leave state via `getEmployeeLeaveOnDate(emp, dateStr)` in `lib/leaves.ts`, which transparently handles both the new `leaveRanges` array and the legacy single-range fields.
+- **Schedule grid power-ups.** Drag-to-paint (hold mouse + drag across cells in paint mode), Shift+click range fill (rectangle from the last clicked cell to the current one, single bundled undo entry), and per-cell undo (Ctrl+Z) that reverts the most recent paint without losing the rest of the month. The per-cell undo stack is separate from the existing 5-deep Auto-Schedule undo stack.
+- **Bulk shift assignment from the Roster.** Select N employees, hit *Assign Shift*, pick a shift code and day range, choose whether to overwrite existing entries — paints the rectangle in one shot.
+- **Per-employee labor-law card.** Hover any employee name in the schedule grid for a tooltip showing total hours, hours-vs-cap, peak rolling-7 window, longest streak, and last day worked. A small badge highlights employees at or above 90% of their weekly cap.
+- **Compliance trendline (dashboard).** A 30-day sparkline driven by per-day localStorage snapshots. Self-bootstrapping — no setup. Per-company so switching company resets the chart.
+- **Print view.** Schedule tab "Print" button renders all employees as a static A3 landscape table with shift colours preserved (`-webkit-print-color-adjust: exact`). Hidden in normal display via `@media print`; the static table sidesteps the virtualised grid's clipping.
+- **Dark mode.** Sidebar toggle cycles Light → Dark → System. Tailwind v4 `@variant dark` is wired up alongside global CSS overrides for `bg-white`, `text-slate-*`, and form fields so the app reads cleanly without per-component edits.
+- **Daily auto-snapshot.** Electron main process snapshots `data/` once per calendar day on launch, retains the 7 most recent. Independent from the post-update snapshot — gives you a recovery point even between version updates.
+- **RTL pass.** CSS shim mirrors `ml-*` / `mr-*` / `pl-*` / `pr-*` / `border-l/r` / `text-left/right` utilities when `dir="rtl"` is set, so icon+text patterns and tab indicators flip correctly in Arabic mode.
+
+**Bug fixes**
+- **Auto-scheduler preview reliability.** The `SchedulePreviewModal` is now wrapped in `AnimatePresence` with explicit enter/exit animations. Previously, fast consecutive auto-scheduler runs could leave the panel in a partially-animated state where it never reached `opacity:1` and silently failed to appear.
+- **Simulation banner no longer blocks modals.** Lowered the panel's z-index from `z-[80]` to `z-[40]` (below all modals at z-50+) and added a collapse toggle so the user can shrink it to a small floating pill in the bottom-center.
+- **Leave fields removed from Employee modal.** The single-range fields were misleading and lived in the wrong place. The Roster modal now points users to the Credits & Payroll tab via a one-line note.
+- **Legal Variables tab translates to Arabic.** All cap labels, descriptions, units, section subtitles, the editing-warning panel, and the references footer go through `t()` now (was hardcoded English).
+- **Factory reset audit-log spam.** `/api/reset` now writes a single "Factory reset performed" entry server-side. The renderer sets a one-shot localStorage flag so the next save (which would otherwise re-emit dozens of "added employee" entries from the seeded defaults) is sent with `?skipAudit=1`.
+- **Clear Audit Log action.** New button on the Audit Log tab with a confirmation modal. Calls the existing `/api/audit/clear` endpoint.
+- **Factory Reset moved off the front page.** Removed from the sidebar (where it was tempting to mis-click). Still accessible from System Settings → Database & Security where it belongs.
+- **Master Schedule keyboard shortcuts.** Number keys 1–9 select the Nth shift code from the painter row; Esc / 0 clear paint mode. Each painter button now displays a small superscript hint, plus a `1-9 / Esc` legend in the toolbar.
+
+**Architecture**
+- New `src/lib/leaves.ts` — single source of truth for "is this employee on leave on this date" with bidirectional support for new multi-range and legacy single-range fields.
+- New `src/lib/employeeStats.ts` — per-employee monthly running counters used by the schedule-grid tooltip + cap badge.
+- New `src/lib/complianceHistory.ts` — per-company localStorage-backed daily snapshot store powering the trendline.
+- New `src/lib/theme.tsx` — ThemeProvider with light / dark / system preference, OS-theme tracking via `prefers-color-scheme`.
+- `src/lib/migration.ts` extended to recognize and validate the new `leaveRanges` field; malformed rows are dropped silently rather than blocking the load.
+- `electron/main.cjs` adds `performDailySnapshot()` alongside the existing post-update snapshot, with the same rotation pattern.
+
 ## v1.6.3 — 2026-04-27
 
 Polish round on top of v1.6.2 — auto-scheduler insights, swap-suggestion UX, and more realistic seeded data. No data-format changes; v1.6.2 backups load directly.

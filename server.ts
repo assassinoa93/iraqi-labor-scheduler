@@ -240,21 +240,27 @@ async function startServer() {
   // API: Save App Data — also computes a per-domain diff vs. the prior on-disk
   // state and appends entries to the audit log so we have a "who/what/when"
   // record across edits even though there's only one user.
+  // Pass ?skipAudit=1 to write data without appending audit entries (used by
+  // the renderer right after a factory reset, when default seed data would
+  // otherwise generate dozens of noise entries).
   app.post("/api/save", (req, res) => {
     const body = req.body || {};
+    const skipAudit = req.query?.skipAudit === '1';
     try {
       const auditEntries: AuditEntry[] = [];
       for (const key of Object.keys(body)) {
         if (!ALLOWED_KEYS.has(key)) continue;
-        const prevRaw = readDomain(key);
-        const prev = key === "companies" ? prevRaw : migrateLegacyDomain(key, prevRaw).value;
-        const next = body[key];
-        auditEntries.push(...diffDomain(key, prev, next));
+        if (!skipAudit) {
+          const prevRaw = readDomain(key);
+          const prev = key === "companies" ? prevRaw : migrateLegacyDomain(key, prevRaw).value;
+          const next = body[key];
+          auditEntries.push(...diffDomain(key, prev, next));
+        }
         const filePath = path.join(DATA_DIR, `${key}.json`);
-        atomicWrite(filePath, JSON.stringify(next, null, 2));
+        atomicWrite(filePath, JSON.stringify(body[key], null, 2));
       }
-      appendAudit(auditEntries);
-      res.json({ success: true, auditAdded: auditEntries.length });
+      if (!skipAudit) appendAudit(auditEntries);
+      res.json({ success: true, auditAdded: auditEntries.length, skipAudit });
     } catch (e) {
       console.error("[Scheduler] Save failed:", e);
       res.status(500).json({ error: "Save failed" });
@@ -324,12 +330,26 @@ async function startServer() {
           fs.unlinkSync(path.join(DATA_DIR, file));
         }
       }
-      // Audit log is wiped alongside everything else on factory reset.
+      // Replace the wiped audit log with a single "Factory reset" marker so
+      // the user has a clear record of when the reset happened, instead of
+      // dozens of "added employee" entries when the client re-seeds defaults.
+      const resetEntry: AuditEntry = {
+        ts: Date.now(),
+        domain: "system",
+        op: "replace",
+        summary: "Factory reset performed",
+      };
+      atomicWrite(AUDIT_FILE, JSON.stringify([resetEntry], null, 2));
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Could not reset data" });
     }
   });
+
+  // Save endpoint accepts ?skipAudit=1 so the client can avoid spamming the
+  // log right after a factory reset (when the renderer re-seeds defaults).
+  // The flag is set on the client side via a localStorage marker that survives
+  // the post-reset page reload.
 
   // API: Shutdown
   app.post("/api/shutdown", (_req, res) => {

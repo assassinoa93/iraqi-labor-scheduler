@@ -99,6 +99,49 @@ function performPostUpdateSnapshot() {
 
 performPostUpdateSnapshot();
 
+// ─── Daily auto-snapshot ─────────────────────────────────────────────────────
+// Take a copy of the data folder once per calendar day on app launch, so users
+// have a recovery point even between version updates. Independent from the
+// post-update snapshot above (which only fires after an installer run).
+// Retention: keep the 7 most recent daily snapshots — roughly a week of safety.
+function performDailySnapshot() {
+  if (isDev) return;
+  try {
+    const userData = app.getPath('userData');
+    if (!fs.existsSync(dataDir)) return;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const snapshotName = `data-daily-${today}`;
+    const snapshotDir = path.join(userData, snapshotName);
+    // Idempotent: if today's snapshot already exists, skip. The user's first
+    // launch of the day creates it; subsequent launches no-op.
+    if (fs.existsSync(snapshotDir)) return;
+    try {
+      fs.cpSync(dataDir, snapshotDir, { recursive: true });
+      console.log(`[Electron] Daily snapshot saved to ${snapshotDir}`);
+    } catch (cpErr) {
+      console.error('[Electron] Daily snapshot copy failed:', cpErr);
+      return;
+    }
+    // Rotate: keep the 7 most recent daily snapshots.
+    try {
+      const entries = fs.readdirSync(userData, { withFileTypes: true })
+        .filter(d => d.isDirectory() && d.name.startsWith('data-daily-'))
+        .map(d => ({ name: d.name, full: path.join(userData, d.name), mtime: fs.statSync(path.join(userData, d.name)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      for (const old of entries.slice(7)) {
+        fs.rmSync(old.full, { recursive: true, force: true });
+        console.log(`[Electron] Rotated old daily snapshot: ${old.name}`);
+      }
+    } catch (rotErr) {
+      console.error('[Electron] Daily snapshot rotation failed:', rotErr);
+    }
+  } catch (e) {
+    console.error('[Electron] Daily snapshot pipeline failed:', e);
+  }
+}
+
+performDailySnapshot();
+
 // ─── Start Express server in-process (production only) ───────────────────────
 // In dev, `npm run dev` already runs the tsx server separately.
 if (!isDev) {

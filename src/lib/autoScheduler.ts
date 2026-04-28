@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
 import { parseHourBounds, parseHour, type HourBounds } from './time';
+import { getEmployeeLeaveOnDate } from './leaves';
 
 interface RunArgs {
   employees: Employee[];
@@ -164,19 +165,19 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
   const art86NightStart = config.art86NightStart || ART86_DEFAULT_NIGHT_START;
   const art86NightEnd = config.art86NightEnd || ART86_DEFAULT_NIGHT_END;
 
+  // Per-type leave predicates delegate to the unified helper which handles
+  // both v1.7 multi-range leaves AND legacy single-range fields.
   const isOnMaternityLeave = (emp: Employee, dateStr: string): boolean => {
-    if (!emp.maternityLeaveStart || !emp.maternityLeaveEnd) return false;
-    return dateStr >= emp.maternityLeaveStart && dateStr <= emp.maternityLeaveEnd;
+    const r = getEmployeeLeaveOnDate(emp, dateStr);
+    return !!r && r.type === 'maternity';
   };
-
   const isOnSickLeave = (emp: Employee, dateStr: string): boolean => {
-    if (!emp.sickLeaveStart || !emp.sickLeaveEnd) return false;
-    return dateStr >= emp.sickLeaveStart && dateStr <= emp.sickLeaveEnd;
+    const r = getEmployeeLeaveOnDate(emp, dateStr);
+    return !!r && r.type === 'sick';
   };
-
   const isOnAnnualLeave = (emp: Employee, dateStr: string): boolean => {
-    if (!emp.annualLeaveStart || !emp.annualLeaveEnd) return false;
-    return dateStr >= emp.annualLeaveStart && dateStr <= emp.annualLeaveEnd;
+    const r = getEmployeeLeaveOnDate(emp, dateStr);
+    return !!r && r.type === 'annual';
   };
 
   const isRamadan = (dateStr: string): boolean => {

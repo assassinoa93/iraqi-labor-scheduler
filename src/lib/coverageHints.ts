@@ -18,6 +18,7 @@
 
 import { Employee, Shift, Station, Schedule, Config, PublicHoliday } from '../types';
 import { previewAssignmentWarnings } from './compliance';
+import { getEmployeeLeaveOnDate } from './leaves';
 
 export interface CoverageGap {
   // The day-of-month (1-based) where the gap appeared.
@@ -124,11 +125,10 @@ export function findSwapCandidates(
       if (gap.station.requiredRoles?.length && !gap.station.requiredRoles.some(r => r === emp.role || r === 'Standard')) continue;
     }
 
-    // Skip employees on a protected leave that day.
+    // Skip employees on any protected leave that day. The unified helper
+    // handles both v1.7 multi-range leaves and the legacy single-range fields.
     const dateStr = new Date(config.year, config.month - 1, gap.day).toISOString().slice(0, 10);
-    if (emp.maternityLeaveStart && emp.maternityLeaveEnd && dateStr >= emp.maternityLeaveStart && dateStr <= emp.maternityLeaveEnd) continue;
-    if (emp.sickLeaveStart && emp.sickLeaveEnd && dateStr >= emp.sickLeaveStart && dateStr <= emp.sickLeaveEnd) continue;
-    if (emp.annualLeaveStart && emp.annualLeaveEnd && dateStr >= emp.annualLeaveStart && dateStr <= emp.annualLeaveEnd) continue;
+    if (getEmployeeLeaveOnDate(emp, dateStr)) continue;
 
     const currentEntry = schedule[emp.empId]?.[gap.day];
     const currentShift = currentEntry ? shiftMap.get(currentEntry.shiftCode) : undefined;

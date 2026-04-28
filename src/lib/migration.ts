@@ -70,6 +70,19 @@ export function normalizeEmployee(raw: Partial<Employee> & Record<string, unknow
     annualLeaveEnd: typeof raw.annualLeaveEnd === 'string' ? raw.annualLeaveEnd : undefined,
     preferredShiftCodes: Array.isArray(raw.preferredShiftCodes) ? (raw.preferredShiftCodes as string[]) : [],
     avoidShiftCodes: Array.isArray(raw.avoidShiftCodes) ? (raw.avoidShiftCodes as string[]) : [],
+    // Multi-range leaves (v1.7+). Validate each entry; drop malformed rows.
+    leaveRanges: Array.isArray(raw.leaveRanges)
+      ? (raw.leaveRanges as unknown as Array<Record<string, unknown>>)
+          .filter(r => r && typeof r === 'object' && typeof r.start === 'string' && typeof r.end === 'string'
+            && (r.type === 'annual' || r.type === 'sick' || r.type === 'maternity'))
+          .map(r => ({
+            id: typeof r.id === 'string' && r.id.length > 0 ? r.id : `lv-${Math.random().toString(36).slice(2, 8)}`,
+            type: r.type as 'annual' | 'sick' | 'maternity',
+            start: r.start as string,
+            end: r.end as string,
+            notes: typeof r.notes === 'string' ? r.notes : undefined,
+          }))
+      : undefined,
   };
 }
 

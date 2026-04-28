@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
+/* Tailwind v4 dark mode: enable the `dark:` modifier when html.dark is set.
+   The ThemeProvider toggles that class based on user preference / OS theme. */
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
@@ -10,5 +14,200 @@
 @layer base {
   body {
     @apply antialiased text-slate-800;
+  }
+  .dark body {
+    @apply text-slate-200;
+  }
+}
+
+/* ─── Dark-mode global overrides ──────────────────────────────────────────────
+   Component-by-component `dark:` annotation would touch every file in the
+   codebase. As a pragmatic baseline we override the most common surfaces here
+   via attribute selectors so any component using the standard slate palette
+   gets readable in dark mode without per-component edits. Components that
+   want fully custom dark styling can still add their own `dark:` classes. */
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .bg-slate-50 { background-color: #0f172a !important; }
+.dark .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
+.dark .bg-\[\#F3F4F6\] { background-color: #0b1220 !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-slate-400 { color: #64748b !important; }
+.dark .border-slate-100 { border-color: #1e293b !important; }
+.dark .border-slate-200 { border-color: #334155 !important; }
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  --tw-shadow-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ─── RTL pass ────────────────────────────────────────────────────────────────
+   Tailwind v4 doesn't auto-mirror directional utilities (ml-*, mr-*, pl-*,
+   pr-*, left-*, right-*). The browser already mirrors `flex` order via
+   `direction: rtl` on the html element (set by LocaleProvider when locale=ar)
+   but margin/padding/inset values stay literal. The rules below catch the
+   common cases used throughout the codebase (icon-with-text gaps, toolbar
+   spacing). Components that explicitly want LTR layout in RTL mode (e.g. a
+   numeric column header) should add `dir="ltr"` locally to opt out. */
+[dir="rtl"] .mr-1 { margin-right: 0; margin-left: 0.25rem; }
+[dir="rtl"] .mr-1\.5 { margin-right: 0; margin-left: 0.375rem; }
+[dir="rtl"] .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+[dir="rtl"] .mr-3 { margin-right: 0; margin-left: 0.75rem; }
+[dir="rtl"] .mr-4 { margin-right: 0; margin-left: 1rem; }
+[dir="rtl"] .ml-1 { margin-left: 0; margin-right: 0.25rem; }
+[dir="rtl"] .ml-1\.5 { margin-left: 0; margin-right: 0.375rem; }
+[dir="rtl"] .ml-2 { margin-left: 0; margin-right: 0.5rem; }
+[dir="rtl"] .ml-3 { margin-left: 0; margin-right: 0.75rem; }
+[dir="rtl"] .ml-4 { margin-left: 0; margin-right: 1rem; }
+[dir="rtl"] .ml-auto { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .mr-auto { margin-right: 0; margin-left: auto; }
+[dir="rtl"] .pl-1 { padding-left: 0; padding-right: 0.25rem; }
+[dir="rtl"] .pl-2 { padding-left: 0; padding-right: 0.5rem; }
+[dir="rtl"] .pl-3 { padding-left: 0; padding-right: 0.75rem; }
+[dir="rtl"] .pl-4 { padding-left: 0; padding-right: 1rem; }
+[dir="rtl"] .pr-1 { padding-right: 0; padding-left: 0.25rem; }
+[dir="rtl"] .pr-2 { padding-right: 0; padding-left: 0.5rem; }
+[dir="rtl"] .pr-3 { padding-right: 0; padding-left: 0.75rem; }
+[dir="rtl"] .pr-4 { padding-right: 0; padding-left: 1rem; }
+/* Border-l/border-r aren't visual layout but they read as decorative —
+   mirror them in RTL too so a leading rule in LTR stays leading in RTL. */
+[dir="rtl"] .border-l { border-left: 0; border-right: 1px solid; }
+[dir="rtl"] .border-r { border-right: 0; border-left: 1px solid; }
+/* Table cells in PayrollTab use text-left explicitly — they should flip too. */
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
+
+/* The tab nav uses a leading colored stripe (border-l-4); mirror it for RTL. */
+[dir="rtl"] .border-l-4 { border-left: 0; border-right: 4px solid; }
+
+/* ─── Print stylesheet ─────────────────────────────────────────────────────────
+   The .print-only block is hidden in normal display. When the user invokes
+   the browser's Print dialog (Ctrl+P, or the schedule tab's Print button),
+   the @media print block hides every other element and shows the dedicated
+   print view that renders all employees as a static table with no chrome. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* Hide everything outside the print view, then reveal the print view as
+     full-bleed. Tailwind's bg/colour utilities don't print by default —
+     -webkit-print-color-adjust: exact forces shift code backgrounds through. */
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: white;
+    color: black;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 12mm 8mm;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 9pt;
+  }
+  @page {
+    size: A3 landscape;
+    margin: 6mm;
+  }
+  .print-header {
+    margin-bottom: 6mm;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 3mm;
+  }
+  .print-header h1 {
+    font-size: 14pt;
+    font-weight: 800;
+    margin: 0 0 1mm 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .print-header p {
+    margin: 0;
+    font-size: 9pt;
+    color: #475569;
+  }
+  .print-meta {
+    font-size: 7pt !important;
+    color: #94a3b8 !important;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1mm !important;
+  }
+  .print-schedule {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .print-schedule th,
+  .print-schedule td {
+    border: 0.5pt solid #cbd5e1;
+    padding: 1mm;
+    text-align: center;
+    font-size: 7.5pt;
+    line-height: 1.1;
+  }
+  .print-name-col {
+    width: 28mm;
+    text-align: left !important;
+    background: #f8fafc;
+    font-size: 8pt !important;
+  }
+  .print-name-col strong {
+    display: block;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .print-meta-inline {
+    display: block;
+    font-size: 6pt;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 0.5mm;
+  }
+  .print-day-col {
+    background: #1e293b;
+    color: white;
+    font-weight: 800;
+  }
+  .print-day-col.print-weekend {
+    background: #475569;
+  }
+  .print-day-col.print-holiday {
+    background: #b91c1c;
+  }
+  .print-dow {
+    font-size: 6pt;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 0.5mm;
+  }
+  .print-cell {
+    font-weight: 700;
+    height: 6mm;
+  }
+  .print-footer {
+    margin-top: 4mm;
+    border-top: 0.5pt solid #cbd5e1;
+    padding-top: 2mm;
+    font-size: 7pt;
+    color: #94a3b8;
+    text-align: center;
   }
 }

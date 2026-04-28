@@ -1,6 +1,7 @@
 import { Employee, Shift, PublicHoliday, Config, Violation, Schedule } from '../types';
 import { differenceInHours, parse, addDays, format } from 'date-fns';
 import { parseHour } from './time';
+import { getEmployeeLeaveOnDate } from './leaves';
 
 // Driver defaults — used when Config doesn't yet carry driver fields (older saves).
 const DRIVER_DEFAULTS = {
@@ -17,25 +18,21 @@ const ART86_DEFAULT_NIGHT_END = '07:00';
 
 const isDriver = (emp: Employee) => emp.category === 'Driver';
 
-// True iff the YYYY-MM-DD `dateStr` falls within the inclusive maternity
-// leave range on the employee. Either field missing → no active leave.
+// Type-specific leave predicates. These delegate to the unified
+// getEmployeeLeaveOnDate helper, which transparently handles both the
+// multi-range `leaveRanges` field (v1.7+) and the legacy single-range
+// fields (pre-1.7) so existing data keeps working without migration.
 const isOnMaternityLeave = (emp: Employee, dateStr: string): boolean => {
-  if (!emp.maternityLeaveStart || !emp.maternityLeaveEnd) return false;
-  return dateStr >= emp.maternityLeaveStart && dateStr <= emp.maternityLeaveEnd;
+  const r = getEmployeeLeaveOnDate(emp, dateStr);
+  return !!r && r.type === 'maternity';
 };
-
-// Sick leave equivalent of the above. Same string-comparison trick: ISO dates
-// sort lexicographically the same way they sort chronologically.
 const isOnSickLeave = (emp: Employee, dateStr: string): boolean => {
-  if (!emp.sickLeaveStart || !emp.sickLeaveEnd) return false;
-  return dateStr >= emp.sickLeaveStart && dateStr <= emp.sickLeaveEnd;
+  const r = getEmployeeLeaveOnDate(emp, dateStr);
+  return !!r && r.type === 'sick';
 };
-
-// Annual / approved-vacation leave window. Same date-range semantics as
-// maternity / sick.
 const isOnAnnualLeave = (emp: Employee, dateStr: string): boolean => {
-  if (!emp.annualLeaveStart || !emp.annualLeaveEnd) return false;
-  return dateStr >= emp.annualLeaveStart && dateStr <= emp.annualLeaveEnd;
+  const r = getEmployeeLeaveOnDate(emp, dateStr);
+  return !!r && r.type === 'annual';
 };
 
 // True if the (start, end) interval of a shift overlaps the configured
@@ -85,14 +82,11 @@ export function previewAssignmentWarnings(
 
   const dateStr = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
 
-  if (isOnMaternityLeave(emp, dateStr)) {
-    warnings.push(`On maternity leave (${emp.maternityLeaveStart} → ${emp.maternityLeaveEnd}) — Art. 87`);
-  }
-  if (isOnSickLeave(emp, dateStr)) {
-    warnings.push(`On sick leave (${emp.sickLeaveStart} → ${emp.sickLeaveEnd}) — Art. 84`);
-  }
-  if (isOnAnnualLeave(emp, dateStr)) {
-    warnings.push(`On annual leave (${emp.annualLeaveStart} → ${emp.annualLeaveEnd})`);
+  const activeLeave = getEmployeeLeaveOnDate(emp, dateStr);
+  if (activeLeave) {
+    if (activeLeave.type === 'maternity') warnings.push(`On maternity leave (${activeLeave.start} → ${activeLeave.end}) — Art. 87`);
+    else if (activeLeave.type === 'sick') warnings.push(`On sick leave (${activeLeave.start} → ${activeLeave.end}) — Art. 84`);
+    else if (activeLeave.type === 'annual') warnings.push(`On annual leave (${activeLeave.start} → ${activeLeave.end})`);
   }
 
   // Only the work-shift checks apply when a non-work code is being painted

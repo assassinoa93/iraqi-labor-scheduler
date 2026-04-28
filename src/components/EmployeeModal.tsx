@@ -91,7 +91,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, shi
     });
   };
 
-  const isFemale = formData.gender === 'F';
   const workShifts = shifts.filter(s => s.isWork);
 
   return (
@@ -289,57 +288,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, shi
              </div>
           </div>
 
-          {/* Maternity panel — only relevant for female employees. Hidden when
-              gender is unset or 'M' to keep the modal compact. */}
-          {isFemale && (
-            <div className="space-y-3 p-4 bg-rose-50/30 rounded-lg border border-rose-100">
-              <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">{t('modal.employee.maternity.title')}</p>
-              <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.maternity.note')}</p>
-              <div className="grid grid-cols-2 gap-4">
-                <SettingField
-                  label={t('modal.employee.maternity.start')}
-                  value={formData.maternityLeaveStart || ''}
-                  onChange={v => setFormData(prev => ({ ...prev, maternityLeaveStart: v || undefined }))}
-                />
-                <SettingField
-                  label={t('modal.employee.maternity.end')}
-                  value={formData.maternityLeaveEnd || ''}
-                  onChange={v => setFormData(prev => ({ ...prev, maternityLeaveEnd: v || undefined }))}
-                />
-              </div>
-            </div>
-          )}
-          <div className="space-y-3 p-4 bg-yellow-50/30 rounded-lg border border-yellow-100">
-            <p className="text-[10px] font-bold text-yellow-700 uppercase tracking-widest">{t('modal.employee.sick.title')}</p>
-            <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.sick.note')}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <SettingField
-                label={t('modal.employee.sick.start')}
-                value={formData.sickLeaveStart || ''}
-                onChange={v => setFormData(prev => ({ ...prev, sickLeaveStart: v || undefined }))}
-              />
-              <SettingField
-                label={t('modal.employee.sick.end')}
-                value={formData.sickLeaveEnd || ''}
-                onChange={v => setFormData(prev => ({ ...prev, sickLeaveEnd: v || undefined }))}
-              />
-            </div>
-          </div>
-          <div className="space-y-3 p-4 bg-emerald-50/30 rounded-lg border border-emerald-100">
-            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">{t('modal.employee.annual.title')}</p>
-            <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.annual.note')}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <SettingField
-                label={t('modal.employee.annual.start')}
-                value={formData.annualLeaveStart || ''}
-                onChange={v => setFormData(prev => ({ ...prev, annualLeaveStart: v || undefined }))}
-              />
-              <SettingField
-                label={t('modal.employee.annual.end')}
-                value={formData.annualLeaveEnd || ''}
-                onChange={v => setFormData(prev => ({ ...prev, annualLeaveEnd: v || undefined }))}
-              />
-            </div>
+          {/* Leave windows (sick / annual / maternity) are managed from the
+              Credits & Payroll tab, where leaves can span multiple ranges and
+              be tracked per request. The single-range fields previously here
+              were misleading. */}
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
+            {t('modal.employee.leaves.movedNote')}
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.notes')}</label>

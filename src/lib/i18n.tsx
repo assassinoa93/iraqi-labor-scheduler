@@ -46,6 +46,8 @@ export const en: Dict = {
   'action.runAutoSchedulePreserve': 'Optimal (Keep Absences)',
   'action.runAutoSchedulePreserve.tooltip': 'Auto-fills the rest of the month around your manually-entered absences and shift overrides. Locks every cell that already has a value.',
   'action.undoLast': 'Undo Last Apply',
+  'action.undoCell': 'Undo Cell',
+  'action.undoCell.tooltip': 'Undo last cell paint (Ctrl+Z) — {count} entries',
 
   // Roster
   'roster.title': 'Personnel Roster',
@@ -488,6 +490,131 @@ export const en: Dict = {
   'info.updated.title': 'Updated to v{version}',
   'info.updated.body': 'Iraqi Labor Scheduler was updated from v{from} to v{to}.\n\nA snapshot of your data was saved here before the new version started:\n{snapshot}\n\nYou can delete the snapshot later if everything looks fine. The five most recent snapshots are kept automatically.',
   'info.updated.snapshotMissing': '(no snapshot — the data folder was empty)',
+
+  // Employee modal — leave windows moved to Credits & Payroll
+  'modal.employee.leaves.movedNote': 'Sick / annual / maternity leave windows are managed from the Credits & Payroll tab, where you can record multiple non-contiguous ranges per employee.',
+
+  // Audit log — clear-log action
+  'audit.clear': 'Clear Log',
+  'audit.confirmClear.title': 'Clear Audit Log',
+  'audit.confirmClear.body': 'Permanently erase every audit entry on this machine? This cannot be undone. Export a CSV first if you need a record.',
+  'audit.cleared.title': 'Audit Log Cleared',
+  'audit.cleared.body': 'All audit entries have been removed.',
+  'audit.cleared.failed': 'Could not clear the audit log. Please retry or check the server logs.',
+
+  // Variables tab — section blurbs + reference footer
+  'variables.editingNote.title': 'Editing these values is intentional but consequential.',
+  'variables.editingNote.body': 'Defaults reflect the statute as written. Adjust only if your operation falls under a sector-specific exemption (Ministerial decree, collective bargaining agreement, or Ministry of Transport regulation). Changes apply immediately to both the compliance engine and the auto-scheduler.',
+  'variables.references.title': 'References',
+  'variables.references.body': 'Iraqi Labor Law No. 37 of 2015 — full text available from the Iraqi Ministry of Labor. Articles cited above are enforced by the compliance engine in src/lib/compliance.ts. Driver-specific caps additionally consult Ministry of Transport regulations applicable to commercial vehicle operators.',
+  'variables.standard.subtitle': 'Iraqi Labor Law No. 37 of 2015 — Art. 67, 70, 71, 72',
+  'variables.hazardous.subtitle': 'Art. 68, 70',
+  'variables.drivers.subtitle': 'Art. 88',
+  'variables.payRates.subtitle': 'Art. 73, 74',
+
+  // Variables tab — units
+  'variables.unit.hrsPerDay': 'hrs / day',
+  'variables.unit.hrsPerWeek': 'hrs / week',
+  'variables.unit.hrs': 'hrs',
+  'variables.unit.days': 'days',
+  'variables.unit.multiplier': '×',
+
+  // Variables tab — per-cap labels and descriptions
+  'variables.cap.standardDailyHrsCap.label': 'Standard Daily Hours Cap',
+  'variables.cap.standardDailyHrsCap.desc': 'Maximum working hours per day for standard staff. The Iraqi Labor Law fixes the workday at 8 hours.',
+  'variables.cap.standardWeeklyHrsCap.label': 'Standard Weekly Hours Cap',
+  'variables.cap.standardWeeklyHrsCap.desc': 'Total working hours over any rolling 7-day window for standard staff. The legal ceiling is 48 hours.',
+  'variables.cap.minRestBetweenShiftsHrs.label': 'Min Rest Between Shifts',
+  'variables.cap.minRestBetweenShiftsHrs.desc': 'Mandatory rest period between the end of one shift and the start of the next.',
+  'variables.cap.maxConsecWorkDays.label': 'Max Consecutive Work Days',
+  'variables.cap.maxConsecWorkDays.desc': 'Maximum number of consecutive working days before a mandatory rest day must occur.',
+  'variables.cap.hazardousDailyHrsCap.label': 'Hazardous Daily Hours Cap',
+  'variables.cap.hazardousDailyHrsCap.desc': 'Reduced daily cap for staff exposed to hazardous or unhealthy conditions.',
+  'variables.cap.hazardousWeeklyHrsCap.label': 'Hazardous Weekly Hours Cap',
+  'variables.cap.hazardousWeeklyHrsCap.desc': 'Reduced weekly cap for staff in hazardous categories.',
+  'variables.cap.driverDailyHrsCap.label': 'Driver Daily Hours Cap',
+  'variables.cap.driverDailyHrsCap.desc': 'Maximum on-duty hours per day for drivers under transport-worker provisions.',
+  'variables.cap.driverWeeklyHrsCap.label': 'Driver Weekly Hours Cap',
+  'variables.cap.driverWeeklyHrsCap.desc': 'Maximum weekly on-duty hours for drivers.',
+  'variables.cap.driverContinuousDrivingHrsCap.label': 'Continuous Driving Cap',
+  'variables.cap.driverContinuousDrivingHrsCap.desc': 'Maximum continuous driving time before a mandatory 30-minute break is required.',
+  'variables.cap.driverMinDailyRestHrs.label': 'Driver Min Daily Rest',
+  'variables.cap.driverMinDailyRestHrs.desc': 'Minimum rest period between two driving days.',
+  'variables.cap.driverMaxConsecWorkDays.label': 'Driver Max Consecutive Days',
+  'variables.cap.driverMaxConsecWorkDays.desc': 'Maximum consecutive driving days before a mandatory rest day must occur.',
+  'variables.cap.otRateDay.label': 'Daytime Overtime Multiplier',
+  'variables.cap.otRateDay.desc': 'Pay multiplier for overtime worked during daytime hours.',
+  'variables.cap.otRateNight.label': 'Night-time / Holiday Overtime Multiplier',
+  'variables.cap.otRateNight.desc': 'Pay multiplier for overtime worked at night or on official holidays.',
+
+  // Schedule tab — keyboard shortcut help
+  'schedule.kbdHelp.title': 'Keyboard shortcuts',
+  'schedule.kbdHelp.numberKeys': 'Number keys (1–9) select a shift code to paint.',
+  'schedule.kbdHelp.escape': 'Esc clears paint mode (cursor mode).',
+  'schedule.kbdHelp.zero': '0 clears paint mode.',
+
+  // Sim banner — collapse/expand
+  'sim.banner.collapse': 'Collapse panel',
+  'sim.banner.expand': 'Expand simulation panel',
+
+  // Common day-of-week names
+  'common.day.sunday': 'Sunday',
+  'common.day.monday': 'Monday',
+  'common.day.tuesday': 'Tuesday',
+  'common.day.wednesday': 'Wednesday',
+  'common.day.thursday': 'Thursday',
+  'common.day.friday': 'Friday',
+  'common.day.saturday': 'Saturday',
+
+  // Leaves manager
+  'leaves.modal.title': 'Manage Leaves',
+  'leaves.modal.addNew': 'Add range:',
+  'leaves.modal.empty': 'No leave windows recorded',
+  'leaves.modal.emptyHint': 'Add a leave range above to track when this employee is off.',
+  'leaves.modal.totals': 'Annual {annual}d · Sick {sick}d · Maternity {maternity}d',
+  'leaves.modal.save': 'Save Leaves',
+  'leaves.type.annual': 'Annual',
+  'leaves.type.sick': 'Sick',
+  'leaves.type.maternity': 'Maternity',
+  'leaves.type.annual.article': 'Approved',
+  'leaves.type.sick.article': 'Art. 84',
+  'leaves.type.maternity.article': 'Art. 87',
+  'leaves.range.start': 'Start',
+  'leaves.range.end': 'End',
+  'leaves.range.notesPlaceholder': 'Optional notes (e.g. doctor\'s slip number)…',
+  'leaves.range.invalidDates': 'End date must be on or after start date.',
+  'payroll.col.leaves': 'Leaves',
+  'payroll.manageLeaves': 'Manage',
+  'payroll.leavesNone': 'None',
+
+  // Compliance trendline (dashboard)
+  'trend.title': 'Compliance Trend',
+  'trend.range': 'Last {days} days',
+  'trend.bootstrap': 'Trend will appear after a few daily snapshots have been recorded.',
+
+  // Print
+  'schedule.print': 'Print',
+  'schedule.print.tooltip': 'Print the active month\'s schedule (A3 landscape recommended).',
+
+  // Theme toggle
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+  'theme.system': 'System',
+  'theme.cycle': 'cycle',
+  'theme.tooltip': 'Cycle theme: Light → Dark → System',
+
+  // Bulk shift assign (from Roster tab)
+  'roster.bulkAssign': 'Assign Shift',
+  'bulkAssign.title': 'Bulk Assign Shift',
+  'bulkAssign.subtitle': '{count} employees selected',
+  'bulkAssign.shiftPicker': 'Shift code',
+  'bulkAssign.fromDay': 'From day',
+  'bulkAssign.toDay': 'To day',
+  'bulkAssign.overwrite': 'Overwrite existing entries',
+  'bulkAssign.overwriteOn': 'Existing cells in the range will be replaced — including any leaves or rest days you painted manually.',
+  'bulkAssign.overwriteOff': 'Existing entries are preserved. Only currently-empty cells get the new shift.',
+  'bulkAssign.summary': 'Will paint up to {cells} cells ({count} employees × {days} days) in the active month.',
+  'bulkAssign.apply': 'Apply',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -529,6 +656,8 @@ export const ar: Dict = {
   'action.runAutoSchedulePreserve': 'الجدول الأمثل (مع الحفاظ على الإجازات)',
   'action.runAutoSchedulePreserve.tooltip': 'يملأ بقية الشهر تلقائيًا حول الإجازات والتعديلات اليدوية التي أدخلتها. كل خلية تحتوي قيمة تبقى مقفلة.',
   'action.undoLast': 'تراجع عن آخر تطبيق',
+  'action.undoCell': 'تراجع خلية',
+  'action.undoCell.tooltip': 'تراجع عن آخر رسم خلية (Ctrl+Z) — {count} إدخالات',
 
   // Roster
   'roster.title': 'سجل الموظفين',
@@ -971,6 +1100,131 @@ export const ar: Dict = {
   'info.updated.title': 'تم التحديث إلى الإصدار {version}',
   'info.updated.body': 'تم تحديث مُجدوِل العمل العراقي من الإصدار {from} إلى {to}.\n\nتم حفظ نسخة احتياطية لبياناتك قبل بدء الإصدار الجديد في:\n{snapshot}\n\nيمكنك حذف هذه النسخة لاحقًا إن سار كل شيء على ما يرام. يحتفظ النظام تلقائيًا بأحدث خمس نسخ.',
   'info.updated.snapshotMissing': '(لا توجد نسخة — مجلد البيانات كان فارغًا)',
+
+  // Employee modal — leave windows moved
+  'modal.employee.leaves.movedNote': 'إجازات المرض / السنوية / الأمومة تُدار من تبويب «الأرصدة والأجور»، حيث يمكنك تسجيل عدة فترات غير متصلة لكل موظف.',
+
+  // Audit log — clear
+  'audit.clear': 'مسح السجل',
+  'audit.confirmClear.title': 'مسح سجل التدقيق',
+  'audit.confirmClear.body': 'حذف كل إدخالات التدقيق على هذا الجهاز نهائيًا؟ لا يمكن التراجع. صدِّر CSV أولاً إذا أردت الاحتفاظ بسجل.',
+  'audit.cleared.title': 'تم مسح سجل التدقيق',
+  'audit.cleared.body': 'تمت إزالة جميع إدخالات التدقيق.',
+  'audit.cleared.failed': 'تعذّر مسح السجل. حاول مرة أخرى أو راجع سجلات الخادم.',
+
+  // Variables tab — section blurbs + reference footer
+  'variables.editingNote.title': 'تعديل هذه القيم متعمد لكنه ذو أثر كبير.',
+  'variables.editingNote.body': 'القيم الافتراضية تعكس نص القانون. لا تعدّلها إلا إذا كانت عمليتك تخضع لاستثناء قطاعي محدد (قرار وزاري أو اتفاقية مفاوضة جماعية أو نظام لوزارة النقل). تطبَّق التغييرات فورًا على محرك الامتثال والمُجدوِل التلقائي.',
+  'variables.references.title': 'المراجع',
+  'variables.references.body': 'قانون العمل العراقي رقم ٣٧ لسنة ٢٠١٥ — النص الكامل متاح من وزارة العمل العراقية. المواد المذكورة أعلاه يطبّقها محرك الامتثال في src/lib/compliance.ts. حدود السائقين تستند إضافيًا إلى أنظمة وزارة النقل المعمول بها للسائقين التجاريين.',
+  'variables.standard.subtitle': 'قانون العمل العراقي رقم ٣٧ لسنة ٢٠١٥ — المواد ٦٧، ٧٠، ٧١، ٧٢',
+  'variables.hazardous.subtitle': 'المواد ٦٨، ٧٠',
+  'variables.drivers.subtitle': 'المادة ٨٨',
+  'variables.payRates.subtitle': 'المواد ٧٣، ٧٤',
+
+  // Variables tab — units
+  'variables.unit.hrsPerDay': 'ساعة / يوم',
+  'variables.unit.hrsPerWeek': 'ساعة / أسبوع',
+  'variables.unit.hrs': 'ساعات',
+  'variables.unit.days': 'أيام',
+  'variables.unit.multiplier': '×',
+
+  // Variables tab — per-cap labels and descriptions
+  'variables.cap.standardDailyHrsCap.label': 'الحد الأقصى للساعات اليومية القياسية',
+  'variables.cap.standardDailyHrsCap.desc': 'الحد الأقصى لساعات العمل في اليوم للموظفين القياسيين. يحدد قانون العمل العراقي يوم العمل بـ ٨ ساعات.',
+  'variables.cap.standardWeeklyHrsCap.label': 'الحد الأقصى للساعات الأسبوعية القياسية',
+  'variables.cap.standardWeeklyHrsCap.desc': 'إجمالي ساعات العمل خلال أي نافذة متجددة من ٧ أيام للموظفين القياسيين. السقف القانوني ٤٨ ساعة.',
+  'variables.cap.minRestBetweenShiftsHrs.label': 'أدنى راحة بين الورديات',
+  'variables.cap.minRestBetweenShiftsHrs.desc': 'فترة الراحة الإلزامية بين انتهاء وردية وبداية الوردية التالية.',
+  'variables.cap.maxConsecWorkDays.label': 'الحد الأقصى لأيام العمل المتتالية',
+  'variables.cap.maxConsecWorkDays.desc': 'العدد الأقصى لأيام العمل المتتالية قبل وجوب يوم راحة.',
+  'variables.cap.hazardousDailyHrsCap.label': 'الحد اليومي للأعمال الخطرة',
+  'variables.cap.hazardousDailyHrsCap.desc': 'حد يومي مخفّض للموظفين المعرّضين لظروف خطرة أو غير صحية.',
+  'variables.cap.hazardousWeeklyHrsCap.label': 'الحد الأسبوعي للأعمال الخطرة',
+  'variables.cap.hazardousWeeklyHrsCap.desc': 'حد أسبوعي مخفّض لفئات الأعمال الخطرة.',
+  'variables.cap.driverDailyHrsCap.label': 'الحد اليومي للسائقين',
+  'variables.cap.driverDailyHrsCap.desc': 'الحد الأقصى لساعات العمل اليومية للسائقين بحسب أحكام عمال النقل.',
+  'variables.cap.driverWeeklyHrsCap.label': 'الحد الأسبوعي للسائقين',
+  'variables.cap.driverWeeklyHrsCap.desc': 'الحد الأقصى لساعات العمل الأسبوعية للسائقين.',
+  'variables.cap.driverContinuousDrivingHrsCap.label': 'حد القيادة المتواصلة',
+  'variables.cap.driverContinuousDrivingHrsCap.desc': 'الحد الأقصى للقيادة المتواصلة قبل وجوب استراحة ٣٠ دقيقة.',
+  'variables.cap.driverMinDailyRestHrs.label': 'أدنى راحة يومية للسائقين',
+  'variables.cap.driverMinDailyRestHrs.desc': 'فترة الراحة الدنيا بين يومَي قيادة.',
+  'variables.cap.driverMaxConsecWorkDays.label': 'أقصى أيام عمل متتالية للسائقين',
+  'variables.cap.driverMaxConsecWorkDays.desc': 'العدد الأقصى لأيام القيادة المتتالية قبل وجوب يوم راحة.',
+  'variables.cap.otRateDay.label': 'مضاعف العمل الإضافي النهاري',
+  'variables.cap.otRateDay.desc': 'مضاعف الأجر للعمل الإضافي خلال ساعات النهار.',
+  'variables.cap.otRateNight.label': 'مضاعف العمل الإضافي الليلي / العطلات',
+  'variables.cap.otRateNight.desc': 'مضاعف الأجر للعمل الإضافي ليلًا أو في العطلات الرسمية.',
+
+  // Schedule tab — keyboard shortcut help
+  'schedule.kbdHelp.title': 'اختصارات لوحة المفاتيح',
+  'schedule.kbdHelp.numberKeys': 'مفاتيح الأرقام (١-٩) لاختيار رمز الوردية للرسم.',
+  'schedule.kbdHelp.escape': 'مفتاح Esc يلغي وضع الرسم (يعود إلى وضع المؤشر).',
+  'schedule.kbdHelp.zero': '0 يلغي وضع الرسم.',
+
+  // Sim banner — collapse/expand
+  'sim.banner.collapse': 'طي اللوحة',
+  'sim.banner.expand': 'فتح لوحة المحاكاة',
+
+  // Common day-of-week names
+  'common.day.sunday': 'الأحد',
+  'common.day.monday': 'الاثنين',
+  'common.day.tuesday': 'الثلاثاء',
+  'common.day.wednesday': 'الأربعاء',
+  'common.day.thursday': 'الخميس',
+  'common.day.friday': 'الجمعة',
+  'common.day.saturday': 'السبت',
+
+  // Leaves manager
+  'leaves.modal.title': 'إدارة الإجازات',
+  'leaves.modal.addNew': 'إضافة فترة:',
+  'leaves.modal.empty': 'لا توجد فترات إجازات مسجّلة',
+  'leaves.modal.emptyHint': 'أضف فترة إجازة أعلاه لتسجيل أيام غياب الموظف.',
+  'leaves.modal.totals': 'سنوية {annual}ي · مرضية {sick}ي · أمومة {maternity}ي',
+  'leaves.modal.save': 'حفظ الإجازات',
+  'leaves.type.annual': 'سنوية',
+  'leaves.type.sick': 'مرضية',
+  'leaves.type.maternity': 'أمومة',
+  'leaves.type.annual.article': 'معتمدة',
+  'leaves.type.sick.article': 'م.٨٤',
+  'leaves.type.maternity.article': 'م.٨٧',
+  'leaves.range.start': 'البداية',
+  'leaves.range.end': 'النهاية',
+  'leaves.range.notesPlaceholder': 'ملاحظات اختيارية (مثل رقم تقرير الطبيب)…',
+  'leaves.range.invalidDates': 'يجب أن يكون تاريخ النهاية في أو بعد تاريخ البداية.',
+  'payroll.col.leaves': 'الإجازات',
+  'payroll.manageLeaves': 'إدارة',
+  'payroll.leavesNone': 'لا يوجد',
+
+  // Compliance trendline
+  'trend.title': 'اتجاه الامتثال',
+  'trend.range': 'آخر {days} يومًا',
+  'trend.bootstrap': 'سيظهر الاتجاه بعد تسجيل عدد من اللقطات اليومية.',
+
+  // Print
+  'schedule.print': 'طباعة',
+  'schedule.print.tooltip': 'طباعة جدول الشهر النشط (يُفضّل A3 أفقي).',
+
+  // Theme
+  'theme.light': 'فاتح',
+  'theme.dark': 'داكن',
+  'theme.system': 'النظام',
+  'theme.cycle': 'تبديل',
+  'theme.tooltip': 'تبديل السمة: فاتح → داكن → النظام',
+
+  // Bulk shift assign
+  'roster.bulkAssign': 'تعيين وردية',
+  'bulkAssign.title': 'تعيين جماعي للوردية',
+  'bulkAssign.subtitle': 'تم تحديد {count} موظف',
+  'bulkAssign.shiftPicker': 'رمز الوردية',
+  'bulkAssign.fromDay': 'من يوم',
+  'bulkAssign.toDay': 'إلى يوم',
+  'bulkAssign.overwrite': 'استبدال القيم الحالية',
+  'bulkAssign.overwriteOn': 'سيتم استبدال الخلايا الحالية في النطاق — بما في ذلك أي إجازات أو أيام راحة أدخلتها يدويًا.',
+  'bulkAssign.overwriteOff': 'يتم الحفاظ على القيم الحالية. الخلايا الفارغة فقط تحصل على الوردية الجديدة.',
+  'bulkAssign.summary': 'سيتم رسم حتى {cells} خلية ({count} موظفين × {days} أيام) في الشهر النشط.',
+  'bulkAssign.apply': 'تطبيق',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

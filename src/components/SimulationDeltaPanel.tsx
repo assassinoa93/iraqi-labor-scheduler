@@ -1,5 +1,5 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Minus, FlaskConical, X, Check, Undo2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, Minus, FlaskConical, X, Check, Undo2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 
@@ -25,12 +25,38 @@ interface Props {
 // Floating bottom panel shown while simulation mode is on. The header makes the
 // "you are not editing live data" state visually loud; the metrics row
 // compares baseline vs sim across coverage / OT / violations / staff hours.
+// z-[40] keeps it below open modals (z-50+) so a sim-mode user can still reach
+// modal controls without needing to dismiss the panel.
 export function SimulationDeltaPanel({ isActive, metrics, onExit, onApply, onReset }: Props) {
   const { t } = useI18n();
+  const [collapsed, setCollapsed] = useState(false);
   if (!isActive) return null;
 
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        title={t('sim.banner.expand')}
+        aria-label={t('sim.banner.expand')}
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[40] bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-full shadow-2xl shadow-indigo-500/30 px-4 py-2 flex items-center gap-2 hover:scale-105 transition-transform"
+      >
+        <FlaskConical className="w-3.5 h-3.5 animate-pulse" />
+        <span className="text-[10px] font-black uppercase tracking-widest">{t('sim.banner.title')}</span>
+        <ChevronUp className="w-3 h-3" />
+      </button>
+    );
+  }
+
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[80] bg-white border border-indigo-200 rounded-2xl shadow-2xl shadow-indigo-500/20 max-w-5xl w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[40] bg-white border border-indigo-200 rounded-2xl shadow-2xl shadow-indigo-500/20 max-w-5xl w-[calc(100vw-2rem)]">
+      <button
+        onClick={() => setCollapsed(true)}
+        title={t('sim.banner.collapse')}
+        aria-label={t('sim.banner.collapse')}
+        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-all"
+      >
+        <ChevronDown className="w-3 h-3" />
+      </button>
       <div className="flex items-stretch">
         <div className="px-4 py-3 bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-l-2xl flex items-center gap-3">
           <FlaskConical className="w-5 h-5 animate-pulse" />

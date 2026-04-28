@@ -12,6 +12,7 @@ import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
+import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
 
 interface DashboardTabProps {
   employees: Employee[];
@@ -35,6 +36,10 @@ interface DashboardTabProps {
   nextMonth: () => void;
   onGoToRoster: () => void;
   onLoadSample: () => void;
+  // Identifies which company we're recording the compliance trend for. The
+  // trend card persists per-company snapshots in localStorage so switching
+  // company resets the chart to that company's history.
+  activeCompanyId: string;
 }
 
 export function DashboardTab(props: DashboardTabProps) {
@@ -44,6 +49,7 @@ export function DashboardTab(props: DashboardTabProps) {
     peakStabilityPercent, overallCoveragePercent,
     isStatsModalOpen, setIsStatsModalOpen,
     prevMonth, nextMonth, onGoToRoster, onLoadSample,
+    activeCompanyId,
   } = props;
   const { t } = useI18n();
   const closeStatsButtonRef = useModalKeys(isStatsModalOpen, () => setIsStatsModalOpen(false)) as React.RefObject<HTMLButtonElement>;
@@ -353,6 +359,13 @@ export function DashboardTab(props: DashboardTabProps) {
           trend={potentialHires > 0 ? 'Critical' : undefined}
         />
       </div>
+
+      <ComplianceTrendCard
+        companyId={activeCompanyId}
+        compliancePct={parseInt(compliancePct, 10) || 0}
+        violations={totalViolationInstances}
+        coveragePct={overallCoveragePercent}
+      />
 
       <div className="grid grid-cols-1 gap-6">
         <Card className="flex flex-col">

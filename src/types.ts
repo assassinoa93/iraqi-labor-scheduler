@@ -59,6 +59,22 @@ export interface Employee {
   // 1; levels 2 and 3 ignore preferences so coverage is never sacrificed.
   preferredShiftCodes?: string[];
   avoidShiftCodes?: string[];
+  // Multi-range leave windows. Replaces the single-range *LeaveStart/*LeaveEnd
+  // fields above (which are kept for backward-compat with pre-1.7 saves and
+  // are read as fallback by getEmployeeLeaveOnDate). Each range carries its
+  // own type so a single employee can have multiple non-contiguous sick
+  // leaves, an annual block in summer, etc., all in the same record.
+  leaveRanges?: LeaveRange[];
+}
+
+export type LeaveType = 'annual' | 'sick' | 'maternity';
+
+export interface LeaveRange {
+  id: string;
+  type: LeaveType;
+  start: string; // YYYY-MM-DD inclusive
+  end: string;   // YYYY-MM-DD inclusive
+  notes?: string;
 }
 
 export interface Station {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Trash2, Plus, Users, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Trash2, Plus, Users, Edit3, ChevronUp, ChevronDown, CalendarRange } from 'lucide-react';
 import { Employee, Station } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
@@ -17,6 +17,7 @@ interface RosterTabProps {
   onDelete: (empId: string) => void;
   onBulkDelete: () => void;
   onLoadSample: () => void;
+  onBulkAssignShift?: () => void;
 }
 
 type SortKey = 'empId' | 'name' | 'role';
@@ -48,7 +49,7 @@ function SortableHeader({
 export function RosterTab({
   employees, stations, searchTerm, setSearchTerm,
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
-  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample,
+  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift,
 }: RosterTabProps) {
   const { t } = useI18n();
 
@@ -119,6 +120,15 @@ export function RosterTab({
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
               {visible.length}/{employees.length}
             </span>
+          )}
+          {selectedEmployees.size > 0 && onBulkAssignShift && (
+            <button
+              onClick={onBulkAssignShift}
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-emerald-100 hover:bg-emerald-100 transition-all font-mono"
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+              {t('roster.bulkAssign')} ({selectedEmployees.size})
+            </button>
           )}
           {selectedEmployees.size > 0 && (
             <button

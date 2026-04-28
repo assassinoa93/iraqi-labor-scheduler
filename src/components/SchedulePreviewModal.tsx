@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Schedule, Shift, Employee, Violation } from '../types';
 import { cn } from '../lib/utils';
@@ -73,17 +73,34 @@ interface Props {
 export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLabel }: Props) {
   const { t } = useI18n();
   const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
-  if (!isOpen || !stats) return null;
-
-  const violationLevel = stats.violationCount === 0 ? 'clean' : stats.violationCount < 10 ? 'mild' : 'heavy';
+  // AnimatePresence handles enter/exit explicitly so consecutive auto-scheduler
+  // runs (open → close → open) don't get stuck in a partially-animated state
+  // where the panel never reaches opacity:1. Without this wrapper a fast-clicker
+  // could occasionally see the modal not appear at all.
+  const open = isOpen && !!stats;
+  const violationLevel = !stats ? 'clean' : stats.violationCount === 0 ? 'clean' : stats.violationCount < 10 ? 'mild' : 'heavy';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t('modal.preview.title')}>
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
-      >
+    <AnimatePresence>
+      {open && stats && (
+        <motion.div
+          key="schedule-preview-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('modal.preview.title')}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+          >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 via-blue-50 to-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
@@ -175,8 +192,10 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
             </button>
           </div>
         </div>
-      </motion.div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

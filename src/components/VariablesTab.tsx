@@ -4,14 +4,14 @@ import { Config, DayOfWeek } from '../types';
 import { SettingField } from './Primitives';
 import { useI18n } from '../lib/i18n';
 
-const DOW_LABEL: Record<DayOfWeek, string> = {
-  1: 'Sunday',
-  2: 'Monday',
-  3: 'Tuesday',
-  4: 'Wednesday',
-  5: 'Thursday',
-  6: 'Friday',
-  7: 'Saturday',
+const DOW_KEY: Record<DayOfWeek, string> = {
+  1: 'common.day.sunday',
+  2: 'common.day.monday',
+  3: 'common.day.tuesday',
+  4: 'common.day.wednesday',
+  5: 'common.day.thursday',
+  6: 'common.day.friday',
+  7: 'common.day.saturday',
 };
 
 interface Props {
@@ -19,133 +19,43 @@ interface Props {
   setConfig: React.Dispatch<React.SetStateAction<Config>>;
 }
 
+// CapDef carries i18n keys (resolved at render time so language toggles update
+// labels live), the canonical Config field, default value, unit token, and
+// article citation. Article strings are not translated — they're cross-language
+// legal citations.
 interface CapDef {
   key: keyof Config;
-  label: string;
-  unit: string;
+  labelKey: string;
+  unitKey: string;
   article: string;
-  description: string;
+  descKey: string;
   defaultValue: number;
   step?: number;
 }
 
 const STANDARD_CAPS: CapDef[] = [
-  {
-    key: 'standardDailyHrsCap',
-    label: 'Standard Daily Hours Cap',
-    unit: 'hrs / day',
-    article: 'Art. 67',
-    description: 'Maximum working hours per day for standard staff. The Iraqi Labor Law fixes the workday at 8 hours.',
-    defaultValue: 8,
-  },
-  {
-    key: 'standardWeeklyHrsCap',
-    label: 'Standard Weekly Hours Cap',
-    unit: 'hrs / week',
-    article: 'Art. 70',
-    description: 'Total working hours over any rolling 7-day window for standard staff. The legal ceiling is 48 hours.',
-    defaultValue: 48,
-  },
-  {
-    key: 'minRestBetweenShiftsHrs',
-    label: 'Min Rest Between Shifts',
-    unit: 'hrs',
-    article: 'Art. 71',
-    description: 'Mandatory rest period between the end of one shift and the start of the next.',
-    defaultValue: 11,
-  },
-  {
-    key: 'maxConsecWorkDays',
-    label: 'Max Consecutive Work Days',
-    unit: 'days',
-    article: 'Art. 71 §5, 72',
-    description: 'Maximum number of consecutive working days before a mandatory rest day must occur.',
-    defaultValue: 6,
-  },
+  { key: 'standardDailyHrsCap', labelKey: 'variables.cap.standardDailyHrsCap.label', descKey: 'variables.cap.standardDailyHrsCap.desc', unitKey: 'variables.unit.hrsPerDay', article: 'Art. 67', defaultValue: 8 },
+  { key: 'standardWeeklyHrsCap', labelKey: 'variables.cap.standardWeeklyHrsCap.label', descKey: 'variables.cap.standardWeeklyHrsCap.desc', unitKey: 'variables.unit.hrsPerWeek', article: 'Art. 70', defaultValue: 48 },
+  { key: 'minRestBetweenShiftsHrs', labelKey: 'variables.cap.minRestBetweenShiftsHrs.label', descKey: 'variables.cap.minRestBetweenShiftsHrs.desc', unitKey: 'variables.unit.hrs', article: 'Art. 71', defaultValue: 11 },
+  { key: 'maxConsecWorkDays', labelKey: 'variables.cap.maxConsecWorkDays.label', descKey: 'variables.cap.maxConsecWorkDays.desc', unitKey: 'variables.unit.days', article: 'Art. 71 §5, 72', defaultValue: 6 },
 ];
 
 const HAZARDOUS_CAPS: CapDef[] = [
-  {
-    key: 'hazardousDailyHrsCap',
-    label: 'Hazardous Daily Hours Cap',
-    unit: 'hrs / day',
-    article: 'Art. 68',
-    description: 'Reduced daily cap for staff exposed to hazardous or unhealthy conditions.',
-    defaultValue: 7,
-  },
-  {
-    key: 'hazardousWeeklyHrsCap',
-    label: 'Hazardous Weekly Hours Cap',
-    unit: 'hrs / week',
-    article: 'Art. 70',
-    description: 'Reduced weekly cap for staff in hazardous categories.',
-    defaultValue: 36,
-  },
+  { key: 'hazardousDailyHrsCap', labelKey: 'variables.cap.hazardousDailyHrsCap.label', descKey: 'variables.cap.hazardousDailyHrsCap.desc', unitKey: 'variables.unit.hrsPerDay', article: 'Art. 68', defaultValue: 7 },
+  { key: 'hazardousWeeklyHrsCap', labelKey: 'variables.cap.hazardousWeeklyHrsCap.label', descKey: 'variables.cap.hazardousWeeklyHrsCap.desc', unitKey: 'variables.unit.hrsPerWeek', article: 'Art. 70', defaultValue: 36 },
 ];
 
 const DRIVER_CAPS: CapDef[] = [
-  {
-    key: 'driverDailyHrsCap',
-    label: 'Driver Daily Hours Cap',
-    unit: 'hrs / day',
-    article: 'Art. 88',
-    description: 'Maximum on-duty hours per day for drivers under transport-worker provisions.',
-    defaultValue: 9,
-  },
-  {
-    key: 'driverWeeklyHrsCap',
-    label: 'Driver Weekly Hours Cap',
-    unit: 'hrs / week',
-    article: 'Art. 88',
-    description: 'Maximum weekly on-duty hours for drivers.',
-    defaultValue: 56,
-  },
-  {
-    key: 'driverContinuousDrivingHrsCap',
-    label: 'Continuous Driving Cap',
-    unit: 'hrs',
-    article: 'Art. 88',
-    description: 'Maximum continuous driving time before a mandatory 30-minute break is required.',
-    defaultValue: 4.5,
-    step: 0.5,
-  },
-  {
-    key: 'driverMinDailyRestHrs',
-    label: 'Driver Min Daily Rest',
-    unit: 'hrs',
-    article: 'Art. 88',
-    description: 'Minimum rest period between two driving days.',
-    defaultValue: 11,
-  },
-  {
-    key: 'driverMaxConsecWorkDays',
-    label: 'Driver Max Consecutive Days',
-    unit: 'days',
-    article: 'Art. 88',
-    description: 'Maximum consecutive driving days before a mandatory rest day must occur.',
-    defaultValue: 6,
-  },
+  { key: 'driverDailyHrsCap', labelKey: 'variables.cap.driverDailyHrsCap.label', descKey: 'variables.cap.driverDailyHrsCap.desc', unitKey: 'variables.unit.hrsPerDay', article: 'Art. 88', defaultValue: 9 },
+  { key: 'driverWeeklyHrsCap', labelKey: 'variables.cap.driverWeeklyHrsCap.label', descKey: 'variables.cap.driverWeeklyHrsCap.desc', unitKey: 'variables.unit.hrsPerWeek', article: 'Art. 88', defaultValue: 56 },
+  { key: 'driverContinuousDrivingHrsCap', labelKey: 'variables.cap.driverContinuousDrivingHrsCap.label', descKey: 'variables.cap.driverContinuousDrivingHrsCap.desc', unitKey: 'variables.unit.hrs', article: 'Art. 88', defaultValue: 4.5, step: 0.5 },
+  { key: 'driverMinDailyRestHrs', labelKey: 'variables.cap.driverMinDailyRestHrs.label', descKey: 'variables.cap.driverMinDailyRestHrs.desc', unitKey: 'variables.unit.hrs', article: 'Art. 88', defaultValue: 11 },
+  { key: 'driverMaxConsecWorkDays', labelKey: 'variables.cap.driverMaxConsecWorkDays.label', descKey: 'variables.cap.driverMaxConsecWorkDays.desc', unitKey: 'variables.unit.days', article: 'Art. 88', defaultValue: 6 },
 ];
 
 const PAY_RATES: CapDef[] = [
-  {
-    key: 'otRateDay',
-    label: 'Daytime Overtime Multiplier',
-    unit: '×',
-    article: 'Art. 73',
-    description: 'Pay multiplier for overtime worked during daytime hours.',
-    defaultValue: 1.5,
-    step: 0.1,
-  },
-  {
-    key: 'otRateNight',
-    label: 'Night-time / Holiday Overtime Multiplier',
-    unit: '×',
-    article: 'Art. 73-74',
-    description: 'Pay multiplier for overtime worked at night or on official holidays.',
-    defaultValue: 2.0,
-    step: 0.1,
-  },
+  { key: 'otRateDay', labelKey: 'variables.cap.otRateDay.label', descKey: 'variables.cap.otRateDay.desc', unitKey: 'variables.unit.multiplier', article: 'Art. 73', defaultValue: 1.5, step: 0.1 },
+  { key: 'otRateNight', labelKey: 'variables.cap.otRateNight.label', descKey: 'variables.cap.otRateNight.desc', unitKey: 'variables.unit.multiplier', article: 'Art. 73-74', defaultValue: 2.0, step: 0.1 },
 ];
 
 interface SectionProps {
@@ -160,6 +70,7 @@ interface SectionProps {
 }
 
 function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, setConfig }: SectionProps) {
+  const { t } = useI18n();
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <div className="p-5 border-b border-slate-100 flex items-center gap-4">
@@ -178,12 +89,12 @@ function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, 
             <div key={String(cap.key)} className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <div className="md:col-span-2 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-slate-800 text-sm">{cap.label}</p>
+                  <p className="font-bold text-slate-800 text-sm">{t(cap.labelKey)}</p>
                   <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 font-mono">
                     {cap.article}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">{cap.description}</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{t(cap.descKey)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -196,7 +107,7 @@ function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, 
                   }}
                   className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{cap.unit}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
               </div>
             </div>
           );
@@ -220,16 +131,16 @@ export function VariablesTab({ config, setConfig }: Props) {
       <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
         <div>
-          <p className="text-xs font-bold text-blue-800">Editing these values is intentional but consequential.</p>
+          <p className="text-xs font-bold text-blue-800">{t('variables.editingNote.title')}</p>
           <p className="text-[11px] text-blue-700 leading-relaxed mt-1">
-            Defaults reflect the statute as written. Adjust only if your operation falls under a sector-specific exemption (Ministerial decree, collective bargaining agreement, or Ministry of Transport regulation). Changes apply immediately to both the compliance engine and the auto-scheduler.
+            {t('variables.editingNote.body')}
           </p>
         </div>
       </div>
 
       <Section
         title={t('variables.standard')}
-        subtitle="Iraqi Labor Law No. 37 of 2015 — Art. 67, 70, 71, 72"
+        subtitle={t('variables.standard.subtitle')}
         icon={ShieldCheck}
         iconBg="bg-blue-50"
         iconText="text-blue-600"
@@ -240,7 +151,7 @@ export function VariablesTab({ config, setConfig }: Props) {
 
       <Section
         title={t('variables.hazardous')}
-        subtitle="Art. 68, 70"
+        subtitle={t('variables.hazardous.subtitle')}
         icon={Flame}
         iconBg="bg-orange-50"
         iconText="text-orange-600"
@@ -251,7 +162,7 @@ export function VariablesTab({ config, setConfig }: Props) {
 
       <Section
         title={t('variables.drivers')}
-        subtitle="Art. 88"
+        subtitle={t('variables.drivers.subtitle')}
         icon={Truck}
         iconBg="bg-amber-50"
         iconText="text-amber-700"
@@ -262,7 +173,7 @@ export function VariablesTab({ config, setConfig }: Props) {
 
       <Section
         title={t('variables.payRates')}
-        subtitle="Art. 73, 74"
+        subtitle={t('variables.payRates.subtitle')}
         icon={Calendar}
         iconBg="bg-emerald-50"
         iconText="text-emerald-600"
@@ -321,9 +232,9 @@ export function VariablesTab({ config, setConfig }: Props) {
                       if (e.target.checked) setOverride({ open, close });
                       else setOverride(undefined);
                     }}
-                    aria-label={`Override hours for ${DOW_LABEL[dow]}`}
+                    aria-label={`Override hours for ${t(DOW_KEY[dow])}`}
                   />
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest min-w-[80px]">{DOW_LABEL[dow]}</span>
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest min-w-[80px]">{t(DOW_KEY[dow])}</span>
                   <input
                     type="time"
                     value={open}
@@ -421,12 +332,8 @@ export function VariablesTab({ config, setConfig }: Props) {
       </div>
 
       <div className="border-t border-slate-100 pt-6 text-[11px] text-slate-400 leading-relaxed">
-        <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 mb-2">References</p>
-        <p>
-          Iraqi Labor Law No. 37 of 2015 — full text available from the Iraqi Ministry of Labor. Articles cited above are
-          enforced by the compliance engine in <span className="font-mono">src/lib/compliance.ts</span>. Driver-specific
-          caps additionally consult Ministry of Transport regulations applicable to commercial vehicle operators.
-        </p>
+        <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 mb-2">{t('variables.references.title')}</p>
+        <p>{t('variables.references.body')}</p>
       </div>
     </div>
   );

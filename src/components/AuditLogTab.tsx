@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { History, Plus, Edit3, Trash2, Filter, RefreshCw, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { ConfirmModal } from './ConfirmModal';
 
 export interface AuditEntry {
   ts: number;
@@ -20,6 +21,8 @@ const DOMAIN_LABEL: Record<string, string> = {
   holidays: 'Holiday',
   config: 'Config',
   schedule: 'Schedule',
+  companies: 'Company',
+  system: 'System',
 };
 
 const opIcon = (op: AuditEntry['op']) => {
@@ -41,6 +44,8 @@ export function AuditLogTab() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDomain, setFilterDomain] = useState<string>('all');
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [infoState, setInfoState] = useState<{ open: boolean; title: string; body: string }>({ open: false, title: '', body: '' });
 
   const load = () => {
     setLoading(true);
@@ -51,6 +56,22 @@ export function AuditLogTab() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  const clearLog = () => {
+    fetch('/api/audit/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE_ALL_DATA' }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(() => {
+        setEntries([]);
+        setInfoState({ open: true, title: t('audit.cleared.title'), body: t('audit.cleared.body') });
+      })
+      .catch(() => {
+        setInfoState({ open: true, title: t('info.error.title'), body: t('audit.cleared.failed') });
+      });
   };
 
   useEffect(() => { load(); }, []);
@@ -121,8 +142,32 @@ export function AuditLogTab() {
             <Download className="w-3 h-3" />
             {t('audit.exportCsv')}
           </button>
+          <button
+            onClick={() => setConfirmClearOpen(true)}
+            disabled={entries.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all text-red-700 disabled:opacity-40"
+          >
+            <Trash2 className="w-3 h-3" />
+            {t('audit.clear')}
+          </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmClearOpen}
+        title={t('audit.confirmClear.title')}
+        message={t('audit.confirmClear.body')}
+        onClose={() => setConfirmClearOpen(false)}
+        onConfirm={clearLog}
+      />
+      <ConfirmModal
+        isOpen={infoState.open}
+        title={infoState.title}
+        message={infoState.body}
+        onConfirm={() => setInfoState(s => ({ ...s, open: false }))}
+        onClose={() => setInfoState(s => ({ ...s, open: false }))}
+        infoOnly
+      />
 
       <div className="flex items-center gap-2 flex-wrap p-4 bg-slate-50 border border-slate-100 rounded-xl">
         <Filter className="w-3 h-3 text-slate-400" />
