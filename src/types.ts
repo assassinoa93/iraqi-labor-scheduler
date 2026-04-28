@@ -169,6 +169,16 @@ export interface Config {
   art86NightEnd?: string;   // HH:mm — default '07:00'
 }
 
+// Severity tiers for compliance findings:
+//   - 'violation' (default): hard rule breach. Counts toward the dashboard
+//     violation KPI and the compliance score. Filtered into the violations
+//     table in red.
+//   - 'info': a noted-for-the-supervisor event that is NOT a rule breach
+//     (e.g. worked a public holiday — that's compensable, not illegal).
+//     Surfaces in the report as a separate "Notes" section, doesn't lower
+//     compliance score, doesn't count as a violation in any KPI.
+export type ViolationSeverity = 'violation' | 'info';
+
 export interface Violation {
   empId: string;
   day: number;
@@ -176,6 +186,7 @@ export interface Violation {
   article: string;
   message: string;
   count?: number;
+  severity?: ViolationSeverity;
 }
 
 export interface ScheduleEntry {

@@ -468,7 +468,12 @@ export class ComplianceEngine {
         }
       });
 
-      // Rule: Holiday OT flag (Art. 74)
+      // Rule: Holiday work — informational note, NOT a violation.
+      // Working a public holiday is legal under Art. 74; the law just
+      // requires double pay (compensable, not prohibited). The platform
+      // assumes the supervisor processes holiday OT as part of the next
+      // payroll cycle, so we surface it as an "info" finding for the report
+      // rather than penalising the compliance score.
       days.forEach(day => {
         const entry = empSchedule[day];
         const shiftCode = entry?.shiftCode;
@@ -480,9 +485,10 @@ export class ComplianceEngine {
               violations.push({
                 empId: emp.empId,
                 day,
-                rule: "Holiday OT flag",
+                rule: "Public holiday worked",
                 article: "(Art. 74)",
-                message: "Worked on a public holiday without an explicit OT or PH designation."
+                message: "Worked on a public holiday — eligible for double pay or a compensation day off.",
+                severity: 'info',
               });
             }
           }

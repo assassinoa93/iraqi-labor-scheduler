@@ -2,6 +2,22 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v1.7.2 — 2026-04-28
+
+Compliance-semantics + leave-sync fixes. The user reported that May produced a "substantial OT" spike and most of the violations were "Worked on a public holiday without an explicit OT or PH designation" — not actually a rule breach, just compensable per Art. 74. Demoted that finding to an informational note so it shows in the report without polluting the violation count or compliance score.
+
+**Compliance**
+- New `severity?: 'violation' | 'info'` field on the Violation type. Default is `'violation'` for backward compat. Consumers (Dashboard KPI, simulation delta panel, schedule preview) only count `'violation'`-severity findings; `'info'`-severity findings appear in the report's notes section but don't lower the score.
+- Reclassified the **Holiday OT flag** rule (renamed to **Public holiday worked**) as `severity: 'info'`. Working a public holiday is legal under Art. 74 — it just requires double pay or a comp day. The platform now notes the eligibility without flagging it as a rule breach. The supervisor is assumed to process holiday OT in the next payroll cycle.
+- The **violations vs notes split** lives in `App.tsx`: `findings = engine.check(...)`, `violations = findings.filter(severity === 'violation')`, `infoFindings = findings.filter(severity === 'info')`. This is the single point of truth — every consumer pulls from the right list.
+
+**Leave management**
+- New `stampLeaveOntoSchedule(prevEmp, nextEmp)` helper. When a leave is added or extended via the LeaveManagerModal (or, for back-compat, the EmployeeModal), the schedule cells in the new leave window are automatically stamped with the appropriate code (`AL` / `SL` / `MAT`). No more double-input — the leave manager is now the single source of truth, and the schedule grid updates to match. Existing leave codes are left alone; existing work shifts get overwritten because the user has just declared the employee absent.
+- Wired into both code paths (`handleSaveEmployee` for legacy Roster modal saves, `onUpdateEmployee` for the LeaveManagerModal save) alongside the existing `surfaceLeaveCoverageHint` helper, so leave additions both stamp the schedule AND surface a coverage-hint toast for the most-impactful affected day.
+
+**Tests**
+- Updated the holiday-OT-flag test to assert the new `severity: 'info'` semantics (was checking for the old `'Holiday OT flag'` rule name and treating it as a hard violation).
+
 ## v1.7.1 — 2026-04-28
 
 Hotfix on top of v1.7.0 — surfaces the coverage-hint toast when a leave is added through the new LeaveManagerModal, and reverts the v1.7.0 AnimatePresence wrapper on the auto-scheduler preview that turned out to interact badly with React StrictMode (the modal could get stuck at opacity:0 between consecutive runs).

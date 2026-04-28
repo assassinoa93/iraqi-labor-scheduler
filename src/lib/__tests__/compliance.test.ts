@@ -135,12 +135,17 @@ describe('ComplianceEngine — consecutive work days', () => {
   });
 });
 
-describe('ComplianceEngine — holiday OT flag', () => {
-  it('flags work on a holiday without OT/PH shift code', () => {
+describe('ComplianceEngine — public holiday worked', () => {
+  it('emits an info-severity finding (NOT a violation) for work on a holiday without OT/PH shift code', () => {
     const holidays: PublicHoliday[] = [{ date: '2026-01-05', name: 'Test Holiday', type: 'National', legalReference: 'Art. 74' }];
     const sched = buildSchedule({ 5: 'FS' });
     const v = ComplianceEngine.check([baseEmployee], [FS], holidays, baseConfig, sched);
-    expect(v.find(x => x.rule === 'Holiday OT flag')).toBeDefined();
+    const phFinding = v.find(x => x.rule === 'Public holiday worked');
+    expect(phFinding).toBeDefined();
+    // Working a public holiday is legal under Art. 74 (it just requires
+    // double pay or a comp day). The platform aids the supervisor by noting
+    // the eligibility rather than flagging it as a rule breach.
+    expect(phFinding?.severity).toBe('info');
   });
 });
 

@@ -387,10 +387,18 @@ export default function App() {
     onConfirm: () => {},
   });
 
-  const violations = useMemo(() => {
-    const rawViolations = ComplianceEngine.check(employees, shifts, holidays, config, schedule, allSchedules);
-    return rawViolations.filter(v => v.rule !== 'Weekly hours cap');
+  // `findings` is the full output of the compliance engine — both hard
+  // violations and informational notes (severity: 'info'). `violations` is
+  // the subset surfaced as actual rule breaches in KPIs and the violation
+  // table; `infoFindings` are notes the supervisor needs to be aware of
+  // (e.g. holiday worked → eligible for double pay) but which are NOT rule
+  // breaches and don't lower the compliance score.
+  const findings = useMemo(() => {
+    const raw = ComplianceEngine.check(employees, shifts, holidays, config, schedule, allSchedules);
+    return raw.filter(v => v.rule !== 'Weekly hours cap');
   }, [schedule, employees, shifts, config, holidays, allSchedules]);
+  const violations = useMemo(() => findings.filter(v => (v.severity ?? 'violation') === 'violation'), [findings]);
+  const infoFindings = useMemo(() => findings.filter(v => v.severity === 'info'), [findings]);
 
   // Shared peak-day helper used by both the auto-scheduler and the coverage heatmap.
   const isPeakDay = React.useCallback((day: number): boolean => {
@@ -430,6 +438,35 @@ export default function App() {
       orphanedStationIds: Array.from(orphanedStationIds),
     };
   }, [schedule, employees, shifts, stations]);
+
+  // Stamp the appropriate leave code (AL / SL / MAT) onto every schedule
+  // cell that just transitioned from "no leave" to "on leave" for this
+  // employee. Single source of truth: editing leaves in the LeaveManagerModal
+  // is enough — the schedule grid updates to match automatically, no
+  // double-input needed. Existing AL/SL/MAT cells are left alone; existing
+  // work shifts get overwritten because the user has just declared the
+  // employee absent on that day.
+  const stampLeaveOntoSchedule = React.useCallback((prevEmp: Employee, nextEmp: Employee) => {
+    const codeFor = (type: 'annual' | 'sick' | 'maternity') => type === 'annual' ? 'AL' : type === 'sick' ? 'SL' : 'MAT';
+    setSchedule(prevSched => {
+      const empBucket = { ...(prevSched[nextEmp.empId] || {}) };
+      let changed = false;
+      for (let day = 1; day <= config.daysInMonth; day++) {
+        const ds = format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
+        const wasOnLeave = getEmployeeLeaveOnDate(prevEmp, ds);
+        const nowOnLeave = getEmployeeLeaveOnDate(nextEmp, ds);
+        if (!wasOnLeave && nowOnLeave) {
+          const desired = codeFor(nowOnLeave.type);
+          if (empBucket[day]?.shiftCode !== desired) {
+            empBucket[day] = { shiftCode: desired };
+            changed = true;
+          }
+        }
+      }
+      if (!changed) return prevSched;
+      return { ...prevSched, [nextEmp.empId]: empBucket };
+    });
+  }, [config.year, config.month, config.daysInMonth, setSchedule]);
 
   // Surface a single coverage-hint toast for the most impactful day where the
   // given employee just transitioned from "available" to "on leave". Diffs the
@@ -471,6 +508,7 @@ export default function App() {
   const handleSaveEmployee = (emp: Employee) => {
     if (editingEmployee) {
       setEmployees(prev => prev.map(e => e.empId === editingEmployee.empId ? emp : e));
+      stampLeaveOntoSchedule(editingEmployee, emp);
       surfaceLeaveCoverageHint(editingEmployee, emp);
     } else {
       setEmployees(prev => [...prev, emp]);
@@ -1706,15 +1744,19 @@ export default function App() {
                 config={config}
                 onExport={exportScheduleCSV}
                 onUpdateEmployee={(next) => {
-                  // Diff against the prior employee record so the coverage-hint
-                  // toast can fire when a leave addition vacates a station-bound
-                  // assignment. Without this, leaves added via the
-                  // LeaveManagerModal silently leave the schedule in conflict
-                  // with the new leave window — the compliance engine flags it
-                  // but no proactive swap suggestion appears.
+                  // Diff against the prior employee record so we can:
+                  //   1. Stamp the leave code (AL/SL/MAT) onto the schedule
+                  //      cells in the new leave window — single source of
+                  //      truth, no double-input.
+                  //   2. Fire the coverage-hint toast for the most-impactful
+                  //      newly-vacated day so the supervisor sees swap
+                  //      candidates without having to hunt for them.
                   const prev = employees.find(e => e.empId === next.empId);
                   setEmployees(arr => arr.map(e => e.empId === next.empId ? next : e));
-                  if (prev) surfaceLeaveCoverageHint(prev, next);
+                  if (prev) {
+                    stampLeaveOntoSchedule(prev, next);
+                    surfaceLeaveCoverageHint(prev, next);
+                  }
                 }}
               />
             )}
