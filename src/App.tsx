@@ -44,6 +44,7 @@ import { APP_VERSION } from './lib/appMeta';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWorkedHours } from './lib/payroll';
 import { computeHolidayPay } from './lib/holidayCompPay';
 import { isSystemShift } from './lib/systemShifts';
+import { expandHolidayDates } from './lib/holidays';
 import { parseHour, getOperatingHoursForDow } from './lib/time';
 import { cn } from './lib/utils';
 import { runAutoScheduler } from './lib/autoScheduler';
@@ -134,11 +135,18 @@ export default function App() {
   // The active company's data slice. Falls back to an empty placeholder when
   // a company exists in the registry but has no rows yet (e.g. just created).
   const data: CompanyData = companyData[activeCompanyId] ?? emptyCompanyData();
-  const { employees, shifts, holidays, config, stations, allSchedules } = data;
+  const { employees, shifts, holidays: rawHolidays, config, stations, allSchedules } = data;
   // v1.16: station groups live alongside stations. Pre-1.16 saves don't
   // include this; default to an empty list so consumers can treat it
   // uniformly without null-checks.
   const stationGroups = data.stationGroups ?? [];
+  // v2.5.0 — multi-day holidays. The HolidaysTab edits the raw list (one
+  // record per holiday with `durationDays`); every other consumer (auto-
+  // scheduler, compliance, payroll, workforce planner, …) wants to ask
+  // "is THIS date a holiday?" — they expect one record per covered day.
+  // We expand once at the entry point so downstream date-matching code
+  // (`h.date === dateStr`) keeps working without per-call expansion.
+  const holidays = useMemo(() => expandHolidayDates(rawHolidays), [rawHolidays]);
   const scheduleKey = `scheduler_schedule_${config.year}_${config.month}`;
   const schedule: Schedule = allSchedules[scheduleKey] ?? {};
 
@@ -2365,7 +2373,7 @@ export default function App() {
 
             {activeTab === 'holidays' && (
               <HolidaysTab
-                holidays={holidays}
+                holidays={rawHolidays}
                 config={config}
                 onAddNew={() => { setEditingHoliday(null); setIsHolidayModalOpen(true); }}
                 onEdit={(holi) => { setEditingHoliday(holi); setIsHolidayModalOpen(true); }}

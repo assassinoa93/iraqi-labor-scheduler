@@ -166,7 +166,7 @@ export interface PublicHoliday {
   // before reaching App.tsx. Library functions key off `date` and don't
   // depend on `id`.
   id?: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD — first (or only) day of the holiday
   name: string;
   type: string;
   legalReference: string;
@@ -176,6 +176,16 @@ export interface PublicHoliday {
   // single holiday to 'cash-ot' when the team can't absorb the comp-day
   // rotation (e.g. a holiday inside a peak week with no spare HC).
   compMode?: HolidayCompMode;
+  // v2.5.0 — multi-day holidays. Eid Al-Fitr / Eid Al-Adha typically
+  // span 2-3 days; pre-2.5 the user had to add three separate holiday
+  // records to model that. This field is the LENGTH of the holiday in
+  // days starting at `date` (inclusive). Default 1 (single-day) when
+  // missing — the migration normalizer backfills it explicitly. The
+  // `expandHolidayDates()` helper in `lib/holidays.ts` materialises the
+  // multi-day holiday into one synthetic entry per covered date, so
+  // existing date-matching code (`h.date === dateStr`) continues to
+  // work after the entry point swaps to expanded list.
+  durationDays?: number;
 }
 
 // Optional per-day-of-week opening/closing override. Days are 1=Sun..7=Sat to

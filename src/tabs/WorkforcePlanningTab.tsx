@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Users, TrendingUp, Minus, Sparkles, Info,
   MapPin, ChevronDown, ChevronUp, Calendar, Activity, ShieldCheck,
-  Zap, Download, Eye, GitCompareArrows, FileSpreadsheet,
+  Zap, Download, Eye, GitCompareArrows, FileSpreadsheet, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule } from '../types';
 import { Card, ComparativeKpi } from '../components/Primitives';
@@ -10,6 +10,7 @@ import { getGroupIcon } from '../lib/groupIcons';
 import { Switch } from '../components/ui/Switch';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { projectHolidaysToYear } from '../lib/holidays';
 import {
   analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupStation, AnnualRollupGroup, MonthlyPlanSummary,
   PlanMode, buildHiringRoadmap, HiringRoadmap, MonthlyHiringStep,
@@ -55,22 +56,47 @@ export function WorkforcePlanningTab(props: Props) {
   const [idealOnly, setIdealOnly] = useState(false);
   const [showAnnualRollup, setShowAnnualRollup] = useState(true);
   const [drillMonthIndex, setDrillMonthIndex] = useState<number | null>(null);
+  // v2.5.0 — forecast-year selector. The planner runs against THIS year
+  // (with the user's data as baseline) by default, but can simulate any
+  // future or past year by re-projecting holidays + recomputing month
+  // calendars. Useful for "plan 2027 from 2026 data" recruitment cycles.
+  const [forecastYear, setForecastYear] = useState<number>(config.year);
+
+  // Build a synthetic config when forecasting a different year. Holidays
+  // also need projection: fixed-Gregorian holidays shift to the same
+  // month/day in the target year; movable holidays carry through only
+  // if their date already falls in the target year (we can't
+  // auto-shift Hijri-based dates without a Hijri calendar lib).
+  const isForecasting = forecastYear !== config.year;
+  const { forecastConfig, forecastHolidays, projectedFixedCount, skippedMovableCount } = useMemo(() => {
+    if (!isForecasting) {
+      return { forecastConfig: config, forecastHolidays: holidays, projectedFixedCount: 0, skippedMovableCount: 0 };
+    }
+    const { projected, skippedMovable } = projectHolidaysToYear(holidays, forecastYear);
+    const fixedCount = projected.length;
+    return {
+      forecastConfig: { ...config, year: forecastYear },
+      forecastHolidays: projected,
+      projectedFixedCount: fixedCount,
+      skippedMovableCount: skippedMovable,
+    };
+  }, [isForecasting, config, holidays, forecastYear]);
 
   const annual = useMemo(
-    () => analyzeWorkforceAnnual({ employees, shifts, stations, holidays, baseConfig: config, isPeakDayFor, mode }),
-    [employees, shifts, stations, holidays, config, isPeakDayFor, mode],
+    () => analyzeWorkforceAnnual({ employees, shifts, stations, holidays: forecastHolidays, baseConfig: forecastConfig, isPeakDayFor, mode }),
+    [employees, shifts, stations, forecastHolidays, forecastConfig, isPeakDayFor, mode],
   );
   const rollup = useMemo(
-    () => buildAnnualRollup(annual, employees, stations, mode, stationGroups, config),
-    [annual, employees, stations, mode, stationGroups, config],
+    () => buildAnnualRollup(annual, employees, stations, mode, stationGroups, forecastConfig),
+    [annual, employees, stations, mode, stationGroups, forecastConfig],
   );
   // v2.4.0 — month-by-month hiring schedule. Plans WHEN to bring people on
   // so they're productive at peak demand without paying for them through
   // the valley months that come before. Reuses the annual demand curve;
   // mode toggles whether PT contracts can scale up/down.
   const roadmap = useMemo(
-    () => buildHiringRoadmap({ annual, employees, mode, config }),
-    [annual, employees, mode, config],
+    () => buildHiringRoadmap({ annual, employees, mode, config: forecastConfig }),
+    [annual, employees, mode, forecastConfig],
   );
   const drillMonth = drillMonthIndex
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
@@ -105,10 +131,44 @@ export function WorkforcePlanningTab(props: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row items-start justify-between gap-4 mb-2">
-        <div className="flex items-center gap-4">
-          <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">{t('workforce.annual.year')}</p>
-            <p className="text-2xl font-black text-slate-800 tracking-tight font-mono">{annual.year}</p>
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* v2.5.0 — clickable year selector. Renders just like the static
+              year card it replaced, but the chevrons jump to the previous /
+              next forecast year. The badge below switches to "FORECAST"
+              when looking at a year other than the active calendar's. */}
+          <div className="bg-white px-2 py-2 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-1">
+            <button
+              onClick={() => setForecastYear(y => y - 1)}
+              aria-label={t('workforce.forecast.prevYear')}
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="text-center px-2 min-w-[88px]">
+              <p className={cn(
+                'text-[10px] font-black uppercase tracking-[0.2em]',
+                isForecasting ? 'text-amber-600' : 'text-blue-500',
+              )}>
+                {isForecasting ? t('workforce.forecast.label') : t('workforce.annual.year')}
+              </p>
+              <p className="text-2xl font-black text-slate-800 tracking-tight font-mono">{forecastYear}</p>
+            </div>
+            <button
+              onClick={() => setForecastYear(y => y + 1)}
+              aria-label={t('workforce.forecast.nextYear')}
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {isForecasting && (
+              <button
+                onClick={() => setForecastYear(config.year)}
+                className="ml-1 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                title={t('workforce.forecast.resetTooltip')}
+              >
+                {t('workforce.forecast.reset')}
+              </button>
+            )}
           </div>
           <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.mode.label')}</p>
@@ -145,6 +205,23 @@ export function WorkforcePlanningTab(props: Props) {
           )}
         </div>
       </div>
+
+      {/* v2.5.0 — forecast banner. Surfaces only when the user picked a
+          year other than the active config's, explains the simulation
+          assumptions, and warns about movable holidays that couldn't
+          be auto-projected. */}
+      {isForecasting && (
+        <Card className="p-4 bg-amber-50/40 border-amber-200 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-[11px] font-black text-amber-800 uppercase tracking-widest">{t('workforce.forecast.banner.title', { year: forecastYear })}</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">{t('workforce.forecast.banner.body', { year: forecastYear, projected: projectedFixedCount })}</p>
+            {skippedMovableCount > 0 && (
+              <p className="text-[11px] text-amber-700 leading-relaxed">{t('workforce.forecast.banner.skippedMovable', { count: skippedMovableCount, year: forecastYear })}</p>
+            )}
+          </div>
+        </Card>
+      )}
 
       {!hasInputs ? (
         <Card className="p-10 text-center space-y-4">
@@ -475,9 +552,12 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
   const [expanded, setExpanded] = useState(false);
   const actionTone =
     group.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
+      : group.action === 'release' ? { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', Icon: AlertTriangle }
       : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
   const ActionIcon = actionTone.Icon;
-  const actionLabel = group.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
+  const actionLabel = group.action === 'hire'
+    ? t('workforce.action.hire')
+    : group.action === 'release' ? t('workforce.action.release') : t('workforce.action.hold');
   const memberStationRollups = stationRollups.filter(s => group.stationIds.includes(s.stationId));
   void stationsLookup;
   const GroupIcon = getGroupIcon(group.groupIcon);
@@ -534,8 +614,10 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
                   : t('workforce.rollup.breakdown.fte', { fte: group.recommendedFTE })}
                 deltaHint={group.action === 'hire'
                   ? t('workforce.role.hireBy', { count: group.delta })
-                  : t('workforce.role.matchesNeed')}
-                tone={group.delta > 0 ? 'rose' : 'emerald'}
+                  : group.action === 'release'
+                    ? t('workforce.role.releaseBy', { count: Math.abs(group.delta) })
+                    : t('workforce.role.matchesNeed')}
+                tone={group.action === 'hire' ? 'rose' : group.action === 'release' ? 'blue' : 'emerald'}
               />
               <KpiBlock
                 label={t('workforce.rollup.peakMonth')}
@@ -566,7 +648,12 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.group.drilldown')}</p>
             {memberStationRollups.map(s => {
               const totalRec = s.recommendedFTE + s.recommendedPartTime;
-              const deltaTone = s.delta > 0 ? 'text-rose-700' : 'text-emerald-700';
+              // v2.5.0 — surface the *effective* supply (fair-share) so
+              // a station with 35 cashiers across a 10-station group
+              // reads "3.5 effective / 2 needed" instead of the
+              // misleading "35 / 2".
+              const effectiveSupply = Math.round((s.effectiveSupplyFTE + s.effectiveSupplyPartTime) * 10) / 10;
+              const deltaTone = s.action === 'hire' ? 'text-rose-700' : s.action === 'release' ? 'text-amber-700' : 'text-emerald-700';
               return (
                 <div key={s.stationId} className="bg-white rounded-lg border border-slate-100 p-3 flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -585,9 +672,14 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
                     // v2.2.0 — comparative: "current / recommended" matches the
                     // parent group row's pattern so the supervisor reads the
                     // drilldown the same way they read the rollup above.
-                    <div className="text-right shrink-0">
+                    // v2.5.0 — headline numbers are now EFFECTIVE supply vs
+                    // recommended; raw eligible count moved to the tooltip.
+                    <div
+                      className="text-right shrink-0"
+                      title={t('workforce.rollup.effectiveTooltip', { eligible: s.currentEligibleCount, effective: effectiveSupply })}
+                    >
                       <p className="text-sm font-black tabular-nums">
-                        <span className="text-slate-500">{s.currentEligibleCount}</span>
+                        <span className="text-slate-500">{effectiveSupply}</span>
                         <span className="text-slate-300 mx-0.5">/</span>
                         <span className={deltaTone}>{totalRec}</span>
                       </p>
@@ -624,9 +716,12 @@ function RollupStationRow({ station, idealOnly }: { station: AnnualRollupStation
   const { t } = useI18n();
   const actionTone =
     station.action === 'hire' ? { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', Icon: TrendingUp }
+      : station.action === 'release' ? { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', Icon: AlertTriangle }
       : { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-600', Icon: Minus };
   const ActionIcon = actionTone.Icon;
-  const actionLabel = station.action === 'hire' ? t('workforce.action.hire') : t('workforce.action.hold');
+  const actionLabel = station.action === 'hire'
+    ? t('workforce.action.hire')
+    : station.action === 'release' ? t('workforce.action.release') : t('workforce.action.hold');
 
   return (
     <div className="p-5 hover:bg-slate-50/40 transition-colors">
@@ -672,8 +767,10 @@ function RollupStationRow({ station, idealOnly }: { station: AnnualRollupStation
                   : t('workforce.rollup.breakdown.fte', { fte: station.recommendedFTE })}
                 deltaHint={station.action === 'hire'
                   ? t('workforce.role.hireBy', { count: station.delta })
-                  : t('workforce.role.matchesNeed')}
-                tone={station.delta > 0 ? 'rose' : 'emerald'}
+                  : station.action === 'release'
+                    ? t('workforce.role.releaseBy', { count: Math.abs(station.delta) })
+                    : t('workforce.role.matchesNeed')}
+                tone={station.action === 'hire' ? 'rose' : station.action === 'release' ? 'blue' : 'emerald'}
               />
               <KpiBlock
                 label={t('workforce.rollup.peakMonth')}

@@ -82,6 +82,31 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
           <SettingField label={t('modal.holiday.field.date')} type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
           <p className="text-[10px] text-slate-400 -mt-2">{t('modal.holiday.field.date.hint')}</p>
           <SettingField label={t('modal.holiday.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
+
+          {/* v2.5.0 — duration field. Eid Al-Fitr / Eid Al-Adha typically
+              span 2-3 days; pre-2.5 the user added 3 separate records
+              (one per day) which made bulk-editing painful. The field
+              now holds a single record + duration; the rest of the app
+              expands it to per-day records for date-matching. */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.holiday.field.duration')}</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={14}
+                value={formData.durationDays ?? 1}
+                onChange={e => {
+                  const raw = parseInt(e.target.value, 10);
+                  const clamped = Number.isFinite(raw) ? Math.max(1, Math.min(14, raw)) : 1;
+                  setFormData({ ...formData, durationDays: clamped });
+                }}
+                className="w-24 px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+              />
+              <span className="text-[11px] text-slate-500 font-medium">{t('modal.holiday.field.duration.suffix')}</span>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">{t('modal.holiday.field.duration.hint')}</p>
+          </div>
           <SettingField
             label={t('modal.holiday.field.category')}
             type="select"

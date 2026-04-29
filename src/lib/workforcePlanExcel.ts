@@ -72,6 +72,10 @@ const SECTION_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E
 const SECTION_FONT = { bold: true, color: { argb: 'FFFFFFFF' }, size: 14 };
 const HIRE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // rose-100
 const HOLD_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // emerald-100
+// v2.5.0 — release rows in optimal mode (surplus to demand). Amber so
+// the supervisor doesn't confuse them with hire (rose) and weighs the
+// Art. 36/40 caveats before acting.
+const RELEASE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // amber-100
 
 const IQD_FORMAT = '#,##0" IQD"';
 const HOURS_FORMAT = '#,##0" h"';
@@ -377,6 +381,7 @@ function buildGroupRollup(wb: ExcelWorkbook, rollup: AnnualRollup) {
     row.eachCell(c => { c.alignment = { vertical: 'top', wrapText: true }; c.border = thinBorder(); });
     row.getCell(3).numFmt = HOURS_FORMAT;
     if (g.action === 'hire') row.getCell(9).fill = HIRE_FILL;
+    else if (g.action === 'release') row.getCell(9).fill = RELEASE_FILL;
     else row.getCell(9).fill = HOLD_FILL;
     row.height = 28;
   }
@@ -406,6 +411,7 @@ function buildStationRollup(wb: ExcelWorkbook, rollup: AnnualRollup) {
     row.eachCell(c => { c.alignment = { vertical: 'top', wrapText: true }; c.border = thinBorder(); });
     row.getCell(3).numFmt = HOURS_FORMAT;
     if (s.action === 'hire') row.getCell(9).fill = HIRE_FILL;
+    else if (s.action === 'release') row.getCell(9).fill = RELEASE_FILL;
     else row.getCell(9).fill = HOLD_FILL;
     row.height = 28;
   }

@@ -94,9 +94,23 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
                 <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-100 shadow-sm">
                   <Calendar className="w-6 h-6" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm leading-tight">{holi.name}</h4>
-                  <span className="text-[10px] font-mono text-slate-400 font-bold uppercase">{format(new Date(holi.date), 'dd MMMM yyyy')}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-800 text-sm leading-tight">{holi.name}</h4>
+                    {(holi.durationDays ?? 1) > 1 && (
+                      <span className="text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded uppercase tracking-widest">
+                        {t('holidays.durationBadge', { days: holi.durationDays })}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400 font-bold uppercase">
+                    {(holi.durationDays ?? 1) > 1
+                      ? t('holidays.dateRange', {
+                          start: format(new Date(holi.date), 'dd MMM'),
+                          end: format(new Date(new Date(holi.date).getTime() + ((holi.durationDays ?? 1) - 1) * 86400000), 'dd MMM yyyy'),
+                        })
+                      : format(new Date(holi.date), 'dd MMMM yyyy')}
+                  </span>
                 </div>
               </div>
 

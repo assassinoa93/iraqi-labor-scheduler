@@ -479,7 +479,10 @@ export interface AnnualRollupRole {
   reasoning: string;
   currentCount: number;
   delta: number;
-  action: 'hire' | 'hold';
+  // v2.5.0 — 'release' for optimal mode (with caveats). Conservative
+  // never recommends release and keeps the type's runtime values to
+  // 'hire' / 'hold' for that branch.
+  action: 'hire' | 'hold' | 'release';
 }
 
 // Per-station rollup row (v1.15). Anchors the recommendation to the
@@ -507,8 +510,22 @@ export interface AnnualRollupStation {
   // anyone with `contractedWeeklyHrs < config.standardWeeklyHrsCap`.
   currentFTECount: number;
   currentPartTimeCount: number;
+  // v2.5.0 — the fair-share supply available to this station alone.
+  // currentEligibleCount counts every employee whose eligibility set
+  // INCLUDES this station, so a venue with 35 cashiers eligible for
+  // 10 cashier stations would show "35 eligible / 2 needed" on each
+  // station (misleading — the 35 are spread across ALL 10 stations).
+  // effectiveSupplyFTE / PT divide each employee's contribution by the
+  // total stations they cover, so the same example shows "3.5 / 2"
+  // (correct: each station gets 1/10 of each operator's capacity).
+  effectiveSupplyFTE: number;
+  effectiveSupplyPartTime: number;
   delta: number;                   // recommended - currentEligibleCount
-  action: 'hire' | 'hold';
+  // v2.5.0 — added 'release' for optimal mode when the current roster
+  // exceeds recommended. Conservative still uses only 'hire' / 'hold'
+  // (Iraqi Labor Law makes releases legally fraught and the
+  // conservative target carries excess through valleys instead).
+  action: 'hire' | 'hold' | 'release';
 }
 
 // Per-group rollup (v1.16). Groups are the supervisor's mental model —
@@ -543,7 +560,9 @@ export interface AnnualRollupGroup {
   currentFTECount: number;
   currentPartTimeCount: number;
   delta: number;
-  action: 'hire' | 'hold';
+  // v2.5.0 — 'release' surfaces in optimal mode when delta < 0. See
+  // AnnualRollupStation.action for the full rationale.
+  action: 'hire' | 'hold' | 'release';
 }
 
 export interface AnnualRollup {
@@ -730,11 +749,19 @@ export function buildAnnualRollup(
       : Math.round(acc.perMonth.reduce((s, p) => s + p.pt, 0) / acc.perMonth.length);
     const currentCount = current.get(role) || 0;
     const delta = (recommendedFTE + recommendedPartTime) - currentCount;
-    const action: AnnualRollupRole['action'] = delta > 0 ? 'hire' : 'hold';
+    // v2.5.0 — optimal mode surfaces 'release' for surplus roles so
+    // the supervisor sees the true cost-minimising answer. Conservative
+    // continues to mask surplus as 'hold' (carry through valleys, no
+    // release attempted under Iraqi Labor Law).
+    const action: AnnualRollupRole['action'] = delta > 0
+      ? 'hire'
+      : (delta < 0 && mode === 'optimal' ? 'release' : 'hold');
 
     const reasoning = mode === 'conservative'
       ? `Conservative target = peak month (${MONTH_NAMES[peakIdx - 1]}) FTE need = ${peakFTE}. Hire to that level and hold through valley months — releases are legally hard under Art. 36/40 (fixed-term renewals become open-ended, dismissals require Minister of Labor approval).`
-      : `Optimal target = average across the year. ${recommendedFTE} FTE baseline + ${recommendedPartTime} part-timer(s) for peak surge. Cheaper than the conservative approach but assumes the supervisor can scale headcount up/down — usually requires fixed-term PT contracts that don't trigger Art. 36 open-end conversion.`;
+      : action === 'release'
+        ? `Optimal target = ${recommendedFTE} FTE${recommendedPartTime > 0 ? ` + ${recommendedPartTime} PT` : ''}. Current roster of ${currentCount} exceeds annual demand by ${Math.abs(delta)}. Reducing requires Minister of Labor approval (Art. 40); fixed-term PT contracts can be allowed to expire without renewal (Art. 36) but FTE releases are slow and reputational. Treat this as a recruitment-freeze signal rather than a layoff list.`
+        : `Optimal target = average across the year. ${recommendedFTE} FTE baseline + ${recommendedPartTime} part-timer(s) for peak surge. Cheaper than the conservative approach but assumes the supervisor can scale headcount up/down — usually requires fixed-term PT contracts that don't trigger Art. 36 open-end conversion.`;
 
     byRole.push({
       role,
@@ -818,26 +845,54 @@ export function buildAnnualRollup(
   const weeklyCapForFT = config?.standardWeeklyHrsCap ?? 48;
   const isPT = (e: Employee) => (e.contractedWeeklyHrs || weeklyCapForFT) < weeklyCapForFT;
 
-  // Eligibility: how many current employees can staff each station today,
-  // split FT / PT so the comparative KPI shows the supply mix.
-  const eligibilityCount = (st: Station): { total: number; fte: number; pt: number } => {
-    let fte = 0, pt = 0;
-    for (const e of employees) {
-      let counted = false;
-      if (st.requiredRoles?.includes('Driver')) {
-        if (e.category === 'Driver') counted = true;
-      } else {
-        const eligible = e.eligibleStations.length === 0 || e.eligibleStations.includes(st.id);
-        if (!eligible) continue;
-        if (st.requiredRoles?.length && !st.requiredRoles.some(r => r === e.role || r === 'Standard')) continue;
-        counted = true;
-      }
-      if (counted) {
-        if (isPT(e)) pt++;
-        else fte++;
-      }
+  // v2.5.0 — eligibility now honours eligibleGroups (the previous
+  // helper only looked at eligibleStations, so a group-only employee
+  // showed as ineligible everywhere — the rollup undercounted supply).
+  const employeeEligibleFor = (e: Employee, st: Station): boolean => {
+    if (st.requiredRoles?.includes('Driver')) {
+      return e.category === 'Driver';
     }
-    return { total: fte + pt, fte, pt };
+    const directly = e.eligibleStations.length === 0 || e.eligibleStations.includes(st.id);
+    const viaGroup = !!(st.groupId && (e.eligibleGroups || []).includes(st.groupId));
+    if (!directly && !viaGroup) return false;
+    if (st.requiredRoles?.length && !st.requiredRoles.some(r => r === e.role || r === 'Standard')) return false;
+    return true;
+  };
+
+  // v2.5.0 — pre-compute how many stations each employee is eligible
+  // for. Drives the fair-share `effectiveSupply` math: an employee
+  // covering 10 cashier stations contributes 1/10 to each station's
+  // effective supply, so a station with 35 eligible operators across a
+  // 10-station group reads as "3.5 effective FTE" instead of the
+  // misleading "35 eligible" double-count.
+  const eligibleStationCountByEmp = new Map<string, number>();
+  for (const e of employees) {
+    let n = 0;
+    for (const st of stations) if (employeeEligibleFor(e, st)) n++;
+    eligibleStationCountByEmp.set(e.empId, n);
+  }
+
+  // Eligibility: how many current employees can staff each station today,
+  // split FT / PT (raw count) PLUS effective fair-share supply (raw / N
+  // stations the employee covers).
+  const eligibilityCount = (st: Station): {
+    total: number; fte: number; pt: number;
+    effFte: number; effPt: number;
+  } => {
+    let fte = 0, pt = 0, effFte = 0, effPt = 0;
+    for (const e of employees) {
+      if (!employeeEligibleFor(e, st)) continue;
+      const span = Math.max(1, eligibleStationCountByEmp.get(e.empId) || 1);
+      const share = 1 / span;
+      if (isPT(e)) { pt++; effPt += share; }
+      else { fte++; effFte += share; }
+    }
+    return {
+      total: fte + pt,
+      fte, pt,
+      effFte: Math.round(effFte * 10) / 10, // 1 decimal precision
+      effPt: Math.round(effPt * 10) / 10,
+    };
   };
 
   const byStation: AnnualRollupStation[] = [];
@@ -864,12 +919,26 @@ export function buildAnnualRollup(
       : Math.round(months.reduce((s, p) => s + p.pt, 0) / months.length);
     const eligibility = eligibilityCount(st);
     const currentEligible = eligibility.total;
-    const delta = (recommendedFTE + recommendedPartTime) - currentEligible;
-    const action: AnnualRollupStation['action'] = delta > 0 ? 'hire' : 'hold';
+    // v2.5.0 — delta + action measure effective supply against demand.
+    // A station with 35 employees in a 10-station pool has 3.5 effective
+    // FTE per station — comparing 35 to 2 needed is misleading because
+    // each employee can only cover ~1/10th of the time. Optimal mode
+    // raises the surplus as 'release'; conservative folds it into 'hold'.
+    const effectiveSupply = eligibility.effFte + eligibility.effPt;
+    const delta = Math.round((recommendedFTE + recommendedPartTime - effectiveSupply) * 10) / 10;
+    const action: AnnualRollupStation['action'] = delta > 0
+      ? 'hire'
+      : (delta < 0 && mode === 'optimal' ? 'release' : 'hold');
     const roleHint = st.requiredRoles?.find(r => r !== 'Standard' && r !== '') || null;
+    // v2.5.0 — reasoning narrates the fair-share supply so the
+    // supervisor can sanity-check why "35 eligible / 2 needed" reads
+    // as "hold" instead of "release". Optimal mode flags the legal
+    // caveats explicitly when surfacing a release.
     const reasoning = mode === 'conservative'
-      ? `Station peaks in ${MONTH_NAMES[peakIdx - 1]} needing ${peakFTE} FTE. Hire to that level and hold through valleys; releases are legally hard under Iraqi Labor Law.`
-      : `Avg ${recommendedFTE} FTE + ${recommendedPartTime} part-time across the year. Peak month is ${MONTH_NAMES[peakIdx - 1]}. Optimal mode assumes flexible staffing — review against PT contract limits.`;
+      ? `Station peaks in ${MONTH_NAMES[peakIdx - 1]} needing ${peakFTE} FTE. Hire to that level and hold through valleys; releases are legally hard under Iraqi Labor Law. Effective supply today: ${effectiveSupply} FTE (${currentEligible} eligible across the pool, fair-share allocated).`
+      : action === 'release'
+        ? `Optimal mode: peak need ${peakFTE} FTE; effective supply ${effectiveSupply}. Surplus of ${Math.abs(delta)} FTE-equivalents — consider not renewing fixed-term PT contracts (Art. 36) or freezing replacements. FTE dismissals require Minister of Labor approval (Art. 40).`
+        : `Avg ${recommendedFTE} FTE + ${recommendedPartTime} part-time across the year. Peak month is ${MONTH_NAMES[peakIdx - 1]}. Effective supply: ${effectiveSupply} FTE (${currentEligible} eligible).`;
     byStation.push({
       stationId: st.id,
       stationName: st.name,
@@ -883,6 +952,8 @@ export function buildAnnualRollup(
       currentEligibleCount: currentEligible,
       currentFTECount: eligibility.fte,
       currentPartTimeCount: eligibility.pt,
+      effectiveSupplyFTE: eligibility.effFte,
+      effectiveSupplyPartTime: eligibility.effPt,
       delta,
       action,
     });
@@ -965,10 +1036,17 @@ export function buildAnnualRollup(
       else groupFTE++;
     }
     const delta = (recommendedFTE + recommendedPartTime) - eligibleCount;
-    const action: AnnualRollupGroup['action'] = delta > 0 ? 'hire' : 'hold';
+    // v2.5.0 — optimal mode raises 'release' for surplus groups so the
+    // supervisor sees the cost-minimising answer with explicit caveats.
+    // Conservative still uses 'hold' to mirror the Art. 36/40 reality.
+    const action: AnnualRollupGroup['action'] = delta > 0
+      ? 'hire'
+      : (delta < 0 && mode === 'optimal' ? 'release' : 'hold');
     const reasoning = mode === 'conservative'
       ? `${memberStations.length} station(s) under "${grp.name}" peak together in ${MONTH_NAMES[peakIdx - 1]} requiring ${peakMonthFTE} FTE pooled. Conservative carries that headcount through valley months.`
-      : `Year-average across ${memberStations.length} station(s) gives ${recommendedFTE} FTE + ${recommendedPartTime} part-time. Peak in ${MONTH_NAMES[peakIdx - 1]} needs ${peakMonthFTE}.`;
+      : action === 'release'
+        ? `Group "${grp.name}" pools ${memberStations.length} stations needing ${recommendedFTE} FTE${recommendedPartTime > 0 ? ` + ${recommendedPartTime} PT` : ''} on average. Current pool: ${eligibleCount} (${groupFTE} FT + ${groupPT} PT). Surplus of ${Math.abs(delta)} — favour letting fixed-term PT (Art. 36) expire over FTE dismissals (Art. 40, requires Minister of Labor approval).`
+        : `Year-average across ${memberStations.length} station(s) gives ${recommendedFTE} FTE + ${recommendedPartTime} part-time. Peak in ${MONTH_NAMES[peakIdx - 1]} needs ${peakMonthFTE}.`;
     byGroup.push({
       groupId: grp.id,
       groupName: grp.name,

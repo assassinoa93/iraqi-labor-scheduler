@@ -157,6 +157,12 @@ export function normalizeHoliday(raw: Partial<PublicHoliday> & Record<string, un
   // post-2.2.0 keeps its identity stable across the rename.
   const date = String(raw.date ?? '');
   const id = typeof raw.id === 'string' && raw.id.length > 0 ? raw.id : (date || `holi-${Math.random().toString(36).slice(2, 10)}`);
+  // v2.5.0 — multi-day holidays. Backfill durationDays = 1 for legacy
+  // records (single-day was the implicit assumption everywhere). Clamp
+  // to [1, 14] — Iraqi holidays never legally exceed two weeks and
+  // anything outside that is almost certainly user error.
+  const rawDuration = typeof raw.durationDays === 'number' ? raw.durationDays : 1;
+  const durationDays = Math.max(1, Math.min(14, Math.round(rawDuration)));
   return {
     id,
     date,
@@ -167,6 +173,7 @@ export function normalizeHoliday(raw: Partial<PublicHoliday> & Record<string, un
     // v2.1: per-holiday Art. 74 mode override. Undefined = inherit
     // config.holidayCompMode at evaluation time.
     compMode,
+    durationDays,
   };
 }
 

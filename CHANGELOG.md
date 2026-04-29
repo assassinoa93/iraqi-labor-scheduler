@@ -2,6 +2,28 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v2.5.0 — 2026-04-29
+
+**Forecasting + supply truth-telling.** Three user-driven items: a forecast-year selector for planning future years from current data, optimal-mode 'release' actions with Iraqi-law caveats, fair-share effective supply per station to fix the "35 eligible / 2 needed" double-count, and multi-day holiday support so Eid Al-Fitr can be one record instead of three.
+
+**Workforce planning — forecast year selector**
+- New ‹/›-stepped year card in the WorkforcePlanningTab toolbar replacing the static year display. Stepping to a year other than the active calendar's flips the card into amber FORECAST mode and surfaces a banner explaining the simulation: demand is computed using the current roster + station setup + shift definitions projected onto the target year's calendar, and fixed-Gregorian holidays (National Day, Labour Day, etc.) shift to the same month/day in the target year. Movable Islamic holidays carry through only when their date is already in the target year — they need a Hijri lookup to auto-shift, which we deliberately don't do; the banner reports the count we couldn't auto-project so the supervisor knows to add 2027 dates manually for accurate forecasts.
+- New `projectHolidaysToYear()` helper in `lib/holidays.ts`. Pure projection — does not mutate input. Returns `{ projected, skippedMovable }` so the UI can surface both numbers.
+
+**Workforce planning — optimal mode emits 'release'**
+- Pre-2.5 the planner only ever surfaced 'hire' or 'hold' (never 'release') because Iraqi Labor Law makes FTE dismissals legally fraught (Art. 36 — fixed-term renewals become open-ended; Art. 40 — dismissals require Minister of Labor approval). That kept conservative mode honest but neutered optimal mode's whole point: showing the cost-minimising answer with the caveats spelled out. Now the action union is `'hire' | 'hold' | 'release'`. Optimal mode raises 'release' for surplus rows; conservative still folds surplus into 'hold'. Release rows render with an amber `AlertTriangle` icon and reasoning text spelling out "consider not renewing fixed-term PT (Art. 36) or freezing replacements; FTE dismissals require Minister of Labor approval (Art. 40) — treat as a recruitment-freeze signal, not a layoff list." Excel rows tinted amber to match the on-screen tone.
+
+**Workforce planning — fair-share effective supply**
+- Pre-2.5 a station with 35 eligible operators across a 10-station group displayed as "35 eligible / 2 needed" in the per-station drilldown — misleading because each operator can only cover ~1/10 of the time. The drilldown now leads with **effective supply** (3.5 in the example): for each employee, capacity is divided by the number of stations they're eligible for, then summed per station. The raw eligible count moves to the tooltip alongside an explanation of the math. Delta and action are computed from effective supply too, so optimal mode no longer falsely flags every station in a wide-eligibility pool as 'release'.
+- Bonus fix: the eligibility helper now honours `eligibleGroups` (group-only employees were previously invisible to the per-station rollup, so big-pool venues with all-group eligibility under-counted supply across the board).
+
+**Multi-day public holidays**
+- `PublicHoliday.durationDays?: number` (default 1, clamped 1-14 in the migration). Eid Al-Fitr / Eid Al-Adha typically span 2-3 days; pre-2.5 the user added 3 separate records to model that. New "Duration" field in HolidayModal with an inline hint. HolidaysTab cards show an amber "{days} days" badge and a `start → end` date range when `durationDays > 1`.
+- New `expandHolidayDates()` helper in `lib/holidays.ts`. Materialises multi-day holidays into one synthetic single-day record per covered date, sharing the parent's id/name/legalReference/compMode. App.tsx expands once at the entry point, so every downstream consumer (compliance, payroll, auto-scheduler, workforce planner, OT analysis, advisory, schedule grid, dashboard, payroll PDF, …) keeps using `holiday.date === dateStr` and gets correct multi-day behaviour without per-call expansion. The HolidaysTab itself receives the raw (unexpanded) list for editing.
+
+**Compatibility**
+- Pre-2.5 backups load cleanly. `durationDays` is backfilled to 1 by the migration; existing single-day holidays are byte-identical at runtime. The new `effectiveSupplyFTE` / `effectiveSupplyPartTime` fields on `AnnualRollupStation` are computed at runtime from existing data. The action union added 'release' as a NEW value — consumers that didn't anticipate it (Excel, on-screen rollup row) were updated; external callers receiving the rollup will see 'release' if they pass `mode='optimal'`. 108 tests pass.
+
 ## v2.4.0 — 2026-04-29
 
 **Hiring Roadmap.** The workforce planner now answers *when* to hire — not just how many. New month-by-month recruitment plan that phases hires so new staff land just before each demand step-up, deferring payroll until needed and saving money vs hiring everyone at year start. Surfaces on screen, in the PDF export, and in the Excel workbook.
