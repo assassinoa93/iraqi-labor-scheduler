@@ -2,6 +2,28 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v2.4.0 — 2026-04-29
+
+**Hiring Roadmap.** The workforce planner now answers *when* to hire — not just how many. New month-by-month recruitment plan that phases hires so new staff land just before each demand step-up, deferring payroll until needed and saving money vs hiring everyone at year start. Surfaces on screen, in the PDF export, and in the Excel workbook.
+
+**Algorithm**
+- New `buildHiringRoadmap()` walks the 12-month demand curve and emits a per-month action plan with `fteAdds`, `ptAdds`, `ptReleases`, end-of-month roster, monthly cost, and a generated reasoning sentence. Conservative mode never reduces FTE (Iraqi Labor Law Art. 36/40 makes releases hard) and ignores PT entirely; optimal mode allows PT contracts to scale up and down freely while still treating FTE as effectively permanent. Default 1-month lead time so a hire placed in April is productive in May — the supervisor reads "Ramp 2 FTE for May peak" rather than "Hire 2 FTE in May" (too late).
+- The plan is benchmarked against a naive "hire every needed FTE/PT in January and hold all year" baseline. The difference is the timing-only savings — same headcount target, just deferred. Always ≥ 0 (you never lose money by deferring non-binding hires). The savings figure is the recruitment plan's punchline: "Phased plan saves X IQD/yr vs hiring everyone in January."
+- Algorithm walks Jan→Dec. Step 1 handles January urgency (any current shortfall vs Jan demand becomes an immediate Jan add). Step 2 looks ahead by `leadMonths` and hires *this* month to cover that future demand. Step 3 sweeps any tail-end demand that didn't fit in the lead window. PT releases land in the month before demand drops so the next month's headcount is lower without paying for unneeded PT.
+
+**On-screen — WorkforcePlanningTab**
+- New "Hiring Roadmap" card after the monthly demand chart. Headline KPI strip surfaces total FTE adds, PT movement (optimal only) or peak roster (conservative), savings vs baseline (with %), and the phased annual cost. 12-bucket horizontal timeline below: each month renders a stacked bar (slate FTE + blue PT) sized to the peak roster, with rose `+N FT` and blue `+M PT` chips above the bar for hires and an amber `−K PT` chip below for releases. Tooltip on each bar shows the full reasoning. Reasoning list at the bottom defaults to action months only (skip the "hold" rows) with a toggle to expand to all 12.
+- Mode toggle (Conservative ↔ Optimal) at the top of the tab automatically rebuilds the roadmap, so flipping modes shows the trade-off in real time.
+
+**PDF export**
+- New "Hiring Roadmap" page after the Monthly Demand Breakdown. Headline block lists total movements, smart cost, baseline cost, savings + percentage, and the lead-time assumption. Monthly schedule table follows: Month, +FTE / +PT / −PT, FTE end / PT end, Need FTE/PT, Monthly cost, Action / reasoning. Hire rows tinted rose, release rows tinted amber so the recruitment team can scan straight to the actionable months.
+
+**Excel export**
+- The "Hiring Roadmap" sheet (sheet 2) is rewritten from a per-group action list into the month-by-month plan. Three blocks now: a Plan Summary at the top (total adds/releases, smart cost, baseline cost, savings, lead time, starting roster), the 12-row Monthly Schedule with action-tinted rows + totals row, and a "Where to hire — peak-driven per group" compressed view at the bottom (so the supervisor sees both *when* and *where* on one sheet). Per-group full detail still lives on the Group Rollup sheet. Budget Impact sheet (sheet 6) gains a "Phasing impact" block surfacing the same savings figure for Finance.
+
+**Compatibility**
+- `buildHiringRoadmap()` is a new export — no existing call sites changed. The PDF and Excel exporters' `roadmap` arg is optional, so any external caller still compiles. Tests unchanged (108 pass).
+
 ## v2.3.0 — 2026-04-29
 
 **Workforce planning sprint.** Three user-driven items: a smarter eligibility model in the employee modal, a richer current/recommended breakdown on the workforce planner, and a brand-new Excel export of the workforce plan tailored for HR / Finance / CEO sign-off. No breaking schema changes; pre-2.3.0 backups load cleanly.

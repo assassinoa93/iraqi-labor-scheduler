@@ -1002,3 +1002,306 @@ export function buildAnnualRollup(
     legalSafetyPremium,
   };
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Monthly hiring roadmap (v2.4.0)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `buildHiringRoadmap` turns the annual demand curve into an actionable
+// month-by-month recruitment plan. The total "+N FTE / +M PT" answer
+// from the rollup tells the supervisor *how many* to hire; this function
+// answers *when*.
+//
+// Algorithm (per mode):
+//
+//   Conservative:
+//     • FTE never decreases (Iraqi Labor Law Art. 36/40 makes releases
+//       hard). PT never used.
+//     • Walk Jan→Dec. For each month, look at NEXT month's demand and
+//       hire just enough this month to cover it (lead time = 1 month so
+//       new hires are productive when demand lands).
+//     • Any current shortfall vs Jan demand becomes an "urgent" Jan add.
+//     • Once running FTE reaches the annual peak, no further hires.
+//
+//   Optimal:
+//     • FTE follows the same just-in-time logic (still no releases —
+//       even optimal mode treats FTE as effectively permanent).
+//     • PT scales freely up AND down. PT contracts ramped 1 month before
+//       a surge (lead=1) and ended in the month their demand drops.
+//     • Result: smaller FTE baseline + PT pulses around peaks.
+//
+// Savings vs naive baseline: the baseline is "hire every needed FTE
+// (and PT for optimal mode) in January and hold all year". The smart
+// plan defers as much as possible without missing demand. Difference =
+// money saved by phasing. Always ≥ 0 (you never lose money by deferring
+// non-binding hires).
+//
+// Output: 12 monthly steps with adds/releases/end-of-month roster/cost,
+// plus annual totals and the savings figure.
+
+export interface MonthlyHiringStep {
+  monthIndex: number;        // 1..12
+  monthName: string;         // 'Jan', 'Feb', …
+  fteAdds: number;           // FTE hired in this month (productive next month)
+  ptAdds: number;            // PT contracts started this month
+  ptReleases: number;        // PT contracts ended this month (optimal mode only)
+  fteEnd: number;            // FTE roster after this month's actions
+  ptEnd: number;             // PT roster after this month's actions
+  monthlyRequiredFTE: number; // recommended FTE need for this month (for context)
+  monthlyRequiredPT: number;  // recommended PT need for this month
+  monthlyCost: number;        // payroll cost (IQD) for this month under the plan
+  reasoning: string;          // short rationale ("ramp ahead of May peak", "hold through valley", …)
+}
+
+export interface HiringRoadmap {
+  steps: MonthlyHiringStep[];
+  // Annual aggregates.
+  totalFTEAdds: number;
+  totalPTAdds: number;
+  totalPTReleases: number;
+  // Cost comparison.
+  smartAnnualCost: number;     // sum of monthlyCost across the 12 steps
+  baselineAnnualCost: number;  // peak roster × 12 (hire-all-in-Jan baseline)
+  savingsVsBaseline: number;   // baseline − smart, ≥ 0
+  // Steady-state targets (peak = year-round target in conservative mode).
+  peakFTE: number;
+  peakPT: number;
+  // Lead-month assumption used (default 1).
+  leadMonths: number;
+  // The starting roster the plan was based on.
+  startingFTE: number;
+  startingPT: number;
+}
+
+export interface BuildHiringRoadmapArgs {
+  annual: AnnualWorkforcePlan;
+  employees: Employee[];
+  mode: PlanMode;
+  config: Pick<Config, 'standardWeeklyHrsCap'>;
+  // How many months early to place hires before the demand month they
+  // cover. 1 = hire in April for May peak. Default 1; the supervisor
+  // can call with 2 for slower onboarding pipelines.
+  leadMonths?: number;
+}
+
+export function buildHiringRoadmap(args: BuildHiringRoadmapArgs): HiringRoadmap {
+  const { annual, employees, mode, config, leadMonths = 1 } = args;
+
+  // FT vs PT classification matches buildAnnualRollup so the figures
+  // line up across views.
+  const weeklyCapForFT = config.standardWeeklyHrsCap || 48;
+  const isPT = (e: Employee) => (e.contractedWeeklyHrs || weeklyCapForFT) < weeklyCapForFT;
+  const startingPT = employees.filter(isPT).length;
+  const startingFTE = employees.length - startingPT;
+
+  // Average salaries — same formula as analyzeWorkforce so cost figures
+  // are comparable to the rollup totals.
+  const avgFTESalary = employees.length > 0
+    ? Math.round(employees.reduce((s, e) => s + (e.baseMonthlySalary || 0), 0) / employees.length)
+    : 1_500_000;
+  const avgPTSalary = Math.round(avgFTESalary * PART_TIME_MONTHLY_SALARY_IQD_RATIO);
+
+  // Walk the year, computing fteAdds / ptAdds / ptReleases per month.
+  const N = 12;
+  const fteAdds = new Array<number>(N).fill(0);
+  const ptAdds = new Array<number>(N).fill(0);
+  const ptReleases = new Array<number>(N).fill(0);
+
+  let runningFTE = startingFTE;
+  let runningPT = startingPT;
+
+  // Step 1 — handle Jan urgency (any shortfall vs Jan demand is hired in
+  // Jan immediately; there's no "month 0" to hire in advance).
+  const reqFTEJan = annual.byMonth[0].recommendedFTE;
+  if (runningFTE < reqFTEJan) {
+    fteAdds[0] += reqFTEJan - runningFTE;
+    runningFTE = reqFTEJan;
+  }
+  if (mode === 'optimal') {
+    const reqPTJan = annual.byMonth[0].recommendedPartTime;
+    const ptDelta = reqPTJan - runningPT;
+    if (ptDelta > 0) { ptAdds[0] += ptDelta; runningPT += ptDelta; }
+    else if (ptDelta < 0) { ptReleases[0] += -ptDelta; runningPT += ptDelta; }
+  }
+
+  // Step 2 — walk months 0..(N-leadMonths-1), hiring leadMonths early
+  // for the demand in (i + leadMonths). PT also follows lead for adds;
+  // releases happen in the month BEFORE the demand drops so the count
+  // is lower next month (also lead-aligned).
+  for (let i = 0; i < N - leadMonths; i++) {
+    const demandMonth = i + leadMonths;
+    const reqFTE = annual.byMonth[demandMonth].recommendedFTE;
+    if (runningFTE < reqFTE) {
+      const add = reqFTE - runningFTE;
+      fteAdds[i] += add;
+      runningFTE += add;
+    }
+    if (mode === 'optimal') {
+      const reqPT = annual.byMonth[demandMonth].recommendedPartTime;
+      const delta = reqPT - runningPT;
+      if (delta > 0) { ptAdds[i] += delta; runningPT += delta; }
+      else if (delta < 0) {
+        // Release in CURRENT month so headcount drops by demandMonth.
+        ptReleases[i] += -delta;
+        runningPT += delta;
+      }
+    }
+  }
+
+  // Step 3 — months [N-leadMonths .. N-1] don't get pre-positioned hires
+  // (no demand month beyond Dec to hire for); leave their adds at 0.
+  // BUT we still need to satisfy their OWN demand. If by this point
+  // runningFTE/PT are below required for any of these months, those
+  // demands were missed by the lead-window logic — fold them into the
+  // earliest available month.
+  for (let i = N - leadMonths; i < N; i++) {
+    const reqFTE = annual.byMonth[i].recommendedFTE;
+    if (runningFTE < reqFTE) {
+      const shortfall = reqFTE - runningFTE;
+      // Place the urgent hire in the latest pre-window month so it's at
+      // least one month early. Fall back to month i if there's no slack.
+      const placeIn = Math.max(0, i - leadMonths);
+      fteAdds[placeIn] += shortfall;
+      runningFTE += shortfall;
+    }
+    if (mode === 'optimal') {
+      const reqPT = annual.byMonth[i].recommendedPartTime;
+      const delta = reqPT - runningPT;
+      if (delta > 0) {
+        const placeIn = Math.max(0, i - leadMonths);
+        ptAdds[placeIn] += delta;
+        runningPT += delta;
+      } else if (delta < 0) {
+        ptReleases[Math.max(0, i - 1)] += -delta;
+        runningPT += delta;
+      }
+    }
+  }
+
+  // Step 4 — build roster + cost per month + reasoning.
+  const peakFTE = annual.byMonth.reduce((m, b) => Math.max(m, b.recommendedFTE), 0);
+  const peakPT = mode === 'optimal'
+    ? annual.byMonth.reduce((m, b) => Math.max(m, b.recommendedPartTime), 0)
+    : 0;
+  let fteRunning = startingFTE;
+  let ptRunning = startingPT;
+  const steps: MonthlyHiringStep[] = [];
+  let smartAnnualCost = 0;
+  for (let i = 0; i < N; i++) {
+    fteRunning += fteAdds[i];
+    ptRunning += ptAdds[i];
+    // Releases at end of month → paid this month, gone next.
+    const monthlyFte = fteRunning;
+    const monthlyPt = ptRunning; // before releases this month
+    const monthlyCost = monthlyFte * avgFTESalary + monthlyPt * avgPTSalary;
+    smartAnnualCost += monthlyCost;
+    ptRunning -= ptReleases[i];
+
+    const m = annual.byMonth[i];
+    const reasoning = explainStep({
+      monthName: m.monthName,
+      monthIndex: i + 1,
+      mode,
+      fteAdd: fteAdds[i],
+      ptAdd: ptAdds[i],
+      ptRelease: ptReleases[i],
+      fteEnd: fteRunning,
+      ptEnd: ptRunning,
+      requiredFTE: m.recommendedFTE,
+      requiredPT: m.recommendedPartTime,
+      peakMonthIndex: annual.peakMonthIndex,
+      valleyMonthIndex: annual.valleyMonthIndex,
+      isPeakLead: (i + leadMonths) === annual.peakMonthIndex - 1,
+      leadMonths,
+    });
+
+    steps.push({
+      monthIndex: i + 1,
+      monthName: m.monthName,
+      fteAdds: fteAdds[i],
+      ptAdds: ptAdds[i],
+      ptReleases: ptReleases[i],
+      fteEnd: fteRunning,
+      ptEnd: ptRunning,
+      monthlyRequiredFTE: m.recommendedFTE,
+      monthlyRequiredPT: m.recommendedPartTime,
+      monthlyCost,
+      reasoning,
+    });
+  }
+
+  const baselineAnnualCost = (peakFTE * avgFTESalary + peakPT * avgPTSalary) * 12;
+  const savingsVsBaseline = Math.max(0, baselineAnnualCost - smartAnnualCost);
+
+  return {
+    steps,
+    totalFTEAdds: fteAdds.reduce((s, x) => s + x, 0),
+    totalPTAdds: ptAdds.reduce((s, x) => s + x, 0),
+    totalPTReleases: ptReleases.reduce((s, x) => s + x, 0),
+    smartAnnualCost: Math.round(smartAnnualCost),
+    baselineAnnualCost: Math.round(baselineAnnualCost),
+    savingsVsBaseline: Math.round(savingsVsBaseline),
+    peakFTE,
+    peakPT,
+    leadMonths,
+    startingFTE,
+    startingPT,
+  };
+}
+
+// Per-step rationale text. Picks the most useful sentence from a few
+// natural action archetypes — "ramp ahead of peak", "release after peak",
+// "no action — coverage holds", etc. The supervisor reads these to
+// understand WHY a month has the numbers it has.
+function explainStep(args: {
+  monthName: string;
+  monthIndex: number;
+  mode: PlanMode;
+  fteAdd: number; ptAdd: number; ptRelease: number;
+  fteEnd: number; ptEnd: number;
+  requiredFTE: number; requiredPT: number;
+  peakMonthIndex: number; valleyMonthIndex: number;
+  isPeakLead: boolean;
+  leadMonths: number;
+}): string {
+  const {
+    monthName, monthIndex, mode, fteAdd, ptAdd, ptRelease,
+    fteEnd, ptEnd, requiredFTE, requiredPT,
+    peakMonthIndex, valleyMonthIndex, isPeakLead, leadMonths,
+  } = args;
+
+  const isPeak = monthIndex === peakMonthIndex;
+  const isValley = monthIndex === valleyMonthIndex;
+  const peakName = MONTH_NAMES[peakMonthIndex - 1];
+
+  const parts: string[] = [];
+  if (fteAdd > 0) {
+    if (isPeakLead) {
+      parts.push(`Ramp ${fteAdd} FTE for ${peakName} peak — onboard now so they're productive when demand lands.`);
+    } else if (monthIndex === 1 && fteEnd === requiredFTE && fteAdd >= requiredFTE) {
+      parts.push(`Urgent Jan hires (${fteAdd} FTE) — current roster is short of even Jan demand.`);
+    } else {
+      parts.push(`Hire ${fteAdd} FTE this month (${leadMonths}-month lead before next demand step-up).`);
+    }
+  }
+  if (ptAdd > 0) {
+    parts.push(`Start ${ptAdd} part-time contract(s) — covers the upcoming surge without locking in permanent payroll.`);
+  }
+  if (ptRelease > 0) {
+    parts.push(`End ${ptRelease} part-time contract(s) — surge has passed, scale back to baseline.`);
+  }
+  if (fteAdd === 0 && ptAdd === 0 && ptRelease === 0) {
+    if (fteEnd >= requiredFTE && ptEnd >= requiredPT) {
+      if (isValley) {
+        parts.push(`Valley month — current roster (${fteEnd} FTE${mode === 'optimal' && ptEnd > 0 ? ` + ${ptEnd} PT` : ''}) covers demand. Use slack for training, leave rotation, or process work.`);
+      } else if (isPeak) {
+        parts.push(`Peak month — roster is at target (${fteEnd} FTE${mode === 'optimal' && ptEnd > 0 ? ` + ${ptEnd} PT` : ''}). Hold tight.`);
+      } else {
+        parts.push(`Hold — coverage matches demand, no change needed.`);
+      }
+    } else {
+      parts.push(`${monthName} — coverage gap (need ${requiredFTE} FTE, have ${fteEnd}). Plan retroactively if possible.`);
+    }
+  }
+  return parts.join(' ');
+}

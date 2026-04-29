@@ -20,7 +20,7 @@
 // exceljs is loaded dynamically (same pattern as jspdf in the PDF
 // exporter) so it doesn't enter the main bundle.
 
-import { AnnualWorkforcePlan, AnnualRollup, PlanMode } from './workforcePlanning';
+import { AnnualWorkforcePlan, AnnualRollup, PlanMode, HiringRoadmap } from './workforcePlanning';
 
 const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -79,6 +79,10 @@ const HOURS_FORMAT = '#,##0" h"';
 interface ExportArgs {
   annual: AnnualWorkforcePlan;
   rollup: AnnualRollup;
+  // v2.4.0 — month-by-month hiring schedule. Drives the Hiring Roadmap
+  // sheet. Optional so legacy callers still compile, but in practice
+  // the WorkforcePlanningTab always passes it.
+  roadmap?: HiringRoadmap;
   mode: PlanMode;
   companyName?: string;
   // Number of currently-employed workers + their FT/PT split. Surfaced on
@@ -90,7 +94,7 @@ interface ExportArgs {
 }
 
 export async function exportWorkforcePlanToExcel(args: ExportArgs): Promise<void> {
-  const { annual, rollup, mode, companyName = 'Iraqi Labor Scheduler', currentRosterFTECount, currentRosterPartTimeCount } = args;
+  const { annual, rollup, roadmap, mode, companyName = 'Iraqi Labor Scheduler', currentRosterFTECount, currentRosterPartTimeCount } = args;
 
   // Dynamic import keeps exceljs out of the main bundle. The package ships
   // both ESM and CJS; some bundlers wrap the default export in a
@@ -103,11 +107,14 @@ export async function exportWorkforcePlanToExcel(args: ExportArgs): Promise<void
   wb.modified = new Date();
 
   buildExecutiveSummary(wb, args, currentRosterFTECount, currentRosterPartTimeCount);
-  buildHiringRoadmap(wb, rollup, annual);
+  // v2.4.0 — Hiring Roadmap sheet promoted from "per-group action list"
+  // to "month-by-month plan" so HR / Finance read WHEN to hire, not just
+  // how many. Previous per-group view still surfaces in Group Rollup.
+  buildHiringRoadmap(wb, rollup, annual, roadmap, mode);
   buildGroupRollup(wb, rollup);
   buildStationRollup(wb, rollup);
   buildMonthlyDemand(wb, annual);
-  buildBudgetImpact(wb, annual, rollup, mode);
+  buildBudgetImpact(wb, annual, rollup, mode, roadmap);
   buildImplementationSchedule(wb, annual);
 
   const buf = await wb.xlsx.writeBuffer();
@@ -207,100 +214,148 @@ function buildExecutiveSummary(
 }
 
 // ── Sheet 2: Hiring Roadmap ──────────────────────────────────────────
-function buildHiringRoadmap(wb: ExcelWorkbook, rollup: AnnualRollup, annual: AnnualWorkforcePlan) {
-  const ws = wb.addWorksheet('Hiring Roadmap', { views: [{ state: 'frozen', ySplit: 1 }] });
+// v2.4.0 — month-by-month plan instead of the v2.3 per-group action list.
+// Two blocks on this sheet: a Headline block at the top (savings figures
+// + lead-time assumption), then the 12-row monthly schedule with adds /
+// releases / end-of-month roster / cost / reasoning. The per-group
+// "where" answer still lives in the Group Rollup sheet.
+function buildHiringRoadmap(
+  wb: ExcelWorkbook,
+  rollup: AnnualRollup,
+  annual: AnnualWorkforcePlan,
+  roadmap: HiringRoadmap | undefined,
+  mode: PlanMode,
+) {
+  const ws = wb.addWorksheet('Hiring Roadmap', { views: [{ state: 'frozen', ySplit: 0 }] });
   ws.columns = [
-    { width: 26 }, // Asset / group
-    { width: 18 }, // Type (group / station)
-    { width: 14 }, // Role hint
-    { width: 10 }, // Current FT
-    { width: 10 }, // Current PT
-    { width: 10 }, // Rec FT
-    { width: 10 }, // Rec PT
-    { width: 10 }, // Net hire
-    { width: 14 }, // Action priority
-    { width: 14 }, // Suggested start
-    { width: 36 }, // Reasoning
-    { width: 18 }, // Approver
+    { width: 12 }, // Month
+    { width: 10 }, // +FTE
+    { width: 10 }, // +PT
+    { width: 10 }, // -PT
+    { width: 12 }, // FTE end
+    { width: 12 }, // PT end
+    { width: 14 }, // Need FTE / PT
+    { width: 18 }, // Monthly cost
+    { width: 50 }, // Reasoning
   ];
-  ws.addRow(['Asset / Group', 'Type', 'Role hint', 'Current FT', 'Current PT', 'Rec FT', 'Rec PT', 'Net hire', 'Action priority', 'Suggested start', 'Reasoning', 'Approver']);
-  styleHeaderRow(ws.getRow(1));
 
-  type HiringRow = {
-    name: string; type: 'Group' | 'Station'; roleHint: string;
-    currentFT: number; currentPT: number;
-    recFT: number; recPT: number; netHire: number;
-    priority: string; startMonth: string; reasoning: string;
-    approver: string;
-  };
-  const rows: HiringRow[] = [];
+  // Title block.
+  const titleRow = ws.addRow([`Monthly Hiring Plan — ${annual.year}`]);
+  ws.mergeCells(`A${titleRow.number}:I${titleRow.number}`);
+  styleCell(ws.getCell(`A${titleRow.number}`), { font: { bold: true, size: 16, color: { argb: 'FF0F172A' } } });
+  titleRow.height = 26;
 
-  // Prioritise group-level rows. Then add stations that aren't covered by
-  // any group (so the supervisor doesn't double-count).
-  const groupedStationIds = new Set(rollup.byGroup.flatMap(g => g.stationIds));
-  for (const g of rollup.byGroup) {
-    rows.push({
-      name: g.groupName,
-      type: 'Group',
-      roleHint: '—',
-      currentFT: g.currentFTECount,
-      currentPT: g.currentPartTimeCount,
-      recFT: g.recommendedFTE,
-      recPT: g.recommendedPartTime,
-      netHire: Math.max(0, g.delta),
-      priority: priorityFromDelta(g.delta, g.peakMonthIndex, annual.peakMonthIndex),
-      startMonth: suggestStartMonth(g.peakMonthIndex, g.delta),
-      reasoning: g.reasoning,
-      approver: g.delta > 0 ? 'HR + Finance' : 'HR (review)',
-    });
+  if (!roadmap) {
+    const note = ws.addRow(['Roadmap data not available — re-export with the latest WorkforcePlanningTab to populate this sheet.']);
+    ws.mergeCells(`A${note.number}:I${note.number}`);
+    styleCell(ws.getCell(`A${note.number}`), { font: { italic: true, color: { argb: 'FF94A3B8' } } });
+    return;
   }
-  for (const s of rollup.byStation) {
-    if (groupedStationIds.has(s.stationId)) continue;
-    rows.push({
-      name: s.stationName,
-      type: 'Station',
-      roleHint: s.roleHint || '—',
-      currentFT: s.currentFTECount,
-      currentPT: s.currentPartTimeCount,
-      recFT: s.recommendedFTE,
-      recPT: s.recommendedPartTime,
-      netHire: Math.max(0, s.delta),
-      priority: priorityFromDelta(s.delta, s.peakMonthIndex, annual.peakMonthIndex),
-      startMonth: suggestStartMonth(s.peakMonthIndex, s.delta),
-      reasoning: s.reasoning,
-      approver: s.delta > 0 ? 'HR + Finance' : 'HR (review)',
-    });
-  }
-  rows.sort((a, b) => b.netHire - a.netHire);
 
-  for (const r of rows) {
-    const isHire = r.netHire > 0;
+  const savingsPct = roadmap.baselineAnnualCost > 0
+    ? Math.round((roadmap.savingsVsBaseline / roadmap.baselineAnnualCost) * 100)
+    : 0;
+
+  // Headline block.
+  ws.addRow([]);
+  addSectionHeader(ws, 'Plan summary');
+  styleHeaderRow(ws.addRow(['Metric', 'Value', 'Notes', '', '', '', '', '', '']));
+  addKVRow(ws, 'Total FTE adds', roadmap.totalFTEAdds, 'Sum of monthly FTE hires across the year.');
+  if (mode === 'optimal') {
+    addKVRow(ws, 'Total PT adds', roadmap.totalPTAdds, 'PT contracts started across the year.');
+    addKVRow(ws, 'Total PT releases', roadmap.totalPTReleases, 'PT contracts ended (= scaling down after surge).');
+  }
+  addKVRow(ws, 'Smart annual cost (phased)', roadmap.smartAnnualCost, 'Sum of payroll across the 12-month phased plan.', IQD_FORMAT);
+  addKVRow(ws, 'Baseline cost (hire-all-in-Jan)', roadmap.baselineAnnualCost, 'Naive alternative: hire to peak in January and hold all year.', IQD_FORMAT);
+  addKVRow(ws, 'Annual savings vs baseline', roadmap.savingsVsBaseline, `${savingsPct}% saved by deferring hires until needed.`, IQD_FORMAT);
+  addKVRow(ws, 'Lead time assumption', `${roadmap.leadMonths} month(s)`, 'Hires placed in month X are productive starting month X + lead.');
+  addKVRow(ws, 'Starting roster', `${roadmap.startingFTE} FT + ${roadmap.startingPT} PT`, 'Roster the plan was built on.');
+
+  ws.addRow([]);
+  addSectionHeader(ws, 'Month-by-month schedule');
+  // Schedule header.
+  styleHeaderRow(ws.addRow(['Month', '+FTE', '+PT', '-PT', 'FTE end', 'PT end', 'Need FTE / PT', 'Monthly cost (IQD)', 'Action / reasoning']));
+
+  for (const step of roadmap.steps) {
+    const hasAction = step.fteAdds > 0 || step.ptAdds > 0;
+    const hasRelease = step.ptReleases > 0;
     const row = ws.addRow([
-      r.name, r.type, r.roleHint,
-      r.currentFT, r.currentPT, r.recFT, r.recPT, r.netHire,
-      r.priority, r.startMonth, r.reasoning, r.approver,
+      step.monthName,
+      step.fteAdds > 0 ? step.fteAdds : '—',
+      step.ptAdds > 0 ? step.ptAdds : '—',
+      step.ptReleases > 0 ? step.ptReleases : '—',
+      step.fteEnd,
+      step.ptEnd,
+      `${step.monthlyRequiredFTE} / ${step.monthlyRequiredPT}`,
+      Math.round(step.monthlyCost),
+      step.reasoning,
     ]);
     row.eachCell(c => {
       c.alignment = { vertical: 'top', wrapText: true };
       c.border = thinBorder();
-      if (isHire) c.fill = HIRE_FILL;
+      if (hasAction) c.fill = HIRE_FILL;
+      else if (hasRelease) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // amber-100
       else c.fill = HOLD_FILL;
     });
-    row.height = 30;
+    row.getCell(8).numFmt = IQD_FORMAT;
+    row.height = 32;
   }
 
   // Totals row.
-  const totalsValues: (string | number)[] = [
-    'TOTAL', '', '',
-    sum(rows, r => r.currentFT),
-    sum(rows, r => r.currentPT),
-    sum(rows, r => r.recFT),
-    sum(rows, r => r.recPT),
-    sum(rows, r => r.netHire),
-    '', '', '', '',
-  ];
-  const tot = ws.addRow(totalsValues);
-  tot.eachCell(c => { c.fill = TOTAL_FILL; c.font = TOTAL_FONT; c.border = thinBorder(); });
+  const tot = ws.addRow([
+    'TOTAL',
+    roadmap.totalFTEAdds || '—',
+    roadmap.totalPTAdds || '—',
+    roadmap.totalPTReleases || '—',
+    roadmap.peakFTE,
+    mode === 'optimal' ? roadmap.peakPT : '—',
+    '',
+    Math.round(roadmap.smartAnnualCost),
+    `Savings vs baseline: ${roadmap.savingsVsBaseline.toLocaleString()} IQD (${savingsPct}%)`,
+  ]);
+  tot.eachCell(c => { c.fill = TOTAL_FILL; c.font = TOTAL_FONT; c.border = thinBorder(); c.alignment = { vertical: 'top', wrapText: true }; });
+  tot.getCell(8).numFmt = IQD_FORMAT;
+  tot.height = 28;
+
+  // Surface the per-group "where to hire" so the supervisor sees both
+  // dimensions (when AND where) on one sheet. This is a compressed
+  // restatement of the Group Rollup sheet — full detail still lives there.
+  ws.addRow([]);
+  addSectionHeader(ws, 'Where to hire — peak-driven per group');
+  styleHeaderRow(ws.addRow(['Group', 'Net hire', 'Suggested start', 'Peak month', 'Reasoning', '', '', '', '']));
+  const groupedStationIds = new Set(rollup.byGroup.flatMap(g => g.stationIds));
+  type WhereRow = { name: string; netHire: number; startMonth: string; peakMonth: string; reasoning: string; isGroup: boolean };
+  const whereRows: WhereRow[] = [];
+  for (const g of rollup.byGroup) {
+    if (g.delta <= 0) continue;
+    whereRows.push({
+      name: g.groupName, netHire: g.delta,
+      startMonth: suggestStartMonth(g.peakMonthIndex, g.delta),
+      peakMonth: MONTH_NAMES[g.peakMonthIndex - 1],
+      reasoning: g.reasoning, isGroup: true,
+    });
+  }
+  for (const s of rollup.byStation) {
+    if (groupedStationIds.has(s.stationId) || s.delta <= 0) continue;
+    whereRows.push({
+      name: s.stationName, netHire: s.delta,
+      startMonth: suggestStartMonth(s.peakMonthIndex, s.delta),
+      peakMonth: MONTH_NAMES[s.peakMonthIndex - 1],
+      reasoning: s.reasoning, isGroup: false,
+    });
+  }
+  whereRows.sort((a, b) => b.netHire - a.netHire);
+  if (whereRows.length === 0) {
+    const empty = ws.addRow(['No hire actions — current roster covers demand across the year.']);
+    ws.mergeCells(`A${empty.number}:I${empty.number}`);
+    styleCell(ws.getCell(`A${empty.number}`), { font: { italic: true, color: { argb: 'FF94A3B8' } } });
+  } else {
+    for (const r of whereRows) {
+      const row = ws.addRow([r.name, r.netHire, r.startMonth, r.peakMonth, r.reasoning, '', '', '', '']);
+      row.eachCell(c => { c.alignment = { vertical: 'top', wrapText: true }; c.border = thinBorder(); c.fill = HIRE_FILL; });
+      row.height = 28;
+    }
+  }
 }
 
 // ── Sheet 3: Group Rollup ──────────────────────────────────────────
@@ -394,7 +449,7 @@ function buildMonthlyDemand(wb: ExcelWorkbook, annual: AnnualWorkforcePlan) {
 }
 
 // ── Sheet 6: Budget Impact ──────────────────────────────────────────
-function buildBudgetImpact(wb: ExcelWorkbook, annual: AnnualWorkforcePlan, rollup: AnnualRollup, mode: PlanMode) {
+function buildBudgetImpact(wb: ExcelWorkbook, annual: AnnualWorkforcePlan, rollup: AnnualRollup, mode: PlanMode, roadmap?: HiringRoadmap) {
   const ws = wb.addWorksheet('Budget Impact', { views: [{ state: 'frozen', ySplit: 0 }] });
   ws.columns = [{ width: 38 }, { width: 22 }, { width: 36 }];
 
@@ -419,6 +474,17 @@ function buildBudgetImpact(wb: ExcelWorkbook, annual: AnnualWorkforcePlan, rollu
   addKVRow(ws, 'Recommended FT', rollup.totalRecommendedFTE, '');
   addKVRow(ws, 'Recommended PT', rollup.totalRecommendedPartTime, '');
   addKVRow(ws, 'Net hires', Math.max(0, rollup.totalRecommendedFTE + rollup.totalRecommendedPartTime - rollup.totalCurrentEmployees), 'Sum of positive deltas across hire actions.');
+
+  // v2.4.0 — Phasing impact. Surfaces the savings the Hiring Roadmap
+  // sheet computes so Finance sees the bottom-line on the budget tab too.
+  if (roadmap) {
+    ws.addRow([]);
+    addSectionHeader(ws, 'Phasing impact (vs hire-all-in-Jan)');
+    styleHeaderRow(ws.addRow(['Line item', 'Amount (IQD/yr)', 'Notes']));
+    addBudgetRow(ws, 'Phased plan annual cost', roadmap.smartAnnualCost, 'Sum of payroll across the 12 phased months.');
+    addBudgetRow(ws, 'Hire-everyone-in-Jan baseline', roadmap.baselineAnnualCost, 'Cost of hiring to peak in Jan and holding through the year.');
+    addBudgetRow(ws, 'Savings vs baseline', roadmap.savingsVsBaseline, 'Pure timing — no change in headcount target, just when hires arrive.');
+  }
 }
 
 // ── Sheet 7: Implementation Schedule ──────────────────────────────────
@@ -496,22 +562,6 @@ function addBudgetRow(ws: ExcelSheet, label: string, amount: number, note: strin
   row.getCell(2).numFmt = IQD_FORMAT;
   row.eachCell(c => { c.border = thinBorder(); c.alignment = { vertical: 'top', wrapText: true }; });
   row.height = 24;
-}
-
-function sum<T>(arr: T[], pick: (t: T) => number): number {
-  return arr.reduce((s, x) => s + pick(x), 0);
-}
-
-// Priority bucketing for the Hiring Roadmap.
-//   Critical : delta ≥ 2 AND peaks in or before the venue's overall peak month.
-//   High     : delta ≥ 1.
-//   Medium   : delta = 0 (matches need; "hold + monitor").
-//   Low      : delta < 0 (surplus — review eligibility, consider reassignment).
-function priorityFromDelta(delta: number, rolePeak: number, venuePeak: number): string {
-  if (delta >= 2 && rolePeak <= venuePeak) return 'CRITICAL';
-  if (delta >= 1) return 'HIGH';
-  if (delta === 0) return 'MEDIUM';
-  return 'LOW';
 }
 
 // Suggest a hiring start month: aim to have hires productive ~2 months

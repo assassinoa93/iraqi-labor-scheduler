@@ -12,7 +12,7 @@ import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import {
   analyzeWorkforceAnnual, buildAnnualRollup, AnnualRollupStation, AnnualRollupGroup, MonthlyPlanSummary,
-  PlanMode,
+  PlanMode, buildHiringRoadmap, HiringRoadmap, MonthlyHiringStep,
 } from '../lib/workforcePlanning';
 
 interface Props {
@@ -64,6 +64,14 @@ export function WorkforcePlanningTab(props: Props) {
     () => buildAnnualRollup(annual, employees, stations, mode, stationGroups, config),
     [annual, employees, stations, mode, stationGroups, config],
   );
+  // v2.4.0 — month-by-month hiring schedule. Plans WHEN to bring people on
+  // so they're productive at peak demand without paying for them through
+  // the valley months that come before. Reuses the annual demand curve;
+  // mode toggles whether PT contracts can scale up/down.
+  const roadmap = useMemo(
+    () => buildHiringRoadmap({ annual, employees, mode, config }),
+    [annual, employees, mode, config],
+  );
   const drillMonth = drillMonthIndex
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
     : annual.byMonth[annual.peakMonthIndex - 1];
@@ -74,7 +82,7 @@ export function WorkforcePlanningTab(props: Props) {
   const hasDemand = annual.annualRequiredHours > 0;
 
   const handleExportPDF = () => exportWorkforcePlanToPDF({
-    annual, rollup, mode, idealOnly, fmtIQD,
+    annual, rollup, roadmap, mode, idealOnly, fmtIQD,
   });
 
   // v2.3.0 — Excel export. Uses the same annual + rollup data, packaged
@@ -87,7 +95,7 @@ export function WorkforcePlanningTab(props: Props) {
     const fteCount = employees.filter(e => (e.contractedWeeklyHrs || cap) >= cap).length;
     const ptCount = employees.length - fteCount;
     await exportWorkforcePlanToExcel({
-      annual, rollup, mode,
+      annual, rollup, roadmap, mode,
       companyName: config.company,
       currentRosterFTECount: fteCount,
       currentRosterPartTimeCount: ptCount,
@@ -347,6 +355,11 @@ export function WorkforcePlanningTab(props: Props) {
                 </div>
               )}
             </Card>
+          )}
+
+          {/* ── Hiring Roadmap (v2.4.0) — month-by-month FTE/PT plan ── */}
+          {!idealOnly && (
+            <HiringRoadmapSection roadmap={roadmap} mode={mode} fmtIQD={fmtIQD} />
           )}
 
           {/* ── Implementation timing (only meaningful in comparative mode) ── */}
@@ -776,6 +789,160 @@ function MonthDrilldownPanel({
   );
 }
 
+// v2.4.0 — Hiring Roadmap section. Surfaces the month-by-month
+// recruitment plan: a savings-vs-naive headline + a 12-bucket timeline
+// showing FTE/PT adds, releases, end-of-month roster, and per-month
+// reasoning. Conservative mode shows only FTE adds; optimal adds PT
+// adds AND releases as scaling tools.
+function HiringRoadmapSection({
+  roadmap, mode, fmtIQD,
+}: {
+  roadmap: HiringRoadmap;
+  mode: PlanMode;
+  fmtIQD: (n: number) => string;
+}) {
+  const { t } = useI18n();
+  const [expandedReasoning, setExpandedReasoning] = useState(false);
+  const peakRoster = Math.max(1, ...roadmap.steps.map(s => s.fteEnd + s.ptEnd));
+  const savingsPct = roadmap.baselineAnnualCost > 0
+    ? Math.round((roadmap.savingsVsBaseline / roadmap.baselineAnnualCost) * 100)
+    : 0;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-start gap-3 flex-wrap">
+        <Activity className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">{t('workforce.roadmap.title')}</h3>
+          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{t('workforce.roadmap.subtitle')}</p>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-5">
+        {/* Headline KPI strip — savings is the punchline. */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
+            <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest">{t('workforce.roadmap.kpi.totalFteAdds')}</p>
+            <p className="text-2xl font-black text-rose-700 tabular-nums">+{roadmap.totalFTEAdds}</p>
+            <p className="text-[9px] text-rose-600 mt-0.5">{t('workforce.roadmap.kpi.fteSub')}</p>
+          </div>
+          {mode === 'optimal' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-[9px] font-black text-blue-700 uppercase tracking-widest">{t('workforce.roadmap.kpi.totalPtMovement')}</p>
+              <p className="text-2xl font-black text-blue-700 tabular-nums">+{roadmap.totalPTAdds} / −{roadmap.totalPTReleases}</p>
+              <p className="text-[9px] text-blue-600 mt-0.5">{t('workforce.roadmap.kpi.ptSub')}</p>
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{t('workforce.roadmap.kpi.peakRoster')}</p>
+              <p className="text-2xl font-black text-slate-800 tabular-nums">{roadmap.peakFTE}</p>
+              <p className="text-[9px] text-slate-500 mt-0.5">{t('workforce.roadmap.kpi.peakRosterSub')}</p>
+            </div>
+          )}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+            <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">{t('workforce.roadmap.kpi.savings')}</p>
+            <p className="text-2xl font-black text-emerald-700 tabular-nums">{fmtIQD(roadmap.savingsVsBaseline)}</p>
+            <p className="text-[9px] text-emerald-600 mt-0.5">{t('workforce.roadmap.kpi.savingsSub', { pct: savingsPct })}</p>
+          </div>
+          <div className="bg-slate-900 text-white border-0 rounded-lg p-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-blue-300">{t('workforce.roadmap.kpi.smartCost')}</p>
+            <p className="text-2xl font-black tabular-nums">{fmtIQD(roadmap.smartAnnualCost)}</p>
+            <p className="text-[9px] text-slate-400 mt-0.5">{t('workforce.roadmap.kpi.smartCostSub', { vs: fmtIQD(roadmap.baselineAnnualCost) })}</p>
+          </div>
+        </div>
+
+        {/* Timeline: 12 month buckets with bar chart + adds/releases chips. */}
+        <div className="grid grid-cols-12 gap-1.5">
+          {roadmap.steps.map(step => (
+            <RoadmapMonthBar key={step.monthIndex} step={step} mode={mode} peakRoster={peakRoster} />
+          ))}
+        </div>
+
+        {/* Reasoning list. Collapsed to first 6 by default — most months
+            are "hold" rows the supervisor can skim. Expand to see the
+            full year. */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('workforce.roadmap.reasoning.title')}</p>
+            <button
+              onClick={() => setExpandedReasoning(e => !e)}
+              className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
+            >
+              {expandedReasoning ? t('workforce.roadmap.reasoning.collapse') : t('workforce.roadmap.reasoning.expand')}
+            </button>
+          </div>
+          <div className="space-y-1">
+            {(expandedReasoning ? roadmap.steps : roadmap.steps.filter(s => s.fteAdds > 0 || s.ptAdds > 0 || s.ptReleases > 0)).map(step => (
+              <div key={step.monthIndex} className="flex items-start gap-3 p-2 rounded-md bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest w-10 shrink-0 pt-0.5">{step.monthName}</span>
+                <p className="text-[11px] text-slate-700 leading-relaxed flex-1">{step.reasoning}</p>
+              </div>
+            ))}
+            {!expandedReasoning && roadmap.steps.every(s => s.fteAdds === 0 && s.ptAdds === 0 && s.ptReleases === 0) && (
+              <p className="text-[10px] text-slate-400 italic p-2">{t('workforce.roadmap.reasoning.noActions')}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// One vertical bar in the roadmap timeline. Stacks FTE (slate) + PT
+// (blue) up to the peak roster. Adds chips above the bar; releases
+// chip below (rose) when PT contracts end.
+function RoadmapMonthBar({
+  step, mode, peakRoster,
+}: {
+  step: MonthlyHiringStep;
+  mode: PlanMode;
+  peakRoster: number;
+}) {
+  const total = step.fteEnd + step.ptEnd;
+  const ftePct = peakRoster > 0 ? (step.fteEnd / peakRoster) * 100 : 0;
+  const ptPct = peakRoster > 0 ? (step.ptEnd / peakRoster) * 100 : 0;
+  const totalPct = peakRoster > 0 ? (total / peakRoster) * 100 : 0;
+  const hasAction = step.fteAdds > 0 || step.ptAdds > 0 || step.ptReleases > 0;
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-stretch p-1.5 rounded-lg transition-all',
+        hasAction ? 'bg-rose-50/40' : 'hover:bg-slate-50',
+      )}
+      title={`${step.monthName}: ${step.fteEnd} FTE${mode === 'optimal' && step.ptEnd > 0 ? ` + ${step.ptEnd} PT` : ''}\n${step.reasoning}`}
+    >
+      {/* Adds chips — stack above the bar. */}
+      <div className="min-h-[18px] flex flex-col items-center gap-0.5">
+        {step.fteAdds > 0 && (
+          <span className="text-[8px] font-black bg-rose-600 text-white px-1.5 py-0.5 rounded-full leading-none">+{step.fteAdds} FT</span>
+        )}
+        {step.ptAdds > 0 && (
+          <span className="text-[8px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded-full leading-none">+{step.ptAdds} PT</span>
+        )}
+      </div>
+      {/* Vertical bar. */}
+      <div className="flex items-end h-24 mt-1">
+        <div className="w-full flex flex-col-reverse rounded-md overflow-hidden" style={{ height: `${Math.max(4, totalPct)}%` }}>
+          <div className="bg-slate-700" style={{ flexBasis: `${(ftePct / Math.max(1, totalPct)) * 100}%` }} />
+          {mode === 'optimal' && step.ptEnd > 0 && (
+            <div className="bg-blue-500" style={{ flexBasis: `${(ptPct / Math.max(1, totalPct)) * 100}%` }} />
+          )}
+        </div>
+      </div>
+      {/* Roster count + month label. */}
+      <p className="text-[10px] font-black text-slate-700 mt-1.5 text-center tabular-nums">{step.fteEnd}{mode === 'optimal' && step.ptEnd > 0 ? `+${step.ptEnd}` : ''}</p>
+      <p className="text-[9px] font-black text-slate-500 text-center uppercase tracking-widest leading-tight">{step.monthName}</p>
+      {/* Releases chip — below label so it doesn't crowd the adds. */}
+      <div className="min-h-[14px] flex items-center justify-center mt-1">
+        {step.ptReleases > 0 && (
+          <span className="text-[8px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full leading-none">−{step.ptReleases} PT</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MonthlyDemandChart({
   months, peakMonthIndex, valleyMonthIndex, activeMonthIndex, onPickMonth,
 }: {
@@ -859,11 +1026,15 @@ const MONTH_NAMES_PDF = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
 async function exportWorkforcePlanToPDF(args: {
   annual: ReturnType<typeof analyzeWorkforceAnnual>;
   rollup: ReturnType<typeof buildAnnualRollup>;
+  // v2.4.0 — month-by-month plan included as a dedicated section so the
+  // PDF reader sees the same WHEN-to-hire timing the on-screen view
+  // shows. Optional so legacy callers still compile.
+  roadmap?: HiringRoadmap;
   mode: PlanMode;
   idealOnly: boolean;
   fmtIQD: (n: number) => string;
 }) {
-  const { annual, rollup, mode, fmtIQD } = args;
+  const { annual, rollup, roadmap, mode, fmtIQD } = args;
   const { jsPDF } = await import('jspdf');
   const autoTableMod = await import('jspdf-autotable');
   // jspdf-autotable v5 ships as `export default` from ESM; the bundler
@@ -954,6 +1125,66 @@ async function exportWorkforcePlanToPDF(args: {
     bodyStyles: { fontSize: 9 },
     margin: { left: 14, right: 14 },
   });
+
+  // v2.4.0 — Hiring Roadmap section. Two-part: a savings headline +
+  // the per-month action table. Goes on its own page so the recruitment
+  // team can hand it directly to HR/Finance for sign-off.
+  if (roadmap) {
+    doc.addPage();
+    cursor = 18;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Hiring Roadmap', 14, cursor);
+    cursor += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const savingsPct = roadmap.baselineAnnualCost > 0
+      ? Math.round((roadmap.savingsVsBaseline / roadmap.baselineAnnualCost) * 100)
+      : 0;
+    const headlineLines = [
+      `Total movements: +${roadmap.totalFTEAdds} FTE${mode === 'optimal' ? `, +${roadmap.totalPTAdds} PT, −${roadmap.totalPTReleases} PT releases` : ''}.`,
+      `Phased plan annual cost: ${fmtIQD(roadmap.smartAnnualCost)} IQD.`,
+      `Hire-everyone-in-Jan baseline: ${fmtIQD(roadmap.baselineAnnualCost)} IQD.`,
+      `Savings vs baseline: ${fmtIQD(roadmap.savingsVsBaseline)} IQD/yr (${savingsPct}%).`,
+      `Lead time assumed: ${roadmap.leadMonths} month(s) — hires placed in month X are productive in month X+${roadmap.leadMonths}.`,
+    ];
+    for (const ln of headlineLines) { doc.text(ln, 14, cursor); cursor += 5; }
+    cursor += 2;
+    autoTable(doc, {
+      startY: cursor,
+      head: [['Month', '+FTE', '+PT', '−PT', 'FTE end', 'PT end', 'Need FTE/PT', 'Cost (IQD)', 'Action / reasoning']],
+      body: roadmap.steps.map(s => [
+        s.monthName,
+        s.fteAdds > 0 ? `+${s.fteAdds}` : '—',
+        s.ptAdds > 0 ? `+${s.ptAdds}` : '—',
+        s.ptReleases > 0 ? `−${s.ptReleases}` : '—',
+        s.fteEnd.toString(),
+        s.ptEnd.toString(),
+        `${s.monthlyRequiredFTE} / ${s.monthlyRequiredPT}`,
+        Math.round(s.monthlyCost).toLocaleString(),
+        s.reasoning,
+      ]),
+      headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      didParseCell: (data: { section?: string; row?: { index?: number }; cell: { styles: { fillColor?: number[] } } }) => {
+        if (data.section === 'body' && typeof data.row?.index === 'number') {
+          const step = roadmap.steps[data.row.index];
+          if (step && (step.fteAdds > 0 || step.ptAdds > 0)) {
+            data.cell.styles.fillColor = [254, 226, 226]; // rose-100
+          } else if (step && step.ptReleases > 0) {
+            data.cell.styles.fillColor = [254, 243, 199]; // amber-100
+          }
+        }
+      },
+      columnStyles: {
+        0: { cellWidth: 14 }, 1: { cellWidth: 12 }, 2: { cellWidth: 12 }, 3: { cellWidth: 12 },
+        4: { cellWidth: 14 }, 5: { cellWidth: 14 }, 6: { cellWidth: 18 }, 7: { cellWidth: 22 },
+        8: { cellWidth: 'auto' },
+      },
+      styles: { overflow: 'linebreak' },
+      margin: { left: 14, right: 14 },
+    });
+  }
 
   // Footer
   const pageCount = doc.getNumberOfPages();
