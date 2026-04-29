@@ -83,25 +83,86 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
 
   if (!isOpen) return null;
 
-  const toggleStation = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      eligibleStations: prev.eligibleStations.includes(id)
-        ? prev.eligibleStations.filter(sid => sid !== id)
-        : [...prev.eligibleStations, id]
-    }));
-  };
+  // v2.3.0 — group + station eligibility now share a unified mental model.
+  // Toggling a group ON gives the employee blanket coverage of every member
+  // station (and any station ADDED to that group later). The supervisor can
+  // then click a single station to revoke just that one — internally we
+  // "expand" the group into per-station IDs minus the excluded one, so the
+  // exclusion is durable. Clicking the group again turns the whole thing
+  // off (and any per-station residue is wiped).
+  const stationsByGroup = (gid: string) => stations.filter(s => s.groupId === gid).map(s => s.id);
 
-  const toggleGroup = (id: string) => {
+  const toggleGroup = (gid: string) => {
     setFormData(prev => {
-      const current = prev.eligibleGroups || [];
+      const groups = prev.eligibleGroups || [];
+      const memberIds = stationsByGroup(gid);
+      if (groups.includes(gid)) {
+        // Group is currently providing blanket coverage. Turn it off and
+        // clear any per-station residue for its members.
+        return {
+          ...prev,
+          eligibleGroups: groups.filter(g => g !== gid),
+          eligibleStations: prev.eligibleStations.filter(sid => !memberIds.includes(sid)),
+        };
+      }
+      // Promote any partial per-station selection up to blanket group
+      // coverage. Drop the now-redundant per-station IDs.
       return {
         ...prev,
-        eligibleGroups: current.includes(id)
-          ? current.filter(gid => gid !== id)
-          : [...current, id],
+        eligibleGroups: [...groups, gid],
+        eligibleStations: prev.eligibleStations.filter(sid => !memberIds.includes(sid)),
       };
     });
+  };
+
+  const toggleStation = (id: string) => {
+    setFormData(prev => {
+      const station = stations.find(s => s.id === id);
+      const groups = prev.eligibleGroups || [];
+      const coveredByGroup = !!(station?.groupId && groups.includes(station.groupId));
+      if (coveredByGroup) {
+        // The clicked station is covered via a group. "Expand" the group
+        // into per-station IDs, then drop just this one so the rest of the
+        // group stays selected.
+        const gid = station!.groupId!;
+        const otherMembers = stationsByGroup(gid).filter(sid => sid !== id);
+        return {
+          ...prev,
+          eligibleGroups: groups.filter(g => g !== gid),
+          eligibleStations: [
+            ...prev.eligibleStations.filter(sid => sid !== id),
+            ...otherMembers.filter(sid => !prev.eligibleStations.includes(sid)),
+          ],
+        };
+      }
+      return {
+        ...prev,
+        eligibleStations: prev.eligibleStations.includes(id)
+          ? prev.eligibleStations.filter(sid => sid !== id)
+          : [...prev.eligibleStations, id],
+      };
+    });
+  };
+
+  // Summary helpers for the eligibility section header — answers
+  // "how many stations is this employee actually eligible for right now?"
+  const totalStationsCovered = (() => {
+    const groups = formData.eligibleGroups || [];
+    const ids = new Set(formData.eligibleStations);
+    for (const g of groups) for (const sid of stationsByGroup(g)) ids.add(sid);
+    return ids.size;
+  })();
+
+  const clearAllEligibility = () => {
+    setFormData(prev => ({ ...prev, eligibleStations: [], eligibleGroups: [] }));
+  };
+
+  const selectAllStations = () => {
+    setFormData(prev => ({
+      ...prev,
+      eligibleGroups: [],
+      eligibleStations: stations.map(s => s.id),
+    }));
   };
 
   const togglePreferred = (code: string) => {
@@ -233,39 +294,57 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             </div>
           </div>
 
-          {/* v2.2.0 — group-level eligibility section. Adding a group
-              ID to `eligibleGroups` is shorthand for "this employee is
-              eligible for every station in the group, including ones
-              the user creates LATER inside that group". The
-              per-station section below is kept for finer-grained
-              overrides (e.g. eligible for one station outside the
-              group's natural set). */}
+          {/* v2.3.0 — eligibility refactored into a single section with a
+              live coverage counter. Group chips fill in every member
+              station automatically; clicking a station chip "carves out"
+              an exception (turning that one off without losing the rest
+              of the group). The two surfaces aren't redundant any more —
+              groups are the bulk control, stations are the carve-outs. */}
           {stationGroups.length > 0 && (
             <div className="space-y-3 p-4 bg-emerald-50/40 rounded-lg border border-emerald-100">
-              <div>
-                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">{t('modal.employee.groupEligibility.title')}</p>
-                <p className="text-[10px] text-slate-500 leading-relaxed mt-1">{t('modal.employee.groupEligibility.note')}</p>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">{t('modal.employee.groupEligibility.title')}</p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed mt-1">{t('modal.employee.groupEligibility.note')}</p>
+                </div>
+                <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0 tracking-widest uppercase">
+                  {t('modal.employee.eligibility.coversCount', { count: totalStationsCovered, total: stations.length })}
+                </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {stationGroups.map(g => {
+                  const memberIds = stationsByGroup(g.id);
                   const active = (formData.eligibleGroups || []).includes(g.id);
-                  const memberCount = stations.filter(s => s.groupId === g.id).length;
+                  const carvedMembers = memberIds.filter(id => formData.eligibleStations.includes(id));
+                  // "Partial" = group is OFF but some member stations are
+                  // individually selected (i.e. carve-outs from a previous
+                  // expand). Visually softer than fully-on.
+                  const partial = !active && carvedMembers.length > 0;
                   return (
                     <button
                       key={g.id}
                       onClick={() => toggleGroup(g.id)}
                       type="button"
+                      title={active
+                        ? t('modal.employee.groupEligibility.tooltip.full')
+                        : partial
+                          ? t('modal.employee.groupEligibility.tooltip.partial', { count: carvedMembers.length, total: memberIds.length })
+                          : t('modal.employee.groupEligibility.tooltip.empty')}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border',
                         active
                           ? 'border-transparent text-white shadow-sm'
-                          : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300',
+                          : partial
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                            : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300',
                       )}
                       style={active && g.color ? { backgroundColor: g.color, borderColor: g.color } : undefined}
                     >
                       <Plus className={cn('w-3 h-3', active && 'rotate-45')} />
                       <span className="truncate">{g.name}</span>
-                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-400')}>· {memberCount}</span>
+                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-400')}>
+                        {partial ? `${carvedMembers.length}/${memberIds.length}` : `· ${memberIds.length}`}
+                      </span>
                     </button>
                   );
                 })}
@@ -274,23 +353,56 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
           )}
 
           <div className="space-y-3 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
-            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('modal.employee.stationEligibility')}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {stations.map(st => (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('modal.employee.stationEligibility')}</p>
+              <div className="flex items-center gap-1">
                 <button
-                  key={st.id}
-                  onClick={() => toggleStation(st.id)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border",
-                    formData.eligibleStations.includes(st.id)
-                      ? "bg-blue-600 border-blue-700 text-white shadow-sm"
-                      : "bg-white border-slate-200 text-slate-400 hover:border-blue-300"
-                  )}
+                  type="button"
+                  onClick={selectAllStations}
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  title={t('modal.employee.eligibility.selectAll.tooltip')}
                 >
-                  <Plus className={cn("w-3 h-3", formData.eligibleStations.includes(st.id) && "rotate-45")} />
-                  {st.name}
+                  {t('modal.employee.eligibility.selectAll')}
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={clearAllEligibility}
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:border-rose-300 transition-colors"
+                  title={t('modal.employee.eligibility.clearAll.tooltip')}
+                >
+                  {t('modal.employee.eligibility.clearAll')}
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {stations.map(st => {
+                const directlyOn = formData.eligibleStations.includes(st.id);
+                const groupCovered = !!(st.groupId && (formData.eligibleGroups || []).includes(st.groupId));
+                const active = directlyOn || groupCovered;
+                return (
+                  <button
+                    key={st.id}
+                    onClick={() => toggleStation(st.id)}
+                    type="button"
+                    title={groupCovered
+                      ? t('modal.employee.stationEligibility.tooltip.viaGroup')
+                      : directlyOn
+                        ? t('modal.employee.stationEligibility.tooltip.direct')
+                        : t('modal.employee.stationEligibility.tooltip.empty')}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border",
+                      groupCovered
+                        ? "bg-emerald-600 border-emerald-700 text-white shadow-sm"
+                        : directlyOn
+                          ? "bg-blue-600 border-blue-700 text-white shadow-sm"
+                          : "bg-white border-slate-200 text-slate-400 hover:border-blue-300"
+                    )}
+                  >
+                    <Plus className={cn("w-3 h-3", active && "rotate-45")} />
+                    {st.name}
+                  </button>
+                );
+              })}
               {stations.length === 0 && <p className="text-[10px] text-slate-400 font-medium col-span-3">{t('modal.employee.stations.empty')}</p>}
             </div>
           </div>

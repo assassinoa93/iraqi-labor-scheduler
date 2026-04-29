@@ -52,13 +52,20 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string }> =
 // hunting two separate KpiBlocks for the same delta. The recommended
 // number is tinted to match the action tone (rose for hire, slate for
 // hold) and the breakdown text below disambiguates FTE vs PT.
+//
+// v2.3.0 — `currentBreakdown` lets the caller surface the FT / PT split
+// for the current side too, so the comparative reads like
+// "3 FT + 2 PT / 5 FT + 0 PT" instead of "5 / 5". Without it the
+// component falls back to the v2.2 single-line `breakdown` describing
+// the recommended side.
 export function ComparativeKpi({
-  label, current, recommended, breakdown, deltaHint, tone = 'neutral',
+  label, current, recommended, breakdown, currentBreakdown, deltaHint, tone = 'neutral',
 }: {
   label: string;
   current: number | string;
   recommended: number | string;
   breakdown?: string;
+  currentBreakdown?: string;
   deltaHint?: string;
   tone?: 'emerald' | 'blue' | 'rose' | 'neutral';
 }) {
@@ -75,12 +82,21 @@ export function ComparativeKpi({
         <span className="text-slate-300 mx-1">/</span>
         <span className={recClass}>{recommended}</span>
       </p>
-      {(breakdown || deltaHint) && (
+      {currentBreakdown && breakdown ? (
+        <p className="text-[9px] text-slate-500 mt-0.5 leading-tight tabular-nums">
+          <span className="text-slate-500">{currentBreakdown}</span>
+          <span className="text-slate-300 mx-1">/</span>
+          <span className={recClass}>{breakdown}</span>
+        </p>
+      ) : (breakdown || deltaHint) && (
         <p className="text-[9px] text-slate-500 mt-0.5 leading-tight">
           {breakdown}
           {breakdown && deltaHint ? ' · ' : ''}
           {deltaHint}
         </p>
+      )}
+      {currentBreakdown && deltaHint && (
+        <p className="text-[9px] text-slate-500 mt-0.5 leading-tight">{deltaHint}</p>
       )}
     </div>
   );

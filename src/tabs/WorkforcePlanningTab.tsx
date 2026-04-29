@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Users, TrendingUp, Minus, Sparkles, Info,
   MapPin, ChevronDown, ChevronUp, Calendar, Activity, ShieldCheck,
-  Zap, Download, Eye, GitCompareArrows,
+  Zap, Download, Eye, GitCompareArrows, FileSpreadsheet,
 } from 'lucide-react';
 import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule } from '../types';
 import { Card, ComparativeKpi } from '../components/Primitives';
@@ -61,8 +61,8 @@ export function WorkforcePlanningTab(props: Props) {
     [employees, shifts, stations, holidays, config, isPeakDayFor, mode],
   );
   const rollup = useMemo(
-    () => buildAnnualRollup(annual, employees, stations, mode, stationGroups),
-    [annual, employees, stations, mode, stationGroups],
+    () => buildAnnualRollup(annual, employees, stations, mode, stationGroups, config),
+    [annual, employees, stations, mode, stationGroups, config],
   );
   const drillMonth = drillMonthIndex
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
@@ -76,6 +76,23 @@ export function WorkforcePlanningTab(props: Props) {
   const handleExportPDF = () => exportWorkforcePlanToPDF({
     annual, rollup, mode, idealOnly, fmtIQD,
   });
+
+  // v2.3.0 — Excel export. Uses the same annual + rollup data, packaged
+  // into a 7-sheet workbook (executive summary, hiring roadmap, group
+  // rollup, station rollup, monthly demand, budget impact, implementation
+  // schedule). Async because exceljs is dynamically imported.
+  const handleExportExcel = async () => {
+    const { exportWorkforcePlanToExcel } = await import('../lib/workforcePlanExcel');
+    const cap = config.standardWeeklyHrsCap || 48;
+    const fteCount = employees.filter(e => (e.contractedWeeklyHrs || cap) >= cap).length;
+    const ptCount = employees.length - fteCount;
+    await exportWorkforcePlanToExcel({
+      annual, rollup, mode,
+      companyName: config.company,
+      currentRosterFTECount: fteCount,
+      currentRosterPartTimeCount: ptCount,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -99,13 +116,24 @@ export function WorkforcePlanningTab(props: Props) {
         </div>
         <div className="flex items-center gap-2">
           {hasInputs && hasDemand && (
-            <button
-              onClick={handleExportPDF}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-[0.98]"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {t('workforce.export.button')}
-            </button>
+            <>
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md active:scale-[0.98]"
+                title={t('workforce.export.excel.tooltip')}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                {t('workforce.export.excel.button')}
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-[0.98]"
+                title={t('workforce.export.pdf.tooltip')}
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t('workforce.export.button')}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -168,7 +196,13 @@ export function WorkforcePlanningTab(props: Props) {
               <Card className="p-5 bg-slate-50 border-slate-200">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-700 mb-2">{t('workforce.kpi.current')}</p>
                 <p className="text-3xl font-black tracking-tight text-slate-800">{rollup.totalCurrentEmployees}</p>
-                <p className="text-[10px] font-bold text-slate-600 mt-1 uppercase tracking-wider">{t('workforce.kpi.currentSub')}</p>
+                <p className="text-[10px] font-bold text-slate-600 mt-1 uppercase tracking-wider">
+                  {(() => {
+                    const ft = employees.filter(e => (e.contractedWeeklyHrs || config.standardWeeklyHrsCap) >= config.standardWeeklyHrsCap).length;
+                    const pt = employees.length - ft;
+                    return pt > 0 ? `${ft} FT + ${pt} PT` : t('workforce.kpi.currentSub');
+                  })()}
+                </p>
               </Card>
               <Card className="p-5 bg-emerald-50 border-emerald-200">
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-2">{t('workforce.kpi.recommended')}</p>
@@ -479,6 +513,9 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
                 label={t('workforce.rollup.rosterComparative')}
                 current={group.currentEligibleCount}
                 recommended={group.recommendedFTE + group.recommendedPartTime}
+                currentBreakdown={group.currentPartTimeCount > 0
+                  ? t('workforce.rollup.breakdown.ftePt', { fte: group.currentFTECount, pt: group.currentPartTimeCount })
+                  : t('workforce.rollup.breakdown.fte', { fte: group.currentFTECount })}
                 breakdown={group.recommendedPartTime > 0
                   ? t('workforce.rollup.breakdown.ftePt', { fte: group.recommendedFTE, pt: group.recommendedPartTime })
                   : t('workforce.rollup.breakdown.fte', { fte: group.recommendedFTE })}
@@ -541,10 +578,18 @@ function RollupGroupRow({ group, stationsLookup, stationRollups, idealOnly }: {
                         <span className="text-slate-300 mx-0.5">/</span>
                         <span className={deltaTone}>{totalRec}</span>
                       </p>
-                      <p className="text-[10px] text-slate-500">
-                        {s.recommendedPartTime > 0
-                          ? t('workforce.rollup.breakdown.ftePt', { fte: s.recommendedFTE, pt: s.recommendedPartTime })
-                          : t('workforce.rollup.breakdown.fte', { fte: s.recommendedFTE })}
+                      <p className="text-[10px] text-slate-500 tabular-nums">
+                        <span>
+                          {s.currentPartTimeCount > 0
+                            ? t('workforce.rollup.breakdown.ftePt', { fte: s.currentFTECount, pt: s.currentPartTimeCount })
+                            : t('workforce.rollup.breakdown.fte', { fte: s.currentFTECount })}
+                        </span>
+                        <span className="text-slate-300 mx-0.5">/</span>
+                        <span className={deltaTone}>
+                          {s.recommendedPartTime > 0
+                            ? t('workforce.rollup.breakdown.ftePt', { fte: s.recommendedFTE, pt: s.recommendedPartTime })
+                            : t('workforce.rollup.breakdown.fte', { fte: s.recommendedFTE })}
+                        </span>
                       </p>
                     </div>
                   )}
@@ -606,6 +651,9 @@ function RollupStationRow({ station, idealOnly }: { station: AnnualRollupStation
                 label={t('workforce.rollup.rosterComparative')}
                 current={station.currentEligibleCount}
                 recommended={station.recommendedFTE + station.recommendedPartTime}
+                currentBreakdown={station.currentPartTimeCount > 0
+                  ? t('workforce.rollup.breakdown.ftePt', { fte: station.currentFTECount, pt: station.currentPartTimeCount })
+                  : t('workforce.rollup.breakdown.fte', { fte: station.currentFTECount })}
                 breakdown={station.recommendedPartTime > 0
                   ? t('workforce.rollup.breakdown.ftePt', { fte: station.recommendedFTE, pt: station.recommendedPartTime })
                   : t('workforce.rollup.breakdown.fte', { fte: station.recommendedFTE })}

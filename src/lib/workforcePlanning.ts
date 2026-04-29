@@ -502,6 +502,11 @@ export interface AnnualRollupStation {
   // Current count of employees ELIGIBLE to staff this station (i.e.
   // station appears in their eligibleStations or they match requiredRoles).
   currentEligibleCount: number;
+  // v2.3.0 — split the current count into FT and PT so the comparative
+  // KPI reads "3 FT + 1 PT / 5 FT + 0 PT" instead of "4 / 5". PT is
+  // anyone with `contractedWeeklyHrs < config.standardWeeklyHrsCap`.
+  currentFTECount: number;
+  currentPartTimeCount: number;
   delta: number;                   // recommended - currentEligibleCount
   action: 'hire' | 'hold';
 }
@@ -532,6 +537,11 @@ export interface AnnualRollupGroup {
   // member stations. The supervisor reads this as "I have X people
   // ready to cover any cashier station today".
   currentEligibleCount: number;
+  // v2.3.0 — current count split FT / PT (PT = contractedWeeklyHrs <
+  // config.standardWeeklyHrsCap). Surfaced in the comparative KPI so the
+  // reader sees the supply mix at a glance.
+  currentFTECount: number;
+  currentPartTimeCount: number;
   delta: number;
   action: 'hire' | 'hold';
 }
@@ -642,7 +652,17 @@ export function analyzeWorkforceAnnual({
 // supervisor holds excess capacity through valleys (Art. 36/40 of the
 // Iraqi Labor Law makes releases legally fraught, see comments at the top
 // of this module).
-export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employee[], stations: Station[], mode: PlanMode, stationGroups: StationGroup[] = []): AnnualRollup {
+export function buildAnnualRollup(
+  annual: AnnualWorkforcePlan,
+  employees: Employee[],
+  stations: Station[],
+  mode: PlanMode,
+  stationGroups: StationGroup[] = [],
+  // v2.3.0 — optional config so the FT/PT classifier honours the venue's
+  // configured weekly cap rather than the Iraqi default. Tests omit it
+  // and the helper falls back to 48h (Art. 70 standard).
+  config?: Pick<Config, 'standardWeeklyHrsCap'>,
+): AnnualRollup {
   // Walk each role across all 12 months, picking up the per-role demand.
   type RolePerMonth = {
     role: string;
@@ -793,20 +813,31 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
     }
   }
 
-  // Eligibility: how many current employees can staff each station today.
-  const eligibilityCount = (st: Station): number => {
-    let count = 0;
+  // v2.3.0 — FT/PT split helper. PT = contractedWeeklyHrs strictly less
+  // than the venue's standard weekly cap (Art. 70, default 48h).
+  const weeklyCapForFT = config?.standardWeeklyHrsCap ?? 48;
+  const isPT = (e: Employee) => (e.contractedWeeklyHrs || weeklyCapForFT) < weeklyCapForFT;
+
+  // Eligibility: how many current employees can staff each station today,
+  // split FT / PT so the comparative KPI shows the supply mix.
+  const eligibilityCount = (st: Station): { total: number; fte: number; pt: number } => {
+    let fte = 0, pt = 0;
     for (const e of employees) {
+      let counted = false;
       if (st.requiredRoles?.includes('Driver')) {
-        if (e.category === 'Driver') count++;
+        if (e.category === 'Driver') counted = true;
       } else {
         const eligible = e.eligibleStations.length === 0 || e.eligibleStations.includes(st.id);
         if (!eligible) continue;
         if (st.requiredRoles?.length && !st.requiredRoles.some(r => r === e.role || r === 'Standard')) continue;
-        count++;
+        counted = true;
+      }
+      if (counted) {
+        if (isPT(e)) pt++;
+        else fte++;
       }
     }
-    return count;
+    return { total: fte + pt, fte, pt };
   };
 
   const byStation: AnnualRollupStation[] = [];
@@ -831,7 +862,8 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
     const recommendedPartTime = mode === 'conservative'
       ? 0
       : Math.round(months.reduce((s, p) => s + p.pt, 0) / months.length);
-    const currentEligible = eligibilityCount(st);
+    const eligibility = eligibilityCount(st);
+    const currentEligible = eligibility.total;
     const delta = (recommendedFTE + recommendedPartTime) - currentEligible;
     const action: AnnualRollupStation['action'] = delta > 0 ? 'hire' : 'hold';
     const roleHint = st.requiredRoles?.find(r => r !== 'Standard' && r !== '') || null;
@@ -849,6 +881,8 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
       recommendedPartTime,
       reasoning,
       currentEligibleCount: currentEligible,
+      currentFTECount: eligibility.fte,
+      currentPartTimeCount: eligibility.pt,
       delta,
       action,
     });
@@ -920,10 +954,16 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
     // Eligible employees for this group: employees with the group in
     // eligibleGroups OR with any member station in eligibleStations.
     const memberStationIds = new Set(memberStations.map(s => s.id));
-    const eligibleCount = employees.filter(e =>
+    const eligibleEmployees = employees.filter(e =>
       (e.eligibleGroups || []).includes(grp.id)
       || e.eligibleStations.some(s => memberStationIds.has(s))
-    ).length;
+    );
+    const eligibleCount = eligibleEmployees.length;
+    let groupFTE = 0, groupPT = 0;
+    for (const e of eligibleEmployees) {
+      if (isPT(e)) groupPT++;
+      else groupFTE++;
+    }
     const delta = (recommendedFTE + recommendedPartTime) - eligibleCount;
     const action: AnnualRollupGroup['action'] = delta > 0 ? 'hire' : 'hold';
     const reasoning = mode === 'conservative'
@@ -942,6 +982,8 @@ export function buildAnnualRollup(annual: AnnualWorkforcePlan, employees: Employ
       recommendedPartTime,
       reasoning,
       currentEligibleCount: eligibleCount,
+      currentFTECount: groupFTE,
+      currentPartTimeCount: groupPT,
       delta,
       action,
     });
