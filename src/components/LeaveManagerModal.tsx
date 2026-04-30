@@ -127,22 +127,22 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="bg-white w-full max-w-3xl rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]"
+            className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[85vh]"
           >
-            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50 shrink-0">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700/60 flex justify-between items-start bg-slate-50 dark:bg-slate-800/40 shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">{t('leaves.modal.title')}</h3>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{t('leaves.modal.title')}</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                   {employee.name} · <span className="font-mono">{employee.empId}</span>
                 </p>
               </div>
-              <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-slate-500" />
+              <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
               </button>
             </div>
 
-            <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">{t('leaves.modal.addNew')}</span>
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mr-2">{t('leaves.modal.addNew')}</span>
               {(['annual', 'sick', 'maternity'] as LeaveType[]).map(type => {
                 const meta = TYPE_META[type];
                 const Icon = meta.icon;
@@ -152,9 +152,9 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                     onClick={() => addRange(type)}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all",
-                      meta.tone === 'emerald' && "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100",
-                      meta.tone === 'amber'   && "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
-                      meta.tone === 'rose'    && "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100",
+                      meta.tone === 'emerald' && "bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25",
+                      meta.tone === 'amber'   && "bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/40 text-amber-700 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/25",
+                      meta.tone === 'rose'    && "bg-rose-50 dark:bg-rose-500/15 border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-500/25",
                     )}
                   >
                     <Icon className="w-3 h-3" />
@@ -163,17 +163,17 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                   </button>
                 );
               })}
-              <div className="ml-auto text-[10px] font-mono text-slate-500">
+              <div className="ml-auto text-[10px] font-mono text-slate-500 dark:text-slate-400">
                 {t('leaves.modal.totals', { annual: totalDaysByType.annual, sick: totalDaysByType.sick, maternity: totalDaysByType.maternity })}
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-3">
               {draft.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-                  <Heart className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('leaves.modal.empty')}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{t('leaves.modal.emptyHint')}</p>
+                <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                  <Heart className="w-8 h-8 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
+                  <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.modal.empty')}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{t('leaves.modal.emptyHint')}</p>
                 </div>
               )}
               {draft.map((r, idx) => {
@@ -184,44 +184,44 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                   <div
                     key={r.id}
                     className={cn(
-                      "p-4 rounded-xl border bg-white",
-                      meta.tone === 'emerald' && "border-emerald-200 bg-emerald-50/30",
-                      meta.tone === 'amber'   && "border-amber-200 bg-amber-50/30",
-                      meta.tone === 'rose'    && "border-rose-200 bg-rose-50/30",
-                      invalid && "ring-1 ring-red-300",
+                      "p-4 rounded-xl border bg-white dark:bg-slate-900",
+                      meta.tone === 'emerald' && "border-emerald-200 dark:border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-500/10",
+                      meta.tone === 'amber'   && "border-amber-200 dark:border-amber-500/40 bg-amber-50/30 dark:bg-amber-500/10",
+                      meta.tone === 'rose'    && "border-rose-200 dark:border-rose-500/40 bg-rose-50/30 dark:bg-rose-500/10",
+                      invalid && "ring-1 ring-red-300 dark:ring-red-500/40",
                     )}
                   >
                     <div className="flex items-start gap-3">
                       <div className={cn(
                         "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                        meta.tone === 'emerald' && "bg-emerald-100 text-emerald-700",
-                        meta.tone === 'amber'   && "bg-amber-100 text-amber-700",
-                        meta.tone === 'rose'    && "bg-rose-100 text-rose-700",
+                        meta.tone === 'emerald' && "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200",
+                        meta.tone === 'amber'   && "bg-amber-100 dark:bg-amber-500/25 text-amber-700 dark:text-amber-200",
+                        meta.tone === 'rose'    && "bg-rose-100 dark:bg-rose-500/25 text-rose-700 dark:text-rose-200",
                       )}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-baseline gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-700">{t(meta.labelKey)}</span>
-                          <span className="font-mono text-[9px] text-slate-400">{t(meta.articleKey)}</span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{t(meta.labelKey)}</span>
+                          <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500">{t(meta.articleKey)}</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('leaves.range.start')}</label>
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.range.start')}</label>
                             <input
                               type="date"
                               value={r.start}
                               onChange={e => updateRange(idx, { start: e.target.value })}
-                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('leaves.range.end')}</label>
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.range.end')}</label>
                             <input
                               type="date"
                               value={r.end}
                               onChange={e => updateRange(idx, { end: e.target.value })}
-                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100"
                             />
                           </div>
                         </div>
@@ -230,16 +230,16 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                           placeholder={t('leaves.range.notesPlaceholder')}
                           value={r.notes ?? ''}
                           onChange={e => updateRange(idx, { notes: e.target.value })}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-[11px]"
+                          className="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] text-slate-800 dark:text-slate-100"
                         />
                         {invalid && (
-                          <p className="text-[10px] text-red-600 font-bold">{t('leaves.range.invalidDates')}</p>
+                          <p className="text-[10px] text-red-600 dark:text-red-300 font-bold">{t('leaves.range.invalidDates')}</p>
                         )}
                       </div>
                       <button
                         onClick={() => removeRange(idx)}
                         aria-label={t('action.delete')}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                        className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/15 rounded-lg transition-colors shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -259,11 +259,11 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                 if (filtered.length === 0) return null;
                 return (
                   <div className="space-y-2 pt-2">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                       <Paintbrush className="w-3 h-3" />
                       <span>{t('leaves.modal.painted.header')}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 leading-relaxed">{t('leaves.modal.painted.body')}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('leaves.modal.painted.body')}</p>
                     {filtered.map(r => {
                       const meta = TYPE_META[r.type];
                       const Icon = meta.icon;
@@ -271,26 +271,26 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                         <div
                           key={r.id}
                           className={cn(
-                            "p-3 rounded-xl border bg-slate-50 opacity-90",
-                            meta.tone === 'emerald' && "border-emerald-200/70",
-                            meta.tone === 'amber' && "border-amber-200/70",
-                            meta.tone === 'rose' && "border-rose-200/70",
+                            "p-3 rounded-xl border bg-slate-50 dark:bg-slate-800/40 opacity-90",
+                            meta.tone === 'emerald' && "border-emerald-200/70 dark:border-emerald-500/40",
+                            meta.tone === 'amber' && "border-amber-200/70 dark:border-amber-500/40",
+                            meta.tone === 'rose' && "border-rose-200/70 dark:border-rose-500/40",
                           )}
                         >
                           <div className="flex items-start gap-3">
                             <div className={cn(
                               "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                              meta.tone === 'emerald' && "bg-emerald-100 text-emerald-700",
-                              meta.tone === 'amber' && "bg-amber-100 text-amber-700",
-                              meta.tone === 'rose' && "bg-rose-100 text-rose-700",
+                              meta.tone === 'emerald' && "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200",
+                              meta.tone === 'amber' && "bg-amber-100 dark:bg-amber-500/25 text-amber-700 dark:text-amber-200",
+                              meta.tone === 'rose' && "bg-rose-100 dark:bg-rose-500/25 text-rose-700 dark:text-rose-200",
                             )}>
                               <Icon className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-slate-700">{t(meta.labelKey)}</span>
-                                <span className="font-mono text-[10px] text-slate-500">{r.start} → {r.end}</span>
-                                <span className="font-mono text-[8px] font-black uppercase tracking-widest bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{t(meta.labelKey)}</span>
+                                <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">{r.start} → {r.end}</span>
+                                <span className="font-mono text-[8px] font-black uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
                                   {t('leaves.modal.painted.tag')}
                                 </span>
                               </div>
@@ -304,13 +304,13 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
               })()}
             </div>
 
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-              <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 shrink-0">
+              <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">
                 {t('action.cancel')}
               </button>
               <button
                 onClick={commit}
-                className="px-8 py-2 bg-slate-900 text-white rounded text-sm font-bold hover:bg-slate-800 transition-all shadow-lg uppercase tracking-widest"
+                className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
               >
                 {t('leaves.modal.save')}
               </button>

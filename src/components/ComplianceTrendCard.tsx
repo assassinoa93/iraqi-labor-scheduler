@@ -29,14 +29,14 @@ export function ComplianceTrendCard({ companyId, compliancePct, violations, cove
 
   if (history.length < 2) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 rounded-xl flex items-center justify-center">
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('trend.title')}</p>
-            <p className="text-xs text-slate-400">{t('trend.bootstrap')}</p>
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('trend.title')}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t('trend.bootstrap')}</p>
           </div>
         </div>
       </div>
@@ -64,25 +64,25 @@ export function ComplianceTrendCard({ companyId, compliancePct, violations, cove
     .join(' ');
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4 mb-3">
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-10 h-10 rounded-xl flex items-center justify-center",
-            tone === 'up' ? "bg-emerald-50 text-emerald-700" : tone === 'down' ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-500",
+            tone === 'up' ? "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" : tone === 'down' ? "bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200" : "bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400",
           )}>
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('trend.title')}</p>
-            <p className="text-xs text-slate-700 font-bold">
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('trend.title')}</p>
+            <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">
               {t('trend.range', { days: history.length })}
             </p>
           </div>
         </div>
         <div className={cn(
           "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest",
-          tone === 'up' ? "bg-emerald-50 text-emerald-700" : tone === 'down' ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-500",
+          tone === 'up' ? "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" : tone === 'down' ? "bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200" : "bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400",
         )}>
           {tone === 'up' ? <TrendingUp className="w-3 h-3" /> : tone === 'down' ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
           {delta > 0 ? '+' : ''}{delta.toFixed(0)} pts
@@ -98,7 +98,7 @@ export function ComplianceTrendCard({ companyId, compliancePct, violations, cove
           strokeLinejoin="round"
         />
       </svg>
-      <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
+      <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400 dark:text-slate-500">
         <span>{first.date} · {first.compliancePct}%</span>
         <span>{last.date} · {last.compliancePct}%</span>
       </div>

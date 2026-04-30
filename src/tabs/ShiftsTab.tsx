@@ -57,10 +57,10 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">{t('shifts.title')}</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('shifts.title')}</h3>
         <button
           onClick={onAddNew}
-          className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg text-center font-mono"
+          className="flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-5 py-2 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg text-center font-mono"
         >
           <Plus className="w-3 h-3" />
           {t('shifts.new')}
@@ -69,31 +69,31 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
 
       <Card>
         <table className="w-full text-start text-sm">
-          <thead className="bg-slate-50 text-[11px] uppercase text-slate-500 font-bold border-b border-slate-200">
+          <thead className="bg-slate-50 dark:bg-slate-800/40 text-[11px] uppercase text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700">
             <tr>
               <SortableHeader label={t('shifts.col.code')} sortKey="code" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('shifts.col.name')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('shifts.col.hours')} sortKey="hours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('shifts.col.status')} sortKey="status" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="center" />
-              <th className="px-6 py-4 tracking-wider text-center w-24 text-[10px] font-black text-slate-400">{t('shifts.col.order')}</th>
-              <th className="px-6 py-4 tracking-wider text-end text-[10px] font-black text-slate-400">{t('shifts.col.actions')}</th>
+              <th className="px-6 py-4 tracking-wider text-center w-24 text-[10px] font-black text-slate-400 dark:text-slate-500">{t('shifts.col.order')}</th>
+              <th className="px-6 py-4 tracking-wider text-end text-[10px] font-black text-slate-400 dark:text-slate-500">{t('shifts.col.actions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
             {visible.map(({ shift: s, originalIndex }) => (
-              <tr key={s.code} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-mono text-xs font-bold text-blue-600">{s.code}</td>
+              <tr key={s.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                <td className="px-6 py-4 font-mono text-xs font-bold text-blue-600 dark:text-blue-300">{s.code}</td>
                 <td className="px-6 py-4">
-                  <p className="font-bold text-slate-700 text-xs">{s.name}</p>
-                  <p className="text-[10px] text-slate-400">{s.description}</p>
+                  <p className="font-bold text-slate-700 dark:text-slate-200 text-xs">{s.name}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{s.description}</p>
                 </td>
-                <td className="px-6 py-4 font-mono text-xs text-slate-500">
+                <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {s.start}-{s.end} ({s.durationHrs}h)
                   </div>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter", s.isWork ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                  <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter", s.isWork ? "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")}>
                     {s.isWork ? t('shifts.status.work') : t('shifts.status.nonwork')}
                   </span>
                 </td>
@@ -108,7 +108,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                       disabled={sortActive || originalIndex === 0}
                       onClick={() => onMove(originalIndex, 'up')}
                       aria-label={`${t('shifts.moveUp')}: ${s.code}`}
-                      className="p-1 text-slate-400 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronUp className="w-3 h-3" />
                     </button>
@@ -116,7 +116,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                       disabled={sortActive || originalIndex === shifts.length - 1}
                       onClick={() => onMove(originalIndex, 'down')}
                       aria-label={`${t('shifts.moveDown')}: ${s.code}`}
-                      className="p-1 text-slate-400 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>
@@ -124,7 +124,7 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                 </td>
                 <td className="px-6 py-4 text-end">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit(s)} aria-label={`${t('action.edit')}: ${s.code}`} className="text-slate-400 hover:text-slate-900 transition-colors p-1">
+                    <button onClick={() => onEdit(s)} aria-label={`${t('action.edit')}: ${s.code}`} className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors p-1">
                       <Settings className="w-4 h-4" />
                     </button>
                     {/* v2.2.0 — system shifts (OFF/CP/AL/SL/MAT/PH) get a
@@ -136,13 +136,13 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                     {isSystemShift(s.code) ? (
                       <span
                         title={t('shifts.systemShift.locked')}
-                        className="text-slate-300 p-1"
+                        className="text-slate-300 dark:text-slate-600 p-1"
                         aria-label={t('shifts.systemShift.locked')}
                       >
                         <Lock className="w-4 h-4" />
                       </span>
                     ) : (
-                      <button onClick={() => onDelete(s.code)} aria-label={`${t('action.delete')}: ${s.code}`} className="text-slate-400 hover:text-red-600 transition-colors p-1">
+                      <button onClick={() => onDelete(s.code)} aria-label={`${t('action.delete')}: ${s.code}`} className="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-300 transition-colors p-1">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}

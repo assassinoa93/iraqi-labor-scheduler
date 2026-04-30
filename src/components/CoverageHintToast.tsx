@@ -36,33 +36,33 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
           exit={{ opacity: 0, x: 40 }}
           transition={{ type: 'spring', stiffness: 280, damping: 26 }}
           style={{ insetInlineEnd: 24 }}
-          className="fixed bottom-6 z-[90] w-[320px] bg-white border border-amber-200 rounded-xl shadow-2xl shadow-amber-500/10 overflow-hidden"
+          className="fixed bottom-6 z-[90] w-[320px] bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/40 rounded-xl shadow-2xl shadow-amber-500/10 overflow-hidden"
           role="status"
           aria-live="polite"
         >
-          <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-200 flex items-start gap-3">
+          <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-500/15 dark:to-amber-500/25 border-b border-amber-200 dark:border-amber-500/40 flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
               <Lightbulb className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">{t('hint.coverage.eyebrow')}</p>
-              <p className="text-xs font-bold text-slate-800 leading-snug">
+              <p className="text-[10px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">{t('hint.coverage.eyebrow')}</p>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
                 {t('hint.coverage.title', { day: hint.gap.day, station: hint.gap.station.name })}
               </p>
             </div>
             <button
               onClick={onDismiss}
               aria-label={t('action.cancel')}
-              className="text-slate-400 hover:text-slate-700 p-1 -m-1 rounded transition-colors shrink-0"
+              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 p-1 -m-1 rounded transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           <div className="px-4 py-3 space-y-2 max-h-[280px] overflow-y-auto">
-            <p className="text-[10px] text-slate-500 leading-relaxed">{t('hint.coverage.body')}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('hint.coverage.body')}</p>
             {hint.suggestions.length === 0 ? (
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded text-[11px] text-slate-500 italic">
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/40 rounded text-[11px] text-slate-500 dark:text-slate-400 italic">
                 <MoonStar className="w-3 h-3" /> {t('hint.coverage.noCandidates')}
               </div>
             ) : (
@@ -74,10 +74,10 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                     className={cn(
                       "w-full text-start px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
                       s.isRecommended
-                        ? "bg-amber-50 border-amber-300 ring-2 ring-amber-200 hover:bg-amber-100"
+                        ? "bg-amber-50 dark:bg-amber-500/15 border-amber-300 dark:border-amber-500/40 ring-2 ring-amber-200 dark:ring-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-500/25"
                         : s.currentlyOff
-                          ? "bg-emerald-50/70 border-emerald-100 hover:bg-emerald-100"
-                          : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                          ? "bg-emerald-50/70 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25"
+                          : "bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800"
                     )}
                   >
                     <div className="flex-1 min-w-0">
@@ -88,33 +88,33 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                             {t('hint.coverage.tag.recommended')}
                           </span>
                         )}
-                        <span className="text-xs font-bold text-slate-800 truncate">{s.empName}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{s.empName}</span>
                         {s.currentlyOff && (
-                          <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-200 text-emerald-800 rounded">
+                          <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-200 dark:bg-emerald-500/25 text-emerald-800 dark:text-emerald-200 rounded">
                             {t('hint.coverage.tag.off')}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-400 font-mono truncate">{s.empId}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate">{s.empId}</p>
                       {s.warnings.length > 0 && (
-                        <p className="text-[10px] text-amber-700 leading-tight mt-1 flex items-start gap-1">
+                        <p className="text-[10px] text-amber-700 dark:text-amber-200 leading-tight mt-1 flex items-start gap-1">
                           <AlertTriangle className="w-2.5 h-2.5 shrink-0 mt-0.5" />
                           <span className="line-clamp-2">{s.warnings[0]}</span>
                         </p>
                       )}
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 mt-0.5 shrink-0" />
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-2">
-            <span className="text-[9px] text-slate-400 italic">{t('hint.coverage.override')}</span>
+          <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center gap-2">
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 italic">{t('hint.coverage.override')}</span>
             <button
               onClick={onDismiss}
-              className="px-3 py-1 text-[10px] font-black text-slate-700 hover:bg-white border border-slate-200 rounded uppercase tracking-widest transition-all"
+              className="px-3 py-1 text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded uppercase tracking-widest transition-all"
             >
               {t('hint.coverage.keepGap')}
             </button>

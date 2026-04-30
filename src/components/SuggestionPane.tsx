@@ -78,22 +78,22 @@ export function SuggestionPane({
         aria-label={t('pane.expand')}
         style={isRTL ? { left: 0 } : { right: 0 }}
         className={cn(
-          "fixed top-32 z-[40] flex flex-col items-center gap-2 px-2 py-4 bg-white border-y border-slate-200 shadow-lg hover:bg-slate-50 transition-all",
+          "fixed top-32 z-[40] flex flex-col items-center gap-2 px-2 py-4 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-700 shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all",
           isRTL ? "border-r rounded-r-xl" : "border-l rounded-l-xl",
         )}
       >
         {isRTL
-          ? <ChevronRight className="w-4 h-4 text-slate-500" />
-          : <ChevronLeftIcon className="w-4 h-4 text-slate-500" />
+          ? <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+          : <ChevronLeftIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
         }
-        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest [writing-mode:vertical-rl]">
+        <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest [writing-mode:vertical-rl]">
           {t('pane.title')}
         </span>
         {hint && (
           <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
         )}
         {recentChanges.length > 0 && (
-          <span className="text-[9px] font-black text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+          <span className="text-[9px] font-black text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
             {recentChanges.length}
           </span>
         )}
@@ -107,27 +107,27 @@ export function SuggestionPane({
     <aside
       style={isRTL ? { left: 0 } : { right: 0 }}
       className={cn(
-        "fixed top-16 bottom-0 w-[340px] z-[40] bg-white shadow-xl flex flex-col overflow-hidden",
-        isRTL ? "border-r border-slate-200" : "border-l border-slate-200",
+        "fixed top-16 bottom-0 w-[340px] z-[40] bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden",
+        isRTL ? "border-r border-slate-200 dark:border-slate-700" : "border-l border-slate-200 dark:border-slate-700",
       )}
       role="complementary"
       aria-label={t('pane.title')}
     >
       {/* Header with collapse */}
-      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800/40">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-600" />
-          <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{t('pane.title')}</h3>
+          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
+          <h3 className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{t('pane.title')}</h3>
         </div>
         <button
           onClick={onToggleCollapsed}
           title={t('pane.collapse')}
           aria-label={t('pane.collapse')}
-          className="p-1 hover:bg-slate-200 rounded transition-colors"
+          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
         >
           {isRTL
-            ? <ChevronLeftIcon className="w-4 h-4 text-slate-500" />
-            : <ChevronRight className="w-4 h-4 text-slate-500" />
+            ? <ChevronLeftIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+            : <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           }
         </button>
       </div>
@@ -139,14 +139,14 @@ export function SuggestionPane({
             run the auto-scheduler in preserve-absences mode so it routes
             substitutes around the absences in one shot. */}
         {massChangeDetected && (
-          <section className="p-4 border-b border-indigo-200 bg-indigo-50/70">
+          <section className="p-4 border-b border-indigo-200 dark:border-indigo-500/40 bg-indigo-50/70 dark:bg-indigo-500/10">
             <div className="flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-200">
                 <Zap className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black text-indigo-900 uppercase tracking-widest">{t('pane.massChange.title')}</p>
-                <p className="text-[10px] text-indigo-700 leading-relaxed mt-1">{t('pane.massChange.body')}</p>
+                <p className="text-[11px] font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest">{t('pane.massChange.title')}</p>
+                <p className="text-[10px] text-indigo-700 dark:text-indigo-200 leading-relaxed mt-1">{t('pane.massChange.body')}</p>
                 <button
                   onClick={onRunOptimal}
                   className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-sm"
@@ -158,12 +158,12 @@ export function SuggestionPane({
           </section>
         )}
 
-        <section className="p-4 border-b border-slate-100">
+        <section className="p-4 border-b border-slate-100 dark:border-slate-700/60">
           <div className="flex items-center gap-2 mb-3">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
-            <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest">{t('pane.suggestions.header')}</h4>
+            <Lightbulb className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300" />
+            <h4 className="text-[10px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">{t('pane.suggestions.header')}</h4>
             {pendingCount > 0 && (
-              <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+              <span className="text-[9px] font-black text-amber-700 dark:text-amber-200 bg-amber-100 dark:bg-amber-500/25 border border-amber-200 dark:border-amber-500/40 px-1.5 py-0.5 rounded">
                 +{pendingCount} {t('pane.pending.label')}
               </span>
             )}
@@ -172,7 +172,7 @@ export function SuggestionPane({
                 onClick={onDismissHint}
                 title={t('hint.coverage.keepGap')}
                 aria-label={t('hint.coverage.keepGap')}
-                className="ml-auto p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                className="ml-auto p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -180,26 +180,26 @@ export function SuggestionPane({
           </div>
 
           {!hint ? (
-            <div className="px-3 py-6 text-center bg-emerald-50/60 border border-emerald-100 rounded-lg">
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">{t('pane.suggestions.noGap')}</p>
-              <p className="text-[10px] text-emerald-600 mt-1 leading-relaxed">{t('pane.suggestions.noGapHint')}</p>
+            <div className="px-3 py-6 text-center bg-emerald-50/60 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-lg">
+              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">{t('pane.suggestions.noGap')}</p>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-300 mt-1 leading-relaxed">{t('pane.suggestions.noGapHint')}</p>
             </div>
           ) : (
             <>
-              <div className="px-3 py-2 mb-2 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-[11px] font-bold text-slate-800">
+              <div className="px-3 py-2 mb-2 rounded-lg bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
+                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100">
                   {t('hint.coverage.title', { day: hint.gap.day, station: hint.gap.station.name })}
                 </p>
-                <p className="text-[10px] text-slate-600 mt-0.5">{t('hint.coverage.body')}</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">{t('hint.coverage.body')}</p>
                 {pendingCount > 0 && (
-                  <p className="text-[10px] text-amber-700 font-medium mt-1">
+                  <p className="text-[10px] text-amber-700 dark:text-amber-200 font-medium mt-1">
                     {t('pane.pending.hint', { count: pendingCount })}
                   </p>
                 )}
               </div>
 
               {hint.suggestions.length === 0 ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded text-[11px] text-slate-500 italic">
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/40 rounded text-[11px] text-slate-500 dark:text-slate-400 italic">
                   <MoonStar className="w-3 h-3" /> {t('hint.coverage.noCandidates')}
                 </div>
               ) : (
@@ -211,10 +211,10 @@ export function SuggestionPane({
                       className={cn(
                         "w-full text-start px-3 py-2 rounded-lg border transition-all flex items-start gap-2 group relative",
                         s.isRecommended
-                          ? "bg-amber-50 border-amber-300 ring-2 ring-amber-200 hover:bg-amber-100"
+                          ? "bg-amber-50 dark:bg-amber-500/15 border-amber-300 dark:border-amber-500/40 ring-2 ring-amber-200 dark:ring-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-500/25"
                           : s.currentlyOff
-                            ? "bg-emerald-50/70 border-emerald-100 hover:bg-emerald-100"
-                            : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                            ? "bg-emerald-50/70 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25"
+                            : "bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800"
                       )}
                     >
                       <div className="flex-1 min-w-0">
@@ -225,22 +225,22 @@ export function SuggestionPane({
                               {t('hint.coverage.tag.recommended')}
                             </span>
                           )}
-                          <span className="text-xs font-bold text-slate-800 truncate">{s.empName}</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{s.empName}</span>
                           {s.currentlyOff && (
-                            <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-200 text-emerald-800 rounded">
+                            <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest bg-emerald-200 dark:bg-emerald-500/25 text-emerald-800 dark:text-emerald-200 rounded">
                               {t('hint.coverage.tag.off')}
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-mono truncate">{s.empId}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate">{s.empId}</p>
                         {s.warnings.length > 0 && (
-                          <p className="text-[10px] text-amber-700 leading-tight mt-1 flex items-start gap-1">
+                          <p className="text-[10px] text-amber-700 dark:text-amber-200 leading-tight mt-1 flex items-start gap-1">
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0 mt-0.5" />
                             <span className="line-clamp-2">{s.warnings[0]}</span>
                           </p>
                         )}
                       </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 mt-0.5 shrink-0" />
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -252,8 +252,8 @@ export function SuggestionPane({
         {/* Recent changes section */}
         <section className="p-4">
           <div className="flex items-center gap-2 mb-3">
-            <History className="w-3.5 h-3.5 text-slate-500" />
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+            <History className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <h4 className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
               {t('pane.changes.header')} ({recentChanges.length})
             </h4>
             {recentChanges.length > 0 && (
@@ -261,7 +261,7 @@ export function SuggestionPane({
                 onClick={onClearChanges}
                 title={t('pane.changes.clear')}
                 aria-label={t('pane.changes.clear')}
-                className="ml-auto text-[9px] font-bold text-slate-400 hover:text-slate-700 uppercase tracking-widest"
+                className="ml-auto text-[9px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest"
               >
                 {t('pane.changes.clear')}
               </button>
@@ -269,9 +269,9 @@ export function SuggestionPane({
           </div>
 
           {recentChanges.length === 0 ? (
-            <div className="px-3 py-6 text-center bg-slate-50 border border-slate-100 rounded-lg">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('pane.changes.empty')}</p>
-              <p className="text-[10px] text-slate-400 mt-1">{t('pane.changes.emptyHint')}</p>
+            <div className="px-3 py-6 text-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60 rounded-lg">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('pane.changes.empty')}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{t('pane.changes.emptyHint')}</p>
             </div>
           ) : (
             <>
@@ -279,11 +279,11 @@ export function SuggestionPane({
                 {visibleChanges.map(change => (
                   <li
                     key={change.id}
-                    className="flex items-start gap-2 px-2.5 py-1.5 bg-slate-50/80 border border-slate-100 rounded-md text-[10px]"
+                    className="flex items-start gap-2 px-2.5 py-1.5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60 rounded-md text-[10px]"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-700 truncate">{change.empName}</p>
-                      <p className="text-slate-500 font-mono">
+                      <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{change.empName}</p>
+                      <p className="text-slate-500 dark:text-slate-400 font-mono">
                         {t('pane.changes.line', {
                           day: change.day,
                           prev: change.prevCode || '∅',
@@ -295,7 +295,7 @@ export function SuggestionPane({
                       onClick={() => onUndoChange(change.id)}
                       title={t('pane.changes.undo')}
                       aria-label={t('pane.changes.undo')}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors shrink-0"
+                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 rounded transition-colors shrink-0"
                     >
                       <Undo2 className="w-3 h-3" />
                     </button>
@@ -305,7 +305,7 @@ export function SuggestionPane({
               {recentChanges.length > 10 && (
                 <button
                   onClick={() => setShowAllChanges(s => !s)}
-                  className="mt-2 w-full text-center text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest"
+                  className="mt-2 w-full text-center text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 uppercase tracking-widest"
                 >
                   {showAllChanges ? t('pane.changes.showLess') : t('pane.changes.showAll', { extra: recentChanges.length - 10 })}
                 </button>

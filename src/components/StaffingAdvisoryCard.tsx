@@ -57,9 +57,9 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
       {/* Mode-tab header */}
-      <div className="flex items-stretch border-b border-slate-100 bg-slate-50">
+      <div className="flex items-stretch border-b border-slate-100 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40">
         {modes.map(m => {
           const Icon = m.icon;
           const isActive = m.key === activeMode;
@@ -73,10 +73,10 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                 // `bg-white text-${tone}-700`-style interpolations, so the
                 // active-tab tint silently rendered as default slate.
                 "flex-1 px-4 py-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all border-b-2",
-                isActive && m.tone === 'emerald' && "bg-white text-emerald-700 border-emerald-500",
-                isActive && m.tone === 'blue' && "bg-white text-blue-700 border-blue-500",
-                isActive && m.tone === 'indigo' && "bg-white text-indigo-700 border-indigo-500",
-                !isActive && "text-slate-400 border-transparent hover:text-slate-700 hover:bg-white/50",
+                isActive && m.tone === 'emerald' && "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-200 border-emerald-500",
+                isActive && m.tone === 'blue' && "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-200 border-blue-500",
+                isActive && m.tone === 'indigo' && "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-200 border-indigo-500",
+                !isActive && "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-900/50",
               )}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -91,41 +91,41 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
         <div className="flex items-start gap-4">
           <div className={cn(
             "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-            active.tone === 'emerald' && "bg-emerald-50 text-emerald-700",
-            active.tone === 'blue' && "bg-blue-50 text-blue-700",
-            active.tone === 'indigo' && "bg-indigo-50 text-indigo-700",
+            active.tone === 'emerald' && "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200",
+            active.tone === 'blue' && "bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200",
+            active.tone === 'indigo' && "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-200",
           )}>
             <ActiveIcon className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('advisory.section.eyebrow')}</p>
-            <h3 className="text-lg font-bold text-slate-800 tracking-tight">{t(active.titleKey)}</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mt-1">{t(active.bodyKey)}</p>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('advisory.section.eyebrow')}</p>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t(active.titleKey)}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">{t(active.bodyKey)}</p>
           </div>
         </div>
 
         {/* KPIs for the active mode */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60 rounded-lg">
+            <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
             <p className={cn(
               "text-2xl font-black mt-1",
-              active.tone === 'emerald' && "text-emerald-700",
-              active.tone === 'blue' && "text-blue-700",
-              active.tone === 'indigo' && "text-indigo-700",
+              active.tone === 'emerald' && "text-emerald-700 dark:text-emerald-200",
+              active.tone === 'blue' && "text-blue-700 dark:text-blue-200",
+              active.tone === 'indigo' && "text-indigo-700 dark:text-indigo-200",
             )}>
               +{active.data.hiresNeeded}
             </p>
           </div>
-          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
-            <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">{t('advisory.kpi.otSaved')}</p>
-            <p className="text-base font-black text-emerald-700 mt-1">{fmtIQD(active.data.monthlyOTSaved)}</p>
-            <p className="text-[9px] text-emerald-600 font-medium">IQD / mo</p>
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/30 rounded-lg">
+            <p className="text-[9px] font-black text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">{t('advisory.kpi.otSaved')}</p>
+            <p className="text-base font-black text-emerald-700 dark:text-emerald-200 mt-1">{fmtIQD(active.data.monthlyOTSaved)}</p>
+            <p className="text-[9px] text-emerald-600 dark:text-emerald-300 font-medium">IQD / mo</p>
           </div>
-          <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
-            <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest">{t('advisory.kpi.salaryAdded')}</p>
-            <p className="text-base font-black text-rose-700 mt-1">{fmtIQD(active.data.monthlySalaryAdded)}</p>
-            <p className="text-[9px] text-rose-600 font-medium">IQD / mo</p>
+          <div className="p-3 bg-rose-50 dark:bg-rose-500/15 border border-rose-100 dark:border-rose-500/30 rounded-lg">
+            <p className="text-[9px] font-black text-rose-700 dark:text-rose-200 uppercase tracking-widest">{t('advisory.kpi.salaryAdded')}</p>
+            <p className="text-base font-black text-rose-700 dark:text-rose-200 mt-1">{fmtIQD(active.data.monthlySalaryAdded)}</p>
+            <p className="text-[9px] text-rose-600 dark:text-rose-300 font-medium">IQD / mo</p>
           </div>
         </div>
 
@@ -133,21 +133,21 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
         <div className={cn(
           "p-4 rounded-xl border flex items-center justify-between",
           active.data.netMonthlyDelta >= 0
-            ? "bg-emerald-50 border-emerald-200"
-            : "bg-amber-50 border-amber-200"
+            ? "bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40"
+            : "bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/40"
         )}>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('advisory.kpi.netMonthly')}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('advisory.kpi.netMonthly')}</p>
             <p className={cn(
               "text-2xl font-black mt-1",
-              active.data.netMonthlyDelta >= 0 ? "text-emerald-700" : "text-amber-700",
+              active.data.netMonthlyDelta >= 0 ? "text-emerald-700 dark:text-emerald-200" : "text-amber-700 dark:text-amber-200",
             )}>
               {active.data.netMonthlyDelta >= 0 ? '+' : '−'}{fmtIQD(active.data.netMonthlyDelta)} IQD
             </p>
           </div>
           <ArrowRight className={cn(
             "w-6 h-6",
-            active.data.netMonthlyDelta >= 0 ? "text-emerald-500" : "text-amber-500",
+            active.data.netMonthlyDelta >= 0 ? "text-emerald-500 dark:text-emerald-300" : "text-amber-500 dark:text-amber-300",
           )} />
         </div>
 
@@ -155,19 +155,19 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
         {active.data.perStation.length > 0 ? (
           <PerStationList perStation={active.data.perStation} tone={active.tone} />
         ) : (
-          <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <p className="text-xs text-emerald-800 font-medium">{t('advisory.perStation.empty')}</p>
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/30 rounded-xl flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 shrink-0" />
+            <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium">{t('advisory.perStation.empty')}</p>
           </div>
         )}
 
         {/* Simulation validation */}
         {active.data.hiresNeeded > 0 && (
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <FlaskConical className="w-4 h-4 text-indigo-600" />
-                <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{t('advisory.sim.title')}</p>
+                <FlaskConical className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
+                <p className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{t('advisory.sim.title')}</p>
               </div>
               <button
                 onClick={runSimulation}
@@ -175,7 +175,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
                   simulating
-                    ? "bg-slate-200 text-slate-500 cursor-wait"
+                    ? "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-wait"
                     : "bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-sm"
                 )}
               >
@@ -186,13 +186,13 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
               </button>
             </div>
             {activeSim ? <SimulationReadout result={activeSim} /> : (
-              <p className="text-[11px] text-slate-500 leading-relaxed">{t('advisory.sim.helper')}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('advisory.sim.helper')}</p>
             )}
           </div>
         )}
 
         {/* Footnote */}
-        <div className="flex items-start gap-2 text-[10px] text-slate-500 leading-relaxed">
+        <div className="flex items-start gap-2 text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
           <Info className="w-3 h-3 shrink-0 mt-0.5" />
           <p>
             {t('advisory.footnote', {
@@ -219,24 +219,24 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
     return t('advisory.perStation.reason.gap');
   };
   const reasonClass = (reason: StationHire['reason']) =>
-    reason === 'both' ? 'text-amber-700 bg-amber-100'
-      : reason === 'ot' ? 'text-rose-700 bg-rose-100'
-        : 'text-blue-700 bg-blue-100';
+    reason === 'both' ? 'text-amber-700 dark:text-amber-200 bg-amber-100 dark:bg-amber-500/25'
+      : reason === 'ot' ? 'text-rose-700 dark:text-rose-200 bg-rose-100 dark:bg-rose-500/25'
+        : 'text-blue-700 dark:text-blue-200 bg-blue-100 dark:bg-blue-500/25';
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+      <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
         <MapPin className="w-3 h-3" /> {t('advisory.perStation.header')}
       </p>
       <div className="space-y-1.5">
         {perStation.map(p => (
-          <div key={p.stationId} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+          <div key={p.stationId} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-800 truncate">{p.stationName}</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{p.stationName}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest", reasonClass(p.reason))}>
                   {reasonLabel(p.reason)}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                   {p.otHours > 0 && t('advisory.perStation.evidenceOt', { hrs: p.otHours.toFixed(1) })}
                   {p.otHours > 0 && p.coverageGap > 0 && ' · '}
                   {p.coverageGap > 0 && t('advisory.perStation.evidenceGap', { gap: p.coverageGap })}
@@ -246,11 +246,11 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
             <div className="text-right shrink-0">
               <p className={cn(
                 "text-2xl font-black leading-none",
-                tone === 'emerald' && "text-emerald-700",
-                tone === 'blue' && "text-blue-700",
-                tone === 'indigo' && "text-indigo-700",
+                tone === 'emerald' && "text-emerald-700 dark:text-emerald-200",
+                tone === 'blue' && "text-blue-700 dark:text-blue-200",
+                tone === 'indigo' && "text-indigo-700 dark:text-indigo-200",
               )}>+{p.hires}</p>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{t('advisory.perStation.toHire')}</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-0.5">{t('advisory.perStation.toHire')}</p>
             </div>
           </div>
         ))}
@@ -271,7 +271,7 @@ function SimulationReadout({ result }: { result: SimulationResult }) {
     <div className="space-y-2">
       <div className={cn(
         "flex items-center gap-2 p-2.5 rounded-lg border",
-        isClean ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-amber-50 border-amber-200 text-amber-800",
+        isClean ? "bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-200" : "bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/40 text-amber-800 dark:text-amber-200",
       )}>
         {isClean ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
         <p className="text-[11px] font-bold leading-tight">
@@ -287,7 +287,7 @@ function SimulationReadout({ result }: { result: SimulationResult }) {
         <SimStat label={t('advisory.sim.scheduled')} value={result.scheduledShifts.toString()} ok />
       </div>
       {result.remainingHolidayHours > 0 && (
-        <p className="text-[10px] text-slate-500 leading-relaxed pt-1">{t('advisory.sim.holidayCaveat')}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed pt-1">{t('advisory.sim.holidayCaveat')}</p>
       )}
     </div>
   );
@@ -297,12 +297,12 @@ function SimStat({ label, value, ok, hint }: { label: string; value: string; ok:
   return (
     <div className={cn(
       "p-2 rounded-lg border text-center",
-      hint ? "bg-white border-slate-100" : ok ? "bg-white border-emerald-100" : "bg-white border-amber-100",
+      hint ? "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700/60" : ok ? "bg-white dark:bg-slate-900 border-emerald-100 dark:border-emerald-500/30" : "bg-white dark:bg-slate-900 border-amber-100 dark:border-amber-500/30",
     )}>
-      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+      <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
       <p className={cn(
         "text-base font-black mt-0.5",
-        hint ? "text-slate-700" : ok ? "text-emerald-700" : "text-amber-700",
+        hint ? "text-slate-700 dark:text-slate-200" : ok ? "text-emerald-700 dark:text-emerald-200" : "text-amber-700 dark:text-amber-200",
       )}>{value}</p>
     </div>
   );

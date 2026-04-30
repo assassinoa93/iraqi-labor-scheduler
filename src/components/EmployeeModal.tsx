@@ -193,14 +193,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
         onClick={e => e.stopPropagation()}
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+        className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
       >
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-700/60 flex justify-between items-center bg-slate-50 dark:bg-slate-800/40">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
             {employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}
           </h3>
-          <button onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-slate-500" />
+          <button onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
@@ -235,60 +235,60 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
               }}
             />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.otHourlyRate')}</label>
-              <div className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-slate-500 shadow-sm flex justify-between items-center">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.otHourlyRate')}</label>
+              <div className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-500 dark:text-slate-400 shadow-sm flex justify-between items-center">
                  <span>{formData.baseHourlyRate.toLocaleString()} IQD</span>
-                 <span className="text-[8px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
+                 <span className="text-[8px] bg-blue-100 dark:bg-blue-500/25 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
               </div>
             </div>
             <SettingField label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: Math.max(0, parseInt(v) || 0)})} />
             <SettingField label={t('modal.employee.field.annualLeave')} type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: Math.max(0, parseInt(v) || 0)})} />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
               <select
                 value={formData.fixedRestDay}
                 onChange={e => setFormData({...formData, fixedRestDay: parseInt(e.target.value) || 0})}
-                className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
                 <option value={0}>{t('modal.employee.rest.rotate')}</option>
                 {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => (
                   <option key={i} value={i + 1}>{t('modal.employee.rest.fixed')} {d}</option>
                 ))}
               </select>
-              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
                 {formData.fixedRestDay === 0
                   ? t('modal.employee.rest.help.rotate')
                   : t('modal.employee.rest.help.fixed')}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.category')}</label>
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.category')}</label>
               <select
                 value={formData.category || 'Standard'}
                 onChange={e => setFormData({...formData, category: e.target.value as 'Standard' | 'Driver'})}
-                className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
                 <option value="Standard">{t('modal.employee.cat.standard')}</option>
                 <option value="Driver">{t('modal.employee.cat.driver')}</option>
               </select>
-              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
                 {formData.category === 'Driver'
                   ? t('modal.employee.cat.help.driver')
                   : t('modal.employee.cat.help.standard')}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.field.gender')}</label>
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.gender')}</label>
               <select
                 value={formData.gender || ''}
                 onChange={e => setFormData({...formData, gender: (e.target.value || undefined) as 'M' | 'F' | undefined})}
-                className="w-full px-4 py-2 bg-white border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
               >
                 <option value="">{t('modal.employee.gender.unset')}</option>
                 <option value="M">{t('modal.employee.gender.male')}</option>
                 <option value="F">{t('modal.employee.gender.female')}</option>
               </select>
-              <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
                 {t('modal.employee.gender.note')}
               </p>
             </div>
@@ -301,11 +301,11 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
               of the group). The two surfaces aren't redundant any more —
               groups are the bulk control, stations are the carve-outs. */}
           {stationGroups.length > 0 && (
-            <div className="space-y-3 p-4 bg-emerald-50/40 rounded-lg border border-emerald-100">
+            <div className="space-y-3 p-4 bg-emerald-50/40 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/30">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">{t('modal.employee.groupEligibility.title')}</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed mt-1">{t('modal.employee.groupEligibility.note')}</p>
+                  <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">{t('modal.employee.groupEligibility.title')}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed mt-1">{t('modal.employee.groupEligibility.note')}</p>
                 </div>
                 <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0 tracking-widest uppercase">
                   {t('modal.employee.eligibility.coversCount', { count: totalStationsCovered, total: stations.length })}
@@ -335,14 +335,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                         active
                           ? 'border-transparent text-white shadow-sm'
                           : partial
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                            : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300',
+                            ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-500/40',
                       )}
                       style={active && g.color ? { backgroundColor: g.color, borderColor: g.color } : undefined}
                     >
                       <Plus className={cn('w-3 h-3', active && 'rotate-45')} />
                       <span className="truncate">{g.name}</span>
-                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-400')}>
+                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-400 dark:text-slate-500')}>
                         {partial ? `${carvedMembers.length}/${memberIds.length}` : `· ${memberIds.length}`}
                       </span>
                     </button>
@@ -352,14 +352,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             </div>
           )}
 
-          <div className="space-y-3 p-4 bg-blue-50/30 rounded-lg border border-blue-100">
+          <div className="space-y-3 p-4 bg-blue-50/30 dark:bg-blue-500/10 rounded-lg border border-blue-100 dark:border-blue-500/30">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t('modal.employee.stationEligibility')}</p>
+              <p className="text-[10px] font-bold text-blue-500 dark:text-blue-300 uppercase tracking-widest">{t('modal.employee.stationEligibility')}</p>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={selectAllStations}
-                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 hover:border-blue-300 dark:hover:border-blue-500/40 transition-colors"
                   title={t('modal.employee.eligibility.selectAll.tooltip')}
                 >
                   {t('modal.employee.eligibility.selectAll')}
@@ -367,7 +367,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                 <button
                   type="button"
                   onClick={clearAllEligibility}
-                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:border-rose-300 transition-colors"
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/15 hover:border-rose-300 dark:hover:border-rose-500/40 transition-colors"
                   title={t('modal.employee.eligibility.clearAll.tooltip')}
                 >
                   {t('modal.employee.eligibility.clearAll')}
@@ -395,7 +395,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                         ? "bg-emerald-600 border-emerald-700 text-white shadow-sm"
                         : directlyOn
                           ? "bg-blue-600 border-blue-700 text-white shadow-sm"
-                          : "bg-white border-slate-200 text-slate-400 hover:border-blue-300"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-blue-300 dark:hover:border-blue-500/40"
                     )}
                   >
                     <Plus className={cn("w-3 h-3", active && "rotate-45")} />
@@ -403,15 +403,15 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                   </button>
                 );
               })}
-              {stations.length === 0 && <p className="text-[10px] text-slate-400 font-medium col-span-3">{t('modal.employee.stations.empty')}</p>}
+              {stations.length === 0 && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium col-span-3">{t('modal.employee.stations.empty')}</p>}
             </div>
           </div>
 
-          <div className="space-y-3 p-4 bg-indigo-50/30 rounded-lg border border-indigo-100">
-            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">{t('modal.employee.preferences.title')}</p>
-            <p className="text-[10px] text-slate-500 leading-relaxed">{t('modal.employee.preferences.note')}</p>
+          <div className="space-y-3 p-4 bg-indigo-50/30 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/30">
+            <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-300 uppercase tracking-widest">{t('modal.employee.preferences.title')}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('modal.employee.preferences.note')}</p>
             <div className="space-y-2">
-              <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest">{t('modal.employee.preferences.preferred')}</p>
+              <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">{t('modal.employee.preferences.preferred')}</p>
               <div className="flex flex-wrap gap-2">
                 {workShifts.map(s => {
                   const active = (formData.preferredShiftCodes || []).includes(s.code);
@@ -424,18 +424,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                         "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all",
                         active
                           ? "bg-emerald-600 border-emerald-700 text-white shadow-sm"
-                          : "bg-white border-slate-200 text-slate-500 hover:border-emerald-300"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-500/40"
                       )}
                     >
                       {s.code} · {s.start}–{s.end}
                     </button>
                   );
                 })}
-                {workShifts.length === 0 && <p className="text-[10px] text-slate-400">{t('modal.employee.shifts.empty')}</p>}
+                {workShifts.length === 0 && <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('modal.employee.shifts.empty')}</p>}
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-[9px] font-bold text-rose-700 uppercase tracking-widest">{t('modal.employee.preferences.avoid')}</p>
+              <p className="text-[9px] font-bold text-rose-700 dark:text-rose-200 uppercase tracking-widest">{t('modal.employee.preferences.avoid')}</p>
               <div className="flex flex-wrap gap-2">
                 {workShifts.map(s => {
                   const active = (formData.avoidShiftCodes || []).includes(s.code);
@@ -448,7 +448,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                         "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all",
                         active
                           ? "bg-rose-600 border-rose-700 text-white shadow-sm"
-                          : "bg-white border-slate-200 text-slate-500 hover:border-rose-300"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-rose-300 dark:hover:border-rose-500/40"
                       )}
                     >
                       {s.code} · {s.start}–{s.end}
@@ -459,18 +459,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+          <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-100 dark:border-slate-700/60">
              <label className="flex items-center gap-2 cursor-pointer">
                 <Switch checked={formData.isHazardous} onChange={v => setFormData({...formData, isHazardous: v})} tone="rose" aria-label={t('modal.employee.flag.hazardous')} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.hazardous')}</span>
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">{t('modal.employee.flag.hazardous')}</span>
              </label>
              <label className="flex items-center gap-2 cursor-pointer">
                 <Switch checked={formData.isIndustrialRotating} onChange={v => setFormData({...formData, isIndustrialRotating: v})} tone="amber" aria-label={t('modal.employee.flag.industrial')} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.industrial')}</span>
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">{t('modal.employee.flag.industrial')}</span>
              </label>
              <label className="flex items-center gap-2 cursor-pointer">
                 <Switch checked={formData.hourExempt} onChange={v => setFormData({...formData, hourExempt: v})} aria-label={t('modal.employee.flag.exempt')} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">{t('modal.employee.flag.exempt')}</span>
+                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">{t('modal.employee.flag.exempt')}</span>
              </label>
           </div>
 
@@ -478,13 +478,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
               Credits & Payroll tab, where leaves can span multiple ranges and
               be tracked per request. The single-range fields previously here
               were misleading. */}
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             {t('modal.employee.leaves.movedNote')}
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('modal.employee.notes')}</label>
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.notes')}</label>
             <textarea
-              className="w-full p-4 bg-white border border-slate-200 rounded text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none"
+              className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none"
               value={formData.notes}
               onChange={e => setFormData({...formData, notes: e.target.value})}
               placeholder={t('modal.employee.notes.placeholder')}
@@ -492,11 +492,11 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
           </div>
         </div>
 
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={() => onSave(formData)}
-            className="px-8 py-2 bg-slate-900 text-white rounded text-sm font-bold hover:bg-slate-800 transition-all shadow-lg uppercase tracking-widest"
+            className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
           >
             {t('modal.employee.commit')}
           </button>

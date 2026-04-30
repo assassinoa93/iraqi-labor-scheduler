@@ -223,14 +223,14 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
             onNext={nextMonth}
           />
           <div>
-            <h2 className="text-xl font-bold text-slate-800 tracking-tight">{t('payroll.title')}</h2>
-            <p className="text-sm text-slate-500">{t('payroll.subtitle')}</p>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t('payroll.title')}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('payroll.subtitle')}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-sm"
           >
             <Download className="w-3 h-3" />
             {t('payroll.exportDraft')}
@@ -245,10 +245,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           </button>
           <button
             onClick={() => importInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
             title={t('payroll.import.tooltip')}
           >
-            <Upload className="w-3 h-3 text-emerald-600" />
+            <Upload className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
             {t('payroll.import.csv')}
           </button>
           <input
@@ -266,7 +266,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
       </div>
 
       {importMsg && (
-        <div role="status" className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-2 text-[11px] font-bold uppercase tracking-widest">
+        <div role="status" className="bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-200 rounded-xl px-4 py-2 text-[11px] font-bold uppercase tracking-widest">
           {importMsg}
         </div>
       )}
@@ -275,36 +275,36 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+              <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
                 <SortableHeader label={t('payroll.col.employee')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.hours')} sortKey="totalHours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.holidayBank')} sortKey="holidayBank" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-blue-500/30" />
                 <SortableHeader label={t('payroll.col.annualLeave')} sortKey="annualLeave" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-emerald-500/30" />
-                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
                 <SortableHeader label={t('payroll.col.baseSalary')} sortKey="baseMonthly" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.hourlyRate')} sortKey="hourlyRate" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
-                <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
                 <SortableHeader label={t('payroll.col.otAmount')} sortKey="otAmount" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.netPayable')} sortKey="netPayable" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
               {sortedRows.map(({ emp, totalHours, baseMonthly, hourlyRate, standardOTHours, holidayBreakdown, otAmount, netPayable }) => {
                 const totalHolidayHours = holidayBreakdown.totalHolidayHours;
                 const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
                 const isOtEligible = totalHours > monthlyHourCap(config);
 
                 return (
-                  <tr key={emp.empId} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-slate-800">{emp.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{emp.empId}</div>
+                      <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{emp.empId}</div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600">{totalHours.toFixed(1)}h</td>
+                    <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600 dark:text-slate-300">{totalHours.toFixed(1)}h</td>
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[10px] font-black tracking-tight",
-                        emp.holidayBank > 0 ? "bg-blue-100 text-blue-700 shadow-sm" : "bg-slate-100 text-slate-400"
+                        emp.holidayBank > 0 ? "bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200 shadow-sm" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                       )}>
                         {emp.holidayBank} {t('payroll.days')}
                       </span>
@@ -312,7 +312,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     <td className="px-6 py-4">
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[10px] font-black tracking-tight",
-                        emp.annualLeaveBalance < 5 ? "bg-orange-100 text-orange-700" : "bg-emerald-100 text-emerald-700 shadow-sm"
+                        emp.annualLeaveBalance < 5 ? "bg-orange-100 dark:bg-orange-500/25 text-orange-700 dark:text-orange-200" : "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200 shadow-sm"
                       )}>
                         {emp.annualLeaveBalance} {t('payroll.days')}
                       </span>
@@ -324,37 +324,37 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                           <button
                             onClick={() => setLeaveEditFor(emp)}
                             title={ranges.length === 0 ? t('payroll.leavesNone') : ranges.map(r => `${r.type}: ${r.start} → ${r.end}`).join('\n')}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all text-[10px] font-bold text-slate-700 uppercase tracking-tight"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight"
                           >
-                            <Calendar className="w-3 h-3 text-slate-500" />
+                            <Calendar className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                             {ranges.length > 0 ? `${ranges.length} · ` : ''}
                             {t('payroll.manageLeaves')}
                           </button>
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600">{baseMonthly.toLocaleString()} IQD</td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{Math.round(hourlyRate).toLocaleString()} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{baseMonthly.toLocaleString()} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{Math.round(hourlyRate).toLocaleString()} IQD</td>
                     <td className="px-6 py-4">
                       <div className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded w-fit",
-                        isOtEligible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+                        isOtEligible ? "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                       )}>
                         {isOtEligible ? t('payroll.qualified') : t('payroll.standard')}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-xs font-bold text-emerald-600">+{Math.round(otAmount).toLocaleString()}</div>
-                      <div className="text-[9px] text-slate-400 font-mono truncate">
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300">+{Math.round(otAmount).toLocaleString()}</div>
+                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
                         {premiumHolidayHours > 0 && `(incl. ${premiumHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
                         {totalHolidayHours > 0 && premiumHolidayHours === 0 && (
-                          <span className="text-emerald-600">{` (${totalHolidayHours.toFixed(1)}h holiday — comp day granted)`}</span>
+                          <span className="text-emerald-600 dark:text-emerald-300">{` (${totalHolidayHours.toFixed(1)}h holiday — comp day granted)`}</span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-black text-slate-900 tracking-tighter">
+                      <div className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tighter">
                         {Math.round(netPayable).toLocaleString()}
                       </div>
                     </td>

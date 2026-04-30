@@ -87,15 +87,15 @@ export function LayoutTab({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">{t('layout.title')}</h3>
-          <p className="text-xs text-slate-400 font-medium tracking-widest leading-none">{t('layout.subtitle')}</p>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('layout.title')}</h3>
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-widest leading-none">{t('layout.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCreatingGroup(true)}
-            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
           >
-            <FolderPlus className="w-3.5 h-3.5 text-indigo-600" />
+            <FolderPlus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
             {t('layout.group.new')}
           </button>
           <button
@@ -132,10 +132,10 @@ export function LayoutTab({
           return (
             <div
               key={id}
-              className="bg-slate-50/60 rounded-2xl border border-slate-200 overflow-hidden flex flex-col"
+              className="bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col"
             >
               <div
-                className="px-4 py-3 flex items-center gap-3 border-b border-slate-200"
+                className="px-4 py-3 flex items-center gap-3 border-b border-slate-200 dark:border-slate-700"
                 style={{ backgroundColor: `${groupColor}15`, borderTopColor: groupColor, borderTopWidth: 3 }}
               >
                 {!isUngrouped ? (
@@ -160,12 +160,12 @@ export function LayoutTab({
                         if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
                         if (e.key === 'Escape') setEditingGroupId(null);
                       }}
-                      className="w-full px-2 py-0.5 text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded"
+                      className="w-full px-2 py-0.5 text-sm font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded"
                     />
                   ) : (
-                    <p className="text-sm font-bold text-slate-800 truncate">{groupName}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{groupName}</p>
                   )}
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                     {items.length} {t('layout.group.stations')} · {eligibleEmps} {t('layout.group.eligible')}
                   </p>
                 </div>
@@ -174,14 +174,14 @@ export function LayoutTab({
                     <button
                       onClick={() => setEditingGroupId(editing ? null : entry.group.id)}
                       title={t('action.edit')}
-                      className="p-1.5 rounded hover:bg-white/60 text-slate-500 hover:text-slate-800"
+                      className="p-1.5 rounded hover:bg-white/60 dark:hover:bg-slate-700/60 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteGroup(entry.group.id)}
                       title={t('action.delete')}
-                      className="p-1.5 rounded hover:bg-rose-50 text-slate-500 hover:text-rose-600"
+                      className="p-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-500/15 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -191,7 +191,7 @@ export function LayoutTab({
 
               <div className="p-3 space-y-2 min-h-[120px]">
                 {items.length === 0 && (
-                  <div className="text-[10px] text-slate-400 italic text-center py-6">
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center py-6">
                     {isUngrouped ? t('layout.group.ungroupedEmpty') : t('layout.group.empty')}
                   </div>
                 )}
@@ -213,10 +213,10 @@ export function LayoutTab({
       </div>
 
       {stations.length === 0 && (
-        <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-inner">
-          <Layout className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-          <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
-          <p className="text-[11px] text-slate-300 font-medium uppercase tracking-tighter mt-1">{t('layout.emptyHint')}</p>
+        <div className="p-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-inner">
+          <Layout className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
+          <h3 className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
+          <p className="text-[11px] text-slate-300 dark:text-slate-600 font-medium uppercase tracking-tighter mt-1">{t('layout.emptyHint')}</p>
         </div>
       )}
     </div>
@@ -303,15 +303,15 @@ function StationCard({
         overflowY: 'auto',
         zIndex: 70,
       }}
-      className="bg-white border border-slate-200 rounded-lg shadow-xl py-1"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1"
     >
       {groups.map(g => (
         <button
           key={g.id}
           onClick={() => { onMoveToGroup(g.id); setMoveOpen(false); }}
           className={cn(
-            "w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 flex items-center gap-2",
-            station.groupId === g.id && "bg-slate-50 font-bold",
+            "w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-2 text-slate-700 dark:text-slate-200",
+            station.groupId === g.id && "bg-slate-50 dark:bg-slate-800/60 font-bold",
           )}
         >
           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.color || '#94a3b8' }} />
@@ -321,7 +321,7 @@ function StationCard({
       {(station.groupId || groups.length === 0) && (
         <button
           onClick={() => { onMoveToGroup(undefined); setMoveOpen(false); }}
-          className="w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 text-slate-500 italic border-t border-slate-100"
+          className="w-full text-start px-3 py-1.5 text-[11px] hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-500 dark:text-slate-400 italic border-t border-slate-100 dark:border-slate-700/60"
         >
           {t('layout.station.unassign')}
         </button>
@@ -331,55 +331,55 @@ function StationCard({
   ) : null;
 
   return (
-    <div className="p-3 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all group">
+    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all group">
       <div className="flex items-start gap-2.5">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-white"
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-white dark:border-slate-700"
           style={{ backgroundColor: station.color || '#3b82f6' }}
         >
           <Layout className="w-4 h-4 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-slate-800 truncate">{station.name}</p>
-          <p className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest">{station.id}</p>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{station.name}</p>
+          <p className="text-[9px] font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{station.id}</p>
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] font-bold text-slate-500">
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] font-bold text-slate-500 dark:text-slate-400">
         <div>
-          <p className="text-slate-400 uppercase tracking-widest">{t('layout.normalStaffing')}</p>
-          <p className="text-slate-800 font-mono">{station.normalMinHC}</p>
+          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.normalStaffing')}</p>
+          <p className="text-slate-800 dark:text-slate-100 font-mono">{station.normalMinHC}</p>
         </div>
         <div>
-          <p className="text-slate-400 uppercase tracking-widest">{t('layout.peakStaffing')}</p>
-          <p className="text-blue-700 font-mono">{station.peakMinHC}</p>
+          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.peakStaffing')}</p>
+          <p className="text-blue-700 dark:text-blue-200 font-mono">{station.peakMinHC}</p>
         </div>
         <div>
-          <p className="text-slate-400 uppercase tracking-widest">{t('layout.eligible')}</p>
-          <p className="text-emerald-700 font-mono">{eligibleCount}</p>
+          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.eligible')}</p>
+          <p className="text-emerald-700 dark:text-emerald-200 font-mono">{eligibleCount}</p>
         </div>
       </div>
 
-      <p className="text-[9px] text-slate-400 font-mono mt-2">{station.openingTime} → {station.closingTime}</p>
+      <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono mt-2">{station.openingTime} → {station.closingTime}</p>
 
-      <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100">
+      <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60">
         <div className="relative">
           <button
             ref={triggerRef}
             onClick={() => setMoveOpen(o => !o)}
             aria-haspopup="menu"
             aria-expanded={moveOpen}
-            className="text-[9px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-widest flex items-center gap-1"
+            className="text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 uppercase tracking-widest flex items-center gap-1"
           >
             {t('layout.station.moveTo')} <ChevronDown className="w-3 h-3" />
           </button>
           {menu}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600">
+          <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300">
             <Edit3 className="w-3 h-3" />
           </button>
-          <button onClick={onDelete} title={t('action.delete')} className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600">
+          <button onClick={onDelete} title={t('action.delete')} className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-500/15 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -394,9 +394,9 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
   const [color, setColor] = useState(GROUP_COLOR_PALETTE[0]);
   const [icon, setIcon] = useState(DEFAULT_GROUP_ICON);
   return (
-    <Card className="p-4 bg-indigo-50/50 border-indigo-200 space-y-3">
+    <Card className="p-4 bg-indigo-50/50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/40 space-y-3">
       <div className="flex items-center gap-3">
-        <FolderPlus className="w-4 h-4 text-indigo-700 shrink-0" />
+        <FolderPlus className="w-4 h-4 text-indigo-700 dark:text-indigo-200 shrink-0" />
         <input
           autoFocus
           type="text"
@@ -404,7 +404,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
           onChange={e => setName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') onSave(name, color, icon); if (e.key === 'Escape') onCancel(); }}
           placeholder={t('layout.group.namePlaceholder')}
-          className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg text-sm font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
         <div className="flex items-center gap-1 shrink-0">
           {GROUP_COLOR_PALETTE.map(c => (
@@ -413,7 +413,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
               onClick={() => setColor(c)}
               className={cn(
                 "w-6 h-6 rounded-full transition-all",
-                color === c ? "ring-2 ring-offset-2 ring-slate-900" : "hover:scale-110",
+                color === c ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100 dark:ring-offset-slate-900" : "hover:scale-110",
               )}
               style={{ backgroundColor: c }}
               aria-label={c}
@@ -425,12 +425,12 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
           disabled={!name.trim()}
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all shrink-0",
-            name.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-200 text-slate-400 cursor-not-allowed",
+            name.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed",
           )}
         >
           {t('action.save')}
         </button>
-        <button onClick={onCancel} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 shrink-0">
+        <button onClick={onCancel} className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -439,7 +439,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
           rollups. Defaults to `boxes` so existing one-click flows keep
           working without forcing a pick. */}
       <div className="flex items-start gap-3">
-        <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mt-2 shrink-0 w-12">{t('layout.group.icon')}</p>
+        <p className="text-[10px] font-black text-indigo-700 dark:text-indigo-200 uppercase tracking-widest mt-2 shrink-0 w-12">{t('layout.group.icon')}</p>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(GROUP_ICON_PALETTE).map(([key, Ic]) => (
             <button
@@ -449,7 +449,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
               title={key}
               className={cn(
                 'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-                icon === key ? 'text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100',
+                icon === key ? 'text-white shadow-md' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800',
               )}
               style={icon === key ? { backgroundColor: color } : undefined}
               aria-label={key}
@@ -501,7 +501,7 @@ function GroupIconButton({
         <Icon className="w-3.5 h-3.5" />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 start-0 z-40 w-56 bg-white rounded-xl border border-slate-200 shadow-2xl p-2">
+        <div className="absolute top-full mt-1 start-0 z-40 w-56 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xl p-2">
           <div className="grid grid-cols-5 gap-1">
             {Object.entries(GROUP_ICON_PALETTE).map(([key, Ic]) => (
               <button
@@ -511,7 +511,7 @@ function GroupIconButton({
                 title={key}
                 className={cn(
                   'w-9 h-9 rounded-lg flex items-center justify-center transition-all',
-                  (icon || 'boxes') === key ? 'text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100',
+                  (icon || 'boxes') === key ? 'text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
                 )}
                 style={(icon || 'boxes') === key ? { backgroundColor: color } : undefined}
                 aria-label={key}
