@@ -91,6 +91,11 @@ import {
   syncMonth as fsSyncMonth,
   scheduleKeyToFirestoreId,
 } from './lib/firestoreSchedules';
+import {
+  writeAuditEntries,
+  diffEmployees, diffShifts, diffStations, diffStationGroups,
+  diffHolidays, diffConfig, diffAllSchedules,
+} from './lib/audit';
 import type { DayOfWeek } from './types';
 
 // Tabs are code-split: each becomes its own chunk that loads only when the user
@@ -209,7 +214,30 @@ export default function App() {
       if (isAuthenticated && activeCompanyId && !simMode) {
         const cid = activeCompanyId;
         const actor = user?.uid ?? null;
+        const actorEmail = user?.email ?? null;
+        // Phase 2.3b — compute audit entries for this domain change. The
+        // diff functions mirror server.ts:diffDomain so audit entries
+        // stay shape-compatible between Offline (Express-emitted) and
+        // Online (client-emitted) modes.
+        let auditEntries: import('./lib/audit').AuditEntry[] = [];
+        switch (key) {
+          case 'employees':     auditEntries = diffEmployees(priorValue as Employee[], next as Employee[]); break;
+          case 'shifts':        auditEntries = diffShifts(priorValue as Shift[], next as Shift[]); break;
+          case 'stations':      auditEntries = diffStations(priorValue as Station[], next as Station[]); break;
+          case 'stationGroups': auditEntries = diffStationGroups(priorValue as StationGroup[] | undefined, next as StationGroup[] | undefined); break;
+          case 'holidays':      auditEntries = diffHolidays(priorValue as PublicHoliday[], next as PublicHoliday[]); break;
+          case 'config':        auditEntries = diffConfig(priorValue as Config, next as Config); break;
+          case 'allSchedules':  auditEntries = diffAllSchedules(priorValue as Record<string, Schedule>, next as Record<string, Schedule>); break;
+        }
         queueMicrotask(() => {
+          // Audit write is fire-and-forget (logged on failure but doesn't
+          // block the user's edit). Decoupled from data sync so a network
+          // blip on audit doesn't fail the underlying data write.
+          if (auditEntries.length) {
+            writeAuditEntries(auditEntries, cid, actor, actorEmail).catch((err) =>
+              console.error(`[Scheduler] audit write failed (${String(key)}):`, err)
+            );
+          }
           const sync: Promise<void> | null = (() => {
             switch (key) {
               case 'employees':     return syncEmployees(cid, priorValue as Employee[], next as Employee[], actor);

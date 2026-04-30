@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 import { History, Plus, Edit3, Trash2, Filter, RefreshCw, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { useAuth } from '../lib/auth';
+import { subscribeAuditLog, type AuditEntryDoc } from '../lib/audit';
 import { ConfirmModal } from './ConfirmModal';
 
 export interface AuditEntry {
@@ -12,6 +14,10 @@ export interface AuditEntry {
   targetId?: string;
   label?: string;
   summary: string;
+  // Phase 2.3b — populated when reading from Firestore (Online mode);
+  // absent for legacy Express-emitted entries (Offline mode).
+  companyId?: string;
+  actorEmail?: string;
 }
 
 // v2.1.4 — domain → i18n key map. Pre-2.1.4 the labels were hardcoded
@@ -45,6 +51,7 @@ const opTone = (op: AuditEntry['op']) => {
 
 export function AuditLogTab() {
   const { t } = useI18n();
+  const { isAuthenticated } = useAuth();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDomain, setFilterDomain] = useState<string>('all');
@@ -78,7 +85,43 @@ export function AuditLogTab() {
       });
   };
 
-  useEffect(() => { load(); }, []);
+  // Phase 2.3b — dual-mode read. Online mode subscribes to Firestore
+  // /audit (real-time updates from any client + server-side filtering by
+  // role); Offline mode keeps the existing Express /api/audit fetch.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      load();
+      return;
+    }
+    setLoading(true);
+    let cancelled = false;
+    let unsub: (() => void) | undefined;
+    (async () => {
+      try {
+        unsub = await subscribeAuditLog((docs: AuditEntryDoc[]) => {
+          if (cancelled) return;
+          setEntries(docs.map((d) => ({
+            ts: d.ts,
+            domain: d.domain,
+            op: d.op,
+            targetId: d.targetId ?? undefined,
+            label: d.label ?? undefined,
+            summary: d.summary,
+            companyId: d.companyId ?? undefined,
+            actorEmail: d.actorEmail ?? undefined,
+          })));
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('[AuditLogTab] subscribe failed:', err);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, [isAuthenticated]);
 
   const domains = useMemo(() => {
     const s = new Set<string>();
