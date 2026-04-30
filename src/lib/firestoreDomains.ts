@@ -220,3 +220,36 @@ export function subscribeConfig(companyId: string, onChange: (cfg: Config | null
 export function syncConfig(companyId: string, _prev: Config, next: Config, actorUid: string | null) {
   return syncSingleDoc<Config>(companyId, 'config', next, actorUid);
 }
+
+// ── New-company default seeding ──────────────────────────────────────────
+
+/**
+ * Seed a freshly-created company with the same baseline data the Offline
+ * Demo mode bootstraps from `emptyCompanyData()` + `DEFAULT_CONFIG`:
+ *   - INITIAL_SHIFTS (FS, MX, P1-P3, OFF, AL, SL, PH, MAT, CP)
+ *   - INITIAL_HOLIDAYS (Iraqi public holidays — Eids consolidated with durationDays)
+ *   - DEFAULT_CONFIG (Iraqi Labor Law thresholds, customised with the company name)
+ *
+ * Called from App.addCompany() in Online mode immediately after the
+ * Firestore company doc is created. Without this, new companies would
+ * appear in the app with empty rosters / no shifts / no holidays — a
+ * regression vs Offline mode where the user always lands with sensible
+ * defaults.
+ *
+ * Idempotent — `setDoc` overwrites, so re-running with the same defaults
+ * is safe (though not currently exposed). Phase 3 may surface a "Re-seed
+ * defaults" admin action.
+ */
+export async function seedCompanyDefaults(
+  companyId: string,
+  initialShifts: Shift[],
+  initialHolidays: PublicHoliday[],
+  defaultConfig: Config,
+  actorUid: string | null,
+): Promise<void> {
+  await Promise.all([
+    syncShifts(companyId, [], initialShifts, actorUid),
+    syncHolidays(companyId, [], initialHolidays, actorUid),
+    syncConfig(companyId, defaultConfig, defaultConfig, actorUid),
+  ]);
+}

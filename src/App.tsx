@@ -84,6 +84,7 @@ import {
   subscribeStationGroups, syncStationGroups,
   subscribeHolidays, syncHolidays,
   subscribeConfig, syncConfig,
+  seedCompanyDefaults,
 } from './lib/firestoreDomains';
 import type { DayOfWeek } from './types';
 
@@ -2070,17 +2071,34 @@ export default function App() {
     if (isAuthenticated) {
       try {
         const id = await fsAddCompany(name, user?.uid ?? null, '#4f46e5');
-        // Per-domain placeholder — Phase 2.2 will move this to Firestore.
+        // Seed the new company's subcollections with the same defaults
+        // Offline mode bootstraps from emptyCompanyData(): INITIAL_SHIFTS
+        // (FS, MX, P1-P3, OFF, AL, SL, PH, MAT, CP), INITIAL_HOLIDAYS
+        // (Iraqi public holidays), and DEFAULT_CONFIG (Iraqi Labor Law
+        // thresholds). Without this, Online-mode new companies appear
+        // with empty rosters / no shifts / no holidays — a regression vs
+        // the v3.0.0 single-user experience.
+        await seedCompanyDefaults(
+          id,
+          INITIAL_SHIFTS,
+          INITIAL_HOLIDAYS,
+          { ...DEFAULT_CONFIG, company: name },
+          user?.uid ?? null,
+        );
+        // Optimistic local seed — the per-company subscription will fire
+        // shortly and confirm/replace these with the canonical Firestore
+        // data, which now matches.
         setCompanyData(prev => prev[id] ? prev : ({
           ...prev,
           [id]: {
             ...emptyCompanyData(),
+            holidays: INITIAL_HOLIDAYS,
             config: { ...DEFAULT_CONFIG, company: name },
           },
         }));
         setActiveCompanyId(id);
       } catch (err) {
-        console.error('[Scheduler] Firestore addCompany failed:', err);
+        console.error('[Scheduler] Firestore addCompany / seed failed:', err);
       }
       return;
     }

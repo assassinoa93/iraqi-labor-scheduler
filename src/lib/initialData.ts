@@ -187,12 +187,16 @@ export const INITIAL_STATIONS: Station[] = [
 export const INITIAL_HOLIDAYS: PublicHoliday[] = [
   { id: '2026-01-01', date: '2026-01-01', name: 'New Year Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
   { id: '2026-01-06', date: '2026-01-06', name: 'Army Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
-  { id: '2026-03-20', date: '2026-03-20', name: 'Eid al-Fitr (Estimated)', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  // Eid al-Fitr — typically a 3-day Iraqi public holiday. Modeled as one
+  // entry with durationDays=3 instead of three separate single-day entries
+  // so the HolidayModal lets the user shift the whole window when the
+  // moon-sighted start date moves between Gregorian years.
+  { id: '2026-03-20', date: '2026-03-20', name: 'Eid al-Fitr', type: 'Religious', legalReference: 'Art. 74', isFixed: false, durationDays: 3 },
   { id: '2026-03-21', date: '2026-03-21', name: 'Nowruz', type: 'National', legalReference: 'Art. 74', isFixed: true },
-  { id: '2026-03-22', date: '2026-03-22', name: 'Eid al-Fitr Holiday', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
   { id: '2026-05-01', date: '2026-05-01', name: 'Labor Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
-  { id: '2026-05-27', date: '2026-05-27', name: 'Eid al-Adha (Estimated)', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
-  { id: '2026-05-28', date: '2026-05-28', name: 'Eid al-Adha Holiday', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
+  // Eid al-Adha — typically a 4-day Iraqi public holiday (Eid + 3 days of
+  // Tashriq). Same single-entry-with-durationDays model as Eid al-Fitr.
+  { id: '2026-05-27', date: '2026-05-27', name: 'Eid al-Adha', type: 'Religious', legalReference: 'Art. 74', isFixed: false, durationDays: 4 },
   { id: '2026-06-16', date: '2026-06-16', name: 'Islamic New Year', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
   { id: '2026-06-25', date: '2026-06-25', name: 'Ashura', type: 'Religious', legalReference: 'Art. 74', isFixed: false },
   { id: '2026-07-14', date: '2026-07-14', name: 'Republic Day', type: 'National', legalReference: 'Art. 74', isFixed: true },
