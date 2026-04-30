@@ -77,6 +77,14 @@ import {
   renameCompany as fsRenameCompany,
   deleteCompany as fsDeleteCompany,
 } from './lib/firestoreCompanies';
+import {
+  subscribeEmployees, syncEmployees,
+  subscribeShifts, syncShifts,
+  subscribeStations, syncStations,
+  subscribeStationGroups, syncStationGroups,
+  subscribeHolidays, syncHolidays,
+  subscribeConfig, syncConfig,
+} from './lib/firestoreDomains';
 import type { DayOfWeek } from './types';
 
 // Tabs are code-split: each becomes its own chunk that loads only when the user
@@ -180,16 +188,40 @@ export default function App() {
 
   // Domain setters scoped to the active company. Each accepts either a
   // value or an updater function and merges the result back into companyData.
+  // Phase 2.2 — when in Online mode, also dispatches a Firestore sync for
+  // the changed key (queued via microtask so it doesn't run inside the
+  // setState reducer; StrictMode's double-fire is safe because Firestore
+  // setDoc/deleteDoc are idempotent).
   type Updater<T> = T | ((prev: T) => T);
   const updateActive = React.useCallback(<K extends keyof CompanyData>(key: K, updater: Updater<CompanyData[K]>) => {
     setCompanyData(prev => {
       const current = prev[activeCompanyId] ?? emptyCompanyData();
+      const priorValue = current[key];
       const next = typeof updater === 'function'
         ? (updater as (p: CompanyData[K]) => CompanyData[K])(current[key])
         : updater;
+      if (isAuthenticated && activeCompanyId && !simMode) {
+        const cid = activeCompanyId;
+        const actor = user?.uid ?? null;
+        queueMicrotask(() => {
+          const sync: Promise<void> | null = (() => {
+            switch (key) {
+              case 'employees':     return syncEmployees(cid, priorValue as Employee[], next as Employee[], actor);
+              case 'shifts':        return syncShifts(cid, priorValue as Shift[], next as Shift[], actor);
+              case 'stations':      return syncStations(cid, priorValue as Station[], next as Station[], actor);
+              case 'stationGroups': return syncStationGroups(cid, priorValue as StationGroup[] | undefined, next as StationGroup[] | undefined, actor);
+              case 'holidays':      return syncHolidays(cid, priorValue as PublicHoliday[], next as PublicHoliday[], actor);
+              case 'config':        return syncConfig(cid, priorValue as Config, next as Config, actor);
+              case 'allSchedules':  return null; // Phase 2.3
+              default:              return null;
+            }
+          })();
+          sync?.catch((err) => console.error(`[Scheduler] Firestore ${String(key)} sync failed:`, err));
+        });
+      }
       return { ...prev, [activeCompanyId]: { ...current, [key]: next } };
     });
-  }, [activeCompanyId]);
+  }, [activeCompanyId, isAuthenticated, user, simMode]);
 
   const setEmployees = React.useCallback((u: Updater<Employee[]>) => updateActive('employees', u), [updateActive]);
   const setShifts = React.useCallback((u: Updater<Shift[]>) => updateActive('shifts', u), [updateActive]);
@@ -349,6 +381,55 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
+  // Phase 2.2 — per-company domain subscriptions (employees / shifts /
+  // stations / stationGroups / holidays / config). When the active company
+  // changes the previous subscriptions tear down and we re-subscribe to the
+  // new company's subcollections. Each onSnapshot writes the live data into
+  // companyData[activeCompanyId][domain], replacing whatever the Express
+  // initial fetch seeded. Schedules + audit are Phase 2.3.
+  useEffect(() => {
+    if (!isAuthenticated || !activeCompanyId) return;
+    const cid = activeCompanyId;
+    let cancelled = false;
+    const unsubs: Array<() => void> = [];
+    const updateDomain = <K extends keyof CompanyData>(key: K, value: CompanyData[K]) => {
+      if (cancelled || cid !== activeCompanyId) return;
+      setCompanyData((prev) => {
+        const cur = prev[cid] ?? emptyCompanyData();
+        return { ...prev, [cid]: { ...cur, [key]: value } };
+      });
+    };
+    (async () => {
+      try {
+        const subs = [
+          await subscribeEmployees(cid, (items) => updateDomain('employees', items)),
+          await subscribeShifts(cid, (items) => updateDomain('shifts', items)),
+          await subscribeStations(cid, (items) => updateDomain('stations', items)),
+          await subscribeStationGroups(cid, (items) => updateDomain('stationGroups', items)),
+          await subscribeHolidays(cid, (items) => updateDomain('holidays', items)),
+          await subscribeConfig(cid, (cfg) => {
+            // If the doc doesn't exist yet (first edit on this company in
+            // Online mode), keep whatever the local default seeded — the
+            // first user edit will syncConfig and create the doc.
+            if (cfg) updateDomain('config', cfg);
+          }),
+        ];
+        if (cancelled) {
+          subs.forEach((u) => u());
+          return;
+        }
+        unsubs.push(...subs);
+      } catch (err) {
+        console.error('[Scheduler] Firestore domain subscription init failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unsubs.forEach((u) => u());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, activeCompanyId]);
+
   // Post-update notice. The Electron main process snapshots the data folder
   // before the new version touches it; we surface a one-time confirmation so
   // the user knows their data is intact and where the rollback snapshot lives.
@@ -375,10 +456,15 @@ export default function App() {
 
   // Persistence sync to server. Sends the namespaced (Record<companyId, T>)
   // shape that the server now expects. Skipped during simulation mode so the
-  // sandbox doesn't pollute on-disk state.
+  // sandbox doesn't pollute on-disk state. Phase 2.2 — also skipped in
+  // Online mode: Firestore is the source of truth there, and the auto-save
+  // would otherwise overwrite the user's local Express data with whatever
+  // the (possibly empty) Firestore subscription returned, losing any
+  // existing offline rosters.
   useEffect(() => {
     if (!dataLoaded) return;
     if (simMode) return;
+    if (isAuthenticated) return;
     const employeesByCo: Record<string, Employee[]> = {};
     const shiftsByCo: Record<string, Shift[]> = {};
     const holidaysByCo: Record<string, PublicHoliday[]> = {};
@@ -432,7 +518,7 @@ export default function App() {
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [companies, activeCompanyId, companyData, dataLoaded, simMode]);
+  }, [companies, activeCompanyId, companyData, dataLoaded, simMode, isAuthenticated]);
 
   // Operational State
   const [paintMode, setPaintMode] = useState<{ shiftCode: string; stationId?: string } | null>(null);
