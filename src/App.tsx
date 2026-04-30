@@ -86,6 +86,11 @@ import {
   subscribeConfig, syncConfig,
   seedCompanyDefaults,
 } from './lib/firestoreDomains';
+import {
+  subscribeMonth as fsSubscribeMonth,
+  syncMonth as fsSyncMonth,
+  scheduleKeyToFirestoreId,
+} from './lib/firestoreSchedules';
 import type { DayOfWeek } from './types';
 
 // Tabs are code-split: each becomes its own chunk that loads only when the user
@@ -213,7 +218,23 @@ export default function App() {
               case 'stationGroups': return syncStationGroups(cid, priorValue as StationGroup[] | undefined, next as StationGroup[] | undefined, actor);
               case 'holidays':      return syncHolidays(cid, priorValue as PublicHoliday[], next as PublicHoliday[], actor);
               case 'config':        return syncConfig(cid, priorValue as Config, next as Config, actor);
-              case 'allSchedules':  return null; // Phase 2.3
+              case 'allSchedules': {
+                // Phase 2.3 — diff which month(s) changed and emit per-month
+                // syncs. Almost every edit touches exactly one month (active
+                // month), but cross-month flows (auto-scheduler with rolling-
+                // 7-day awareness, paste-month) can change two at once.
+                const prevMap = priorValue as Record<string, Schedule>;
+                const nextMap = next as Record<string, Schedule>;
+                const allKeys = new Set<string>([...Object.keys(prevMap), ...Object.keys(nextMap)]);
+                const promises: Promise<void>[] = [];
+                for (const k of allKeys) {
+                  if (prevMap[k] === nextMap[k]) continue;
+                  const yyyymm = scheduleKeyToFirestoreId(k);
+                  if (!yyyymm) continue;
+                  promises.push(fsSyncMonth(cid, yyyymm, prevMap[k] ?? {}, nextMap[k] ?? {}, actor));
+                }
+                return promises.length ? Promise.all(promises).then(() => undefined) : null;
+              }
               default:              return null;
             }
           })();
@@ -430,6 +451,41 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, activeCompanyId]);
+
+  // Phase 2.3 — active-month schedule subscription. Subscribes only to the
+  // currently-displayed month (config.year, config.month). When the user
+  // navigates to another month, the previous subscription tears down and a
+  // new one starts. Other months remain in local state from prior visits
+  // (cached, not real-time) — acceptable trade-off vs. paying for a
+  // subscription per month-the-user-might-look-at.
+  useEffect(() => {
+    if (!isAuthenticated || !activeCompanyId) return;
+    const cid = activeCompanyId;
+    const yyyymm = `${config.year}-${String(config.month).padStart(2, '0')}`;
+    const localKey = `scheduler_schedule_${config.year}_${config.month}`;
+    let cancelled = false;
+    let unsub: (() => void) | undefined;
+    (async () => {
+      try {
+        unsub = await fsSubscribeMonth(cid, yyyymm, (sched) => {
+          if (cancelled || cid !== activeCompanyId) return;
+          setCompanyData((prev) => {
+            const cur = prev[cid] ?? emptyCompanyData();
+            return {
+              ...prev,
+              [cid]: { ...cur, allSchedules: { ...cur.allSchedules, [localKey]: sched } },
+            };
+          });
+        });
+      } catch (err) {
+        console.error('[Scheduler] Firestore subscribeMonth failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, [isAuthenticated, activeCompanyId, config.year, config.month]);
 
   // Post-update notice. The Electron main process snapshots the data folder
   // before the new version touches it; we surface a one-time confirmation so
