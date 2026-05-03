@@ -20,12 +20,51 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          # v5.1.6 — built-in npm cache keyed on package-lock.json. Restores
+          # ~/.npm on every run; saves 60-90s of re-download per release and
+          # avoids the ECONNRESET we hit on v5.1.5 when the registry blipped.
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        # v5.1.6 — npm ci is deterministic (lockfile-exact, no resolution
+        # work) and roughly 2x faster than npm install. --legacy-peer-deps
+        # stays because the dep tree has a known peer conflict between
+        # firebase + firebase-admin transitive types; removing it would
+        # need a separate migration. --prefer-offline lets the cache from
+        # the previous step do the heavy lifting. PowerShell retries the
+        # whole step up to 3x with exponential backoff so one transient
+        # ECONNRESET doesn't kill the release.
+        shell: pwsh
+        run: |
+          $attempt = 0
+          $max = 3
+          $delay = 10
+          while ($attempt -lt $max) {
+            $attempt++
+            Write-Host "npm ci attempt $attempt of $max"
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "npm ci succeeded on attempt $attempt"
+              break
+            }
+            if ($attempt -lt $max) {
+              Write-Host "npm ci failed (exit $LASTEXITCODE). Retrying in ${delay}s..."
+              Start-Sleep -Seconds $delay
+              $delay = $delay * 2
+            } else {
+              Write-Error "npm ci failed after $max attempts."
+              exit 1
+            }
+          }
 
       - name: Type Check
         run: npm run lint
+
+      - name: Run tests
+        # v5.1.6 — wire tests into CI. Pre-v5.1.6 the workflow only ran
+        # tsc (lint); test failures could ship to release. Vitest uses no
+        # network so doesn't need the retry wrapper.
+        run: npm test
 
       - name: Build Windows Icon (.ico)
         # Generates assets/icon.ico from the source PNG/JPEG. Must run before

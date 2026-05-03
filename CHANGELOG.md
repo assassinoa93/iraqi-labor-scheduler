@@ -2,6 +2,20 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.6 — 2026-05-03
+
+**CI hotfix.** v5.1.5's release build failed with `ECONNRESET` during `npm install` on the GitHub Actions runner — a transient registry blip that left the workflow with no fallback. v5.1.6 hardens the release pipeline so a single network hiccup can't kill the build.
+
+**Changes** ([`.github/workflows/release.yml`](.github/workflows/release.yml))
+- **npm cache enabled** via `actions/setup-node@v4`'s built-in `cache: 'npm'`. Restores `~/.npm` keyed on `package-lock.json` — saves 60–90s of fresh re-downloads per run AND mostly side-steps registry availability blips because warm cache hits don't go to network.
+- **`npm install` → `npm ci`**, with `--prefer-offline --no-audit --no-fund` for speed. Lockfile-exact, deterministic, ~2× faster than the resolution-path install. `--legacy-peer-deps` stays for now because the dep tree has a known peer conflict between firebase and firebase-admin's transitive types; removing it is a separate migration.
+- **Retry wrapper** around the install step: PowerShell loop, up to 3 attempts with exponential backoff (10s / 20s). Pre-v5.1.6, one ECONNRESET aborted the whole release.
+- **Tests now run on CI** before the build (`npm test`). Pre-v5.1.6 the workflow only ran `tsc --noEmit` (the `lint` script); a regression that compiled but failed at runtime could still ship to release. Vitest uses no network so doesn't need the retry wrapper.
+
+**Recovery for v5.1.5**
+- The v5.1.5 tag is already pushed. Re-running the failed workflow from the GitHub Actions UI ("Re-run all jobs" on the failed run) will use the same tag with the new workflow file from main, producing the v5.1.5 installer with the hardened pipeline.
+- v5.1.6's tag will produce a separate installer with the version stamp updated, in case you'd rather skip past v5.1.5 entirely.
+
 ## v5.1.5 — 2026-05-03
 
 **Patch follow-up to v5.1.4.** Dependency-vulnerability triage. Production audit went from 14 → 11 vulnerabilities by retiring the DOMPurify XSS chain via `jspdf` upgrade. The remaining 11 are in the firebase-admin transitive dep tree and are not exploitable in our use; rationale documented below for future audits.
