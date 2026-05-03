@@ -72,8 +72,13 @@ describe('isValidTransition — happy paths', () => {
 });
 
 describe('isValidTransition — role-based denials', () => {
-  it('manager cannot submit (only supervisor + super-admin can)', () => {
-    expect(isValidTransition({ from: 'draft', action: 'submit', role: 'manager' }).ok).toBe(false);
+  // v5.1.1 — manager CAN submit (on behalf of supervisor when SR away).
+  it('manager can submit on behalf of supervisor (when SR away)', () => {
+    const r = isValidTransition({ from: 'draft', action: 'submit', role: 'manager' });
+    expect(r.ok).toBe(true);
+    expect(r.to).toBe('submitted');
+  });
+  it('admin cannot submit (only supervisor / manager / super-admin can)', () => {
     expect(isValidTransition({ from: 'draft', action: 'submit', role: 'admin' }).ok).toBe(false);
   });
 
@@ -191,15 +196,15 @@ describe('isValidTransition — exhaustive matrix sanity', () => {
         }
       }
     }
-    // Manually counted from the v5.0.2 strict-tier transition matrix:
-    //   submit:    draft+rejected (2 states) × supervisor+super (2 roles) = 4
+    // Manually counted from the v5.1.1 transition matrix:
+    //   submit:    draft+rejected (2) × supervisor+manager+super (3) = 6
     //   lock:      submitted (1) × manager+super (2) = 2
     //   save:      locked (1) × admin+super (2) = 2
     //   send-back: submitted (1) × manager+super (2) = 2
     //              + locked (1) × admin+super (2) = 2
     //   reopen:    saved (1) × admin+super (2) = 2
-    //   TOTAL = 4 + 2 + 2 + 2 + 2 + 2 = 14
-    expect(validCount).toBe(14);
+    //   TOTAL = 6 + 2 + 2 + 2 + 2 + 2 = 16
+    expect(validCount).toBe(16);
   });
 
   it('every invalid result carries a human-readable reason', () => {
@@ -252,6 +257,24 @@ describe('availableActionsFor', () => {
     expect(a.canSendBack).toBe(true);
     expect(a.canLock).toBe(false);
     expect(a.canReopen).toBe(false);
+  });
+
+  // v5.1.1 — admin is monitor-only on cells regardless of state.
+  it('admin in draft cannot edit cells (monitor-only)', () => {
+    const a = availableActionsFor('draft', 'admin');
+    expect(a.canEditCells).toBe(false);
+    expect(a.canSubmit).toBe(false);
+  });
+
+  it('admin in rejected cannot edit cells (still monitor-only)', () => {
+    const a = availableActionsFor('rejected', 'admin');
+    expect(a.canEditCells).toBe(false);
+  });
+
+  it('manager in draft can edit cells AND submit on behalf of supervisor', () => {
+    const a = availableActionsFor('draft', 'manager');
+    expect(a.canEditCells).toBe(true);
+    expect(a.canSubmit).toBe(true);
   });
 
   it('admin in saved can only reopen', () => {

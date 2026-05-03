@@ -71,22 +71,25 @@ export interface TransitionResult {
 export function isValidTransition(p: TransitionParams): TransitionResult {
   const { from, action, role } = p;
 
-  // v5.0.2 — strict role-per-action separation per user spec:
-  //   supervisor: submit only
-  //   manager:    lock or send-back from submitted
-  //   admin:      save, send-back from locked, reopen
-  //   super_admin: all (overrides every gate; audit log still records actor)
-  // Each branch checks a precise set of roles, NOT a "role-or-up" predicate
-  // — admins shouldn't be able to do the manager's job (lock / reject from
-  // submitted) and managers shouldn't be able to do the admin's job. The
-  // workflow is deliberately one-step-per-tier so reviewers can't skip a
-  // peer's eyes on the schedule.
+  // v5.1.1 — strict role-per-action with two refinements after end-to-end
+  // testing of v5.0.2:
+  //   supervisor: submit (own work)
+  //   manager:    submit (on behalf of supervisor), lock, send-back from submitted
+  //   admin:      save, send-back from locked, reopen — NO cell edits, NO auto-scheduler
+  //   super_admin: all (overrides every gate; audit log records actor)
+  // Why manager can submit too: in real ops the supervisor occasionally
+  // isn't around (sick day, vacation), and the workflow shouldn't grind
+  // to a halt. Manager fills in + submits; the lock step is still the
+  // manager's own approval, but the audit log shows who actually did
+  // each piece. Admin remains strictly read-only on cells — they
+  // monitor, send back, save, reopen. Cell edits stay with the people
+  // who plan operations.
   const isSuper = role === 'super_admin';
 
   switch (action) {
     case 'submit':
-      if (role !== 'supervisor' && !isSuper) {
-        return { ok: false, reason: 'Only supervisor (or super-admin) may submit a schedule.' };
+      if (role !== 'supervisor' && role !== 'manager' && !isSuper) {
+        return { ok: false, reason: 'Only supervisor or manager (or super-admin) may submit a schedule.' };
       }
       if (from !== 'draft' && from !== 'rejected') {
         return { ok: false, reason: `Cannot submit from "${from}". Only draft / rejected schedules may be submitted.` };
@@ -208,8 +211,14 @@ export function availableActionsFor(
       canEditCells: true,
     };
   }
-  // Draft (incl. post-rejection) is the only editable state.
-  const canEditCells = status === 'draft' || status === 'rejected';
+  // v5.1.1 — admin is monitor-only. They can save / send back / reopen
+  // through the workflow, but they cannot paint cells or run the
+  // auto-scheduler — those manipulate operational data that supervisors
+  // and managers own. Pre-v5.1.1 this gate was status-only, which let an
+  // admin paint cells in any draft schedule.
+  const stateAllowsEdit = status === 'draft' || status === 'rejected';
+  const roleAllowsEdit = role !== 'admin';
+  const canEditCells = stateAllowsEdit && roleAllowsEdit;
   return {
     canSubmit:   isValidTransition({ from: status, action: 'submit', role }).ok,
     canLock:     isValidTransition({ from: status, action: 'lock', role }).ok,

@@ -2679,9 +2679,20 @@ export default function App() {
       setDiffEnabled(true);
     } catch (err) {
       console.error('[Scheduler] getLatestSnapshot failed:', err);
+      // v5.1.1 — surface the concrete error code/message in the modal
+      // so the user can act on it without dev tools. The most common
+      // cause is permission-denied when a freshly-created admin signs
+      // in before their custom claim propagates (the bridge revokes
+      // refresh tokens on role change so a sign-out + sign-in fixes it).
+      const e = err as { code?: string; message?: string };
+      const reason = e?.code === 'permission-denied'
+        ? 'Permission denied reading /snapshots/. If your role was changed recently, sign out and sign back in to refresh the token, then try again.'
+        : e?.message
+          ? `${e.code ?? 'error'}: ${e.message}`
+          : 'Refresh and try again.';
       showInfo(
         t('info.error.title'),
-        'Failed to load the archived snapshot for the diff view. Refresh and try again.',
+        `Failed to load the archived snapshot for the diff view. ${reason}`,
       );
     } finally {
       setDiffLoading(false);
@@ -2905,6 +2916,54 @@ export default function App() {
             })()}
           </div>
         </div>
+
+        {/* v5.1.1 — Identity badge. Name + position + role of the
+            currently signed-in user, always visible in the sidebar header
+            so reviewers know which "voice" they're acting with before
+            clicking Lock / Save / Send-back. Only renders in Online mode
+            (Offline mode is single-user; identity is implicit). When the
+            super-admin hasn't filled in displayName/position yet, falls
+            back to email + role label. */}
+        {isAuthenticated && user && (
+          <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-900/60">
+            <div className="flex items-start gap-2">
+              <div className={cn(
+                'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black uppercase tracking-wide',
+                role === 'super_admin' ? 'bg-purple-500/20 text-purple-200' :
+                role === 'admin' ? 'bg-blue-500/20 text-blue-200' :
+                role === 'manager' ? 'bg-orange-500/20 text-orange-200' :
+                role === 'supervisor' ? 'bg-emerald-500/20 text-emerald-200' :
+                'bg-slate-500/20 text-slate-200',
+              )}>
+                {(displayName || user.email || '?').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-[12px] font-semibold truncate" title={displayName ?? user.email ?? ''}>
+                  {displayName ?? user.email ?? '(no name)'}
+                </p>
+                {position && (
+                  <p className="text-slate-300 text-[10px] truncate" title={position}>
+                    {position}
+                  </p>
+                )}
+                <p className={cn(
+                  'text-[9px] font-bold uppercase tracking-widest mt-0.5',
+                  role === 'super_admin' ? 'text-purple-300' :
+                  role === 'admin' ? 'text-blue-300' :
+                  role === 'manager' ? 'text-orange-300' :
+                  role === 'supervisor' ? 'text-emerald-300' :
+                  'text-slate-400',
+                )}>
+                  {role === 'super_admin' ? 'Super admin' :
+                   role === 'admin' ? 'Admin' :
+                   role === 'manager' ? 'Manager' :
+                   role === 'supervisor' ? 'Supervisor' :
+                   'No role'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Company switcher */}
         {dataLoaded && (
@@ -3273,15 +3332,23 @@ export default function App() {
                 onUndoCell={undoLastCell}
                 cellUndoDepth={cellUndoStack.length}
                 onRunAuto={handleRunAutoScheduler}
-                canRunAuto={employees.length > 0 && stations.length > 0}
+                canRunAuto={activeMonthCanEdit && !simMode && employees.length > 0 && stations.length > 0}
                 runAutoDisabledReason={
-                  employees.length === 0 && stations.length === 0
-                    ? t('schedule.runAuto.disabled.bothEmpty')
-                    : employees.length === 0
-                      ? t('schedule.runAuto.disabled.noEmployees')
-                      : stations.length === 0
-                        ? t('schedule.runAuto.disabled.noStations')
-                        : undefined
+                  // v5.1.1 — auto-scheduler must respect the cell-edit gate.
+                  // Pre-v5.1.1 admins (and any role on a submitted/locked
+                  // schedule) could still kick off auto-schedule, which
+                  // wrote `entries` and bypassed the workflow.
+                  !activeMonthCanEdit
+                    ? (role === 'admin'
+                        ? 'Admins are monitor-only on cells. Auto-schedule has to be run by a supervisor or manager.'
+                        : 'Cells are read-only in this state. Reopen / send back the schedule to edit.')
+                    : employees.length === 0 && stations.length === 0
+                      ? t('schedule.runAuto.disabled.bothEmpty')
+                      : employees.length === 0
+                        ? t('schedule.runAuto.disabled.noEmployees')
+                        : stations.length === 0
+                          ? t('schedule.runAuto.disabled.noStations')
+                          : undefined
                 }
                 paintWarnings={paintWarnings}
                 onDismissPaintWarnings={() => setPaintWarnings(null)}

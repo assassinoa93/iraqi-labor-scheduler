@@ -2,6 +2,44 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.1 — 2026-05-03
+
+**Patch follow-up to v5.1.0.** End-to-end testing surfaced six issues at the boundary between role permissions, governance config, and the workflow UX. Fixes: (1) admin tier is now strictly monitor-only on schedule cells, (2) manager can submit on behalf of an absent supervisor, (3) Holidays + Legal Variables tabs are super-admin-only edit (governance config), (4) reopen modal makes the textarea-focus + disabled-state obvious, (5) snapshot-load failures surface their actual error reason, (6) the sidebar always shows the signed-in user's name + position + role.
+
+**Strict admin monitor-only + manager submit-on-behalf** ([`scheduleApproval.ts`](src/lib/scheduleApproval.ts))
+- v5.0.2's matrix had `canEditCells = (status === 'draft' || status === 'rejected')` for every authenticated role. In practice this let admins paint cells AND run the auto-scheduler in draft state, silently rewriting `entries` and side-stepping the workflow they're supposed to be reviewing. v5.1.1 adds a role gate: admins are `canEditCells: false` regardless of state. They monitor, send back, save, and reopen — they don't author schedules.
+- Auto-scheduler button in [`App.tsx`](src/App.tsx) is now gated on `activeMonthCanEdit` with a role-aware disabled-reason ("Admins are monitor-only on cells. Auto-schedule has to be run by a supervisor or manager.") so the disabled state isn't a mystery.
+- Manager gains `submit` action so the chain doesn't grind to a halt when the supervisor is out (sick day / vacation). The manager fills in the schedule and submits on the supervisor's behalf; the audit log records the manager as the submitter, and the lock step is still a separate manager action so the dual-eyes gate isn't lost.
+- Valid-transition matrix sanity count moved from 14 → 16 (+2 for manager-submit on draft / rejected). 56 tests in [`scheduleApproval.test.ts`](src/lib/__tests__/scheduleApproval.test.ts) including new coverage of admin-cannot-edit-in-draft / admin-cannot-edit-in-rejected / manager-can-edit-and-submit.
+
+**Holidays + Variables tabs: super-admin-only edit** ([`tabAccess.ts`](src/lib/tabAccess.ts))
+- Both are per-company governance config (Iraqi Labor Law caps, Ramadan window, public-holiday calendar). Editing them changes the rules every other role plays under. Pre-v5.1.1 admin could edit holidays + supervisor could too, which let operational users alter governance silently.
+- Defaults updated:
+  - admin: `holidays: 'full' → 'read'`, `variables: 'read'` (already was).
+  - supervisor: `holidays: 'full' → 'read'`, no variables tab by default.
+  - manager: unchanged (already read).
+  - super_admin: unchanged (full edit).
+- `GRANTABLE_TABS` defaults updated to match, so the per-user permissions UI starts from the new safer baseline. Super-admin can still grant `'full'` per user when a delegate genuinely needs to edit them.
+
+**Reopen modal UX** ([`ApprovalActionModals.tsx`](src/components/Schedule/ApprovalActionModals.tsx))
+- Auto-focuses the reason textarea when the modal opens. Pre-v5.1.1 a user who saw the warning text + a disabled-looking confirm button thought the action was blocked; in fact they just hadn't typed a reason yet.
+- Disabled-state hint is now red (textarea border + helper paragraph) when below the minimum char count, with copy "Type at least 1 character of reason to enable Reopen. N more to go." Pre-v5.1.1 the hint was a small grey paragraph users skimmed past.
+- Recent-export tier copy softened from "your downstream system has an out-of-date version" (read as a hard error) to "remember to re-export after re-saving so HRIS has the new official version" (forward-looking reminder).
+
+**Snapshot load error surfaces the actual reason** ([`App.tsx`](src/App.tsx))
+- `getLatestSnapshot` failures previously rendered as "Failed to load the archived snapshot for the diff view. Refresh and try again." with no clue what went wrong. v5.1.1 inspects the Firestore error code and shows: "Permission denied reading /snapshots/. If your role was changed recently, sign out and sign back in to refresh the token, then try again." for `permission-denied` (the most common cause — newly-created admins / managers whose token claims haven't refreshed). Other errors show their `code: message` payload directly.
+
+**Self-edit button label** ([`UsersPanel.tsx`](src/components/SuperAdmin/UsersPanel.tsx))
+- The super-admin's own-row Edit form button used to read "Close" (because v5.0.2 made self-edit no-op-then-close). Now that self-edit actually persists `displayName` + `position`, the button reads "Save changes" in every mode — `'Saving…' | 'Create user' | 'Save changes'`.
+
+**Identity badge in the sidebar** ([`App.tsx`](src/App.tsx))
+- Adds a small card right below the brand header: avatar disc with the user's initial, displayName (or email fallback), position (when set), and a colour-coded role badge (purple = super_admin, blue = admin, orange = manager, emerald = supervisor). Always visible in Online mode so reviewers know "which voice" they're acting with before clicking Lock / Save / Send-back. Offline mode is single-user — identity is implicit, no badge.
+
+**Compatibility**
+- All 179 tests pass (4 new — admin-cannot-edit, manager-can-edit, manager-can-submit, sanity matrix update). `tsc --noEmit` clean. Secret-leak audit clean.
+- No Firestore schema migration. The matrix changes are renderer-side; existing approval blocks read identically.
+- No Firestore index change.
+
 ## v5.1.0 — 2026-05-03
 
 **Minor version. Re-approval diff view + HRIS manual-bundle export.** v5.0 made the approval workflow real; v5.1 closes the two follow-on gaps that real-world payroll cycles need: (1) when a saved schedule is reopened and re-submitted, reviewers can now see exactly which cells changed since the last archived snapshot, instead of having to remember; and (2) when a schedule is finally saved, an admin can produce a single .zip handoff for HRIS import without leaving the app.

@@ -51,11 +51,19 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     audit: 'full', settings: 'full',
     superAdmin: 'full', userManagement: 'full',
   },
+  // v5.1.1 — Holidays + Variables are per-company governance config
+  // (Iraqi Labor Law caps, public holiday calendar, Ramadan window).
+  // Editing them changes the rules every other role plays under, so
+  // they're now super_admin-only on edit. Pre-v5.1.1 admin could edit
+  // holidays + supervisor could too, which let operational users alter
+  // governance config silently. Read access stays open so everyone can
+  // see the rules in effect.
   admin: {
     dashboard: 'full', schedule: 'full', roster: 'full', payroll: 'full',
     coverageOT: 'full', workforce: 'full', reports: 'full',
-    layout: 'full', shifts: 'full', holidays: 'full',
-    variables: 'read',           // admins can see Iraqi Labor Law config but not edit
+    layout: 'full', shifts: 'full',
+    holidays: 'read',
+    variables: 'read',
     audit: 'full', settings: 'full',
     // No Super Admin / User Management for plain admins.
   },
@@ -74,7 +82,10 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
   supervisor: {
     dashboard: 'full', schedule: 'full', roster: 'full',
     coverageOT: 'full',
-    layout: 'full', shifts: 'full', holidays: 'full',
+    layout: 'full', shifts: 'full',
+    // v5.1.1 — supervisors keep read access to the holiday calendar so
+    // they can plan around it, but can't edit it (governance config).
+    holidays: 'read',
     settings: 'full',
     // Supervisors don't see payroll/workforce/reports/variables/audit
     // by default — super-admin can grant per-user.
@@ -121,7 +132,10 @@ export const GRANTABLE_TABS: Array<{ key: string; label: string; default: TabAcc
   { key: 'reports',    label: 'Reports',            default: 'none' },
   { key: 'layout',     label: 'Layout',             default: 'full' },
   { key: 'shifts',     label: 'Shifts',             default: 'full' },
-  { key: 'holidays',   label: 'Holidays',           default: 'full' },
+  // v5.1.1 — Holidays + Variables default to read-only for non-super_admin
+  // users since they're governance config. Super-admin can still grant
+  // 'full' per user when a delegate genuinely needs to edit them.
+  { key: 'holidays',   label: 'Holidays',           default: 'read' },
   { key: 'variables',  label: 'Legal Variables',    default: 'read' },
   { key: 'audit',      label: 'Audit Log',          default: 'none' },
   { key: 'settings',   label: 'System Settings',    default: 'full' },

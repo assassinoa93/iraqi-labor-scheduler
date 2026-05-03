@@ -346,6 +346,18 @@ export function ReopenModal({
   isOpen, onClose, onConfirm, monthLabel, companyLabel, lastExportedAt, busy,
 }: ReopenModalProps) {
   const [notes, setNotes] = useState('');
+  // v5.1.1 — auto-focus the reason textarea on open. Pre-v5.1.1 the user
+  // saw a disabled-looking confirm button and a body-text warning that
+  // could read as "this is blocked", missing that they only needed to
+  // type a reason. Auto-focusing the textarea makes it obvious the
+  // input is awaiting them.
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  React.useEffect(() => {
+    if (isOpen) {
+      const t = window.setTimeout(() => textareaRef.current?.focus(), 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [isOpen]);
 
   // Tiered safeguards — see plan's "Reopen flow" section.
   const ageHours = lastExportedAt ? (Date.now() - lastExportedAt) / 3_600_000 : null;
@@ -357,9 +369,14 @@ export function ReopenModal({
   const trimmed = notes.trim();
   const canConfirm = trimmed.length >= minNoteChars;
 
+  // v5.1.1 — softened recent-export wording. Pre-v5.1.1 it read like a
+  // hard error ("your downstream system has an out-of-date version")
+  // which discouraged users from continuing. The reopen workflow is
+  // intentional: of course the HRIS will be stale until re-export.
+  // The note is now a forward-looking reminder.
   const tierCopy = {
-    'pre-export': 'Reopening returns this schedule to draft. The current saved snapshot is preserved in the snapshot history. The supervisor will be able to edit, then re-submit through the chain.',
-    'recent-export': `You exported this schedule to HRIS recently. If your HRIS has already consumed it, reopening means your downstream system has an out-of-date version. Re-export after re-saving.`,
+    'pre-export': 'Reopening returns this schedule to draft. The current saved snapshot is preserved in the snapshot history. The supervisor (or manager) will edit, then re-submit through the chain.',
+    'recent-export': 'This schedule was exported to HRIS in the last 24 hours. After you reopen, edit, and re-save, remember to re-export so HRIS has the new official version.',
     'old-export': 'This schedule was archived and previously exported. Reopening for amendments is allowed but recorded — the prior saved snapshot remains in the snapshot history for audit purposes.',
   }[tier];
   const tone: 'amber' | 'rose' = tier === 'old-export' ? 'rose' : 'amber';
@@ -386,15 +403,29 @@ export function ReopenModal({
         Reason for reopening{tier === 'old-export' ? ` (min ${minNoteChars} characters)` : ''}
       </FieldLabel>
       <textarea
+        ref={textareaRef}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={4}
         placeholder="e.g. 'Last-minute leave request from EMP-23 — schedule needs day 14–18 reshuffle.'"
-        className="w-full px-3 py-2 mb-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+        className={cn(
+          'w-full px-3 py-2 mb-1 bg-slate-50 dark:bg-slate-800/60 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-colors',
+          // v5.1.1 — red border + ring when below the minimum so the user
+          // sees at a glance why the confirm button is disabled. Pre-v5.1.1
+          // the only signal was a small grey hint paragraph; users missed it.
+          !canConfirm
+            ? 'border-2 border-rose-300 dark:border-rose-500/50 focus:ring-rose-500/40'
+            : 'border border-slate-200 dark:border-slate-700 focus:ring-amber-500/40',
+        )}
       />
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-4 leading-relaxed">
+      <p className={cn(
+        'text-[10px] mb-4 leading-relaxed font-medium',
+        !canConfirm
+          ? 'text-rose-600 dark:text-rose-300'
+          : 'text-slate-500 dark:text-slate-400',
+      )}>
         {trimmed.length < minNoteChars
-          ? `${minNoteChars - trimmed.length} more character${(minNoteChars - trimmed.length) === 1 ? '' : 's'} required.`
+          ? `Type at least ${minNoteChars} character${minNoteChars === 1 ? '' : 's'} of reason to enable Reopen. ${minNoteChars - trimmed.length} more to go.`
           : 'Recorded in audit log.'}
       </p>
       <FooterButtons

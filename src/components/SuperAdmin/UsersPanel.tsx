@@ -669,7 +669,7 @@ function UserFormModal({ mode, companies, initial, isSelf, onClose, onSubmit }: 
             disabled={submitting}
             className="apple-press px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60"
           >
-            {submitting ? 'Saving…' : mode === 'create' ? 'Create user' : isSelf ? 'Close' : 'Save changes'}
+            {submitting ? 'Saving…' : mode === 'create' ? 'Create user' : 'Save changes'}
           </button>
         </div>
       </form>
