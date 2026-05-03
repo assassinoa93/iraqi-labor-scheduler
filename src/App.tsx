@@ -616,7 +616,23 @@ export default function App() {
             // If the doc doesn't exist yet (first edit on this company in
             // Online mode), keep whatever the local default seeded — the
             // first user edit will syncConfig and create the doc.
-            if (cfg) updateDomain('config', cfg);
+            if (cancelled || cid !== activeCompanyId || !cfg) return;
+            // v5.1.1 — preserve the user's local UI navigation when the
+            // server config updates. year / month / daysInMonth are per-
+            // user navigation state, NOT shared governance, so we keep
+            // whatever the local picker has and only fold in the
+            // governance fields from the server.
+            setCompanyData((prev) => {
+              const cur = prev[cid] ?? emptyCompanyData();
+              const localCfg = cur.config;
+              const merged: Config = {
+                ...cfg,
+                year: localCfg.year,
+                month: localCfg.month,
+                daysInMonth: localCfg.daysInMonth,
+              };
+              return { ...prev, [cid]: { ...cur, config: merged } };
+            });
           }),
         ];
         if (cancelled) {

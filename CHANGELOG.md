@@ -2,6 +2,20 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.2 — 2026-05-03
+
+**Hotfix on top of v5.1.1.** Real-world repro of "the dashboard force-pulls me back to April": active-month navigation (year / month / daysInMonth) was being persisted in the per-company Firestore Config doc, which is admin-write-only per the security rules. When a supervisor or manager clicked next-month, their write was rejected silently, then the config listener re-fired with the server-side stale month and reset their visible month back. v5.1.2 separates UI navigation from governance config in both directions.
+
+**Active-month navigation is now per-user** ([`firestoreDomains.ts`](src/lib/firestoreDomains.ts), [`App.tsx`](src/App.tsx))
+- `syncConfig` now strips `year` / `month` / `daysInMonth` from the push. The Firestore config doc represents shared governance (caps, Ramadan window, weekend policy) and shouldn't be mutated by a month-picker click.
+- The `subscribeConfig` callback in App.tsx merges server governance fields with the local UI nav — `year` / `month` / `daysInMonth` always come from local state. Each user's session navigates independently of what other users have on screen.
+- Net effect: supervisor / manager / admin can now all freely navigate to any month (including future months with no schedule yet) without being yanked back. The bug only ever affected non-admin roles because admins had write permission and weren't fighting their own listener; the symmetric fix means even admins won't get a "snap back" if their click loses a race against a concurrent governance write.
+
+**Compatibility**
+- All 179 tests pass. `tsc --noEmit` clean.
+- No data migration needed. Existing Firestore Config docs retain `year` / `month` / `daysInMonth` from pre-v5.1.2 writes; they're harmless but will gradually be dropped on the next admin governance edit (the new `syncConfig` push omits them).
+- No Firestore index change.
+
 ## v5.1.1 — 2026-05-03
 
 **Patch follow-up to v5.1.0.** End-to-end testing surfaced six issues at the boundary between role permissions, governance config, and the workflow UX. Fixes: (1) admin tier is now strictly monitor-only on schedule cells, (2) manager can submit on behalf of an absent supervisor, (3) Holidays + Legal Variables tabs are super-admin-only edit (governance config), (4) reopen modal makes the textarea-focus + disabled-state obvious, (5) snapshot-load failures surface their actual error reason, (6) the sidebar always shows the signed-in user's name + position + role.

@@ -214,11 +214,27 @@ export function syncHolidays(companyId: string, prev: PublicHoliday[], next: Pub
 }
 
 // Config (single doc) ----------------------------------------------------
+//
+// v5.1.1 — `year`, `month`, `daysInMonth` are per-USER UI navigation, not
+// per-company governance. Persisting them in the shared Config doc led to
+// a "force-jump back to the last admin-saved month" bug for non-admin
+// users: their month-picker write would fail (rules restrict config
+// writes to admins) and the next listener tick would reset their visible
+// month to the server's stale value. We now strip those fields on the
+// write side AND keep them out of the listener callback, so each user's
+// session navigates independently.
 export function subscribeConfig(companyId: string, onChange: (cfg: Config | null) => void, onError?: (err: unknown) => void) {
   return subscribeSingleDoc<Config>(companyId, 'config', onChange, onError);
 }
 export function syncConfig(companyId: string, _prev: Config, next: Config, actorUid: string | null) {
-  return syncSingleDoc<Config>(companyId, 'config', next, actorUid);
+  // Drop UI-navigation fields before pushing — the server doc represents
+  // governance config (caps, Ramadan, weekend policy, ...) and shouldn't
+  // be mutated by a month-picker click.
+  const { year: _y, month: _m, daysInMonth: _d, ...governance } = next;
+  void _y; void _m; void _d;
+  // Cast back so the underlying single-doc writer keeps a consistent
+  // generic signature; the omitted fields just won't appear in the doc.
+  return syncSingleDoc<Config>(companyId, 'config', governance as Config, actorUid);
 }
 
 // ── New-company default seeding ──────────────────────────────────────────
