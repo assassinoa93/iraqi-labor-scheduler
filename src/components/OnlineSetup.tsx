@@ -38,9 +38,16 @@ import {
 import { clearMode } from '../lib/mode';
 import { cn } from '../lib/utils';
 import { SuperAdminWizard } from './Onboarding/SuperAdminWizard';
+import { useConfirm } from './ConfirmModal';
 
 type Role = 'super-admin' | 'user';
-type Step = 'role' | 'super-actions' | 'user-actions' | 'wizard' | 'paste';
+// `wizard` = fresh setup (super-admin first PC).
+// `reconnect-wizard` = returning super-admin on a new PC; same wizard
+//   component, mode='reconnect' so it skips project creation + account
+//   creation and just walks through firebaseConfig + service-account link.
+// `paste` = admin/supervisor join via connection code (no service account
+//   needed for non-super-admin roles).
+type Step = 'role' | 'super-actions' | 'user-actions' | 'wizard' | 'reconnect-wizard' | 'paste';
 
 interface Props {
   onConfigured: () => void;
@@ -69,6 +76,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [, forceTick] = useState(0);
   const stored = getStoredConfigs();
+  const { confirm, slot: confirmSlot } = useConfirm();
 
   const switchToOffline = () => { clearMode(); location.reload(); };
 
@@ -104,8 +112,12 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
   };
 
   const handlePickSaved = (id: string) => { setActiveStoredConfig(id); onConfigured(); };
-  const handleRemoveSaved = (id: string, label: string) => {
-    if (!confirm(`Remove "${label}" from this device's saved databases?\n\nThe Firebase project itself is not deleted — only this device forgets the connection.`)) return;
+  const handleRemoveSaved = async (id: string, label: string) => {
+    const ok = await confirm({
+      title: `Remove "${label}"?`,
+      message: "This device will forget the connection. The Firebase project itself is not deleted.",
+    });
+    if (!ok) return;
     removeStoredConfig(id);
     forceTick((n) => n + 1);
   };
@@ -160,6 +172,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
   if (step === 'super-actions') {
     return (
       <Frame onBack={() => setStep('role')} onSwitchOffline={switchToOffline} onCancel={onCancel}>
+        {confirmSlot}
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
             <ShieldCheck className="w-7 h-7 text-emerald-600 dark:text-emerald-300" />
@@ -186,7 +199,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
             </p>
           </button>
           <button
-            onClick={() => setStep('paste')}
+            onClick={() => setStep('reconnect-wizard')}
             className="apple-press text-left p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
           >
             <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mb-4 group-hover:bg-blue-100 dark:group-hover:bg-blue-500/25 transition-colors">
@@ -194,7 +207,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
             </div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50 mb-1">Connect to a database I already set up</h3>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Reconnecting from a new PC. Paste your firebaseConfig (or a connection code from another machine). You can re-link your service-account JSON from the Super Admin tab afterward.
+              Reconnecting from a new PC. A short wizard walks you through pasting your firebaseConfig (or a connection code from another machine) and linking a service-account JSON for this device — so User Management and admin tools work immediately.
             </p>
           </button>
         </div>
@@ -207,6 +220,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
   if (step === 'user-actions') {
     return (
       <Frame onBack={() => setStep('role')} onSwitchOffline={switchToOffline} onCancel={onCancel}>
+        {confirmSlot}
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mx-auto mb-5">
             <UsersIcon className="w-7 h-7 text-blue-600 dark:text-blue-300" />
@@ -240,13 +254,26 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
   if (step === 'wizard') {
     return (
       <SuperAdminWizard
+        mode="fresh"
         onComplete={onConfigured}
         onCancel={() => setStep('super-actions')}
       />
     );
   }
 
-  // ── Step: paste (returning super-admin OR user joining) ────────────────
+  // ── Step: reconnect wizard (super-admin on a new PC) ───────────────────
+
+  if (step === 'reconnect-wizard') {
+    return (
+      <SuperAdminWizard
+        mode="reconnect"
+        onComplete={onConfigured}
+        onCancel={() => setStep('super-actions')}
+      />
+    );
+  }
+
+  // ── Step: paste (admin / supervisor joining via connection code) ───────
 
   const isSuperAdmin = role === 'super-admin';
   return (

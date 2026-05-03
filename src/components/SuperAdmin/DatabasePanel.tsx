@@ -18,6 +18,7 @@ import { Database, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import * as adminApi from '../../lib/adminApi';
 import type { AuditStats } from '../../lib/adminApi';
 import { cn } from '../../lib/utils';
+import { useConfirm } from '../ConfirmModal';
 
 const PRESETS: Array<{ label: string; days: number }> = [
   { label: '90 days', days: 90 },
@@ -31,6 +32,7 @@ export function DatabasePanel() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [purging, setPurging] = useState<number | null>(null); // days threshold
+  const { confirm, slot: confirmSlot } = useConfirm();
 
   const refresh = async () => {
     if (!adminApi.isAvailable()) return;
@@ -52,9 +54,11 @@ export function DatabasePanel() {
   const handlePurge = async (days: number) => {
     const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
     const cutoffDate = new Date(cutoffMs).toISOString().slice(0, 10);
-    if (!confirm(`Permanently delete every audit entry older than ${cutoffDate} (${days} days ago)?\n\nThis cannot be undone.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Purge audit older than ${days} days?`,
+      message: `Permanently deletes every audit entry older than ${cutoffDate}. This cannot be undone.`,
+    });
+    if (!ok) return;
     setPurging(days);
     setError(null);
     setInfo(null);
@@ -145,6 +149,8 @@ export function DatabasePanel() {
           <p className="text-[11px] text-rose-700 dark:text-rose-200 font-medium">{error}</p>
         </div>
       )}
+
+      {confirmSlot}
     </Section>
   );
 }

@@ -4,6 +4,15 @@ import { Trash2, Info } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
 
+// Promise-wrapper around ConfirmModal so callers don't have to manage their
+// own isOpen / pending-action state. Replaces native window.confirm() with
+// the branded modal (RTL, dark mode, motion). Pattern:
+//
+//   const { confirm, slot } = useConfirm();
+//   // …somewhere in the render: {slot}
+//   const ok = await confirm({ title: '…', message: '…' });
+//   if (!ok) return;
+
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -85,4 +94,58 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
       </motion.div>
     </div>
   );
+}
+
+interface ConfirmOptions {
+  title: string;
+  message: string;
+  infoOnly?: boolean;
+}
+
+export function useConfirm() {
+  const [state, setState] = React.useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    infoOnly: boolean;
+    resolve: ((ok: boolean) => void) | null;
+  }>({ isOpen: false, title: '', message: '', infoOnly: false, resolve: null });
+
+  // useCallback so call-site refs stay stable across renders.
+  const confirm = React.useCallback((opts: ConfirmOptions) =>
+    new Promise<boolean>((resolve) => {
+      setState({
+        isOpen: true,
+        title: opts.title,
+        message: opts.message,
+        infoOnly: opts.infoOnly ?? false,
+        resolve,
+      });
+    }), []);
+
+  // Resolve the pending Promise then collapse state. Reading state.resolve
+  // from the closure of the latest render is safe because the modal's
+  // onClose / onConfirm props are bound fresh each render — there's no
+  // stale closure here.
+  const handleClose = () => {
+    state.resolve?.(false);
+    setState((s) => ({ ...s, isOpen: false, resolve: null }));
+  };
+  const handleConfirm = () => {
+    state.resolve?.(true);
+    setState((s) => ({ ...s, isOpen: false, resolve: null }));
+  };
+
+  const slot = (
+    <ConfirmModal
+      isOpen={state.isOpen}
+      title={state.title}
+      message={state.message}
+      infoOnly={state.infoOnly}
+      onClose={handleClose}
+      onConfirm={handleConfirm}
+    />
+  );
+
+  return { confirm, slot };
 }

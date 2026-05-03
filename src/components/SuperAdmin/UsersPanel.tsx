@@ -22,13 +22,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Users as UsersIcon, AlertCircle, Plus, Pencil, Trash2, Power, KeyRound,
-  CheckCircle2, X, Copy, Check,
+  CheckCircle2, X, Copy, Check, ExternalLink,
 } from 'lucide-react';
 import * as adminApi from '../../lib/adminApi';
 import type { AdminUser, Role, TabPerms } from '../../lib/adminApi';
 import type { Company } from '../../types';
+import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { GRANTABLE_TABS, type TabAccess } from '../../lib/tabAccess';
+import { useConfirm } from '../ConfirmModal';
+
+// Mirrors the helper in ConnectionPanel — a deep link to the active project's
+// Service Accounts tab so the user can act on the "not linked" error without
+// hunting through Firebase Console.
+function serviceAccountsConsoleUrl(): string {
+  const projectId = getActiveConfig()?.projectId;
+  return projectId
+    ? `https://console.firebase.google.com/project/${projectId}/settings/serviceaccounts/adminsdk`
+    : 'https://console.firebase.google.com/';
+}
 
 interface Props {
   companies: Company[];
@@ -41,6 +53,7 @@ export function UsersPanel({ companies }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [tempPasswordFor, setTempPasswordFor] = useState<{ uid: string; email: string | null; password: string } | null>(null);
+  const { confirm, slot: confirmSlot } = useConfirm();
 
   const refresh = async () => {
     if (!adminApi.isAvailable()) return;
@@ -89,7 +102,11 @@ export function UsersPanel({ companies }: Props) {
   };
 
   const handleDelete = async (u: AdminUser) => {
-    if (!confirm(`Delete ${u.email ?? u.uid} permanently? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete ${u.email ?? u.uid}?`,
+      message: 'This permanently removes the Auth account and the /users/{uid} doc. This cannot be undone.',
+    });
+    if (!ok) return;
     setLoading(true);
     try {
       await adminApi.deleteUser(u.uid);
@@ -142,8 +159,18 @@ export function UsersPanel({ companies }: Props) {
           <div className="space-y-1 flex-1 min-w-0">
             <p className="text-[11px] text-rose-700 dark:text-rose-200 font-medium">{error}</p>
             {error.toLowerCase().includes('not linked') && (
-              <p className="text-[10px] text-rose-600 dark:text-rose-200/80">
-                Link a service-account JSON in the Connection panel above first.
+              <p className="text-[10px] text-rose-600 dark:text-rose-200/80 leading-relaxed">
+                Generate a service-account JSON in{' '}
+                <a
+                  href={serviceAccountsConsoleUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-baseline gap-1 text-rose-700 dark:text-rose-200 underline hover:no-underline font-medium"
+                >
+                  Firebase Console → Project Settings → Service Accounts
+                  <ExternalLink className="w-3 h-3 self-center" />
+                </a>
+                , then link it from <strong>Super Admin → Connection</strong>.
               </p>
             )}
           </div>
@@ -256,6 +283,8 @@ export function UsersPanel({ companies }: Props) {
           onClose={() => setTempPasswordFor(null)}
         />
       )}
+
+      {confirmSlot}
     </Section>
   );
 }

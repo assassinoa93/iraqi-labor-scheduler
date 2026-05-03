@@ -14,9 +14,20 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Link2, AlertCircle, CheckCircle2, RefreshCw, FilePlus2 } from 'lucide-react';
+import { Link2, AlertCircle, CheckCircle2, RefreshCw, FilePlus2, ExternalLink } from 'lucide-react';
 import * as adminApi from '../../lib/adminApi';
+import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
+
+// Deep-link to the Service Accounts tab of the active project's settings.
+// If we don't know the projectId yet (shouldn't happen by the time this panel
+// renders, but be defensive), fall back to the Console root.
+function serviceAccountsConsoleUrl(): string {
+  const projectId = getActiveConfig()?.projectId;
+  return projectId
+    ? `https://console.firebase.google.com/project/${projectId}/settings/serviceaccounts/adminsdk`
+    : 'https://console.firebase.google.com/';
+}
 
 export function ConnectionPanel() {
   const [status, setStatus] = useState<{ linked: boolean; path: string | null } | null>(null);
@@ -94,12 +105,22 @@ export function ConnectionPanel() {
       ) : (
         <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
           <Link2 className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
               Service account not linked
             </p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Generate a service-account JSON in Firebase Console → Project Settings → Service Accounts, then link it here. It stays on your machine only — never bundled with the app.
+              Generate a service-account JSON in{' '}
+              <a
+                href={serviceAccountsConsoleUrl()}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
+              >
+                Firebase Console → Project Settings → Service Accounts
+                <ExternalLink className="w-3 h-3 self-center" />
+              </a>
+              {' '}(<strong>Generate new private key</strong>), then link the downloaded file with the button below. It stays on your machine only — never bundled with the app.
             </p>
           </div>
         </div>

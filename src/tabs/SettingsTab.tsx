@@ -8,6 +8,7 @@ import {
   getStoredConfigs, setActiveStoredConfig, removeStoredConfig, renameStoredConfig,
 } from '../lib/firebaseConfigStorage';
 import { getActiveConfig } from '../lib/firebase';
+import { useConfirm } from '../components/ConfirmModal';
 
 interface SettingsTabProps {
   config: Config;
@@ -263,10 +264,15 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
   const [renameValue, setRenameValue] = React.useState('');
   const stored = React.useMemo(() => getStoredConfigs(), [tick]);
   const refresh = () => setTick((t) => t + 1);
+  const { confirm, slot: confirmSlot } = useConfirm();
 
   const handleSwitch = async (id: string) => {
     if (id === stored.active) return;
-    if (!confirm('Switch active database? This will reload the app and you\'ll need to sign in to the other project.')) return;
+    const ok = await confirm({
+      title: 'Switch active database?',
+      message: "This will reload the app and you'll need to sign in to the other project.",
+    });
+    if (!ok) return;
     setActiveStoredConfig(id);
     if (onSignOut) {
       try { await onSignOut(); } catch { /* ignore */ }
@@ -274,8 +280,12 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
     location.reload();
   };
 
-  const handleRemove = (id: string, label: string) => {
-    if (!confirm(`Remove "${label}" from this device's saved databases?\n\nThe Firebase project itself is not deleted — only this device forgets the connection.`)) return;
+  const handleRemove = async (id: string, label: string) => {
+    const ok = await confirm({
+      title: `Remove "${label}"?`,
+      message: "This device will forget the connection. The Firebase project itself is not deleted.",
+    });
+    if (!ok) return;
     const wasActive = stored.active === id;
     removeStoredConfig(id);
     refresh();
@@ -290,7 +300,11 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
   };
 
   const handleAddAnother = async () => {
-    if (!confirm('Add another database? You\'ll be signed out and taken to the database picker, where you can run the wizard or paste a connection code.')) return;
+    const ok = await confirm({
+      title: 'Add another database?',
+      message: "You'll be signed out and taken to the database picker, where you can run the wizard or paste a connection code.",
+    });
+    if (!ok) return;
     if (onSignOut) {
       try { await onSignOut(); } catch { /* ignore */ }
     }
@@ -316,11 +330,14 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
     // The user is signed in but no saved entries? Means the active config
     // came from .env.local at build time. Show a simple add-another CTA.
     return (
-      <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl">
-        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-          Your active Firebase config came from <code>.env.local</code> at build time, not from in-app paste. To switch databases, edit <code>.env.local</code> and restart.
-        </p>
-      </div>
+      <>
+        <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl">
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+            Your active Firebase config came from <code>.env.local</code> at build time, not from in-app paste. To switch databases, edit <code>.env.local</code> and restart.
+          </p>
+        </div>
+        {confirmSlot}
+      </>
     );
   }
 
@@ -420,6 +437,7 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
           </div>
         ))}
       </div>
+      {confirmSlot}
     </div>
   );
 }

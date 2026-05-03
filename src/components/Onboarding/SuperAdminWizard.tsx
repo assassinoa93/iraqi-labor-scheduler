@@ -2,24 +2,38 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Phase 3.4 / 3.6 — First-time super-admin onboarding wizard.
+ * Phase 3.4 / 3.6 — Super-admin onboarding wizard.
  *
- * Goal: take a fresh app install to a fully-working Online setup with the
- * fewest possible Console-only detours. The only step that *must* happen
- * in Firebase Console is creating the project itself + enabling Firestore
- * + Auth — Firebase doesn't expose those operations to the Spark plan.
- * Everything else (user creation, super_admin claim, service-account
- * link) happens inside this wizard.
+ * Goal: take a fresh app install (or a returning super-admin's new PC) to
+ * a fully-working Online setup with the fewest possible Console-only
+ * detours. The only step that *must* happen in Firebase Console is
+ * creating the project itself + enabling Firestore + Auth — Firebase
+ * doesn't expose those operations to the Spark plan. Everything else
+ * (user creation, super_admin claim, service-account link) happens
+ * inside this wizard.
  *
- * Steps:
- *   1. Create Firebase project + enable Firestore + Auth (Console).
- *   2. Paste firebaseConfig.
- *   3. Link service-account JSON via native file picker.
- *   4. Create your super-admin account (email + password) — the Admin
- *      SDK creates the Auth user AND grants the super_admin claim
- *      atomically. Pre-Phase-3.6 this required a Console roundtrip;
- *      now it's one click.
- *   5. Done — sign in.
+ * Two modes:
+ *
+ *   • `mode='fresh'` (default) — first-time install on the first PC:
+ *     1. Create Firebase project + enable Firestore + Auth (Console).
+ *     2. Paste firebaseConfig.
+ *     3. Link service-account JSON via native file picker.
+ *     4. Create your super-admin account (email + password) — the Admin
+ *        SDK creates the Auth user AND grants the super_admin claim
+ *        atomically.
+ *     5. Done — sign in.
+ *
+ *   • `mode='reconnect'` — returning super-admin on a NEW PC. The
+ *     Firebase project + super-admin account already exist; we just need
+ *     to re-establish the local connection AND re-link a service-account
+ *     JSON for this device:
+ *     1. Paste firebaseConfig (or an `ils-connect:` code from the other PC).
+ *     2. Link service-account JSON for this PC.
+ *     3. Done — sign in to the existing account.
+ *
+ * Without the reconnect mode, returning super-admins would land in the
+ * SuperAdmin tab and hit "service account not linked" because nothing
+ * had asked them to link it on the new device.
  *
  * The wizard reads/writes the same `setStoredConfig()` localStorage entry
  * as OnlineSetup so once it completes, AppShell's reload boots Online
@@ -29,22 +43,41 @@
 import React, { useEffect, useState } from 'react';
 import {
   Sparkles, ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FilePlus2,
-  AlertCircle, KeyRound, ShieldCheck, Database, RefreshCw, Check,
+  AlertCircle, KeyRound, ShieldCheck, Database, RefreshCw, Check, Copy,
 } from 'lucide-react';
 import {
   setStoredConfig, parseAnyConfigInput, isConnectionCode, StoredFirebaseConfig,
 } from '../../lib/firebaseConfigStorage';
 import * as adminApi from '../../lib/adminApi';
+import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { clearMode } from '../../lib/mode';
+
+function serviceAccountsConsoleUrl(): string {
+  const projectId = getActiveConfig()?.projectId;
+  return projectId
+    ? `https://console.firebase.google.com/project/${projectId}/settings/serviceaccounts/adminsdk`
+    : 'https://console.firebase.google.com/';
+}
+
+type WizardMode = 'fresh' | 'reconnect';
 
 interface Props {
   onComplete: () => void;
   onCancel: () => void;
+  // Defaults to 'fresh'. Pass 'reconnect' for a returning super-admin
+  // bringing their existing project to a new PC.
+  mode?: WizardMode;
 }
 
 type StepId = 'project' | 'config' | 'serviceAccount' | 'account' | 'done';
-const STEPS: Array<{ id: StepId; title: string; icon: React.ComponentType<{ className?: string }> }> = [
+interface StepDef {
+  id: StepId;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const STEPS_FRESH: StepDef[] = [
   { id: 'project',        title: 'Create Firebase project',  icon: Database },
   { id: 'config',         title: 'Connect to project',       icon: KeyRound },
   { id: 'serviceAccount', title: 'Link service account',     icon: FilePlus2 },
@@ -52,7 +85,14 @@ const STEPS: Array<{ id: StepId; title: string; icon: React.ComponentType<{ clas
   { id: 'done',           title: 'All set',                  icon: CheckCircle2 },
 ];
 
-export function SuperAdminWizard({ onComplete, onCancel }: Props) {
+const STEPS_RECONNECT: StepDef[] = [
+  { id: 'config',         title: 'Connect to your project',  icon: KeyRound },
+  { id: 'serviceAccount', title: 'Link service account',     icon: FilePlus2 },
+  { id: 'done',           title: 'All set',                  icon: CheckCircle2 },
+];
+
+export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props) {
+  const STEPS = mode === 'reconnect' ? STEPS_RECONNECT : STEPS_FRESH;
   const [stepIdx, setStepIdx] = useState(0);
   const [config, setConfig] = useState<StoredFirebaseConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,9 +130,10 @@ export function SuperAdminWizard({ onComplete, onCancel }: Props) {
 
             {currentStep.id === 'config' && (
               <StepConfig
+                mode={mode}
                 initial={config}
                 onSave={(cfg) => { setConfig(cfg); setStoredConfig(cfg); goNext(); }}
-                onBack={goBack}
+                onBack={stepIdx > 0 ? goBack : undefined}
               />
             )}
 
@@ -105,7 +146,7 @@ export function SuperAdminWizard({ onComplete, onCancel }: Props) {
             )}
 
             {currentStep.id === 'done' && (
-              <StepDone onSignIn={onComplete} />
+              <StepDone mode={mode} onSignIn={onComplete} />
             )}
 
             {error && (
@@ -128,7 +169,7 @@ export function SuperAdminWizard({ onComplete, onCancel }: Props) {
   );
 }
 
-function Stepper({ steps, currentIdx }: { steps: typeof STEPS; currentIdx: number }) {
+function Stepper({ steps, currentIdx }: { steps: StepDef[]; currentIdx: number }) {
   return (
     <div className="flex items-center px-8 py-5 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
       {steps.map((s, i) => {
@@ -206,8 +247,14 @@ function StepProject({ onNext }: { onNext: () => void }) {
 
 // ── Step 2: Paste firebaseConfig ─────────────────────────────────────────
 
-function StepConfig({ initial, onSave, onBack }: {
-  initial: StoredFirebaseConfig | null; onSave: (cfg: StoredFirebaseConfig) => void; onBack: () => void;
+function StepConfig({ mode, initial, onSave, onBack }: {
+  mode: WizardMode;
+  initial: StoredFirebaseConfig | null;
+  onSave: (cfg: StoredFirebaseConfig) => void;
+  // Optional — undefined when 'config' is the first step (reconnect mode)
+  // and there's nothing to go back to inside the wizard. The user can
+  // still leave via the top-level "Cancel" button.
+  onBack?: () => void;
 }) {
   const [blob, setBlob] = useState('');
   const [parsed, setParsed] = useState<StoredFirebaseConfig | null>(initial);
@@ -222,9 +269,35 @@ function StepConfig({ initial, onSave, onBack }: {
 
   return (
     <div className="space-y-5">
-      <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-        In Firebase Console: <strong>gear icon → Project settings → Your apps → click the &lt;/&gt; Web icon → register</strong>. Firebase shows a code block with <code className="font-mono">const firebaseConfig = &#123;&#125;</code> — copy the whole block and paste below.
-      </p>
+      {mode === 'reconnect' ? (
+        <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
+          Two ways to bring your existing project's connection here. <strong>Recommended:</strong> on the PC where you set up the project, open <strong>Settings → Generate connection code</strong>, copy the <code className="font-mono">ils-connect:…</code> string, and paste it below — fields auto-fill. <strong>Otherwise:</strong> open{' '}
+          <a
+            href="https://console.firebase.google.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
+          >
+            Firebase Console
+            <ExternalLink className="w-3 h-3 self-center" />
+          </a>
+          {' '}(<strong>gear icon → Project settings → Your apps → your web app</strong>) and copy the <code className="font-mono">firebaseConfig</code> block.
+        </p>
+      ) : (
+        <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
+          Open{' '}
+          <a
+            href="https://console.firebase.google.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
+          >
+            Firebase Console
+            <ExternalLink className="w-3 h-3 self-center" />
+          </a>
+          {' '}(<strong>gear icon → Project settings → Your apps → click the &lt;/&gt; Web icon → register</strong>). Firebase shows a code block with <code className="font-mono">const firebaseConfig = &#123;&#125;</code> — copy the whole block and paste below.
+        </p>
+      )}
 
       <div className="space-y-2">
         <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -246,7 +319,7 @@ function StepConfig({ initial, onSave, onBack }: {
       </div>
 
       <div className="flex justify-between pt-3">
-        <SecondaryBack onClick={onBack} />
+        {onBack ? <SecondaryBack onClick={onBack} /> : <span />}
         <PrimaryNext
           disabled={!parsed}
           onClick={() => parsed ? onSave(parsed) : setError('Paste a valid firebaseConfig first')}
@@ -298,7 +371,17 @@ function StepServiceAccount({ onNext, onBack, setError }: {
   return (
     <div className="space-y-5">
       <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-        In Firebase Console: <strong>gear icon → Project settings → Service accounts tab → Generate new private key → Generate key</strong>. A JSON file downloads. Click below to link it — the file stays only on your machine and is stored under a folder named after this project, so multi-database super-admins keep their projects cleanly separated.
+        Open the Service Accounts tab in{' '}
+        <a
+          href={serviceAccountsConsoleUrl()}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
+        >
+          Firebase Console
+          <ExternalLink className="w-3 h-3 self-center" />
+        </a>
+        {' '}(<strong>gear icon → Project settings → Service accounts → Generate new private key → Generate key</strong>). A JSON file downloads. Click below to link it — the file stays only on your machine and is stored under a folder named after this project, so multi-database super-admins keep their projects cleanly separated.
       </p>
 
       <div className={cn(
@@ -354,6 +437,15 @@ function StepAccount({ onComplete, onBack, setError }: {
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard unavailable — user can select+copy manually */ }
+  };
 
   const handleCreate = async () => {
     if (!adminApi.isAvailable()) {
@@ -418,12 +510,28 @@ function StepAccount({ onComplete, onBack, setError }: {
             />
           </Field>
           <Field label="Password" required helper="At least 6 characters. Save this somewhere safe — you'll use it to sign in.">
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setCopied(false); }}
+                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              />
+              <button
+                type="button"
+                onClick={handleCopyPassword}
+                aria-label={copied ? 'Copied' : 'Copy password'}
+                title={copied ? 'Copied' : 'Copy password'}
+                className={cn(
+                  "apple-press px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5 transition-colors",
+                  copied
+                    ? "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border border-emerald-100 dark:border-emerald-500/30"
+                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800",
+                )}
+              >
+                {copied ? <><Check className="w-3 h-3" />Copied</> : <><Copy className="w-3 h-3" />Copy</>}
+              </button>
+            </div>
           </Field>
           <Field label="Display name (optional)">
             <input
@@ -454,27 +562,43 @@ function StepAccount({ onComplete, onBack, setError }: {
 
 // ── Step 5: Done ─────────────────────────────────────────────────────────
 
-function StepDone({ onSignIn }: { onSignIn: () => void }) {
+function StepDone({ mode, onSignIn }: { mode: WizardMode; onSignIn: () => void }) {
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3 p-5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-xl">
         <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
         <div className="space-y-1.5">
           <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">Setup complete</p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
-            Firebase project connected, super-admin account created, service account linked. From now on you'll manage everything (users, companies, audit log) directly from the User Management and Super Admin tabs — Firebase Console is no longer needed for routine work.
-          </p>
+          {mode === 'reconnect' ? (
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
+              Firebase project reconnected, service account linked for this PC. Sign in with your existing email + password and you'll have full super-admin access from this device.
+            </p>
+          ) : (
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
+              Firebase project connected, super-admin account created, service account linked. From now on you'll manage everything (users, companies, audit log) directly from the User Management and Super Admin tabs — Firebase Console is no longer needed for routine work.
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
-        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">What's next</p>
-        <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
-          <li>Sign in with the email + password you just created.</li>
-          <li>Open <strong>Settings → Generate connection code</strong> to share with your team.</li>
-          <li>Open <strong>User Management → New user</strong> to create accounts for admins and supervisors. Each can be granted granular per-tab permissions.</li>
-        </ul>
-      </div>
+      {mode === 'reconnect' ? (
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
+          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">What's next</p>
+          <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
+            <li>Sign in with your existing super-admin email + password.</li>
+            <li>User Management, Super Admin → Connection / Companies / Database, and audit-log retention will all work on this device immediately.</li>
+          </ul>
+        </div>
+      ) : (
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
+          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">What's next</p>
+          <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
+            <li>Sign in with the email + password you just created.</li>
+            <li>Open <strong>Settings → Generate connection code</strong> to share with your team.</li>
+            <li>Open <strong>User Management → New user</strong> to create accounts for admins and supervisors. Each can be granted granular per-tab permissions.</li>
+          </ul>
+        </div>
+      )}
 
       <div className="flex justify-end pt-3">
         <PrimaryNext onClick={onSignIn} label="Sign in" />
