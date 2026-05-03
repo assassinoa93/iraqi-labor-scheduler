@@ -40,5 +40,6 @@ contextBridge.exposeInMainWorld('adminApi', {
   deleteUser: (projectId, idToken, uid) => call('admin:deleteUser', { projectId, idToken, uid }),
   purgeAuditOlderThan: (projectId, idToken, ts) => call('admin:purgeAuditOlderThan', { projectId, idToken, ts }),
   auditStats: (projectId, idToken) => call('admin:auditStats', { projectId, idToken }),
+  quotaUsage: (projectId, idToken, force) => call('admin:quotaUsage', { projectId, idToken, force }),
   wipeLocalSecrets: () => call('admin:wipeLocalSecrets'),
 });

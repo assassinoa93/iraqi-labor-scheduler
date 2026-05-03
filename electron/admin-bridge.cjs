@@ -611,6 +611,131 @@ function registerAdminIpc() {
     return { total: total.data().count, oldestTs: oldest };
   });
 
+  // ── Cloud Monitoring quota dashboard (v4.2) ────────────────────────────
+  //
+  // Pulls live Firestore usage from Cloud Monitoring so the super-admin can
+  // see how close the project is to the Spark plan's daily quota limits
+  // BEFORE users start hitting "quota exhausted" errors. Reads daily totals
+  // for document reads / writes / deletes from the time-series API.
+  //
+  // Spark plan free tier (current as of 2026-05):
+  //   - 50,000 reads / day
+  //   - 20,000 writes / day
+  //   - 20,000 deletes / day
+  //
+  // Auth: the service-account JSON the user already linked has Editor role
+  // on the GCP project by default (Firebase Console grants that), which
+  // includes monitoring.viewer. No extra setup needed in 99% of cases. If
+  // the API is disabled or permissions are missing, we surface that as a
+  // clean error instead of a stack trace.
+  //
+  // Cost: Cloud Monitoring API has its own free tier independent of Spark/
+  // Blaze. Polling every minute from one device costs effectively nothing.
+
+  // Thin in-process cache so multiple panel renders / polls within 30s
+  // don't hammer the API. Keyed by projectId.
+  const quotaCache = new Map(); // projectId → { ts, payload }
+  const QUOTA_CACHE_TTL_MS = 30_000;
+
+  const QUOTA_METRICS = [
+    { key: 'reads',   metric: 'firestore.googleapis.com/document/read_count',   limit: 50_000 },
+    { key: 'writes',  metric: 'firestore.googleapis.com/document/write_count',  limit: 20_000 },
+    { key: 'deletes', metric: 'firestore.googleapis.com/document/delete_count', limit: 20_000 },
+  ];
+
+  async function fetchQuotaUsage(projectId) {
+    // Reuse the same service-account JSON the rest of the bridge uses. We
+    // read it again here (instead of going through the firebase-admin
+    // credential) so we can scope the OAuth token explicitly to
+    // monitoring.read.
+    const saPath = serviceAccountPaths.get(projectId);
+    if (!saPath) {
+      const err = new Error(`Service account not loaded for project "${projectId}"`);
+      err.code = 'NOT_LINKED';
+      throw err;
+    }
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(saPath, 'utf-8'));
+    } catch (e) {
+      const err = new Error(`Failed to read service account: ${e.message}`);
+      err.code = 'BAD_FILE';
+      throw err;
+    }
+
+    let GoogleAuth;
+    try {
+      ({ GoogleAuth } = require('google-auth-library'));
+    } catch (e) {
+      const err = new Error('google-auth-library is missing from this build');
+      err.code = 'SDK_MISSING';
+      throw err;
+    }
+
+    const auth = new GoogleAuth({
+      credentials: serviceAccount,
+      scopes: ['https://www.googleapis.com/auth/monitoring.read'],
+    });
+    const client = await auth.getClient();
+
+    // Daily window. We use the last 24h instead of midnight-to-now because
+    // (a) the actual quota window is midnight Pacific and translating to
+    // the user's local time gets fiddly, and (b) the panel updates so
+    // frequently that the current rolling-24h is more useful than the
+    // calendar-day count anyway. The Cloud Monitoring API expects RFC3339.
+    const endTime = new Date().toISOString();
+    const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const out = {};
+    for (const m of QUOTA_METRICS) {
+      const params = new URLSearchParams({
+        filter: `metric.type="${m.metric}"`,
+        'interval.endTime': endTime,
+        'interval.startTime': startTime,
+        'aggregation.perSeriesAligner': 'ALIGN_SUM',
+        'aggregation.alignmentPeriod': '86400s',
+        'aggregation.crossSeriesReducer': 'REDUCE_SUM',
+      });
+      const url = `https://monitoring.googleapis.com/v3/projects/${projectId}/timeSeries?${params.toString()}`;
+      try {
+        const res = await client.request({ url });
+        let total = 0;
+        for (const series of (res.data && res.data.timeSeries) || []) {
+          for (const pt of series.points || []) {
+            const v = pt.value || {};
+            // int64Value comes back as a string for safety; coerce.
+            total += Number(v.int64Value ?? v.doubleValue ?? 0);
+          }
+        }
+        out[m.key] = { used: total, limit: m.limit };
+      } catch (e) {
+        // Expected failure modes:
+        //   - Cloud Monitoring API not enabled on the project (PERMISSION_DENIED)
+        //   - Service account missing monitoring.viewer (PERMISSION_DENIED)
+        //   - Network blip / Google outage (5xx)
+        // Surface as a per-metric error so the panel can show a partial result.
+        const code = (e && e.response && e.response.status) || (e && e.code) || 'UNKNOWN';
+        const message = (e && e.response && e.response.data && e.response.data.error && e.response.data.error.message)
+          || (e && e.message)
+          || 'Cloud Monitoring API call failed';
+        out[m.key] = { used: null, limit: m.limit, error: { code: String(code), message } };
+      }
+    }
+    return out;
+  }
+
+  safeHandle('admin:quotaUsage', async ({ projectId, idToken, force } = {}) => {
+    await requireSuperAdmin(projectId, idToken);
+    const cached = quotaCache.get(projectId);
+    if (!force && cached && (Date.now() - cached.ts < QUOTA_CACHE_TTL_MS)) {
+      return { ...cached.payload, fetchedAt: cached.ts, cached: true };
+    }
+    const payload = await fetchQuotaUsage(projectId);
+    const fetchedAt = Date.now();
+    quotaCache.set(projectId, { ts: fetchedAt, payload });
+    return { ...payload, fetchedAt, cached: false };
+  });
+
   // ── Factory reset (Phase 3.6) ──────────────────────────────────────────
 
   /**

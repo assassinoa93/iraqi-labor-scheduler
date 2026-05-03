@@ -1,476 +1,155 @@
-# 🇮🇶 Iraqi Labor Scheduler (Standalone)
+# Iraqi Labor Scheduler
 
-A professional, local-first workforce management and automated scheduling system tailored for **Iraqi Labor Law (Art. 67-74, Art. 84, Art. 86, Art. 87, Art. 88)**.
+A workforce scheduler tailored for **Iraqi Labor Law**. Plan shifts across multiple companies, get a per-shift compliance check against Articles 67–88, and run an auto-scheduler that respects every cap automatically.
+
+Runs as a native Windows app. Two modes: **fully offline** for a single supervisor, or **multi-user online** via your own free Firebase project.
 
 ![App Icon](assets/icon.png)
 
-## 🌟 Key Features
+---
 
-### Compliance & legal
-- **⚖️ Compliance engine**: Automated checks for daily/weekly hour caps (Art. 67/70), hazardous-work caps (Art. 68), mandatory rest (Art. 71-72), holiday compensation (Art. 73-74 with the v2.1 either-or model — comp day OR cash premium, configurable per holiday), **transport-worker rules for drivers (Art. 88)**, **sick leave (Art. 84)**, **maternity leave (Art. 87)**, and the **Art. 86 women's night-work rule** for industrial undertakings. Findings are split into two severity tiers — `'violation'` for hard rule breaches that drag the compliance score down, and `'info'` for legitimate operational situations the supervisor needs to be aware of (e.g. holiday worked → eligible for compensation; comp day owed past the configured window). The platform aids compliance through reporting, never enforces by blocking.
-- **📜 Legal Variables tab**: Every cap (daily / weekly / hazardous / driver / OT multipliers / Ramadan reduced-hours / Art. 86 night window) is editable in one place with the governing article tagged on each value. Edits flow live into the engine and the auto-scheduler.
-- **🌙 Ramadan mode**: Set a date range and a reduced daily-hour cap (default 6h). The auto-scheduler refuses to assign longer shifts to non-driver, non-hazardous staff during the window; the engine flags any breach as an `(Ramadan)` violation.
-- **🤰 Maternity leave (Art. 87)**: Mark protected 14-week leave on any female employee. The auto-scheduler stamps `MAT` on those days and skips the employee for assignments. Manual work shifts during the window surface as a violation.
-- **🤒 Sick leave (Art. 84)**: Same date-range model as maternity. The auto-scheduler stamps `SL`, the engine flags any work shift assigned during the window.
-- **🏖️ Annual leave**: Approved-vacation date range per employee. Auto-scheduler stamps `AL`, compliance flags work shifts inside the window.
-- **🚚 Driver / Transport mode**: Mark personnel as Drivers and have them scheduled under stricter caps — 9h daily / 56h weekly, 4.5h continuous-driving cap, 11h min daily rest. Configurable per fleet.
-- **🌃 Art. 86 night-work rule**: Optional. When enabled (Variables tab), any shift flagged industrial that overlaps the configured night window (default 22:00–07:00) and is assigned to a female employee surfaces as an Art. 86 violation; the auto-scheduler treats it as a hard rule at the legal/continuity strictness levels.
-- **🔁 Cross-month rolling-7 awareness**: Compliance engine and auto-scheduler peek at the trailing 6 days of the prior month so weekly caps don't reset arbitrarily on day 1.
+## What it does (quickly)
 
-### Scheduling power
-- **🤖 Auto-Scheduler**: Fills your shop layout stations automatically based on employee eligibility, role, category, and legal limits. Indexed for performance — 50+ employee rosters complete in milliseconds.
-- **🪄 Optimal (Keep Absences) mode**: A second scheduler button next to Auto-Schedule. Input the month's leaves, vacations, and any manual shift overrides first, then click *Optimal (Keep Absences)* — the algorithm fills only the empty cells around your locked entries, with the locked rows still counted toward station headcount and the rolling-7-day cap. Lets you build a "manual edits + auto-fill" hybrid in one click without losing what you've already entered.
-- **🧪 Simulation / forecasting mode**: Toolbar toggle freezes a baseline, suspends auto-save, and renders a delta panel comparing baseline vs. sandboxed state across workforce size, coverage %, OT hours, OT pay (IQD), and violations. Apply / Reset / Discard. Lets you model "what if I hire 3 more cashiers?" or "what if I open Friday from 09:00?" without touching saved data.
-- **🪄 Coverage-gap hint toast**: When a manual edit vacates a station-bound work shift (or a leave date range empties cells), a non-blocking bottom-right toast surfaces the affected day + station and lists swap candidates ranked by score (off-day employees first, preference match, compliance warnings factored in). The most optimal pick is flagged with a ⭐ "Recommended" badge; the candidate list refreshes live as you keep editing, and auto-dismisses if the gap fills itself. One-click swap or "Keep gap" override — the original change is never rolled back. After a swap, both the source and destination cells flash with a pulsing amber ring for 5 seconds so you can see exactly what moved.
-- **👁️ Schedule Preview & Undo**: Review the auto-scheduler's proposed assignments, hours, and compliance impact before applying. A 5-deep undo stack lets you revert recent applies.
-- **🔄 Rotating Rest Day**: Toggle "No Fixed Rest Day" on any employee — the auto-scheduler rotates their off across the week so weekend coverage is shared fairly between staff.
-- **🎯 Shift preferences**: Mark preferred / avoided shift codes per employee. The auto-scheduler honours preferences as a *soft* constraint at the legal-strictness level — biases the candidate sort toward preferred codes and skips avoided ones — and ignores them at relaxed levels so coverage is never sacrificed.
-- **🎨 Paint mode + live conflict warnings**: Click a shift code to enter paint mode, then click cells to assign. Each paint runs a focused dry-run check — if the assignment would breach a daily / weekly / rest / consec-day / leave / Ramadan / Art. 86 / holiday rule, an inline amber banner names the conflict.
-- **🔍 Roster + schedule grid filters**: Search by name / ID / department, filter by role, sort columns. The schedule grid is fully virtualized — large rosters (50+) stay snappy.
+- **Knows Iraqi Labor Law.** Daily/weekly hour caps (Art. 67/70), hazardous-work caps (Art. 68), mandatory rest (Art. 71/72), public-holiday compensation (Art. 73/74), driver caps (Art. 88), sick & maternity leave (Art. 84/87), the women-night-work rule (Art. 86), and Ramadan reduced hours. Every threshold is editable in the **Variables** tab so you can tune to a Ministerial decree or a CBA.
+- **Auto-schedules.** Click one button and the app fills your stations using each employee's eligibility, role, preferences, leaves, and the legal limits. 50+ employees in milliseconds. There's an *Optimal (Keep Absences)* mode that fills only empty cells around your manual edits, so you can hybrid manual + auto in one click.
+- **Reports, doesn't enforce.** The compliance engine surfaces violations and informational findings; you decide. PDF reports, CSV payroll drafts, an audit log, and a 30-day compliance trendline come out of the box.
+- **Multi-company.** One install can manage several branches. Each company has its own employees, shifts, stations, holidays, and configuration.
+- **Bilingual.** English + Arabic with full RTL.
 
-### Productivity
-- **🪟 Live Suggestion Pane (Schedule tab)**: Persistent right rail that replaces the bottom-right toast. Two sections: **coverage suggestions** (live candidate list when a manual edit creates a gap, with one-click swap and a ⭐ recommended pick) and **recent changes** (per-session log of every cell edit — paint, cycle, swap, leave-stamp — each with its own undo button). Collapsible to a thin tab against the right edge. Cross-tab edits (e.g. adding a leave from Credits & Payroll) still surface a fallback toast on non-Schedule tabs.
-- **📊 3-Mode Staffing Advisory (Dashboard)**: Tab strip on the dashboard advisory card flips between hiring strategies — *Eliminate Overtime* (absorb every OT hour into FTE shifts), *Optimal Coverage* (close every peak-hour gap), *Best of Both* (the conservative ceiling). Each shows hires needed, OT saved (IQD/mo), salary added (IQD/mo), and net monthly delta so the supervisor can weigh tradeoffs before committing.
-- **📅 Multi-range leave manager**: Open Credits & Payroll, click *Manage* on any employee, and add as many leave windows as you need (annual / sick / maternity) each with its own start/end and notes. Adding a leave automatically stamps the matching `AL` / `SL` / `MAT` codes on the schedule grid AND surfaces a coverage-hint with swap candidates for the most-impactful affected day — single source of truth, no double-input.
-- **🎁 Public-holiday comp days**: The auto-scheduler tracks per-employee comp-day debt (incremented on each PH-work assignment, decremented on the next OFF/leave) and biases the candidate sort to push debtors toward OFF in the days following — naturally satisfying Art. 74's compensation-day expectation. A `Comp day owed` info-finding fires when no rest appears within 7 days.
-- **🖱️ Schedule grid power-ups**: Drag-to-paint, Shift+click range fill, per-cell undo (Ctrl+Z) separate from the Auto-Schedule undo, today indicator (blue ring) on the active day, holiday dot in the header with full holiday name in the tooltip, and a footer summary bar (total work hours, employees at-cap / near-cap, employees with any leave-day this month). **v2.6 — Excel-pivot-style "Group by station"** toggle clusters rows under collapsible station headers with a chevron + headcount badge; collapse states persist across sessions in localStorage.
-- **📋 Bulk shift assignment**: Select N employees in the Roster, hit *Assign Shift*, pick a shift code and day range, choose whether to overwrite existing entries — paints the rectangle in one shot.
-- **👤 Per-employee labor-law card**: Hover any employee name in the schedule grid to see a tooltip with hours-vs-cap, peak weekly window, longest streak, and last day worked. A small badge appears on rows that are at or above 90% of their weekly cap so you spot saturated employees before painting another shift.
-- **📈 Compliance trendline**: A sparkline on the Dashboard records daily compliance % per company in localStorage and shows the 30-day delta with an up/down indicator — no server work needed.
-- **🖨️ Print view**: One-click "Print" button in the schedule toolbar renders all employees (no virtualization) on an A3 landscape page with the proper shift colours preserved (`-webkit-print-color-adjust: exact`). Hidden in normal display via `@media print`.
-- **🌗 Apple-polish dark mode (v2.6)**: 3-button segmented theme picker (Light / Dark / System) in the sidebar footer. Comprehensive dark-mode design-token layer with warmer GitHub-Dark surfaces (`#161b22` / `#1c2230`) instead of harsh slate-900. Every tinted accent (`bg-blue-50`, `bg-emerald-50`, `bg-amber-50`, `bg-rose-50`, …) and its opacity variants remap to alpha-tinted hues in dark mode so chips stay semantic without bleeding off-white. Schedule grid lines are visible in both themes via a CSS-variable-driven `.schedule-grid-line` utility. Shift cell colours ship explicit dark variants so the calendar reads at a glance. Apple-style scrollbars (thin pills) globally, `prefers-reduced-motion`-aware press animations on CTAs.
-- **💾 Daily auto-snapshot**: On the first launch each calendar day, the Electron main process snapshots the data folder to `data-daily-<YYYY-MM-DD>/` next to the live folder. The 7 most recent daily snapshots are kept; older ones rotate out automatically. Independent from the post-update snapshot — gives you a recovery point even between version updates.
-- **🏢 Multi-company / branches**: Sidebar `CompanySwitcher` to add, rename, or delete companies. Each company owns its own employees, shifts, stations, holidays, config, and schedules. Active company is sticky across reloads. Backups round-trip every company in one file; legacy single-company backups are migrated automatically.
-- **🕒 Per-day operating windows**: Default opening / closing hours plus a seven-toggle override grid in the Variables tab. Useful when peak days run later than weekdays — e.g. Friday closes at 02:00 instead of 23:00. Dashboard heatmap and coverage-% metrics honour the per-day window.
-- **📊 Smart Staffing Advisory**: Coverage gaps surface per-station with a recommended hire count. If `requiredRoles` is set on the station, the role hint is shown alongside (e.g. "Mall Shuttle — Role required: Driver — +1 to hire"). Largest gaps float to the top.
-- **📈 FTE forecast KPI**: Dashboard top row shows the recommended additional headcount based on monthly OT load.
-- **🧭 Strategic Growth Path**: The Dashboard's optimisation card shows aggregate scheduled-OT, premium pay, deficit, and savings — *and* a per-station gap breakdown right below it (station name, role required, headcount needed) so the recommendation isn't a black box.
-- **🚧 Schedule staleness banner**: Detects entries that reference deleted employees / shift codes / stations and offers an inline "Re-run Auto-Scheduler" button.
-- **🌐 Bilingual UI (English / Arabic)**: One-click language toggle in the sidebar with full RTL layout for Arabic. Translations cover toolbar, every modal, every confirmation dialog, dashboard, payroll, reports, settings, simulation panel, coverage-hint toast, post-update toast, and the PDF report headers.
-- **📋 Audit Log**: Append-only log of every change to employees, schedules, shifts, stations, and config — exportable as CSV, namespaced by company id. Stored locally alongside your data.
-- **💾 One-Click Backup / Restore**: Export and import full JSON snapshots of every company, all months, employees, shifts, stations, and config.
-- **📄 Professional Reporting**: One-click PDF compliance reports and CSV payroll drafts. The PDF chunk lazy-loads, so the app starts instantly even on slower hardware.
-- **💡 Live auto-save indicator**: A status badge in the top bar shows pending / saving / saved / error in real time, plus a distinct *Sandbox · not saving* state when simulation mode is active.
-
-### Architecture
-- **🖥️ Native standalone app**: Runs as a professional Windows application with no browser tabs or address bars.
-- **🔒 Privacy first**: 100% local data storage, server bound to `127.0.0.1` only, atomic writes prevent corruption, factory reset requires explicit confirmation token. No cloud dependencies, no tracking.
-- **🛡️ Safe-update installer**: The Windows installer detects an existing installation and runs as an in-place update (the wizard pops a "v{previous} detected — will update" notice). On the first launch after every update, the Electron main process snapshots the entire `data/` folder to a timestamped `data-backup-<oldVersion>-<ts>/` sibling, keeping the 5 most recent. Your data is preserved through three layers (`deleteAppDataOnUninstall: false`, data folder lives outside `${INSTDIR}`, custom uninstall macro skips the data folder during the pre-update sweep).
-- **🧬 Backward-compatible data layer**: A central `src/lib/migration.ts` normaliser runs every loaded record through field-by-field defaults. Schemas can grow (new optional fields, future structural changes via `CURRENT_DATA_VERSION`) without breaking older backups.
-- **🔐 Verifiable builds**: Every release ships with a `SHA256SUMS.txt` so you can confirm the installer is byte-identical to what GitHub Actions built from this open-source code.
-- **♿ Accessible**: All modals trap focus and close on Escape. Every icon-only button has an `aria-label`. Tables use semantic markup with sortable column headers.
-- **🧪 Tested**: 108 Vitest unit tests across compliance engine, auto-scheduler, coverage-hint detection, staffing advisory math, OT analysis, payroll worked-hours, and workforce planning (conservative + optimal modes, monthly + annual + per-role + per-station rollups) — daily / weekly caps, rest periods, consecutive days, holiday OT + comp-day, comp-day choice (cash 2× vs paid day off in lieu), driver caps, Ramadan, maternity, sick leave, violation grouping, leave-driven coverage hints, PH-debt rotation, per-station hire breakdown, over-cap vs holiday-premium pool attribution, FTE/PT mix recommendations. Run `npm test` to verify.
-
-## 🚀 Quick Start (Recommended)
-The easiest way to use the app is to download the pre-built installer:
-
-1. Navigate to the **[Releases](https://github.com/assassinoa93/iraqi-labor-scheduler/releases)** page on GitHub.
-2. Under the **latest release (v4.0.0)**, scroll down to the **Assets** section.
-3. Download `Iraqi-Labor-Scheduler-Setup-4.0.0.exe` **and** `SHA256SUMS.txt`.
-4. (Optional but recommended) Verify the installer hash — open PowerShell in the folder where you saved both files and run:
-   ```powershell
-   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-4.0.0.exe
-   ```
-   Compare the printed hash against the line for that filename in `SHA256SUMS.txt`. They must match exactly.
-5. Double-click the `.exe` to install. Open the app from your **Desktop Shortcut**.
-
-### 🌐 Two modes — pick at first launch
-
-When the app first opens you'll see a **mode picker**:
-
-- **Offline Demo** — fully local, single-user, zero network. Express server + JSON files in `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`. This is the v3.0.0 experience preserved verbatim. No setup required.
-- **Connect Online** — multi-user, cloud-backed, role-aware. Runs on Firebase (free Spark plan). One person (the **super-admin**) creates a Firebase project once via an in-app step-by-step wizard; everyone else joins by pasting a connection code the super-admin shares with them.
-
-Online mode is opt-in and additive. You can switch between modes at any time from **Settings → Switch mode**. See [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md) for the full first-time-setup walkthrough (~10 minutes of clicks for the super-admin).
-
-### 🔄 Updating from an earlier version
-Just download the newer installer and run it. **Do not uninstall the previous version first.** The installer:
-
-1. Detects the existing installation via the registry and pops a one-line notice (*"An existing installation was detected (v1.x). This wizard will update Iraqi Labor Scheduler to v4.0.0…"*).
-2. Replaces the program files in the existing install directory.
-3. Leaves your data folder untouched — it lives at `%APPDATA%\Roaming\iraqi-labor-scheduler\data\`, outside the install directory.
-4. On first launch the app snapshots your data to `data-backup-<old-version>-<timestamp>/` next to the live folder. The 5 most recent snapshots are kept; older ones are pruned automatically.
-5. A one-time toast shows up confirming the version bump and naming the snapshot path. Click OK and you're in.
-
-If anything ever looks wrong after an update, close the app, rename the snapshot folder back to `data`, and relaunch — you'll be back on your previous data.
-
-### About the Windows SmartScreen / Chrome warning
-
-Windows SmartScreen and Chrome will display a warning ("Windows protected your PC" / "may harm your device") when you download or run the installer. **This is expected for unsigned software** — the warning is triggered by the absence of a Microsoft-trusted Authenticode signature, not by anything malicious in the app.
-
-To proceed safely:
-
-- **Verify the SHA-256 hash first** (step 4 above). If the hash matches what GitHub published, the installer is byte-identical to what was built from the open-source code in this repository.
-- In Chrome, click the down-arrow next to the file in the download bar → **Keep**.
-- In the SmartScreen dialog, click **More info** → **Run anyway**.
-
-We're in the process of applying for free open-source code signing through [**SignPath Foundation**](https://signpath.org/about). Once approved, releases will be Authenticode-signed and the warning will go away after enough installs build SmartScreen reputation. Until then, hash verification is the right way to confirm the installer's integrity.
+> **The compliance philosophy**: this platform reports, it doesn't enforce. The user is always free to override — findings exist to inform the supervisor, not to block work.
 
 ---
 
-## 🛠️ For Developers / Advanced Setup
-If you are working with the source code:
+## Two modes — pick one at first launch
+
+| | **Offline Demo** | **Connect Online** |
+|---|---|---|
+| **Best for** | One supervisor on one machine | A team across multiple branches |
+| **Network needed?** | Never | Sign-in only; edits queue offline and sync on reconnect |
+| **Setup** | Zero | One-time Firebase project (free Spark plan, ~10 min) |
+| **Where data lives** | Local JSON in `%APPDATA%\Roaming\iraqi-labor-scheduler\data\` | Your own Firebase Firestore project |
+| **Roles** | N/A (single user) | Super-admin / Admin / Supervisor with per-tab permissions |
+| **Cost** | Free | Free (no Cloud Functions, no Blaze, no credit card) |
+
+You can switch modes any time from **Settings → Switch mode**. The choice persists.
+
+For Online mode, the in-app wizard walks the super-admin through Firebase project creation step by step. The only steps that touch the Firebase Console are creating the project and enabling Firestore + Auth (Firebase reserves those for the Console). Everything after that — the `firebaseConfig` paste, the service-account JSON link, even creating the super-admin's own login — happens in-app. Returning super-admins on a new PC follow a shorter "reconnect" wizard that includes the service-account link step, so User Management works on first sign-in. Team members join with a one-string `ils-connect:…` connection code the super-admin shares with them.
+
+Full Firebase walkthrough: [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md).
+
+---
+
+## Install (5 minutes)
+
+1. Go to [**Releases**](https://github.com/assassinoa93/iraqi-labor-scheduler/releases).
+2. Under the latest release, download both `Iraqi-Labor-Scheduler-Setup-X.Y.Z.exe` and `SHA256SUMS.txt`.
+3. Verify the installer's hash (recommended). In PowerShell, in the folder where you saved both files:
+   ```powershell
+   Get-FileHash -Algorithm SHA256 .\Iraqi-Labor-Scheduler-Setup-X.Y.Z.exe
+   ```
+   The printed hash must match the line in `SHA256SUMS.txt`. If it doesn't, **don't run the installer** — re-download or open an issue.
+4. Double-click the `.exe`. Open the app from the desktop shortcut.
+
+### Updating from an earlier version
+
+Just run the new installer. **Don't uninstall first.** The wizard detects the existing installation and runs an in-place update. On first launch the app snapshots your data folder to `data-backup-<old-version>-<timestamp>/`, keeping the 5 most recent. If anything looks wrong after an update: close the app, rename the snapshot back to `data`, relaunch.
+
+### About the Windows SmartScreen warning
+
+Windows SmartScreen / Chrome will warn that this app is unsigned. That's expected — the warning is the *absence* of a Microsoft-trusted Authenticode signature, not anything malicious. The hash check above is the right way to confirm the installer is byte-identical to what GitHub Actions built from this open-source code. We're applying for free open-source code signing through [SignPath Foundation](https://signpath.org/about); once approved, the warning goes away.
+
+To bypass the warning safely after verifying the hash: in Chrome's download bar, click the down-arrow → **Keep**. In the SmartScreen dialog: **More info** → **Run anyway**.
+
+---
+
+## For developers
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (Recommended: v20+)
+- [Node.js](https://nodejs.org/) v20+
 
-### Online mode (optional, multi-user)
-The app ships with two modes:
-- **Offline Demo** — single-user, fully local. The default. Zero setup.
-- **Online** — Firebase-backed, multi-supervisor collaboration. Opt-in.
-
-This repo contains **zero credentials**. To run Online mode, create your own
-Firebase project (~10 minutes of clicks) and run a single bootstrap command.
-Step-by-step instructions: [`FIREBASE_SETUP.md`](./FIREBASE_SETUP.md).
-
-The setup gives you:
-- Email/password sign-in for the closed group of users you provision.
-- Three roles — **super_admin** (full edit, manages users), **admin**
-  (sees analytics across all companies, no edits to compliance config),
-  **supervisor** (operational tabs only, scoped to assigned companies).
-- Offline-first sync: edits work offline and queue locally; they auto-flush
-  when the connection returns.
-
-### One-Click Build & Install
-To create your own standalone `.exe` installer:
-1. Double-click **`CREATE_MY_DESKTOP_APP.vbs`**.
-2. This will handle all dependencies, build the assets, and launch the installer for you.
-
-### Manual Commands
+### Common commands
 ```bash
-# Install dependencies
-npm install
-
-# Run in Development mode (Native Window)
-npm run electron:dev
-
-# Type-check
-npm run lint
-
-# Run unit tests (Vitest)
-npm test
-
-# Generate the multi-size Windows .ico from assets/icon.png
-npm run icons
-
-# Build standalone installer (runs lint + icons + build + server bundle + electron-builder)
-npm run electron:build
+npm install                # install dependencies
+npm run electron:dev       # dev mode (native window + hot reload)
+npm test                   # vitest unit tests (108 tests, ~3s)
+npm run lint               # tsc --noEmit
+npm run electron:build     # produce a signed-by-hash Windows installer
 ```
 
+The repo contains **zero credentials**. To run Online mode locally you'll need to create your own Firebase project — see [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md). `.env.local` is gitignored.
+
+### One-click build (Windows)
+
+Double-click `CREATE_MY_DESKTOP_APP.vbs`. It runs `npm install`, builds the assets, and produces an installer.
+
 ### Project layout
+
+<details>
+<summary>Click to expand</summary>
+
 ```
 src/
 ├── App.tsx                       # Top-level shell + state, multi-company + sim-mode wiring
-├── tabs/                         # One file per sidebar tab — code-split via React.lazy
-│   ├── DashboardTab.tsx          # KPI row (incl. FTE forecast), heatmap, optimisation card
-│   ├── RosterTab.tsx             # Search + role filter + sortable columns
-│   ├── ScheduleTab.tsx           # Virtualized grid (react-window) + staleness banner
-│   ├── PayrollTab.tsx
-│   ├── HolidaysTab.tsx
-│   ├── LayoutTab.tsx
-│   ├── ShiftsTab.tsx
-│   ├── ReportsTab.tsx
-│   └── SettingsTab.tsx
+├── tabs/                         # One file per sidebar tab (code-split via React.lazy)
 ├── components/                   # Cross-cutting modals + primitives
-│   ├── EmployeeModal.tsx         # Roster fields (leaves moved to LeaveManagerModal)
-│   ├── LeaveManagerModal.tsx     # Multi-range annual / sick / maternity editor
-│   ├── BulkAssignModal.tsx       # Roster-driven bulk shift assignment
-│   ├── StationModal.tsx
-│   ├── ShiftModal.tsx
-│   ├── HolidayModal.tsx
-│   ├── ConfirmModal.tsx          # With infoOnly variant — replaces native alert()
-│   ├── SchedulePreviewModal.tsx  # AnimatePresence-wrapped (1.7 reliability fix)
-│   ├── ComplianceTrendCard.tsx   # 30-day localStorage-backed sparkline
-│   ├── StaffingAdvisoryCard.tsx  # 3-mode hiring advisory (eliminate-OT / coverage / best-of-both)
-│   ├── PrintScheduleView.tsx     # Hidden static table, revealed by @media print
-│   ├── CompanySwitcher.tsx       # Sidebar multi-company UI
-│   ├── SuggestionPane.tsx        # Right-rail live suggestions + recent-changes log
-│   ├── SimulationDeltaPanel.tsx  # Collapsible bottom panel for sim-mode metrics
-│   ├── CoverageHintToast.tsx     # Bottom-right swap-suggestion toast (non-Schedule tabs)
-│   ├── VariablesTab.tsx          # Ramadan + per-day window + Art. 86 controls (i18n)
-│   ├── AuditLogTab.tsx           # With Clear Log action + confirmation
-│   ├── LocaleSwitcher.tsx        # Locale toggle + theme cycle (Light/Dark/System)
-│   └── Primitives.tsx            # Card, KpiCard, ScheduleCell (mouse events), SettingField
+│   ├── Onboarding/               # First-time + reconnect super-admin wizards
+│   └── SuperAdmin/               # Connection / Quota / Companies / Database panels
 └── lib/
-    ├── compliance.ts             # ComplianceEngine + previewAssignmentWarnings (severity tier)
-    ├── autoScheduler.ts          # Indexed greedy-fill scheduler with soft prefs + PH-debt bias
-    ├── coverageHints.ts          # detectCoverageGap + findSwapCandidates
+    ├── compliance.ts             # ComplianceEngine + previewAssignmentWarnings
+    ├── autoScheduler.ts          # Greedy fill with soft preferences + PH-debt bias
+    ├── coverageHints.ts          # Detect gaps + rank swap candidates
     ├── staffingAdvisory.ts       # Pure compute for the 3-mode dashboard advisory
-    ├── leaves.ts                 # Unified getEmployeeLeaveOnDate (multi+legacy ranges)
-    ├── employeeStats.ts          # Per-employee running counters for tooltip + badge
-    ├── complianceHistory.ts      # Per-company localStorage-backed daily snapshots
-    ├── theme.tsx                 # ThemeProvider (light / dark / system)
-    ├── migration.ts              # Backward-compat normaliser per domain
-    ├── payroll.ts                # baseHourlyRate, monthlyHourCap, default constants
-    ├── time.ts                   # parseHour / parseHourBounds / per-day operating window
-    ├── i18n.tsx                  # EN + AR dictionaries with {var} interpolation
-    ├── hooks.ts                  # useModalKeys (Esc + auto-focus)
-    ├── appMeta.ts                # APP_VERSION
-    ├── initialData.ts            # Seed companies / shifts / stations / holidays / config
-    ├── pdfReport.ts              # jspdf-based report (lazy-loaded)
-    ├── colors.ts
-    └── utils.ts
-
-build/
-└── installer.nsh                 # NSIS hooks: customInit / customUnInstall / customInstall
+    ├── firestoreClient.ts        # Firestore w/ persistentLocalCache (online cache)
+    ├── firestoreSync.ts          # Connection-status hook (online/syncing/queued)
+    ├── firestoreErrors.ts        # Friendly quota-exhausted detection
+    ├── adminApi.ts               # Renderer wrapper around the admin-bridge IPC
+    └── …                         # i18n, payroll, leaves, migration, …
 
 electron/
-└── main.cjs                      # Window + tray + post-update data snapshot
+├── main.cjs                      # Window + tray + post-update data snapshot
+├── preload.cjs                   # adminApi bridge surface
+└── admin-bridge.cjs              # Firebase Admin SDK in main process — users, audit purge, quota
 
-server.ts                         # Express + atomic JSON writes + audit diff
-                                  # /api/data /api/save /api/audit /api/update-status
-
-scripts/
-├── build-icon.cjs                # sharp + png-to-ico → multi-size icon.ico
-└── build-server.cjs              # esbuild bundler for production server
+server.ts                         # Express + atomic JSON writes (Offline mode only)
 ```
 
-## 📸 Screenshots
-| Compliance Dashboard | Employee Management | Station Configuration |
-| :---: | :---: | :---: |
-| ![Dashboard](docs/screenshots/payroll_export_button_1777193316198.png) | ![Roster](docs/screenshots/employee_modal_rest_day_1777193295597.png) | ![Layout](docs/screenshots/station_modal_times_1777193258342.png) |
+</details>
 
-## ⚖️ Legal Framework
-This application is designed to support the **Iraqi Labor Law No. 37 of 2015**:
-- **Article 67**: Standard 8-hour workday / 48-hour workweek.
-- **Article 68**: 7-hour daily cap for hazardous work.
-- **Article 70**: Weekly hours cap.
-- **Article 71**: Mandatory weekly rest (minimum 24 consecutive hours), minimum 11h rest between shifts.
-- **Article 72**: Maximum consecutive working days.
-- **Article 73-74**: Double pay or compensation days for work on official holidays.
-- **Article 84**: Paid sick leave (configurable date range per employee).
-- **Article 86**: Restrictions on women's night work in industrial undertakings (configurable window; off by default — enable in Variables).
-- **Article 87**: 14-week paid maternity leave (configurable date range per employee).
-- **Article 88** (transport workers): Stricter caps for drivers — 9h daily / 56h weekly, 4.5h max continuous driving with mandatory 30-min break, 11h daily rest.
+### Architecture notes
 
-All thresholds are configurable in the Legal Variables tab to match sector-specific Ministerial decrees, collective bargaining agreements, or Ministry of Transport regulations.
-
-## 📦 What's new in v4.0.0
-
-**Major version. Online mode + AIO management.** v3 hardened the offline product; v4 adds an opt-in cloud mode for teams. The single-user **Offline Demo** experience is preserved verbatim — no migration required, no behavioural change. **Online mode** is multi-user, role-aware, and managed entirely from inside the app — no Firebase Console for routine work after first-time setup.
-
-| Area | Change |
-|------|--------|
-| **Dual-mode launch** | First launch shows a mode picker: **Offline Demo** (current local-first behaviour, Express + JSON) or **Connect Online** (Firebase Auth + Firestore). The choice persists. Switching prompts a reload from Settings. Every domain — companies, employees, shifts, stations, holidays, config, schedules, audit log — has dual-mode parity. |
-| **In-app onboarding wizard** | First-time super-admin runs a step-by-step wizard. Firebase Console is needed only for the genuinely Console-only steps (project creation, enabling Firestore + Auth) — everything else (`firebaseConfig` paste, service-account JSON link, super-admin Auth account creation, `super_admin` claim grant) happens in-app via the Admin SDK bridge. Returning super-admin from a different PC gets a short reconnect path with explicit instructions for retrieving the `firebaseConfig` from another machine's "Generate connection code" button or from Firebase Console. |
-| **One-paste user join** | Super-admin generates a connection code from **Settings → Generate connection code** (`ils-connect:<base64>`); team members paste it on the **Join with a connection code** screen and sign in with their email + password. No 6-field manual entry. |
-| **Multi-database support** | A super-admin running several Firebase projects (one per company / branch) can keep them all connected on a single install. Saved databases appear in the OnlineSetup picker and in **Settings → Connected databases** with switch / rename / remove. Service-account JSONs are scoped per project (`<userData>/firebase-admin/<projectId>/serviceAccount.json`) so adding a second project never overwrites the first. The active project is shown as a chip in the top toolbar at all times. |
-| **Three roles + per-tab permissions** | `super_admin` (everything) / `admin` (all companies, Variables read-only, no user mgmt) / `supervisor` (operational tabs only, scoped via `companies` claim). On top of role defaults, every tab is independently set per-user to **Hidden** / **Read-only** / **Full** from the new **User Management** tab. Hidden tabs don't appear in the sidebar; read-only tabs disable add/edit/delete actions. Permissions are stored on `/users/{uid}` and live-subscribed — super-admin edits propagate to the affected user within ~1 second without a re-login. |
-| **User Management + Super Admin tabs** | Dedicated **User Management** tab (super_admin only): create users (Admin SDK; auto-generates a temp password to share securely), disable / enable, reset password, delete (refuses self-delete), edit role + scoped companies + per-tab perms. **Super Admin** tab holds Connection (link service-account JSON), Companies (add / rename / delete), and Database (audit-log retention purges using the Admin SDK to bypass the immutability rule). |
-| **Audit log enrichment** | Audit entries now record actor email + actor uid, and modify summaries name the changed fields (*"Modified employee: Ahmed (name, salary)"*). Schedule edits list specific cells when 1–5 changed, or *"Schedule edited for 2026-04 (47 cells)"* for bulk operations. Audit Log tab dual-reads: Firestore in Online, Express in Offline. |
-| **Factory reset = true clean slate** | Wipes every local trace: signs out Firebase Auth, terminates Firestore, removes all service-account JSONs, clears `localStorage` + `sessionStorage`, deletes Firebase IndexedDB databases, and reloads. A `setItem` shim runs during the wipe so straggling React effects can't repopulate state between clear and reload. Server-side Firestore data is intentionally not touched. |
-| **Spark-only architecture** | No Cloud Functions, no Blaze, no credit card. Firestore + Auth handle data and identity; the Firebase Admin SDK loads in the Electron main process for super-admin operations that exceed client SDK reach. Each project gets its own cached Admin SDK app instance keyed by `projectId`. |
-| **Migration script** | `npm run migrate-to-firestore` walks an existing offline-mode `data/` folder and bulk-uploads all 9 domains to the matching Firestore structure. Idempotent. `--dry-run` previews without writing. Auto-consolidates split-Eid holiday entries from older saves into single records with `durationDays`. |
-
-**Compatibility:** all 108 unit tests pass. Pre-4.0 backups load unchanged via the existing migration normalizers. Offline mode is byte-identical to v3.0 in behaviour.
-
-## 📦 What's new in v3.0.0
-
-**Major version. Maturity milestone.** Three years after v1's MVP and a year of design-system maturation since v2.0, the visual language is now codified in an external claude.ai/design package and applied end-to-end across every tab. v3.0.0 isn't breaking — pre-3.0 backups load via the same migration normalisers — but the design system, offline-ready font bundle, comprehensive dark mode, and FT/PT-split workforce planning are all post-2.0 additions and form the new baseline.
-
-| Area | Change |
-|------|--------|
-| **Offline-ready webfont bundle** | Pre-3.0 the app loaded Inter / Outfit / JetBrains Mono / Noto Naskh / Noto Kufi from the Google Fonts CDN. A first-launch with no internet would render the app in the system fallback stack until the user got online. v3.0 bundles all five families locally via `@fontsource/*` packages — each weight ships a hashed `.woff2` next to the bundle; Vite handles emit + cache-busting. Arabic faces appended to the sans/display stacks so an Arabic glyph picks Naskh / Kufi via unicode-range fallback even outside the explicit `[dir="rtl"]` pass. |
-| **Design system applied end-to-end** | Every tab — Dashboard, Schedule, Roster, Payroll, Workforce Planning, Coverage & OT, Layout, Shifts, Holidays, Reports, Variables, Settings, Audit Log — now uses the design-system primitives consistently: `Card`, `KpiCard`, `apple-press` interaction, eyebrow→stat→unit KPI rhythm, three-tier shadow elevation, logical utilities (`ms-*`/`me-*`/`ps-*`/`pe-*`/`start-*`/`end-*`) for RTL, and the rounded-pill sidebar nav from the design package. |
-| **Dark mode end-to-end coverage** | Settings, Reports, Holidays, Audit Log received explicit `dark:` annotations on every accent surface (alert banners, status chips, hover surfaces, sticky headers). The Audit Log's day-grouper sticky header used to hardcode `bg-[#F3F4F6]` — invisible in dark mode; now uses the page-bg token with both light/dark variants. Global dark-override pass extended to cover `text-*-800` / `text-*-900` foregrounds, `text-orange-*` / `bg-orange-*`, `text-teal-*` / `bg-teal-*`, `divide-slate-50`. Pre-3.0 these tinted accents stayed dark-on-dark in dark mode (legible-but-poor-contrast); now they remap to luminance-correct shades automatically across every component. |
-
-## 📦 What's new in v2.7.0
-
-**Design-system pass + per-station demand profile.**
-
-| Area | Change |
-|------|--------|
-| **Sidebar — design-system pattern** | TabButton switches from the v2.6 leading-edge blue stripe to a macOS Big Sur-style rounded-12 pill: tinted blue surface, hairline blue ring, inset highlight, and a small pulsing blue dot at the inline-end edge. Auto-mirrors in RTL via logical classes. Brand area gets a monochrome calendar-check icon block + concise wordmark + mono version pip. Sidebar narrowed from 256→248 px. |
-| **Workforce Planning — per-station demand profile** | The v2.6 Annual Headcount Plan panel introduced FTE / PT split with Avg / Median / Peak / Valley tiles for the company as a whole. v2.7 takes that exact treatment to the per-station and per-group expanded drilldowns. Click any station or group row → see the same 4-tile demand profile scoped to just that station / group. New `MonthlyDemandProfile` component renders a compact two-column FT \| PT layout. |
-| **Library — monthly arrays exposed** | `AnnualRollupStation` and `AnnualRollupGroup` now carry `monthlyFTE: number[12]` and `monthlyPartTime: number[12]`. `fiveNumberSummary()` extracted to a top-level helper so the top KPI panel and the drilldowns compute identically. |
-
-## 📦 What's new in v2.6.0
-
-**Apple-polish UX overhaul + clearer Workforce Planning + pivot-style schedule grouping.** The biggest visual sweep since v1, plus two user-driven fixes: the Workforce Planning view now splits FTE and PT throughout (with annual avg / median / peak / valley demand profile), and the Schedule's "Group by station" filter became Excel-pivot-style collapsible station headers instead of just sorting rows.
-
-| Area | Change |
-|------|--------|
-| **Workforce Planning — FTE/PT split + annual demand profile** | The KPI strip used to merge FTE and PT into a single "recommended roster" number, and the headcount delta was a single combined figure. v2.6 replaces that with a focused 3-card anchor row (Total hours · Annual cost delta · Legal-safety premium *or* Peak month) plus a dedicated **Annual Headcount Plan** panel below. Two parallel columns (FTE \| PT). Each shows: current → year-round (with a coloured Δ pill `+4 FTE` / `−2 PT`), then a 4-tile **Avg / Median / Peak (Apr) / Valley (Aug)** grid with month names attached. One-sentence rationale per column that swaps with planner mode (peak-driven / average-driven). |
-| **Schedule grid — pivot-style "Group by station"** | Toggle now produces Excel-pivot-style collapsible station headers instead of just sorting rows. Each block opens with a tinted header strip (chevron + map-pin + station name + headcount badge); click to collapse / expand. Collapsed station IDs persist across sessions in localStorage. Employees with no scheduled station yet cluster under an "Unassigned" header at the bottom. Variable row heights (38 px header / 48 px body) without losing virtualization. |
-| **Dark mode + design tokens** | New CSS-variable layer (`--surface`, `--foreground`, `--border`, `--ring`, `--grid-line`, …) drives both themes. Dark palette retuned warmer (GitHub-Dark graphite `#161b22` / `#1c2230`) than raw `slate-900`. Comprehensive overrides for previously washed-out tinted backgrounds (`bg-blue-50`, `bg-emerald-50`, `bg-rose-50`, `bg-amber-50`, …) and their opacity variants — they now alpha-tint against the dark surface instead of bleeding off-white. New shift-cell colour pairs in `lib/colors.ts` per shift code. |
-| **Schedule grid lines visible in both themes** | New `.schedule-grid-line` utility binds vertical day-cell borders to a CSS variable that picks a stronger value in both modes. Pre-2.6 dark mode mapped the cell border to the same slate as the cell background — invisible. Day header gets explicit dark contrast for weekend / holiday / today states. |
-| **Workforce Planning forecast — movable holidays projected by month/day** | Pre-2.6 the forecast year selector dropped movable Islamic holidays (Eid Al-Fitr, Eid Al-Adha, etc.) when projecting to 2027+. v2.6 projects every holiday by month/day to the target year. Movable projections are flagged `isApproximation: true` and the banner clarifies "actual dates drift ~11 days earlier each Gregorian year — adjust in the Holidays tab once the official Hijri calendar is announced." |
-| **Apple-style polish** | New `apple-press` utility for primary CTAs (cubic-bezier translate-up on hover, scale-down on press, respects `prefers-reduced-motion`). Top toolbar uses `backdrop-blur-md` with a translucent surface and softer rounded buttons. Sidebar `TabButton` gets a pinned blue active-stripe (RTL-correct). `LocaleSwitcher` becomes a 3-button segmented theme picker (Light / Dark / System). Thin pill scrollbars globally. ConfirmModal: deeper backdrop blur + cubic-bezier motion + coloured shadow CTAs. |
-
-## 📦 What's new in v2.5.0
-
-Forecasting + supply truth-telling. Forecast-year selector for planning future years from current data, optimal-mode 'release' actions with Iraqi-law caveats, fair-share effective supply per station to fix the "35 eligible / 2 needed" double-count, and multi-day holiday support so Eid Al-Fitr can be one record instead of three.
-
-## 📦 What's new in v2.4.0
-
-Hiring Roadmap. Month-by-month recruitment plan that phases hires so new staff land just before each demand step-up, deferring payroll until needed and saving money vs hiring everyone at year start. Surfaces on screen, in the PDF export, and in the Excel workbook.
-
-## 📦 What's new in v2.3.0
-
-Workforce Planning sprint — group-aware eligibility, FT/PT comparative breakdown, Excel export.
-
-## 📦 What's new in v2.2.0
-
-Big UX sprint. Eleven user-driven items spanning the workforce planner, schedule grid, employee setup, station groups, auto-scheduler, holiday admin, and Electron shell. Every change keeps the compliance philosophy unchanged (reporting, not enforcement).
-
-| Area | Change |
-|------|--------|
-| **Workforce Planning rollup — comparative format** | Group + station rollup rows now lead with a single `current / recommended` block (e.g. `5 / 9 — 7 FTE + 2 PT`) instead of three separate KPIs. The expanded station drilldown inside group rows mirrors the same format. New `ComparativeKpi` component lives in `Primitives.tsx` for reuse. |
-| **Bar-click drilldown panel** | Clicking a bar in the monthly demand chart now reveals a panel with that month's required hours, recommended FTE+PT, monthly salary, peak/valley badges, and a top-3 roles bar showing which roles drive the demand. Pre-2.2.0 the bar click only highlighted the bar with no surfaced detail. |
-| **Station group icon picker** | New `StationGroup.icon` field with a curated 20-icon palette (`boxes`, `cart`, `coffee`, `truck`, `car`, `wrench`, …). Picker UI in the Layout tab's New Group form + a click-the-tile popover on existing kanban headers. The chosen icon also surfaces in the workforce-planning rollup so a group's identity is consistent across views. |
-| **Schedule "Violations only" + "Group by station" filters** | Two new toolbar buttons next to the role filter. Violations-only narrows to employees with any `severity:'violation'` finding in the active month and shows the count badge. Group-by-station sorts visible rows by each employee's most-frequent station that month, so per-station coverage scans cleanly without re-architecting the grid. |
-| **Month + Year picker** | The five tabs with month nav (Schedule, Dashboard, Payroll, Coverage&OT — plus a new shared `MonthYearPicker`) now open a 4×3 month grid + year stepper when you click the date card. Jumping Jan→Dec is one click instead of twelve. The chevrons still step ±1 month for adjacent navigation. |
-| **Auto-scheduler custom date range — cross-month included** | A new `Calendar` chevron next to the Auto-Schedule buttons opens a start/end date picker. Out-of-range cells stay untouched in both fresh and preserve modes. Cross-month ranges (e.g. 15 Apr → 15 May) are split into per-month invocations and stitched via the running `allSchedules` — the rolling-7-day window crosses the boundary cleanly. A short-period hint (`< 28 days`) reminds the supervisor that rest-day rotation balances best across a full month. Multi-month runs apply directly with a summary toast (the per-month preview modal would be too dense to skim). |
-| **EmployeeModal — station group eligibility** | New section above the per-station eligibility chips that lets the supervisor pick station groups instead. Adding a group is shorthand for "every current AND future station inside it" — newly-added stations inherit eligibility automatically. Falls back gracefully when no groups are defined. |
-| **System shifts locked** | The `OFF / CP / AL / SL / MAT / PH` shifts (which the auto-scheduler, leave system, and comp-day rotation key off) now show a lock icon instead of a delete button on the Shifts tab, and the `Counts as Work` / `Hazardous` toggles are replaced with a read-only summary in the modal. Display name, times, and description remain editable for the (rare) cosmetic tweak. |
-| **Electron taskbar minimize** | Pre-2.2.0 the renderer intercepted the minimize event and called `mainWindow.hide()`, which removed the window from the taskbar entirely so a second taskbar-click sent it to the tray instead of restoring it. v2.2.0 lets Windows handle minimize natively (window stays in the taskbar). The tray remains the path for FULL hiding via the close button. |
-| **Holidays — bulk compMode set** | Three new buttons in the Holidays tab header (`Inherit` / `Comp day` / `Cash 2×`) flip every holiday's mode at once. Saves the supervisor from cycling 14 individual pills when peak-season policy changes uniformly. |
-| **Stable holiday id** | New `PublicHoliday.id` field that survives a date edit. Pre-2.2.0 the editor's findIndex used `date` for matching — re-dating a holiday orphaned it and a subsequent import with the original date could silently overwrite a different entry. The migration normalizer backfills `id = date` for legacy records so existing data keeps its identity; new entries get a generated id. |
-
-## 📦 What's new in v2.1.4
-
-Audit follow-up: bug fixes, sim/payroll consistency, and a sweep of i18n gaps the wider review surfaced.
-
-| Area | Change |
-|------|--------|
-| **Station groups now persist** | The kanban groups (Cashier Counters / Game Machines / Vehicles + any user-created) were never written to disk pre-2.1.4. Renames, recolours, and new groups silently reverted on every reload; backups also lacked them. Server's `COMPANY_DOMAINS` now includes `stationGroups` (with audit-log diff support), and all three client save paths (auto-save, quit-app save, exportBackup) carry it. |
-| **Iraqi weekend in Schedule grid** | Pre-2.1.4 the on-screen calendar shaded Sat/Sun (date-fns default) while the print view correctly shaded Fri/Sat. Same release, two different weekends. Schedule grid now matches the print view: Fri/Sat shaded as weekend, red day numerals and slate background. |
-| **Sim panel OT pay matches the rest of the app** | The simulation delta panel's "OT Pay" metric still used pre-v2.1.1 always-2× holiday math, contradicting PayrollTab + DashboardTab whenever a comp day was granted. Both the live `otSummary` and the baseline `simMetrics` now route through `computeHolidayPay` and `computeWorkedHours` — sim numbers agree with payroll for the same data. |
-| **StaffingAdvisoryCard active-tab tint** | Mode-tab `bg-white text-${tone}-700 border-${tone}-500` template-literal class strings never reached the Tailwind v4 source scan, so the active mode was rendered uncoloured. Switched to a static class lookup keyed on `tone`. |
-| **Bulk Assign default** | Pre-2.1.4 the modal defaulted to whichever shift was first in `shifts[]` — for the seeded list, that's OFF. One-click apply assigned OFF for the whole month to every selected employee. Now defaults to the first `isWork` shift. |
-| **Run Auto-Schedule disabled when impossible** | The Auto-Schedule and Optimal buttons now disable (with a clear hint tooltip) when the roster has no employees, no stations, or both. Pre-2.1.4 they fired regardless and either threw or surfaced an empty schedule with a confusing info modal. |
-| **i18n sweep** | Five hardcoded-English spots the wider review caught — EmployeeModal helper text + empty states + textarea placeholder + "OT Hourly Rate (Derived)" label, ShiftModal labels and warning, AuditLogTab `DOMAIN_LABEL` + "All" + "change(s)", SettingsTab peak-day chips, WorkforcePlanningTab on-screen month abbreviations — all routed through the i18n dictionary. The PDF export keeps English month abbreviations since the document is typically shared regardless of UI locale. |
-
-## 📦 What's new in v2.1.3
-
-Cleanup batch tackling the deferred items from the v2.1.2 audit — one real bug, one perf win, two UX upgrades.
-
-| Area | Change |
-|------|--------|
-| **Payroll Net Payable on legacy leaves** | A v1.6 backup with `annualLeaveStart/End` set could inflate Net Payable when the schedule grid still showed the pre-leave shift code on those dates. Pre-2.1.3 the table summed those hours as worked — pushing total past the monthly cap and triggering phantom 1.5× OT. New `computeWorkedHours` helper in [`lib/payroll.ts`](src/lib/payroll.ts) subtracts overlapping leave days via `getEmployeeLeaveOnDate`, covering both v1.7 multi-range `leaveRanges` and the legacy single-range fields. 6 new tests. |
-| **Schedule search-box performance** | `computeEmployeeRunningStats` was running for every employee on every keystroke in the search filter — ~3100 stat objects per character with 100 employees × 31 days. Re-keyed the cache on the full `employees` array instead of `filteredEmployees`, so the search box only re-filters the visible rows; the stats cache survives across keystrokes. |
-| **Sortable PayrollTab + ShiftsTab** | Adopted the `SortableHeader` pattern from RosterTab. PayrollTab sorts on Name / Hours / Holiday Bank / Annual Leave / Salary / Rate / OT / Net Payable; the CSV export honours the active sort. ShiftsTab sorts on Code / Name / Hours / Status; the manual reorder buttons disable while a sort is active (with a hint tooltip) so the underlying-vs-visible index conflict can't happen. The `SortableHeader` component now lives in [`Primitives.tsx`](src/components/Primitives.tsx) for reuse. |
-| **Holiday date input** | Upgraded from `type="text"` to `type="date"` for the native calendar picker. `SettingField` now accepts `type='date'`. The i18n YYYY-MM-DD hint stays for users who type the date instead of using the picker. |
-
-## 📦 What's new in v2.1.2
-
-UX & bug-hunt batch: 12 high-impact fixes across modals, validation, and cross-tab consistency.
-
-| Area | Change |
-|------|--------|
-| **NaN-poisoning numeric inputs** | Six `parseInt`/`parseFloat` sites in EmployeeModal, StationModal, ShiftModal accepted an empty input as `NaN` and persisted it, breaking downstream payroll math. All wrapped with `\|\| 0` and clamped non-negative. |
-| **Dashboard `isPeakDay`** | Local copy ignored holidays so the staffing advisory disagreed with every other tab on holiday-heavy months. Now plumbed from App.tsx as a single source of truth. |
-| **AnimatePresence dynamic keys** | CoverageHintToast / LeaveManagerModal / BulkAssignModal each had the documented constant-key pitfall under StrictMode (exit animation can hang). All fixed. |
-| **HolidayModal polish** | i18n'd labels, validates date format, default reference fixed from "Article 73" to "Art. 74", and exposes the per-holiday compMode picker at create time. |
-| **Holidays tab edit affordance** | New pencil icon opens the modal pre-populated — pre-2.1.2 the only path was delete + recreate. |
-| **RosterTab eligible-stations chips** | Now unions `eligibleStations` + `eligibleGroups` so a group-only employee no longer renders as "Unassigned". |
-| **StationModal role dropdown** | Populates from the live roster (was hardcoded Driver only). Empty ID/name now block save with inline errors. |
-| **Shift deletion guards** | Protected shifts (CP/OFF/AL/SL/MAT/PH) can't be deleted; in-use shifts trigger a confirmation showing affected cell count. |
-| **Modals close on backdrop click** | Seven modals (Confirm, Employee, Station, Holiday, Shift, BulkAssign, LeaveManager) now dismiss on outside-click. |
-| **Sim baseline coverage** | Removed the fake "+N%" metric that hardcoded `baseline: 0`. The remaining four sim metrics are honestly comparable. |
-| **Schedule paint banner** | Stops pulsing after 1.8s instead of forever. |
-| **Dashboard heatmap title** | Shows the effective per-DOW hour range with "varies by day" suffix when overrides extend it. |
-
-## 📦 What's new in v2.1
-
-**Art. 74 either-or model + CP shift + RTL polish + payroll CSV.** The headline change is a legal-model swap: per the practitioner reading the user adopted, holiday work is compensated EITHER with a comp rest day OR a 2× cash premium — not both. v2.1 implements the either-or model with per-holiday flexibility, a configurable comp window, a dedicated `CP` shift code, plus a sweep of RTL fixes and HRIS-ready payroll CSV.
-
-| Area | Change |
-|------|--------|
-| **Art. 74 mode picker** | New global `holidayCompMode` config (`comp-day` default \| `cash-ot`) drives the auto-scheduler + payroll path. `comp-day` rotates a CP rest day inside the configured window so holiday hours stay paid at the regular wage; `cash-ot` skips the rotation and pays 2× per Art. 74. Per-holiday `compMode` override on `PublicHoliday` lets a single peak-week holiday opt out of the rotation. The Holidays tab pill cycles inherit-default → comp-day-override → cash-ot-override. |
-| **Comp window: 7 days recommended, 30 days max** | New `holidayCompWindowDays` (default 30) and `holidayCompRecommendedDays` (default 7) config. Comp days landing past the recommended window but inside the max surface as a soft `Comp day late` info note instead of a hard `Comp day owed` finding. Both configurable in the Variables tab. |
-| **CP — Compensation rest day shift** | New non-work shift code distinct from OFF so the supervisor can see at a glance which non-work days were granted as Art. 74 comp days vs routine weekly rest. The auto-scheduler stamps `CP` (instead of `OFF`) when an employee with a pending PH-work debt rotates to a non-work day. Migration backfills the shift onto every pre-2.1 company on first load. |
-| **Payroll honours the model** | `otAnalysis` splits holiday hours into total + premium-owed pools. A CP / OFF / leave inside the window converts the 2× premium to the 1× regular wage, matching the legal model. Mitigation projection shows the projected cash savings of completing the rotation. |
-| **Payroll CSV (HRIS-ready)** | New per-employee Export CSV on Credits & Payroll: hours, OT pools, balances, salary, hourly rate, net payable — unformatted numerics ready for SAP / Kayan HR import. New header-driven Import CSV updates Holiday Bank, Annual Leave, and Base Salary by `Employee ID`; computed columns are recalculated from the schedule. |
-| **Stations dropdown bug fix** | The "Move to" menu was being clipped by the kanban column's `overflow-hidden` and could escape the viewport on the bottom card. Now rendered via a React portal with viewport-aware drop-up placement, click-outside dismissal, and direction-aware anchoring. |
-| **RTL — SuggestionPane, sticky names, toggle** | Suggestion pane positioned via logical `inset-inline-end` so it lands opposite the sidebar in Arabic instead of overlapping the tabs. Schedule grid locked to `dir="ltr"` so the calendar reads naturally and the sticky names column stays pinned. Apple-pill toggle thumb mirrors via `rtl:` variants. Logical RTL rules added in `index.css` for common right-/left-, text-start/end, and shadow patterns. |
-| **Arabic terminology** | الورديات / الوردية → المناوبات / المناوبة across all 14 occurrences (the user's preferred Iraqi-Arabic word for shifts). |
-
-## 📦 What's new in v2.0
-
-**Major version. Maturity milestone.** The data model and feature surface have evolved enough since v1.0's MVP that a major bump is warranted. v2.0.0 isn't breaking — pre-2.0 backups load via the migration normalisers — but the analytical layer, multi-range leaves, holiday-comp tracking, conservative-mode workforce planning, and now station groups + group-level eligibility are all post-1.0 additions and form the new baseline.
-
-| Area | Change |
-|------|--------|
-| **Station groups + kanban setup** | Stations belong to groups (Cashier Counters, Game Machines, Vehicles…). Stations / Assets tab redesigned as a kanban: each group is a column, stations are cards inside. Inline create / rename / recolour groups; move stations via the card's "Move to" dropdown. Employees declare `eligibleGroups` for one-click coverage of every station in the group. |
-| **Workforce Planning by group** | Primary rollup is now per-group ("Cashier Counters needs N FTE; you have M eligible employees"). Click a row to drill into per-station breakdown. Cleaner than per-station because supervisors hire by category, not by individual asset. |
-| **Auto-scheduler comp-day shortfall warning** | When the scheduler can't place an OFF inside the 7-day comp window after a PH-work day (Art. 74), residual debt is reported per-employee. The Preview modal surfaces "Insufficient HC for full comp-day rotation" with the unplaced day count, pointing at hiring as the structural fix. |
-| **Workforce Planning factors comp-day overhead** | Holiday work creates comp-day-off obligations in subsequent days — that replacement coverage is real workforce demand. v2.0 inflates monthly demand-hours accordingly so the recommended FTE reflects the true HC need on holiday-heavy months. |
-| **Credits & Payroll month selector** | Month-navigation header matching the Schedule and Compliance Dashboard tabs. Credits / OT / leave figures pivot on the active month. |
-| **Leave history sync** | The Manage modal now also surfaces leaves painted directly on the schedule grid (read-only with a "Painted" tag). Auto-scheduler in fresh mode overwrites painted cells; modal re-derives automatically. |
-| **Sample groups in factory reset** | Fresh installs ship with three pre-populated groups (Cashier Counters / Game Machines / Vehicles) and seeded employees declare matching `eligibleGroups`. The kanban view is set up out of the box. |
-
-## 📦 What's new in v1.15
-
-| Area | Change |
-|------|--------|
-| **Workforce Planning anchored to stations** | Pre-1.15 the rollup grouped recommendations by role label (Cashier, Driver, Standard…) — but role names change while station identities don't. v1.15's primary view is per-station: "Cashier Point 1 needs 2 FTE; you have 3 eligible employees today, hold." The phantom "Standard" bucket is gone. PDF export updated to match. |
-| **Names column actually sticky on horizontal scroll** | react-window's overflow:auto container was intercepting CSS sticky-left, so the names column scrolled away with the day cells. Replaced with a JS scroll handler that pins the names column to the viewport via `transform: translateX(-scrollLeft)`. |
-| **Painted leaves show in the leave history** | Painting AL/SL/MAT cells on the schedule now reflects on the employee's leave-count badge and tooltip in Credits & Payroll. Synthetic ranges are derived from contiguous painted runs. |
-| **Sidebar reorganised** | Tabs grouped by usage frequency — Operations / Analytics / Setup / System — with section headers. Apple-style thin scrollbar replaces the OS default. |
-| **OT analysis comp-day mitigation reframed** | The text + CTA now read as a compliance reminder ("schedule the OFF day too") rather than a savings tip — Art. 74 entitles workers to BOTH the cash premium AND a comp rest day, not a choice. |
-
-## 📦 What's new in v1.14
-
-| Area | Change |
-|------|--------|
-| **Holiday compensation — Art. 74 corrected** | Removed the choose-comps modal that let supervisors swap the 2× cash premium for a comp day off. Our sector's CBA interpretation of Art. 74 entitles the worker to BOTH the cash AND a comp rest day, not a choice. Holiday hours always pay 2×; the comp rest day is a scheduling obligation tracked by the compliance engine. |
-| **Workforce Planning — Conservative vs Optimal modes** | New top-of-tab segmented control switches between two recommendation strategies. **Conservative** (default) = pure FTE, hire-to-peak, never release — the Iraqi-labor-law-safe option (Art. 36/40 makes releases legally hard). **Optimal** = FTE baseline + part-time surge mix, cheaper but assumes the supervisor can scale headcount up/down. |
-| **Workforce Planning — Annual rollup** | New panel above the monthly chart with one row per role: year-round FTE/PT recommendation (peak in conservative, average in optimal), peak-month indicator, plain-language reasoning. The "release" action is gone from the vocabulary entirely — surplus surfaces as "hold" so the supervisor never fires anyone over a forecast. |
-| **Workforce Planning — Comparative ↔ Ideal-only switch** | Apple-style toggle in the header. Comparative shows current vs recommended side-by-side; Ideal-only strips the comparison clutter for sharing with stakeholders. The Ideal-only KPI strip surfaces the **legal-safety premium** — the IQD/yr cost of choosing conservative over optimal. |
-| **Workforce Planning — PDF export** | Single-click PDF download for HR Director / CEO. Includes the annual summary, per-role rollup table with reasoning, monthly demand breakdown, and the legal-safety premium. |
-
-## 📦 What's new in v1.13
-
-| Area | Change |
-|------|--------|
-| **Master Schedule — sticky horizontal scrollbar** | The schedule grid's only horizontal scrollbar used to live at the bottom of the container — off-screen for tall rosters, so panning across the calendar required scrolling the page down to grab the bar, dragging, then scrolling back up. v1.13 adds a synchronised "rail" scrollbar at the TOP of the grid that stays inside the visible viewport. Apple-style thin pill thumb on a faded track, always visible, both rails move in lockstep. |
-| **Apple-style toggle component** | New `<Switch>` primitive replaces raw `<input type="checkbox">` for boolean feature toggles. Pill track + sliding circular thumb + 220 ms ease-out cubic, focus ring matches the accent. Replaced in EmployeeModal, ShiftModal, BulkAssignModal, and VariablesTab. Multi-select row checkboxes (Roster) stay as actual checkboxes since they're for data selection, not feature state. |
-| **Tab transitions polished** | Lazy-loaded tab swaps now use an Apple-flavour ease-out cubic with a slight scale + vertical lift instead of plain linear opacity. Subtle but the transition feels intentional. |
-| **Workforce Planning — annual view** | Pre-1.13 the tab analyzed only the active month, which made the recommendation jumpy. v1.13 runs the analyzer for every month of the year and surfaces an annual KPI strip (total demand-hours, average FTE/PT, payroll delta vs current × 12), a 12-bar monthly demand chart with peak/valley highlighting, click-to-drill into any month's per-role plan, and an **implementation timing table** — 12 cards showing the IQD savings if the recommendation is adopted from each potential start month. Use the timing table to decide WHEN to roll out the change, not just whether. |
-| **Carried from v1.12** | New Coverage & OT Analysis tab; Workforce Planning tab; suggestion-pane queue with bulk-operation detection; comp-day workflow (Art. 74). |
-
-## 📦 What's new in v1.12
-
-| Area | Change |
-|------|--------|
-| **New tab — Workforce Planning** | Sidebar position #3. Computes the ideal roster for the venue's coverage requirements, peak/non-peak split, and operating windows, then compares to the current roster with hire/release/hold actions per role. The math splits demand into peak vs non-peak — when peak demand exceeds 1.25× non-peak, the recommendation switches to an FTE+PT mix (FTEs for the baseline, part-timers at 96h/mo for the surge). Drivers use Art. 88 caps (224h/mo); everyone else uses Art. 67/70 (192h/mo). Per-role card surfaces the per-station demand breakdown, the peak/non-peak visual, and a payroll-delta KPI vs the current monthly bill. |
-| **Suggestion-pane queue + bulk-operation detection** | Pre-1.12 each new gap REPLACED the prior coverage hint, so painting absences for two employees in sequence dropped the first suggestion. Now older gaps stay queued and surface in the pane footer with a `+N queued` badge — dismissing/picking advances to the next. When ≥3 distinct gaps open within an 8-second window the pane shows a "Bulk operation detected" banner with a one-click CTA to re-run the auto-scheduler in preserve-absences mode. |
-| **Schedule toolbar layout** | Toolbar wraps cleanly under the suggestion pane on narrow viewports (1366×768 laptops). Pre-1.12 the rightmost buttons (Auto-Schedule, Print) ended up obscured by the 340px right rail. |
-| **OT analysis CTA clarity** | The comp-day mitigation row CTA was renamed from "Open payroll" to "Choose comps" with a more explicit body about what the modal does and what it costs. |
-| **Carried from v1.11** | Holiday-comp-day workflow (Art. 74) — per-employee per-holiday toggle for cash 2× vs paid day off in lieu, with the IQD math reflected across every cost surface in real time. |
-
-## 📦 What's new in v1.11
-
-| Area | Change |
-|------|--------|
-| **Holiday comp-day workflow (Art. 74)** | New per-employee, per-holiday toggle: pay 2× cash premium **or** grant a paid day off in lieu within 7 days. Pre-1.11 the app paid double regardless and tracked `holidayBank` as an opaque counter — there was no way to actually realise the legal alternative and save the venue the premium. The new `HolidayCompensationModal` opens from Credits & Payroll (per-row button) and from the Coverage & OT Analysis tab (Coins button on each top-burner row, plus the comp-day mitigation card's CTA pre-fills the highest-uncompensated-pressure employee). Live "premium savings" preview shows the IQD impact as choices toggle. |
-| **OT math respects the choice everywhere** | Compensated holiday hours pay 1× regular wage (already covered by base salary → 0 extra premium). Uncompensated hours pay 2× per Art. 74 default. The Compliance Dashboard's "OT Premium" cell, Credits & Payroll's "OT Amount" column, and the Coverage & OT Analysis tab's Holiday-pool KPI all honour the same split — granting a comp day visibly drops the IQD figures across every surface in real time. |
-| **Compliance semantics** | "Comp day owed" finding now fires only when the supervisor has explicitly opted into comp-day-in-lieu for that date AND no OFF/leave appears within 7 days. Paying the cash premium satisfies Art. 74 the other way, so the warning is suppressed for those dates. |
-| **Carried from v1.10** | Coverage & OT Analysis tab (sidebar position #2); over-cap vs holiday-premium split; per-station + per-employee burner breakdowns; mitigations panel; suggestion-pane stability fix (only auto-dismisses on undo). |
-
-| Area | Change |
-|------|--------|
-| **New tab — Coverage & OT Analysis** | Sidebar position #2 (Compliance stays first). Answers "why is the OT bill so high, where is it being spent, and what can I do about it?". Top KPI strip splits the monthly OT cost into the **two distinct pools** Iraqi Labor Law pays at different rates: **over-cap (1.5×, Art. 70)** and **holiday-premium (2.0×, Art. 74)**. Per-station breakdown shows where each pool was burned. Per-employee burner list ranks the supervisor's roster by total OT cost. Mitigation panel proposes the correct lever per pool: hires for over-cap, comp days for holiday, or a strict-mode auto-scheduler re-run for skewed schedules. |
-| **OT attribution honest about both pools** | The dashboard advisory + simulation used to count only over-cap hours as OT. A clean run with everyone at-cap could still produce millions of IQD in premium pay (all from public-holiday work) yet report "remaining OT 0". The simulation now reports holiday hours as a separate residual pool with the correct caveat — hires can't eliminate them, only comp days can. New `src/lib/otAnalysis.ts` is the single source of truth so the dashboard advisory and the analysis tab never disagree on totals. |
-| **Suggestion-pane stability fix** | Pre-1.10 the live-refresh effect dismissed the hint the moment any worker had a station-bound shift at the gap's station — even when the station's `peakMinHC` was 2 and only one worker remained. New auto-dismiss only fires when the gap is genuinely closed: original employee reassigned back, or another employee took a station-bound shift such that headcount meets the requirement. Permissive-mode hints stay open until the user dismisses or picks. |
-| **Manual paint uses permissive coverage detection** | Painting a non-work shift over a working cashier on a non-peak day used to silently produce nothing because `normalMinHC: 0` told the strict detector "no gap". The same permissive pipeline that v1.9.0 introduced for the leave flow now applies to manual paints — the supervisor always sees substitutes when removing someone from a working cell. |
-| **Carried from v1.9** | Per-station + simulation-validated hiring advisory; setup-completeness gating; auto-scheduler results UI overhaul (compliance hero header + bar chart + violation/notes split); narrow-viewport suggestion pane; cross-month PH comp-day check. |
-
-## 📦 What's new in v1.9
-
-| Area | Change |
-|------|--------|
-| **Leave-driven coverage hints — every category** | Adding annual / sick / maternity leave on a non-driver employee (cashier, operator) now surfaces substitute candidates the same way driver leaves always did. The leave-pipeline uses a permissive detection mode that fires regardless of station minimum-headcount, so cashier stations with `normalMinHC: 0` on non-peak days no longer silently swallow the hint. Manual-paint detection stays strict — cycling a cell at a non-required station doesn't spam toasts. |
-| **Setup-completeness gating on the Dashboard** | The Strategic Growth Path + Staffing Advisory cards no longer pretend to give actionable advice when the supervisor hasn't finished basic setup. A 5-item checklist banner shows exactly what's still missing (roster, stations, shifts, eligibility, painted schedule) until everything is in place; advisory cards then appear automatically. |
-| **Staffing Advisory — per-station breakdown + simulation** | Each of the three modes (Eliminate OT / Optimal Coverage / Best of Both) now lists exactly **which stations** the recommended hires would land at and **why** (`OT pressure` / `Peak shortfall` / `Both`), with the numerical evidence (monthly OT hours attributed to that station + the peak-hour FTE shortfall). OT is distributed across stations proportionally to where the over-scheduled employee actually worked. A new **Validate with simulation** button injects phantom hires and re-runs the auto-scheduler to report residual OT + coverage gap so the recommendation is a real simulation, not just back-of-envelope arithmetic. The duplicate small "Staffing Advisory" panel from v1.8 is removed (its content is fully covered by the new card). |
-| **Auto-scheduler results UI** | Hero header on the preview modal with the compliance score front-and-centre and a tier-coloured gradient backdrop. Hours-by-role becomes a horizontal bar chart, one colour per role. Findings split into **Hard Violations** vs **Informational Notes** so info-severity findings (PH worked, Comp day owed) no longer read like critical failures alongside hard cap breaches. |
-| **Suggestion pane — narrow viewports** | The 340px right rail starts collapsed below 1280px viewport width and tracks resize crossings until the user manually overrides — so 1366×768 laptops keep the schedule grid full-width by default. The collapsed state still surfaces the unread-changes count and gap dot. |
-| **Comp-day cross-month** | The compliance engine's `Comp day owed` check used to bail at the month boundary. When the next month's schedule has been generated, the check now peeks into it so a late-month PH-work can be compensated by an early-month OFF in the following month. |
-| **Tests** | 28 new unit tests across `staffingAdvisory`, `coverageHints`, `autoScheduler`, plus 5 new compliance tests for `Comp day owed` (incl. cross-month). 53 tests total, all passing. |
-| **Carried from v1.8** | Persistent right-rail Suggestion Pane with one-click per-entry undo; 3-mode Staffing Advisory; PH comp-day bias in the auto-scheduler; severity-tiered compliance findings; Master Schedule day-header overhaul + footer summary bar. |
-
-For a full version-by-version history including the v1.0–v1.7 lineage, see **[CHANGELOG.md](CHANGELOG.md)**.
+- **Offline mode** uses a small Express server (`server.ts`) that owns the JSON files in `%APPDATA%`. The renderer talks to it over `127.0.0.1`, locked to that interface — no network exposure.
+- **Online mode** uses Firestore as the single source of truth. The Firestore Web SDK's `persistentLocalCache` handles outage resilience (writes queue locally, sync on reconnect) so there's no parallel local copy to fall out of sync.
+- **Admin SDK** (Firebase) loads in the Electron main process via `electron/admin-bridge.cjs` and is reachable from the renderer through a narrow IPC surface. Service-account JSONs are stored per-project under `<userData>/firebase-admin/<projectId>/serviceAccount.json` and never bundled with the installer.
+- **108 unit tests** cover the compliance engine, auto-scheduler, coverage-hint detection, staffing advisory, OT analysis, payroll, and workforce planning. Run with `npm test`.
 
 ---
-*Built with React, Electron, react-window, jspdf, motion (framer), date-fns, sharp, png-to-ico, and Tailwind CSS. Tailored for the Iraqi Workforce.*
+
+## Releases & changelog
+
+- Every tagged release on GitHub is built by GitHub Actions and ships an installer + `SHA256SUMS.txt`.
+- For version-by-version changes (current and historical), see [`CHANGELOG.md`](CHANGELOG.md).
+- Latest release notes: see the **Releases** page.
+
+## Legal framework
+
+The app supports **Iraqi Labor Law No. 37 of 2015**:
+
+- **Art. 67 / 70** — standard 8-hour day / 48-hour week
+- **Art. 68** — 7-hour daily cap for hazardous work
+- **Art. 71** — 24-hour weekly rest, 11-hour minimum between shifts
+- **Art. 72** — maximum consecutive working days
+- **Art. 73 / 74** — public-holiday work: double pay or compensation day
+- **Art. 84** — paid sick leave
+- **Art. 86** — restrictions on women's night work in industrial undertakings (off by default; enable in Variables)
+- **Art. 87** — 14-week paid maternity leave
+- **Art. 88** — driver / transport caps (9h daily, 56h weekly, 4.5h continuous, 11h rest)
+
+All thresholds are editable in the **Variables** tab.
+
+## License
+
+Apache-2.0. See [`LICENSE`](LICENSE).
+
+## Acknowledgements
+
+Built with React, Electron, Firebase, react-window, jspdf, motion, date-fns, sharp, and Tailwind CSS. Tailored for the Iraqi workforce.

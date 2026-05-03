@@ -26,6 +26,7 @@ import { useAuth } from '../lib/auth';
 import { ConnectionPanel } from '../components/SuperAdmin/ConnectionPanel';
 import { CompaniesPanel } from '../components/SuperAdmin/CompaniesPanel';
 import { DatabasePanel } from '../components/SuperAdmin/DatabasePanel';
+import { QuotaPanel } from '../components/SuperAdmin/QuotaPanel';
 import type { Company } from '../types';
 
 interface Props {
@@ -62,6 +63,7 @@ export function SuperAdminTab({ companies, onAddCompany, onRenameCompany, onDele
       </div>
 
       <ConnectionPanel />
+      <QuotaPanel />
       <CompaniesPanel
         companies={companies}
         onAdd={onAddCompany}

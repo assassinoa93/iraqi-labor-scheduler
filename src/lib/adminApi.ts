@@ -40,6 +40,20 @@ export interface AuditStats {
   oldestTs: number | null;
 }
 
+export interface QuotaMetric {
+  used: number | null;
+  limit: number;
+  error?: { code: string; message: string };
+}
+
+export interface QuotaUsage {
+  reads: QuotaMetric;
+  writes: QuotaMetric;
+  deletes: QuotaMetric;
+  fetchedAt: number;
+  cached: boolean;
+}
+
 export interface CreateUserPayload {
   email: string;
   password: string;
@@ -71,6 +85,7 @@ interface AdminApi {
   deleteUser(projectId: string, idToken: string, uid: string): Promise<{ uid: string; deleted: true }>;
   purgeAuditOlderThan(projectId: string, idToken: string, ts: number): Promise<{ deleted: number }>;
   auditStats(projectId: string, idToken: string): Promise<AuditStats>;
+  quotaUsage(projectId: string, idToken: string, force?: boolean): Promise<QuotaUsage>;
   wipeLocalSecrets(): Promise<{ removed: string[] }>;
 }
 
@@ -156,6 +171,9 @@ export async function purgeAuditOlderThan(ts: number) {
 }
 export async function auditStats(): Promise<AuditStats> {
   return bridge().auditStats(activeProjectId(), await token());
+}
+export async function quotaUsage(force = false): Promise<QuotaUsage> {
+  return bridge().quotaUsage(activeProjectId(), await token(), force);
 }
 
 // ── Local-secrets wipe (factory reset) ────────────────────────────────────

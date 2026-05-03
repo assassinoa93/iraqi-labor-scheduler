@@ -71,7 +71,9 @@ import {
 } from './lib/migration';
 import { useI18n } from './lib/i18n';
 import { useAuth, tabAllowed, tabWritable } from './lib/auth';
-import { clearMode } from './lib/mode';
+import { clearMode, getMode } from './lib/mode';
+import { useFirestoreSync } from './lib/firestoreSync';
+import { detectQuotaExhausted } from './lib/firestoreErrors';
 import { getActiveStoredEntry } from './lib/firebaseConfigStorage';
 import { factoryResetClean } from './lib/factoryReset';
 import {
@@ -197,10 +199,24 @@ export default function App() {
   const schedule: Schedule = allSchedules[scheduleKey] ?? {};
 
   // Auto-save status, surfaced in the top bar so the user can see at a glance
-  // whether the last edit has reached the server.
+  // whether the last edit has reached the server. Express-side only — Online
+  // mode uses the Firestore sync hook below for an analogous indicator.
   type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+
+  // Firestore connection status for Online mode. Tracks navigator.onLine +
+  // SDK in-sync acknowledgements so the toolbar dot accurately reflects
+  // "synced / syncing / queued (offline)" — pre-v4.2 the dot was always
+  // green in Online mode regardless of actual connection state.
+  const firestoreSync = useFirestoreSync({ enabled: isAuthenticated });
+
+  // Spark plan daily quota exhaustion. When a Firestore write fails with
+  // `resource-exhausted` we capture the timestamp + next reset time, surface
+  // a friendly modal once (sticky until reload — re-detecting on every retry
+  // would spam the user), and stamp localStorage so the SuperAdmin → Quota
+  // panel can show "last hit at …" pre-emptively.
+  const [quotaState, setQuotaState] = useState<{ exhaustedAt: number; resetAt: Date } | null>(null);
 
   // Domain setters scoped to the active company. Each accepts either a
   // value or an updater function and merges the result back into companyData.
@@ -234,14 +250,28 @@ export default function App() {
           case 'config':        auditEntries = diffConfig(priorValue as Config, next as Config); break;
           case 'allSchedules':  auditEntries = diffAllSchedules(priorValue as Record<string, Schedule>, next as Record<string, Schedule>); break;
         }
+        const handleQuotaError = (err: unknown) => {
+          const quota = detectQuotaExhausted(err);
+          if (quota.exhausted && quota.resetAt) {
+            const resetAt = quota.resetAt;
+            // First detection wins — keep the modal sticky until reload.
+            setQuotaState((prev) => prev ?? { exhaustedAt: Date.now(), resetAt });
+            // Stamp for SuperAdmin → Quota panel ("last hit at …").
+            try {
+              window.localStorage.setItem('iraqi-scheduler-quota-last-exhausted', String(Date.now()));
+              window.localStorage.setItem('iraqi-scheduler-quota-last-reset-at', resetAt.toISOString());
+            } catch { /* localStorage quota itself exhausted — nothing useful to do */ }
+          }
+        };
         queueMicrotask(() => {
           // Audit write is fire-and-forget (logged on failure but doesn't
           // block the user's edit). Decoupled from data sync so a network
           // blip on audit doesn't fail the underlying data write.
           if (auditEntries.length) {
-            writeAuditEntries(auditEntries, cid, actor, actorEmail).catch((err) =>
-              console.error(`[Scheduler] audit write failed (${String(key)}):`, err)
-            );
+            writeAuditEntries(auditEntries, cid, actor, actorEmail).catch((err) => {
+              console.error(`[Scheduler] audit write failed (${String(key)}):`, err);
+              handleQuotaError(err);
+            });
           }
           const sync: Promise<void> | null = (() => {
             switch (key) {
@@ -271,7 +301,10 @@ export default function App() {
               default:              return null;
             }
           })();
-          sync?.catch((err) => console.error(`[Scheduler] Firestore ${String(key)} sync failed:`, err));
+          sync?.catch((err) => {
+            console.error(`[Scheduler] Firestore ${String(key)} sync failed:`, err);
+            handleQuotaError(err);
+          });
         });
       }
       return { ...prev, [activeCompanyId]: { ...current, [key]: next } };
@@ -295,10 +328,32 @@ export default function App() {
     });
   }, [scheduleKey, setAllSchedules]);
 
-  // Initial data fetch. Hydrates `companies`, sets the active company from
-  // localStorage if present, and unpacks the per-domain Record<companyId, T>
-  // shape into the in-memory CompanyData map.
+  // Initial data fetch.
+  //
+  // ── Mode-aware source-of-truth (v4.2) ─────────────────────────────────────
+  // Pre-v4.2 this fetch ran unconditionally and Firestore subscriptions
+  // overlaid on top in Online mode — meaning the user briefly saw whatever
+  // stale data the local Express JSON happened to hold before Firestore took
+  // over. Two sources of truth coexisting is exactly the dual-dispatch concern
+  // a senior reviewer flagged. From v4.2 forward the rule is:
+  //
+  //   • Online  → Firestore is the only source of truth. Firestore's own
+  //     IndexedDB cache (persistentLocalCache in firestoreClient.ts) handles
+  //     mid-edit disconnects: writes queue locally, sync on reconnect; reads
+  //     serve from cache when offline. The Express /api/data fetch is skipped
+  //     entirely so there's no stale shadow to confuse the user.
+  //   • Offline → Express + JSON is the only source of truth. Existing
+  //     behavior preserved verbatim.
   useEffect(() => {
+    if (getMode() === 'online') {
+      // Online mode: leave companies + companyData empty; the Firestore
+      // subscriptions below will hydrate from cache (instant) or server
+      // (typically <500ms). Mark dataLoaded=true immediately so the UI
+      // doesn't sit in a loading state — empty-state copy in each tab is
+      // the right thing to show during the brief subscription warmup.
+      setDataLoaded(true);
+      return;
+    }
     fetch('/api/data')
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(data => {
@@ -714,6 +769,23 @@ export default function App() {
   const showInfo = React.useCallback((title: string, message: string) => {
     setInfoState({ isOpen: true, title, message });
   }, []);
+
+  // Surface the quota-exhausted message exactly once per detection. The
+  // updateActive sync catch sets quotaState; this useEffect is what actually
+  // triggers the user-visible modal. Decoupling avoids calling showInfo from
+  // inside updateActive (which is declared earlier, before showInfo exists).
+  useEffect(() => {
+    if (!quotaState) return;
+    const fmt = new Intl.DateTimeFormat(undefined, {
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const localResetTime = fmt.format(quotaState.resetAt);
+    showInfo(
+      t('info.quota.title'),
+      t('info.quota.body', { time: localResetTime }),
+    );
+  }, [quotaState, showInfo, t]);
 
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
@@ -1190,6 +1262,20 @@ export default function App() {
       title: t('confirm.shutdown.title'),
       message: t('confirm.shutdown.body'),
       onConfirm: () => {
+        // ── Online mode ────────────────────────────────────────────────
+        // Firestore is the source of truth and persistentLocalCache has
+        // already queued/synced every edit, so there's nothing to flush
+        // to Express here. Skipping the /api/save call also avoids
+        // writing a stale shadow copy of cloud data into the local JSON
+        // (which would resurface as bogus state if the user later picks
+        // Offline mode on this same machine). Just close the window.
+        if (getMode() === 'online') {
+          fetch('/api/shutdown', { method: 'POST' }).catch(() => { /* express may be irrelevant in online mode */ });
+          showInfo(t('confirm.shutdown.title'), t('info.shutdown.body'));
+          setTimeout(() => window.close(), 1000);
+          return;
+        }
+        // ── Offline mode ───────────────────────────────────────────────
         // Force one last sync, then close the local server.
         const employeesByCo: Record<string, Employee[]> = {};
         const shiftsByCo: Record<string, Shift[]> = {};
@@ -2522,6 +2608,31 @@ export default function App() {
               );
             })()}
             {(() => {
+              // In Online mode the Express auto-save isn't running, so the
+              // saveState dot is meaningless there. Drive the indicator off
+              // Firestore connection state instead — synced (server caught
+              // up), syncing (writes in flight), or queued (offline; writes
+              // sit in IndexedDB cache until reconnect).
+              if (isAuthenticated && !simMode) {
+                const { online, syncing, queued, lastSyncedAt } = firestoreSync;
+                const dotColor =
+                  queued ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                  syncing ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] animate-pulse' :
+                  online ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
+                  'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
+                const label =
+                  queued ? t('toolbar.online.queued') :
+                  syncing ? t('toolbar.online.syncing') :
+                  lastSyncedAt ? t('toolbar.online.syncedAt', { time: format(new Date(lastSyncedAt), 'HH:mm:ss') }) :
+                  t('toolbar.online.online');
+                return (
+                  <>
+                    <div className={cn("h-2.5 w-2.5 rounded-full", dotColor)} />
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono tracking-tighter uppercase font-bold">{label}</span>
+                  </>
+                );
+              }
+              // Offline mode (or sim): existing Express auto-save dot.
               const dotColor =
                 simMode ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] animate-pulse' :
                 saveState === 'error' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :

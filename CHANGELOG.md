@@ -2,6 +2,28 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v4.2.0 — 2026-05-03
+
+**Online-mode integrity + super-admin observability.** v4.0 / v4.1 made Online mode work; v4.2 makes it *defensible* against the dual-source-of-truth concern a senior reviewer raised, and gives the super-admin a way to see Firebase quota usage live so they're never surprised by users hitting limits.
+
+**Single source of truth in Online mode**
+- Initial load now branches on mode. Online mode skips the unconditional `fetch('/api/data')` that pre-v4.2 ran on every boot — the local Express + JSON store is no longer a parallel source that briefly painted stale state before Firestore subscriptions overlaid it. Firestore is the only authoritative store; the local IndexedDB cache that's been part of `firestoreClient.ts` since v4.0 (`persistentLocalCache` + `persistentSingleTabManager`) handles outage resilience exactly as intended — reads served from cache when offline, writes queued locally and replayed on reconnect.
+- Shutdown also branches: Online mode no longer flushes one last `/api/save` before closing, which would otherwise write a stale shadow copy of cloud data into the local JSON (and resurface as bogus state if the user later picked Offline mode on the same machine). Just `/api/shutdown` and close.
+- Offline mode is byte-identical to v4.1 — Express + JSON remains the only store there, no behaviour change.
+
+**Firestore-aware connection indicator**
+- The toolbar dot in Online mode now reflects actual Firestore state (synced / syncing / offline-queued) instead of mirroring the Express auto-save state, which doesn't apply Online. New `useFirestoreSync()` hook subscribes to `onSnapshotsInSync` + `navigator.onLine` events. Amber means edits are queued locally and waiting for the connection to return; the queued writes will replay automatically.
+
+**User-facing quota-exhausted message**
+- When a Firestore write returns `resource-exhausted` (Spark plan daily quota hit), the affected user sees a friendly modal naming the next reset time in their local timezone instead of a cryptic SDK error: *"The database has reached today's free-tier quota. Please check back at … to resume your work. Your super-admin has been notified."* The detection is sticky for the rest of the session so an edit storm can't spam the modal.
+
+**Super-admin Firestore quota dashboard**
+- New **Super Admin → Firebase quota** panel pulls live usage (document reads / writes / deletes, rolling 24h) from Cloud Monitoring API v3 via the Admin SDK bridge — auth uses the linked service-account JSON's default `monitoring.viewer` permission, so no extra IAM setup. Auto-refreshes every 60 s with a manual *Refresh now* button; bridge has a 30 s in-process cache so multiple panel mounts don't multiply API calls. Per-metric progress bars colour-tier from green → blue → amber → rose so capacity is scannable at a glance. A separate banner surfaces the most recent local quota-exhausted detection (stamped to localStorage by App.tsx) — gives the super-admin retroactive visibility even before Cloud Monitoring's 3–5 minute metric lag catches up.
+- Spark free-tier limits (50,000 reads, 20,000 writes, 20,000 deletes per day) are baked in as the comparison baselines. If a project upgrades to Blaze, replace the limits in `electron/admin-bridge.cjs` accordingly — the panel UI is generic.
+
+**Compatibility**
+- All 108 tests pass. No data-model changes. No new dependencies — Cloud Monitoring auth uses `google-auth-library`, which `firebase-admin` already pulls in.
+
 ## v4.1.0 — 2026-05-03
 
 **Onboarding + admin polish.** v4.0.0 shipped the AIO wizard for first-time super-admins, but a returning super-admin reconnecting on a new PC went through the inline paste form, which only collected the `firebaseConfig` and dropped them at the SuperAdmin tab — where they hit *"Service account not linked"* because nothing on the journey had asked them to link one. v4.1.0 closes that gap and rounds out a handful of QoL items that turned up alongside it.

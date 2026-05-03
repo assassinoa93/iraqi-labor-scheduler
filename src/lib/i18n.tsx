@@ -337,6 +337,10 @@ export const en: Dict = {
   'toolbar.savePending': 'Pending save',
   'toolbar.savedAt': 'Saved {time}',
   'toolbar.saveError': 'Save failed — will retry',
+  'toolbar.online.online': 'Online',
+  'toolbar.online.syncing': 'Syncing…',
+  'toolbar.online.queued': 'Offline · edits queued',
+  'toolbar.online.syncedAt': 'Synced {time}',
 
   // Section headers used across multiple tabs
   'shifts.title': 'Shift Library Configuration',
@@ -596,6 +600,8 @@ export const en: Dict = {
   // Info / replacement-for-alert dialogs
   'info.notice.title': 'Notice',
   'info.error.title': 'Action failed',
+  'info.quota.title': 'Database usage limit reached',
+  'info.quota.body': "The database has reached today's free-tier quota. Please check back at {time} (your local time) to resume your work. Your super-admin has been notified — they may need to upgrade the Firebase plan if this happens often.",
   'info.factoryReset.body': 'All data has been cleared on the server and in the browser. The page will reload now.',
   'info.factoryReset.failed': 'Reset failed. Please try again or check the server logs.',
   'info.shutdown.body': 'Server is shutting down. You can now close this window.',
@@ -1436,6 +1442,10 @@ export const ar: Dict = {
   'toolbar.savePending': 'في انتظار الحفظ',
   'toolbar.savedAt': 'حُفظ في {time}',
   'toolbar.saveError': 'فشل الحفظ — ستتم إعادة المحاولة',
+  'toolbar.online.online': 'متصل',
+  'toolbar.online.syncing': 'جارٍ المزامنة…',
+  'toolbar.online.queued': 'غير متصل · التعديلات في الانتظار',
+  'toolbar.online.syncedAt': 'تمت المزامنة {time}',
 
   // Section headers
   'shifts.title': 'إعداد مكتبة المناوبات',
@@ -1695,6 +1705,8 @@ export const ar: Dict = {
   // Info dialogs
   'info.notice.title': 'إشعار',
   'info.error.title': 'تعذّر تنفيذ الإجراء',
+  'info.quota.title': 'تم بلوغ حد استخدام قاعدة البيانات',
+  'info.quota.body': 'وصلت قاعدة البيانات إلى الحصة المجانية لهذا اليوم. يرجى العودة في {time} (بتوقيتك المحلي) لاستئناف العمل. تم إخطار المسؤول الأعلى — قد يحتاج إلى ترقية خطة Firebase إذا تكرر هذا.',
   'info.factoryReset.body': 'تم مسح كل البيانات على الخادم وفي المتصفح. ستتم إعادة تحميل الصفحة الآن.',
   'info.factoryReset.failed': 'فشل إعادة الضبط. حاول مرة أخرى أو تحقق من سجلات الخادم.',
   'info.shutdown.body': 'يجري إيقاف تشغيل الخادم. يمكنك إغلاق النافذة الآن.',
