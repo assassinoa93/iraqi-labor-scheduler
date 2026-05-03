@@ -6,6 +6,17 @@ Runs as a native Windows app. Two modes: **fully offline** for a single supervis
 
 ![App Icon](assets/icon.png)
 
+## App Overview
+
+| Dashboard | Master Schedule |
+|:---:|:---:|
+| ![Dashboard](assets/screenshots/dashboard.png) | ![Schedule](assets/screenshots/schedule.png) |
+| **Employee Roster** | **Workforce Planning** |
+| ![Roster](assets/screenshots/roster.png) | ![Workforce Planning](assets/screenshots/workforce_planning.png) |
+| **Coverage & OT Analysis** | |
+| ![Coverage & OT](assets/screenshots/coverage_ot.png) | |
+
+
 ---
 
 ## What it does (quickly)

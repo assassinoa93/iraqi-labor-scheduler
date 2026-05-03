@@ -2,6 +2,14 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.7 — 2026-05-03
+
+**Documentation update.** Adds high-quality application screenshots to the README to showcase the progress of the Iraqi Labor Scheduler.
+
+**Changes**
+- Added `assets/screenshots/` directory with views of the Dashboard, Schedule, Roster, Workforce Planning, and Coverage & OT Analysis.
+- Updated `README.md` with an **App Overview** section featuring these screenshots.
+
 ## v5.1.6 — 2026-05-03
 
 **CI hotfix.** v5.1.5's release build failed with `ECONNRESET` during `npm install` on the GitHub Actions runner — a transient registry blip that left the workflow with no fallback. v5.1.6 hardens the release pipeline so a single network hiccup can't kill the build.
