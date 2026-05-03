@@ -394,6 +394,9 @@ function RoleBadge({ role }: { role: Role | null }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     super_admin: { bg: 'bg-purple-50 dark:bg-purple-500/15', fg: 'text-purple-700 dark:text-purple-200', label: 'Super admin' },
     admin: { bg: 'bg-blue-50 dark:bg-blue-500/15', fg: 'text-blue-700 dark:text-blue-200', label: 'Admin' },
+    // v5.0 — manager sits between admin and supervisor. Orange tone keeps
+    // the role-strength colour ramp visually ordered (purple/blue/orange/emerald).
+    manager: { bg: 'bg-orange-50 dark:bg-orange-500/15', fg: 'text-orange-700 dark:text-orange-200', label: 'Manager' },
     supervisor: { bg: 'bg-emerald-50 dark:bg-emerald-500/15', fg: 'text-emerald-700 dark:text-emerald-200', label: 'Supervisor' },
   };
   if (!role) {
@@ -404,6 +407,8 @@ function RoleBadge({ role }: { role: Role | null }) {
 }
 
 function CompaniesCell({ companyIds, companies, role }: { companyIds: string[]; companies: Company[]; role: Role | null }) {
+  // Super-admin and admin see every company unconditionally. Manager and
+  // supervisor are scoped via `allowedCompanies`; show their explicit list.
   if (role === 'super_admin' || role === 'admin') {
     return <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">All companies</span>;
   }
@@ -534,7 +539,13 @@ function UserFormModal({ mode, companies, initial, isSelf, onClose, onSubmit }: 
         <Field label="Role" required>
           <select
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as Role, companies: e.target.value === 'supervisor' ? form.companies : [] })}
+            onChange={(e) => {
+              const next = e.target.value as Role;
+              // Manager and supervisor are company-scoped; admin and super-admin
+              // see everything so we clear the explicit companies list.
+              const keepCompanies = next === 'supervisor' || next === 'manager';
+              setForm({ ...form, role: next, companies: keepCompanies ? form.companies : [] });
+            }}
             disabled={isSelf}
             className={cn(
               "w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40",
@@ -542,13 +553,16 @@ function UserFormModal({ mode, companies, initial, isSelf, onClose, onSubmit }: 
             )}
           >
             <option value="supervisor">Supervisor — operational tabs only, scoped companies</option>
-            <option value="admin">Admin — all companies, all tabs (Variables read-only)</option>
+            <option value="manager">Manager — first-tier validator: locks supervisor-submitted schedules. Scoped to assigned companies.</option>
+            <option value="admin">Admin — all companies, all tabs (Variables read-only). Finalizes locked schedules + handles HRIS export.</option>
             <option value="super_admin">Super admin — full access, can manage other users</option>
           </select>
         </Field>
 
-        {form.role === 'supervisor' && (
-          <Field label="Allowed companies" helper="The supervisor will see only these companies in the switcher.">
+        {(form.role === 'supervisor' || form.role === 'manager') && (
+          <Field label="Allowed companies" helper={form.role === 'supervisor'
+            ? "The supervisor will see only these companies in the switcher."
+            : "The manager will only validate schedules for these companies."}>
             <CompanyMultiSelect
               companies={companies}
               selected={form.companies}

@@ -260,6 +260,65 @@ export async function writeAuditEntries(
   await batch.commit();
 }
 
+// ── v5.0 — schedule approval audit helpers ────────────────────────────────
+//
+// These build entries with `domain: 'scheduleApproval'` and a stable summary
+// template per action, so the audit log gives a clean approval lineage that
+// the HRIS export bundle can ship verbatim. Op is always 'modify' except
+// for the HRIS export itself, which is 'replace' (semantically: "the saved
+// state was archived to an external system at T").
+
+export type ApprovalAuditAction = 'submit' | 'lock' | 'save' | 'send-back' | 'reopen' | 'hris-export';
+
+export function buildApprovalAuditEntry(params: {
+  action: ApprovalAuditAction;
+  yyyymm: string;
+  actorRole: string;
+  notes?: string;
+  /** For send-back: the level the schedule came from. */
+  fromLevel?: 'manager' | 'admin';
+  /** For reopen: whether the schedule was already exported to HRIS. */
+  postHrisExport?: boolean;
+}): AuditEntry {
+  const { action, yyyymm, actorRole, notes, fromLevel, postHrisExport } = params;
+  const op: AuditOp = action === 'hris-export' ? 'replace' : 'modify';
+  const noteSuffix = notes ? ` — notes: ${notes}` : '';
+
+  let summary: string;
+  switch (action) {
+    case 'submit':
+      summary = `Submitted ${yyyymm} for approval${noteSuffix}`;
+      break;
+    case 'lock':
+      summary = `Locked ${yyyymm} (manager-validated by ${actorRole})${noteSuffix}`;
+      break;
+    case 'save':
+      summary = `Saved ${yyyymm} (admin-finalized by ${actorRole}) — official record archived${noteSuffix}`;
+      break;
+    case 'send-back': {
+      const target = fromLevel === 'admin' ? 'manager' : 'supervisor';
+      const sender = fromLevel === 'admin' ? 'admin' : 'manager';
+      summary = `Sent ${yyyymm} back to ${target} (by ${sender})${noteSuffix}`;
+      break;
+    }
+    case 'reopen':
+      summary = `Reopened saved ${yyyymm}${postHrisExport ? ' (post-HRIS-export)' : ''}${noteSuffix}`;
+      break;
+    case 'hris-export':
+      summary = `Exported ${yyyymm} bundle for HRIS${noteSuffix}`;
+      break;
+  }
+
+  return {
+    ts: Date.now(),
+    domain: 'scheduleApproval',
+    op,
+    targetId: yyyymm,
+    label: yyyymm,
+    summary,
+  };
+}
+
 /**
  * Subscribe to the audit log. Filters and ordering are server-side via
  * Firestore composite indexes. Latest-first by client timestamp.

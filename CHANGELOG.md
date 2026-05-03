@@ -2,6 +2,57 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.0.0 — 2026-05-03
+
+**Major version. Schedule approval workflow + manager role.** v4 made the app multi-user via Firebase. v5 makes that multi-user reality safe by adding a strict two-tier validation chain on top of the schedule grid: supervisor builds → manager validates (locks) → admin finalizes (saves) → archived as the official record. Every step can EITHER proceed forward OR send the schedule back to the immediately-previous user — never skip a step. This forces every reviewer to see every change before it advances. The "saved" state is backed by an immutable snapshot doc in Firestore so the official version is preserved even if the live schedule is later reopened.
+
+The whole feature is **Online-mode only** by design. Offline Demo mode is single-user, has no role hierarchy, and is preserved byte-identical to v4 — Offline users see no banner, no modals, no badge, and the schedule grid stays freely editable as before.
+
+**New `manager` role**
+- Sits between admin and supervisor in the role hierarchy. Companies-scoped via `allowedCompanies` claim like supervisor. Default tab perms: full on dashboard / schedule / coverageOT / reports / audit / settings; read on operational tabs; no access to User Management or Super Admin.
+- Manager option is now in the User Management role dropdown with an orange role badge (between supervisor green and admin blue).
+- New `isManager()` helper in `firestore.rules`; manager included in `hasCompany()` for read paths and in audit-log read access.
+
+**Approval state machine**
+- Five statuses: `draft` (supervisor editing) → `submitted` (awaiting manager) → `locked` (manager-validated, awaiting admin) → `saved` (admin-finalized, archived). Plus `rejected` as a sub-state of draft when a reviewer sends the schedule back; auto-clears on the supervisor's first edit.
+- Seven valid transitions, every one validated by `isValidTransition(state, action, role)` and dispatched inside a Firestore `runTransaction` so the read-validate-write of `approval.status` is atomic. Catches "two managers approve at once" and "supervisor reopens while admin saves" races. Field-path writes only — never touches the `entries` map.
+- Backward compatible: missing `approval` block reads as `'draft'`, so every pre-v5.0 schedule starts in the workflow's entry state.
+
+**Read-only-while-pending**
+- Schedule cells are editable only when `status === 'draft'`. In every other state the grid renders read-only for everyone, including managers and admins. This is what makes "send back" meaningful — a reviewer who wants changes can't stealth-edit; they send the schedule back with notes, and the previous user makes the changes transparently.
+- Auto-scheduler, paint mode, drag-paint, range-fill, and per-cell undo are all gated on `canEditCells`. The Ctrl+Z keyboard handler still works but no-ops when the grid is read-only.
+
+**UI surfaces**
+- New top-of-grid `ScheduleApprovalBanner` colour-keyed to status (slate / amber / blue / emerald / rose). Always names the active month + company in bold so the user can never confuse which schedule they're acting on. Surfaces send-back notes from the previous reviewer when in `rejected` state.
+- Five action modals (`SubmitForApproval`, `Lock`, `Save`, `SendBack`, `Reopen`) — each shows the month prominently as the title AND in the confirm button (*"Lock April 2026"*, *"Save April 2026 as final"*, *"Send April 2026 back to supervisor"*) to make accidental cross-month approvals harder. Lock and Save modals embed a compliance summary card (violations + info findings + score) so the reviewer sees what the supervisor saw. Send-back and Reopen require notes; Submit / Lock / Save make notes optional.
+- Reopen modal applies tiered safeguards based on `hrisSync.lastExportedAt`: pre-export is a simple confirmation; recent-export warns the admin their HRIS may now hold an out-of-date version; old-export requires a 30-character minimum reason note and explicitly flags the audit entry as `"post-HRIS-export reopen"`.
+- New dashboard cards: **Schedules awaiting your validation** (manager + admin + super-admin) and **Schedules awaiting your finalization** (admin + super-admin). Each lists pending items across the user's `allowedCompanies` with a Review button that jumps to the schedule's tab.
+- Sidebar Schedule TabButton gains a numeric badge — count of items the user can act on (validation + finalization + own-rejected).
+
+**Audit log**
+- New domain `'scheduleApproval'` with seven entry kinds: submit, lock, save, send-back-to-supervisor, send-back-to-manager, reopen, hris-export. Each entry uses the existing AuditEntry shape (no schema change) — `targetId` carries the month key, `actorUid`/`actorEmail` cover "who", and the `summary` is human-readable for the audit log UI.
+
+**Snapshot subcollection**
+- Saving a schedule writes an immutable snapshot to `/companies/{cid}/schedules/{YYYY-MM}/snapshots/{savedAtMillis}`. Snapshot doc carries `entries` + the full submit/lock/save lineage. Firestore rules: anyone with company access can read; only admin/super-admin can create; updates and deletes are forbidden — snapshots are append-only history. Each save creates a new snapshot, so reopen → re-save leaves a chain.
+
+**Concurrency safety**
+- `runTransaction` on every transition catches concurrent state changes — e.g. two admins clicking Save in different tabs at the same time. The losing transaction throws "already saved by another user" and the modal surfaces it.
+- One-line existing-code fix in [`firestoreSchedules.ts`](src/lib/firestoreSchedules.ts): the large-diff path now uses `setDoc(ref, {...}, { merge: true })` instead of plain `setDoc`. Pre-fix, a >200-cell auto-scheduler write would silently drop any `approval` / `hrisSync` blocks. Merging keeps cell-content writes orthogonal to approval-state writes.
+
+**Per-month enforcement (explicit)**
+- Bulk approval / multi-month batch transitions are out of scope. The Firestore transition functions take exactly one `(cid, monthKey)` pair. Modals always name a single month. Dashboard rows have per-row Review buttons. There is no "Approve all" anywhere.
+
+**Unit tests**
+- 49 new Vitest cases covering every (state × action × role) triple in the validator (~50 valid + invalid combos), `availableActionsFor`, `effectiveStatus`, `stampPrefixForAction`, and `buildHistoryEntry`. Total suite: 157 passing.
+
+**Compatibility**
+- All 108 pre-v5.0 tests still pass. No data-model changes — pre-v5.0 schedule docs (no `approval` field) read as `'draft'` and behave identically. Offline mode is byte-identical to v4.2.1.
+- Firestore composite index required for the `collectionGroup('schedules')` × `approval.status` query that powers the manager / admin dashboards. Define in `firestore.indexes.json` and deploy alongside the rules.
+
+**Deferred to v5.1+ (not in this release)**
+- HRIS manual-bundle export (zip of schedule + roster + leaves + manifest with full approval lineage). The `hrisSync` field shape and the post-export reopen-tier safeguards are wired in; only the actual zip generator is deferred.
+- Outbound webhook + per-HRIS connectors. v5.2+ if a customer asks.
+
 ## v4.2.1 — 2026-05-03
 
 **Patch.** Three issues from real-install testing of v4.2.0.

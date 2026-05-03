@@ -59,6 +59,18 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     audit: 'full', settings: 'full',
     // No Super Admin / User Management for plain admins.
   },
+  // v5.0 — first-tier validator. Sees the schedule + dashboard + audit log
+  // (so they can review what was changed before locking) and operational
+  // tabs read-only. Schedule grid itself enforces "no cell edits outside
+  // draft state" so a 'full' on schedule still means "can lock / send back",
+  // not "can stealth-edit cells while reviewing".
+  manager: {
+    dashboard: 'full', schedule: 'full', coverageOT: 'full',
+    reports: 'full', audit: 'full', settings: 'full',
+    roster: 'read', holidays: 'read', shifts: 'read', layout: 'read',
+    payroll: 'read', workforce: 'read', variables: 'read',
+    // No Super Admin / User Management for managers.
+  },
   supervisor: {
     dashboard: 'full', schedule: 'full', roster: 'full',
     coverageOT: 'full',

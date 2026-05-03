@@ -93,11 +93,31 @@ import {
 } from './lib/firestoreDomains';
 import {
   subscribeMonth as fsSubscribeMonth,
+  subscribeMonthApproval as fsSubscribeMonthApproval,
   syncMonth as fsSyncMonth,
   scheduleKeyToFirestoreId,
+  submitForApproval as fsSubmitForApproval,
+  lockSchedule as fsLockSchedule,
+  saveSchedule as fsSaveSchedule,
+  sendBackToSupervisor as fsSendBackToSupervisor,
+  sendBackToManager as fsSendBackToManager,
+  reopenSchedule as fsReopenSchedule,
+  type ApprovalBlock,
+  type HrisSyncBlock,
 } from './lib/firestoreSchedules';
+import { effectiveStatus, availableActionsFor } from './lib/scheduleApproval';
+import { useApprovalQueue } from './lib/useApprovalQueue';
+import {
+  SubmitForApprovalModal,
+  LockScheduleModal,
+  SaveScheduleModal,
+  SendBackModal,
+  ReopenModal,
+} from './components/Schedule/ApprovalActionModals';
+import { PendingApprovalsCard } from './components/Schedule/PendingApprovalsCard';
 import {
   writeAuditEntries,
+  buildApprovalAuditEntry,
   diffEmployees, diffShifts, diffStations, diffStationGroups,
   diffHolidays, diffConfig, diffAllSchedules,
 } from './lib/audit';
@@ -210,6 +230,58 @@ export default function App() {
   // "synced / syncing / queued (offline)" — pre-v4.2 the dot was always
   // green in Online mode regardless of actual connection state.
   const firestoreSync = useFirestoreSync({ enabled: isAuthenticated });
+
+  // v5.0 — schedule approval state for the active month. Subscribed via
+  // fsSubscribeMonthApproval (separate from the entries listener). Updates
+  // drive the Schedule-tab banner + dictate whether the cell handlers
+  // accept clicks (read-only outside draft).
+  const [activeMonthApproval, setActiveMonthApproval] = useState<ApprovalBlock | undefined>(undefined);
+  const [activeMonthHrisSync, setActiveMonthHrisSync] = useState<HrisSyncBlock | undefined>(undefined);
+
+  // v5.0 — pending-approval queue. Each role sees what's actionable for
+  // them. Manager + admin + super-admin care about validation/finalization
+  // queues; supervisor sees their own sent-back schedules.
+  // Memoised statuses array so the hook's stale-deps warning doesn't fire
+  // and so we don't re-subscribe on every render.
+  const validationStatuses = useMemo<import('./lib/firestoreSchedules').ApprovalStatus[]>(
+    () => (role === 'manager' || role === 'admin' || role === 'super_admin') ? ['submitted'] : [],
+    [role],
+  );
+  const finalizationStatuses = useMemo<import('./lib/firestoreSchedules').ApprovalStatus[]>(
+    () => (role === 'admin' || role === 'super_admin') ? ['locked'] : [],
+    [role],
+  );
+  const supervisorRejectedStatuses = useMemo<import('./lib/firestoreSchedules').ApprovalStatus[]>(
+    () => role === 'supervisor' ? ['rejected'] : [],
+    [role],
+  );
+  const validationQueue = useApprovalQueue({
+    enabled: isAuthenticated && validationStatuses.length > 0,
+    statuses: validationStatuses,
+    allowedCompanies,
+  });
+  const finalizationQueue = useApprovalQueue({
+    enabled: isAuthenticated && finalizationStatuses.length > 0,
+    statuses: finalizationStatuses,
+    allowedCompanies,
+  });
+  const supervisorRejectedQueue = useApprovalQueue({
+    enabled: isAuthenticated && supervisorRejectedStatuses.length > 0,
+    statuses: supervisorRejectedStatuses,
+    allowedCompanies,
+    authorUid: user?.uid ?? null,
+  });
+  // Sidebar badge count — what's actionable for this user.
+  const scheduleApprovalBadge =
+    validationQueue.length + finalizationQueue.length + supervisorRejectedQueue.length;
+  // Modal open-state for the five action flows. Just one boolean per modal —
+  // the parent owns the state, the modals are pure presentation.
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [lockModalOpen, setLockModalOpen] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [sendBackModalOpen, setSendBackModalOpen] = useState(false);
+  const [reopenModalOpen, setReopenModalOpen] = useState(false);
+  const [approvalBusy, setApprovalBusy] = useState(false);
 
   // Spark plan daily quota exhaustion. When a Firestore write fails with
   // `resource-exhausted` we capture the timestamp + next reset time, surface
@@ -567,6 +639,39 @@ export default function App() {
         });
       } catch (err) {
         console.error('[Scheduler] Firestore subscribeMonth failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, [isAuthenticated, activeCompanyId, config.year, config.month]);
+
+  // v5.0 — approval block subscription for the active month. Separate
+  // listener so cell-content edits and approval transitions don't share a
+  // re-render path. Resets to undefined on month switch / company switch
+  // / sign-out so stale state doesn't leak between contexts.
+  useEffect(() => {
+    if (!isAuthenticated || !activeCompanyId) {
+      setActiveMonthApproval(undefined);
+      setActiveMonthHrisSync(undefined);
+      return;
+    }
+    const cid = activeCompanyId;
+    const yyyymm = `${config.year}-${String(config.month).padStart(2, '0')}`;
+    let cancelled = false;
+    let unsub: (() => void) | undefined;
+    setActiveMonthApproval(undefined);
+    setActiveMonthHrisSync(undefined);
+    (async () => {
+      try {
+        unsub = await fsSubscribeMonthApproval(cid, yyyymm, ({ approval, hrisSync }) => {
+          if (cancelled || cid !== activeCompanyId) return;
+          setActiveMonthApproval(approval);
+          setActiveMonthHrisSync(hrisSync);
+        });
+      } catch (err) {
+        console.error('[Scheduler] Firestore subscribeMonthApproval failed:', err);
       }
     })();
     return () => {
@@ -2350,6 +2455,146 @@ export default function App() {
     });
   };
 
+  // ── v5.0 — schedule approval action handlers ─────────────────────────
+  //
+  // Each handler:
+  //   1. Calls the Firestore transition (which runs runTransaction +
+  //      validates state+role).
+  //   2. Writes a corresponding audit-log entry on success.
+  //   3. Surfaces user-friendly errors via the existing showInfo modal.
+  //   4. Closes its modal. Busy flag prevents double-click while in flight.
+  //
+  // The activeMonthApproval state subscription will pick up the new state
+  // automatically — no need to manually update local state here.
+
+  const activeMonthYyyymm = `${config.year}-${String(config.month).padStart(2, '0')}`;
+  const activeMonthLabel = format(
+    new Date(config.year, config.month - 1, 1),
+    'MMMM yyyy',
+  );
+  const activeCompanyLabel = (() => {
+    const c = companies.find((co) => co.id === activeCompanyId);
+    return c?.name ?? activeMonthYyyymm;
+  })();
+
+  const approvalActorMeta = (): { uid: string; email: string | null; role: import('./lib/auth').Role } | null => {
+    if (!isAuthenticated || !user || !role) return null;
+    return { uid: user.uid, email: user.email, role };
+  };
+
+  const handleApprovalError = (err: unknown, fallback: string) => {
+    const e = err as { code?: string; message?: string };
+    showInfo(
+      t('info.error.title'),
+      e?.message ?? fallback,
+    );
+  };
+
+  const handleSubmitForApproval = async (notes: string) => {
+    const meta = approvalActorMeta();
+    if (!meta || !activeCompanyId) return;
+    setApprovalBusy(true);
+    try {
+      await fsSubmitForApproval(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes || undefined);
+      void writeAuditEntries(
+        [buildApprovalAuditEntry({ action: 'submit', yyyymm: activeMonthYyyymm, actorRole: meta.role, notes: notes || undefined })],
+        activeCompanyId, meta.uid, meta.email,
+      ).catch(() => { /* audit failures are non-fatal */ });
+      setSubmitModalOpen(false);
+    } catch (err) {
+      handleApprovalError(err, 'Submit failed.');
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const handleLockSchedule = async (notes: string) => {
+    const meta = approvalActorMeta();
+    if (!meta || !activeCompanyId) return;
+    setApprovalBusy(true);
+    try {
+      await fsLockSchedule(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes || undefined);
+      void writeAuditEntries(
+        [buildApprovalAuditEntry({ action: 'lock', yyyymm: activeMonthYyyymm, actorRole: meta.role, notes: notes || undefined })],
+        activeCompanyId, meta.uid, meta.email,
+      ).catch(() => {});
+      setLockModalOpen(false);
+    } catch (err) {
+      handleApprovalError(err, 'Lock failed — the schedule may have already been acted on by another user. Refresh and retry.');
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const handleSaveSchedule = async (notes: string) => {
+    const meta = approvalActorMeta();
+    if (!meta || !activeCompanyId) return;
+    setApprovalBusy(true);
+    try {
+      await fsSaveSchedule(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes || undefined);
+      void writeAuditEntries(
+        [buildApprovalAuditEntry({ action: 'save', yyyymm: activeMonthYyyymm, actorRole: meta.role, notes: notes || undefined })],
+        activeCompanyId, meta.uid, meta.email,
+      ).catch(() => {});
+      setSaveModalOpen(false);
+    } catch (err) {
+      handleApprovalError(err, 'Save failed — the schedule may have already been finalized by another user.');
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const handleSendBack = async (notes: string) => {
+    const meta = approvalActorMeta();
+    if (!meta || !activeCompanyId) return;
+    const fromStatus = effectiveStatus(activeMonthApproval);
+    setApprovalBusy(true);
+    try {
+      // Branch on current state: submitted → rejected (manager-initiated)
+      // or locked → submitted (admin sends back to manager).
+      if (fromStatus === 'submitted') {
+        await fsSendBackToSupervisor(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes);
+      } else if (fromStatus === 'locked') {
+        await fsSendBackToManager(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes);
+      } else {
+        throw new Error(`Cannot send back from "${fromStatus}".`);
+      }
+      const fromLevel: 'manager' | 'admin' = fromStatus === 'locked' ? 'admin' : (meta.role === 'manager' ? 'manager' : 'admin');
+      void writeAuditEntries(
+        [buildApprovalAuditEntry({ action: 'send-back', yyyymm: activeMonthYyyymm, actorRole: meta.role, notes, fromLevel })],
+        activeCompanyId, meta.uid, meta.email,
+      ).catch(() => {});
+      setSendBackModalOpen(false);
+    } catch (err) {
+      handleApprovalError(err, 'Send-back failed.');
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const handleReopenSchedule = async (notes: string) => {
+    const meta = approvalActorMeta();
+    if (!meta || !activeCompanyId) return;
+    const postExport = !!activeMonthHrisSync?.lastExportedAt;
+    setApprovalBusy(true);
+    try {
+      await fsReopenSchedule(activeCompanyId, activeMonthYyyymm, meta.uid, meta.email, meta.role, notes);
+      void writeAuditEntries(
+        [buildApprovalAuditEntry({ action: 'reopen', yyyymm: activeMonthYyyymm, actorRole: meta.role, notes, postHrisExport: postExport })],
+        activeCompanyId, meta.uid, meta.email,
+      ).catch(() => {});
+      setReopenModalOpen(false);
+    } catch (err) {
+      handleApprovalError(err, 'Reopen failed.');
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  // Compute editability + cached values for the Schedule tab + modals.
+  const activeMonthStatus = effectiveStatus(activeMonthApproval);
+  const activeMonthCanEdit = availableActionsFor(activeMonthStatus, role).canEditCells;
+
   // --- Simulation mode ---
   const enterSimMode = () => {
     if (simMode) return;
@@ -2507,7 +2752,7 @@ export default function App() {
         <nav className="flex-1 py-4 overflow-y-auto sidebar-scrollbar">
           <SidebarGroup label={t('sidebar.group.operations')}>
             {tabAllowed('dashboard', role, tabPerms) && <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />}
-            {tabAllowed('schedule', role, tabPerms) && <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="02" icon={Calendar} onClick={() => setActiveTab('schedule')} />}
+            {tabAllowed('schedule', role, tabPerms) && <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="02" icon={Calendar} onClick={() => setActiveTab('schedule')} badge={scheduleApprovalBadge} />}
             {tabAllowed('roster', role, tabPerms) && <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="03" icon={Users} onClick={() => setActiveTab('roster')} />}
             {tabAllowed('payroll', role, tabPerms) && <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="04" icon={BarChart3} onClick={() => setActiveTab('payroll')} />}
           </SidebarGroup>
@@ -2664,29 +2909,62 @@ export default function App() {
               </div>
             }>
             {activeTab === 'dashboard' && (
-              <DashboardTab
-                employees={employees}
-                shifts={shifts}
-                holidays={holidays}
-                config={config}
-                schedule={schedule}
-                allSchedules={allSchedules}
-                stations={stations}
-                isPeakDay={isPeakDay}
-                violations={violations}
-                staffingGapsByStation={staffingGapsByStation}
-                hourlyCoverage={hourlyCoverage}
-                peakStabilityPercent={peakStabilityPercent}
-                overallCoveragePercent={overallCoveragePercent}
-                isStatsModalOpen={isStatsModalOpen}
-                setIsStatsModalOpen={setIsStatsModalOpen}
-                prevMonth={prevMonth}
-                nextMonth={nextMonth}
-                setActiveMonth={setActiveMonth}
-                onGoToRoster={() => setActiveTab('roster')}
-                onLoadSample={loadSampleData}
-                activeCompanyId={activeCompanyId}
-              />
+              <div className="space-y-6">
+                {/* v5.0 — pending-approval cards. Rendered above the
+                    dashboard's KPI strip so they're the first thing the
+                    user sees on login if there's anything actionable.
+                    Cards self-hide when the queue is empty (caller
+                    decides). */}
+                {(role === 'manager' || role === 'admin' || role === 'super_admin') && validationQueue.length > 0 && (
+                  <PendingApprovalsCard
+                    kind="awaiting-validation"
+                    rows={validationQueue}
+                    companies={companies}
+                    onJump={(cid, yyyymm) => {
+                      const m = /^(\d{4})-(\d{2})$/.exec(yyyymm);
+                      if (m) setActiveMonth(Number(m[1]), Number(m[2]));
+                      if (cid !== activeCompanyId) setActiveCompanyId(cid);
+                      setActiveTab('schedule');
+                    }}
+                  />
+                )}
+                {(role === 'admin' || role === 'super_admin') && finalizationQueue.length > 0 && (
+                  <PendingApprovalsCard
+                    kind="awaiting-finalization"
+                    rows={finalizationQueue}
+                    companies={companies}
+                    onJump={(cid, yyyymm) => {
+                      const m = /^(\d{4})-(\d{2})$/.exec(yyyymm);
+                      if (m) setActiveMonth(Number(m[1]), Number(m[2]));
+                      if (cid !== activeCompanyId) setActiveCompanyId(cid);
+                      setActiveTab('schedule');
+                    }}
+                  />
+                )}
+                <DashboardTab
+                  employees={employees}
+                  shifts={shifts}
+                  holidays={holidays}
+                  config={config}
+                  schedule={schedule}
+                  allSchedules={allSchedules}
+                  stations={stations}
+                  isPeakDay={isPeakDay}
+                  violations={violations}
+                  staffingGapsByStation={staffingGapsByStation}
+                  hourlyCoverage={hourlyCoverage}
+                  peakStabilityPercent={peakStabilityPercent}
+                  overallCoveragePercent={overallCoveragePercent}
+                  isStatsModalOpen={isStatsModalOpen}
+                  setIsStatsModalOpen={setIsStatsModalOpen}
+                  prevMonth={prevMonth}
+                  nextMonth={nextMonth}
+                  setActiveMonth={setActiveMonth}
+                  onGoToRoster={() => setActiveTab('roster')}
+                  onLoadSample={loadSampleData}
+                  activeCompanyId={activeCompanyId}
+                />
+              </div>
             )}
 
             {activeTab === 'coverageOT' && (
@@ -2838,6 +3116,15 @@ export default function App() {
                 onExportSchedule={exportScheduleCSV}
                 simMode={simMode}
                 onEnterSimMode={enterSimMode}
+                approval={activeMonthApproval}
+                monthLabel={`${activeMonthLabel} — ${activeCompanyLabel}`}
+                role={role}
+                canEditCells={activeMonthCanEdit && !simMode}
+                onSubmitForApproval={() => setSubmitModalOpen(true)}
+                onLockSchedule={() => setLockModalOpen(true)}
+                onSendBackSchedule={() => setSendBackModalOpen(true)}
+                onSaveSchedule={() => setSaveModalOpen(true)}
+                onReopenSchedule={() => setReopenModalOpen(true)}
               />
             )}
 
@@ -2981,6 +3268,105 @@ export default function App() {
         onClose={() => setInfoState(prev => ({ ...prev, isOpen: false }))}
         infoOnly
       />
+
+      {/* v5.0 — schedule approval action modals. Each fires a runTransaction
+          on the schedule doc; activeMonthApproval subscription picks up the
+          new state automatically and re-renders the banner. The compliance
+          summary numbers are passed through from the existing violations
+          array so manager + admin see exactly what the supervisor saw. */}
+      {(() => {
+        const hardViolations = violations.filter(v => (v.severity ?? 'violation') === 'violation').length;
+        const infoFindings = violations.filter(v => v.severity === 'info').length;
+        // Heuristic score — same penalty (2pts per violation, capped to 0)
+        // we use elsewhere; specific number isn't load-bearing, just gives
+        // the approver a quick gauge.
+        const compliancePctValue = Math.max(0, 100 - hardViolations * 2);
+        const monthLabel = activeMonthLabel;
+        const companyLabel = activeCompanyLabel;
+        const submittedAtMs = (() => {
+          const t2 = activeMonthApproval?.submittedAt as { toMillis?: () => number; seconds?: number } | undefined;
+          if (!t2) return null;
+          if (typeof t2.toMillis === 'function') return t2.toMillis();
+          if (typeof t2.seconds === 'number') return t2.seconds * 1000;
+          return null;
+        })();
+        const lockedAtMs = (() => {
+          const t2 = activeMonthApproval?.lockedAt as { toMillis?: () => number; seconds?: number } | undefined;
+          if (!t2) return null;
+          if (typeof t2.toMillis === 'function') return t2.toMillis();
+          if (typeof t2.seconds === 'number') return t2.seconds * 1000;
+          return null;
+        })();
+        const lastExportedAtMs = (() => {
+          const t2 = activeMonthHrisSync?.lastExportedAt as { toMillis?: () => number; seconds?: number } | undefined;
+          if (!t2) return null;
+          if (typeof t2.toMillis === 'function') return t2.toMillis();
+          if (typeof t2.seconds === 'number') return t2.seconds * 1000;
+          return null;
+        })();
+        const sendBackDestination: 'supervisor' | 'manager' = (
+          effectiveStatus(activeMonthApproval) === 'submitted' ? 'supervisor' : 'manager'
+        );
+        return (
+          <>
+            <SubmitForApprovalModal
+              isOpen={submitModalOpen}
+              onClose={() => setSubmitModalOpen(false)}
+              onConfirm={handleSubmitForApproval}
+              monthLabel={monthLabel}
+              companyLabel={companyLabel}
+              violations={hardViolations}
+              infos={infoFindings}
+              scorePct={compliancePctValue}
+              busy={approvalBusy}
+            />
+            <LockScheduleModal
+              isOpen={lockModalOpen}
+              onClose={() => setLockModalOpen(false)}
+              onConfirm={handleLockSchedule}
+              monthLabel={monthLabel}
+              companyLabel={companyLabel}
+              submittedBy={activeMonthApproval?.submittedBy ?? null}
+              submittedAtLabel={submittedAtMs ? format(new Date(submittedAtMs), 'yyyy-MM-dd HH:mm') : null}
+              violations={hardViolations}
+              infos={infoFindings}
+              scorePct={compliancePctValue}
+              busy={approvalBusy}
+            />
+            <SaveScheduleModal
+              isOpen={saveModalOpen}
+              onClose={() => setSaveModalOpen(false)}
+              onConfirm={handleSaveSchedule}
+              monthLabel={monthLabel}
+              companyLabel={companyLabel}
+              lockedBy={activeMonthApproval?.lockedBy ?? null}
+              lockedAtLabel={lockedAtMs ? format(new Date(lockedAtMs), 'yyyy-MM-dd HH:mm') : null}
+              violations={hardViolations}
+              infos={infoFindings}
+              scorePct={compliancePctValue}
+              busy={approvalBusy}
+            />
+            <SendBackModal
+              isOpen={sendBackModalOpen}
+              onClose={() => setSendBackModalOpen(false)}
+              onConfirm={handleSendBack}
+              monthLabel={monthLabel}
+              companyLabel={companyLabel}
+              destination={sendBackDestination}
+              busy={approvalBusy}
+            />
+            <ReopenModal
+              isOpen={reopenModalOpen}
+              onClose={() => setReopenModalOpen(false)}
+              onConfirm={handleReopenSchedule}
+              monthLabel={monthLabel}
+              companyLabel={companyLabel}
+              lastExportedAt={lastExportedAtMs}
+              busy={approvalBusy}
+            />
+          </>
+        );
+      })()}
 
       {/* The mount key changes on every new auto-scheduler run (`runId` is a
           fresh Date.now() per run). This forces React to remount the modal on

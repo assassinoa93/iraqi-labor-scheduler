@@ -257,7 +257,7 @@ export const SidebarGroup = ({ label, children }: { label: string; children: Rea
 // classes auto-mirror so the dot lands on the visual end of the row in
 // either direction. Pre-2.6 the leading bar was force-placed via
 // `border-l-4` and needed a CSS override to mirror in RTL.
-export const TabButton = ({ active, label, index, onClick }: { active: boolean; icon?: any; label: string; index: string; onClick: () => void }) => (
+export const TabButton = ({ active, label, index, onClick, badge }: { active: boolean; icon?: any; label: string; index: string; onClick: () => void; badge?: number }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -272,7 +272,23 @@ export const TabButton = ({ active, label, index, onClick }: { active: boolean; 
       active ? "text-blue-300 opacity-100" : "text-slate-500 opacity-60",
     )}>{index}</span>
     <span className="truncate flex-1 text-start">{label}</span>
-    {active && (
+    {/* v5.0 — pending-action badge. Surfaces the count of items waiting
+        for the user's attention on this tab (currently used by Schedule
+        for the approval queue). Clamped at 99+ to keep the sidebar tidy. */}
+    {badge !== undefined && badge > 0 && (
+      <span
+        className={cn(
+          "shrink-0 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums flex items-center justify-center",
+          active
+            ? "bg-blue-400 text-slate-900"
+            : "bg-amber-500 text-white",
+        )}
+        title={`${badge} item${badge === 1 ? '' : 's'} need attention`}
+      >
+        {badge > 99 ? '99+' : badge}
+      </span>
+    )}
+    {active && badge === undefined && (
       <span
         aria-hidden
         className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"

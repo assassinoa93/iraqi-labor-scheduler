@@ -15,7 +15,10 @@ import { getFirebaseAuth } from './firebase';
 import type { TabPerms } from './tabAccess';
 import { tabAccess as computeTabAccess, canRead as computeCanRead, canWrite as computeCanWrite } from './tabAccess';
 
-export type Role = 'super_admin' | 'admin' | 'supervisor';
+// v5.0 — `manager` is the first-tier validator role. Sits between admin and
+// supervisor: locks supervisor-submitted schedules so an admin can finalize
+// them. Scoped by `allowedCompanies` claim like supervisors.
+export type Role = 'super_admin' | 'admin' | 'manager' | 'supervisor';
 
 export interface AuthState {
   // null in offline mode (no auth applied) or while loading.

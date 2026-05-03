@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical } from 'lucide-react';
+import { ScheduleApprovalBanner } from '../components/Schedule/ScheduleApprovalBanner';
 import { format } from 'date-fns';
 import { List, type RowComponentProps } from 'react-window';
 import { Employee, Shift, PublicHoliday, Config, Schedule, Station } from '../types';
@@ -90,6 +91,19 @@ interface ScheduleTabProps {
   onExportSchedule?: () => void;
   simMode?: boolean;
   onEnterSimMode?: () => void;
+
+  // v5.0 — approval workflow. The parent (App.tsx) owns the modal state and
+  // the actual transition calls; this tab just renders the banner + reads
+  // the role/status to compute "is the grid editable right now?".
+  approval?: import('../lib/firestoreSchedules').ApprovalBlock;
+  monthLabel?: string;          // e.g. "April 2026 — Iraqi Mall, Branch A"
+  role?: import('../lib/auth').Role | null;
+  canEditCells?: boolean;       // App.tsx computes this from `availableActionsFor`
+  onSubmitForApproval?: () => void;
+  onLockSchedule?: () => void;
+  onSendBackSchedule?: () => void;
+  onSaveSchedule?: () => void;
+  onReopenSchedule?: () => void;
 }
 
 // Layout constants used by both the sticky header row and the virtualized
@@ -259,6 +273,10 @@ export function ScheduleTab({
   canRunAuto, runAutoDisabledReason,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
   onExportSchedule, simMode, onEnterSimMode,
+  // v5.0 — approval workflow props
+  approval, monthLabel, role, canEditCells = true,
+  onSubmitForApproval, onLockSchedule, onSendBackSchedule,
+  onSaveSchedule, onReopenSchedule,
 }: ScheduleTabProps) {
   const { t } = useI18n();
 
@@ -375,6 +393,11 @@ export function ScheduleTab({
   }, [isDragPainting]);
 
   const handleCellMouseDown = React.useCallback((empId: string, day: number, e: React.MouseEvent) => {
+    // v5.0 — read-only-while-pending. If the schedule is in submitted /
+    // locked / saved state the cell handlers are inert. Reviewers see the
+    // grid but can't stealth-edit; they have to send-back or reopen with
+    // notes to make changes happen.
+    if (!canEditCells) return;
     // Shift+click range fill takes priority — paint the rectangle and skip
     // drag-paint setup. The handleCellClick handler will also fire (browser
     // delivers click after mousedown), but the range-fill path short-circuits
@@ -391,15 +414,17 @@ export function ScheduleTab({
       onCellClick(empId, day);
     }
     lastClickedCellRef.current = { empId, day };
-  }, [paintMode, onCellClick, onCellRangeFill]);
+  }, [paintMode, onCellClick, onCellRangeFill, canEditCells]);
 
   const handleCellMouseEnter = React.useCallback((empId: string, day: number) => {
+    if (!canEditCells) return;
     if (isDragPainting && paintMode) {
       onCellClick(empId, day);
     }
-  }, [isDragPainting, paintMode, onCellClick]);
+  }, [isDragPainting, paintMode, onCellClick, canEditCells]);
 
   const handleCellClick = React.useCallback((empId: string, day: number, opts?: { shift?: boolean }) => {
+    if (!canEditCells) return;
     // Skip the click if it's the second half of a shift+click range fill
     // (already handled in mousedown). Without this guard the anchor cell
     // would be cycled twice.
@@ -410,7 +435,7 @@ export function ScheduleTab({
     if (paintMode && isDragPainting) return;
     onCellClick(empId, day, opts);
     lastClickedCellRef.current = { empId, day };
-  }, [paintMode, isDragPainting, onCellClick]);
+  }, [paintMode, isDragPainting, onCellClick, canEditCells]);
 
   const days = useMemo(
     () => Array.from({ length: config.daysInMonth }, (_, i) => i + 1),
@@ -571,6 +596,25 @@ export function ScheduleTab({
 
   return (
     <div className="space-y-6">
+      {/* v5.0 — approval banner (top of grid). Banner reads `approval.status`
+          and shows the right colour/copy/actions for the current state.
+          When role===null (offline mode) and status===draft (default) the
+          banner hides itself entirely so the legacy single-user UI is
+          unchanged. */}
+      {(role !== undefined && monthLabel) && (
+        <ScheduleApprovalBanner
+          approval={approval}
+          monthLabel={monthLabel}
+          role={role}
+          canWriteSchedule={canEditCells}
+          onSubmit={onSubmitForApproval}
+          onLock={onLockSchedule}
+          onSendBack={onSendBackSchedule}
+          onSave={onSaveSchedule}
+          onReopen={onReopenSchedule}
+        />
+      )}
+
       {/* The toolbar stacks vertically by default and only goes single-row at
           xl+ widths. With the suggestion pane open the main content width is
           ~1010px on a 1366×768 laptop, which can't fit all 8+ toolbar items

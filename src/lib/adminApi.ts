@@ -17,7 +17,9 @@ import { getFirebaseAuth } from './firebase';
 import { getActiveStoredEntry } from './firebaseConfigStorage';
 import type { TabPerms } from './tabAccess';
 
-export type Role = 'super_admin' | 'admin' | 'supervisor';
+// v5.0 — kept aligned with auth.tsx's Role union. `manager` is the
+// first-tier validator inserted between admin and supervisor.
+export type Role = 'super_admin' | 'admin' | 'manager' | 'supervisor';
 
 // Re-export so consumers of adminApi don't have to import from two places.
 export type { TabPerms } from './tabAccess';

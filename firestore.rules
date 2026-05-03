@@ -11,8 +11,11 @@ service cloud.firestore {
     function role()         { return request.auth.token.role; }
     function isSuper()      { return request.auth != null && role() == 'super_admin'; }
     function isAdmin()      { return request.auth != null && (role() == 'admin' || isSuper()); }
+    // v5.0 — manager is the first-tier validator. Sits between admin and
+    // supervisor. Scoped via `allowedCompanies` claim like supervisor.
+    function isManager()    { return request.auth != null && role() == 'manager'; }
     function isSupervisor() { return request.auth != null && role() == 'supervisor'; }
-    function hasCompany(c)  { return isSuper() || isAdmin() || (request.auth.token.companies is list && c in request.auth.token.companies); }
+    function hasCompany(c)  { return isSuper() || isAdmin() || ((isManager() || isSupervisor()) && request.auth.token.companies is list && c in request.auth.token.companies); }
 
     // /users — super_admin reads/writes all; users read their own doc.
     match /users/{uid} {
@@ -35,12 +38,25 @@ service cloud.firestore {
       match /schedules/{month} {
         allow read:  if hasCompany(companyId);
         allow write: if hasCompany(companyId);
+
+        // v5.0 — saved snapshots. Created when an admin transitions a
+        // schedule to `saved`. Immutable record-keeping artifact: any user
+        // with company access can read; only admin/super can create; never
+        // updated or deleted (preserves audit lineage).
+        match /snapshots/{snapshotId} {
+          allow read:   if hasCompany(companyId);
+          allow create: if hasCompany(companyId) && isAdmin();
+          allow update, delete: if false;
+        }
       }
     }
 
-    // /audit — admins read all, supervisors read entries scoped to their companies.
+    // /audit — admins read all, manager + supervisor read entries scoped to
+    // their companies (so a manager can review the audit trail of schedules
+    // they validate).
     match /audit/{entryId} {
-      allow read:   if isAdmin() || (isSupervisor() && hasCompany(resource.data.companyId));
+      allow read:   if isAdmin() ||
+                       ((isManager() || isSupervisor()) && hasCompany(resource.data.companyId));
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
