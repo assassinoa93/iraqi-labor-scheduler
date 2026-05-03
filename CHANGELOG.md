@@ -2,6 +2,27 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v4.1.0 — 2026-05-03
+
+**Onboarding + admin polish.** v4.0.0 shipped the AIO wizard for first-time super-admins, but a returning super-admin reconnecting on a new PC went through the inline paste form, which only collected the `firebaseConfig` and dropped them at the SuperAdmin tab — where they hit *"Service account not linked"* because nothing on the journey had asked them to link one. v4.1.0 closes that gap and rounds out a handful of QoL items that turned up alongside it.
+
+**Reconnect wizard for returning super-admins**
+- `SuperAdminWizard` gains a `mode='reconnect'` variant. The Stepper drops the project-creation and account-creation steps (those already exist on the existing project) and walks through firebaseConfig paste + service-account link only. OnlineSetup's super-admin **"Connect to a database I already set up"** now launches this wizard instead of the inline paste form, so the link step is part of the path — no more deferring it to the SuperAdmin tab. The inline paste form is now reserved for admin/supervisor join via connection code (those roles don't need a service account).
+- Step 1 of the reconnect wizard (paste firebaseConfig) leads with the recommended path — copy an `ils-connect:…` code from another PC's **Settings → Generate connection code** — and falls back to a Firebase Console deep link if the user prefers grabbing the values from Console directly.
+- Step 2 (service account) and the SuperAdmin → Connection panel both deep-link to `console.firebase.google.com/project/<projectId>/settings/serviceaccounts/adminsdk` using the active project's id, so multi-database super-admins go straight to the right project's tab. The URL is computed inline at render time, so switching active database immediately points the link at the new project.
+
+**Branded confirm dialogs across admin / settings UI**
+- `useConfirm()` Promise hook added to `ConfirmModal.tsx`. Six native `window.confirm()` calls that v4.0 introduced — switch / remove / add database in Settings, remove saved DB in OnlineSetup, delete user, audit purge — now use the branded modal: dark mode, RTL, design-system motion, escape-to-close. Native `confirm()` couldn't render Arabic right-to-left or honor the dark theme, so this is a polish *and* i18n fix.
+
+**Login + onboarding QoL**
+- LoginScreen password input gains an eye / eye-off toggle. Useful when pasting a temp password from a manager or typing one with ambiguous chars (0/O, l/1) on a touch keyboard.
+- Wizard Step 4 (super-admin account creation) — the auto-generated password gets a Copy button matching the existing TempPasswordModal pattern (2-second *Copied* state). Pre-fix, the user had to triple-click-select before clicking Create — and once Create fired, the password disappeared from screen.
+- Wizard Step 2 — *"In Firebase Console: gear icon → Project settings → ..."* is now an actual clickable link to `console.firebase.google.com`, rather than just bold copy.
+- UsersPanel "service account not linked" error fallback rewritten: was *"Connection panel above first"* (incorrect on User Management tab, where Connection isn't above), now points to **Super Admin → Connection** with the same deep link.
+
+**Compatibility**
+- All 108 tests pass. No data-model changes, no migration needed.
+
 ## v4.0.1 — 2026-04-30
 
 **Hot fix.** v4.0.0 ModePicker gated the **Connect Online** button on `isFirebaseConfigured()` returning true — but a fresh install never has a config yet, so the button was permanently disabled and showed *"Firebase not configured · See .env.example"*. The whole AIO onboarding flow we just shipped (in-app wizard, paste connection code, etc.) was unreachable from the launch screen. Fixed by removing the gate: the button is always clickable, and `AppShell` already handles the no-config case by routing to OnlineSetup, which shows the role picker → wizard or paste form. No other changes.
