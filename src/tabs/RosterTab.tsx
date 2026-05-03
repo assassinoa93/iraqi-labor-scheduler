@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Trash2, Plus, Users, Edit3, CalendarRange } from 'lucide-react';
+import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
@@ -24,6 +24,12 @@ interface RosterTabProps {
   onBulkDelete: () => void;
   onLoadSample: () => void;
   onBulkAssignShift?: () => void;
+  // v4.2.1 — moved from the global toolbar so roster operations live with
+  // the roster. `onMassImport` opens the OS file picker (the actual file
+  // input + parser stays in App.tsx since it uses several App-level
+  // helpers); `onDownloadTemplate` saves a CSV template to disk.
+  onMassImport?: () => void;
+  onDownloadTemplate?: () => void;
 }
 
 type SortKey = 'empId' | 'name' | 'role';
@@ -32,6 +38,7 @@ export function RosterTab({
   employees, stations, stationGroups = [], searchTerm, setSearchTerm,
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
   onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift,
+  onMassImport, onDownloadTemplate,
 }: RosterTabProps) {
   const { t } = useI18n();
 
@@ -122,13 +129,33 @@ export function RosterTab({
             </button>
           )}
         </div>
-        <button
-          onClick={onAddNew}
-          className="flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-xl active:scale-95 whitespace-nowrap min-w-fit"
-        >
-          <Plus className="w-4 h-4" />
-          {t('roster.addEmployee')}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onDownloadTemplate && (
+            <button
+              onClick={onDownloadTemplate}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {t('toolbar.csvTemplate')}
+            </button>
+          )}
+          {onMassImport && (
+            <button
+              onClick={onMassImport}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              {t('toolbar.massImport')}
+            </button>
+          )}
+          <button
+            onClick={onAddNew}
+            className="flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-xl active:scale-95 whitespace-nowrap min-w-fit"
+          >
+            <Plus className="w-4 h-4" />
+            {t('roster.addEmployee')}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">

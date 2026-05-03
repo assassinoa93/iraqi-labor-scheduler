@@ -27,6 +27,7 @@ import {
 import * as adminApi from '../../lib/adminApi';
 import type { AdminUser, Role, TabPerms } from '../../lib/adminApi';
 import type { Company } from '../../types';
+import { useAuth } from '../../lib/auth';
 import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { GRANTABLE_TABS, type TabAccess } from '../../lib/tabAccess';
@@ -47,6 +48,8 @@ interface Props {
 }
 
 export function UsersPanel({ companies }: Props) {
+  const { user: currentUser } = useAuth();
+  const currentUid = currentUser?.uid ?? null;
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +78,13 @@ export function UsersPanel({ companies }: Props) {
   useEffect(() => { void refresh(); }, []);
 
   const handleDisable = async (u: AdminUser) => {
+    // Self-protection: disabling your own account locks you out instantly —
+    // refresh-token is revoked, sign-in fails, and there's no other
+    // super-admin available to re-enable you on this install. Always block.
+    if (u.uid === currentUid) {
+      setError("You can't disable your own super-admin account from here. Ask another super-admin to do it, or use the Firebase Console.");
+      return;
+    }
     setLoading(true);
     try {
       if (u.disabled) await adminApi.enableUser(u.uid);
@@ -102,6 +112,10 @@ export function UsersPanel({ companies }: Props) {
   };
 
   const handleDelete = async (u: AdminUser) => {
+    if (u.uid === currentUid) {
+      setError("You can't delete your own super-admin account from here. Ask another super-admin, or use the Firebase Console.");
+      return;
+    }
     const ok = await confirm({
       title: `Delete ${u.email ?? u.uid}?`,
       message: 'This permanently removes the Auth account and the /users/{uid} doc. This cannot be undone.',
@@ -193,11 +207,24 @@ export function UsersPanel({ companies }: Props) {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.uid} className="border-t border-slate-100 dark:border-slate-800 align-top">
+              {users.map((u) => {
+                const isSelf = u.uid === currentUid;
+                const selfDisabledTitle = "You can't change this on your own account from here. Ask another super-admin.";
+                return (
+                <tr key={u.uid} className={cn(
+                  "border-t border-slate-100 dark:border-slate-800 align-top",
+                  isSelf && "bg-blue-50/30 dark:bg-blue-500/5",
+                )}>
                   <Td>
-                    <div className="font-medium text-slate-800 dark:text-slate-100 truncate max-w-[260px]" title={u.email ?? ''}>
-                      {u.email ?? '(no email)'}
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-slate-800 dark:text-slate-100 truncate max-w-[220px]" title={u.email ?? ''}>
+                        {u.email ?? '(no email)'}
+                      </div>
+                      {isSelf && (
+                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-200 text-[8px] font-bold uppercase tracking-wider shrink-0">
+                          You
+                        </span>
+                      )}
                     </div>
                     <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate max-w-[260px]">{u.uid}</div>
                   </Td>
@@ -214,14 +241,27 @@ export function UsersPanel({ companies }: Props) {
                   </Td>
                   <Td align="right">
                     <div className="flex justify-end gap-1.5 flex-wrap">
-                      <IconBtn label="Edit role" onClick={() => setEditing(u)}><Pencil className="w-3 h-3" /></IconBtn>
-                      <IconBtn label={u.disabled ? 'Enable' : 'Disable'} onClick={() => handleDisable(u)}><Power className="w-3 h-3" /></IconBtn>
+                      <IconBtn
+                        label={isSelf ? `Edit your display name (role + permissions are locked on your own account)` : 'Edit role'}
+                        onClick={() => setEditing(u)}
+                      ><Pencil className="w-3 h-3" /></IconBtn>
+                      <IconBtn
+                        label={isSelf ? selfDisabledTitle : (u.disabled ? 'Enable' : 'Disable')}
+                        onClick={() => handleDisable(u)}
+                        disabled={isSelf}
+                      ><Power className="w-3 h-3" /></IconBtn>
                       <IconBtn label="Reset password" onClick={() => handleResetPassword(u)}><KeyRound className="w-3 h-3" /></IconBtn>
-                      <IconBtn label="Delete" tone="danger" onClick={() => handleDelete(u)}><Trash2 className="w-3 h-3" /></IconBtn>
+                      <IconBtn
+                        label={isSelf ? selfDisabledTitle : 'Delete'}
+                        tone="danger"
+                        onClick={() => handleDelete(u)}
+                        disabled={isSelf}
+                      ><Trash2 className="w-3 h-3" /></IconBtn>
                     </div>
                   </Td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -262,6 +302,7 @@ export function UsersPanel({ companies }: Props) {
           mode="edit"
           companies={companies}
           initial={editing}
+          isSelf={editing.uid === currentUid}
           onClose={() => setEditing(null)}
           onSubmit={async (form) => {
             await adminApi.setUserRole({
@@ -329,17 +370,19 @@ function Td({ children, align }: { children: React.ReactNode; align?: 'right' })
   return <td className={cn("px-3 py-2.5", align === 'right' && 'text-right')}>{children}</td>;
 }
 
-function IconBtn({ children, label, onClick, tone }: { children: React.ReactNode; label: string; onClick: () => void; tone?: 'danger' }) {
+function IconBtn({ children, label, onClick, tone, disabled }: { children: React.ReactNode; label: string; onClick: () => void; tone?: 'danger'; disabled?: boolean }) {
   return (
     <button
       title={label}
       aria-label={label}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "apple-press p-1.5 rounded-md border transition-colors",
         tone === 'danger'
           ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-100 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/20"
           : "bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800",
+        disabled && "opacity-40 cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800/60",
       )}
     >
       {children}
@@ -398,11 +441,15 @@ interface UserFormProps {
   mode: 'create' | 'edit';
   companies: Company[];
   initial?: AdminUser;
+  /** True when the row being edited is the currently-signed-in user. Locks
+   * role + companies + tabPerms so a super-admin can't accidentally demote
+   * themselves out of access. */
+  isSelf?: boolean;
   onClose: () => void;
   onSubmit: (form: UserFormValues) => Promise<void>;
 }
 
-function UserFormModal({ mode, companies, initial, onClose, onSubmit }: UserFormProps) {
+function UserFormModal({ mode, companies, initial, isSelf, onClose, onSubmit }: UserFormProps) {
   const [form, setForm] = useState<UserFormValues>(() => ({
     email: initial?.email ?? '',
     password: mode === 'create' ? generateSuggestedPassword() : undefined,
@@ -418,6 +465,15 @@ function UserFormModal({ mode, companies, initial, onClose, onSubmit }: UserForm
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // Self-edit is intentionally read-only — submit just closes the modal.
+    // Defense-in-depth against DOM-tampered re-enabling of the role select:
+    // even if the user manages to set form.role to something else, we never
+    // dispatch the call. To actually demote yourself, ask another super-
+    // admin or use the Firebase Console.
+    if (isSelf) {
+      onClose();
+      return;
+    }
     if (mode === 'create' && (!form.email || !form.password)) {
       setError('Email and password are required.');
       return;
@@ -436,6 +492,14 @@ function UserFormModal({ mode, companies, initial, onClose, onSubmit }: UserForm
   return (
     <Modal onClose={onClose} title={mode === 'create' ? 'New user' : `Edit user: ${initial?.email ?? initial?.uid}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isSelf && (
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-blue-800 dark:text-blue-200 leading-relaxed">
+              You're editing your own account. Role and per-tab permissions are locked to prevent accidentally locking yourself out of the system. To demote yourself, ask another super-admin or use the Firebase Console.
+            </p>
+          </div>
+        )}
         {mode === 'create' && (
           <>
             <Field label="Email" required>
@@ -471,7 +535,11 @@ function UserFormModal({ mode, companies, initial, onClose, onSubmit }: UserForm
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role, companies: e.target.value === 'supervisor' ? form.companies : [] })}
-            className="w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            disabled={isSelf}
+            className={cn(
+              "w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40",
+              isSelf && "opacity-60 cursor-not-allowed",
+            )}
           >
             <option value="supervisor">Supervisor — operational tabs only, scoped companies</option>
             <option value="admin">Admin — all companies, all tabs (Variables read-only)</option>
@@ -552,7 +620,7 @@ function UserFormModal({ mode, companies, initial, onClose, onSubmit }: UserForm
             disabled={submitting}
             className="apple-press px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60"
           >
-            {submitting ? 'Saving…' : mode === 'create' ? 'Create user' : 'Save changes'}
+            {submitting ? 'Saving…' : mode === 'create' ? 'Create user' : isSelf ? 'Close' : 'Save changes'}
           </button>
         </div>
       </form>

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical } from 'lucide-react';
 import { format } from 'date-fns';
 import { List, type RowComponentProps } from 'react-window';
 import { Employee, Shift, PublicHoliday, Config, Schedule, Station } from '../types';
@@ -83,6 +83,13 @@ interface ScheduleTabProps {
     orphanedShiftCodes: string[];
     orphanedStationIds: string[];
   };
+  // v4.2.1 — moved out of the global toolbar so schedule operations live
+  // with the schedule. Export saves the active month as CSV; the simulation
+  // toggle gates editing into a sandbox so the supervisor can model "what
+  // if" without touching saved data.
+  onExportSchedule?: () => void;
+  simMode?: boolean;
+  onEnterSimMode?: () => void;
 }
 
 // Layout constants used by both the sticky header row and the virtualized
@@ -251,6 +258,7 @@ export function ScheduleTab({
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
   canRunAuto, runAutoDisabledReason,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
+  onExportSchedule, simMode, onEnterSimMode,
 }: ScheduleTabProps) {
   const { t } = useI18n();
 
@@ -730,6 +738,26 @@ export function ScheduleTab({
             onRunPreserve={(range) => onRunAuto('preserve', range)}
             onRunFresh={(range) => onRunAuto('fresh', range)}
           />
+
+          {onExportSchedule && (
+            <button
+              onClick={onExportSchedule}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              {t('toolbar.exportSchedule')}
+            </button>
+          )}
+
+          {onEnterSimMode && !simMode && (
+            <button
+              onClick={onEnterSimMode}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/40 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-500/15 shadow-sm"
+            >
+              <FlaskConical className="w-4 h-4" />
+              {t('sim.toolbar.enter')}
+            </button>
+          )}
 
           <button
             onClick={() => window.print()}

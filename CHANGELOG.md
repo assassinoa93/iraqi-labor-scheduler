@@ -2,6 +2,22 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v4.2.1 — 2026-05-03
+
+**Patch.** Three issues from real-install testing of v4.2.0.
+
+**Quota panel — actionable setup-required state**
+- Pre-v4.2.1 the panel showed three rows of *"unavailable · 403: Permission denied"* with no path forward. The default Firebase service-account role (`roles/firebase.sdkAdminServiceAgent`) doesn't include `monitoring.viewer`, and Cloud Monitoring API isn't always enabled on a fresh project — both produce a 403, but the fix is different. The bridge now classifies the 403's sub-cause from the structured API response (`SERVICE_DISABLED` vs `IAM_PERMISSION_DENIED`) and the panel renders one of two clear setup cards: a deep link to enable the API, or a deep link to IAM with the service-account email pre-displayed and a Copy button so the super-admin can paste it straight into the IAM filter, plus step-by-step instructions and a "Re-check" button that bypasses the 30 s cache.
+
+**Self-protection in User Management**
+- The super-admin can no longer disable, delete, or change the role/permissions of their *own* account from inside the app — locking yourself out of the system would leave no in-app recovery path. The own-row gets a *"You"* badge and a subtle blue tint; Disable + Delete buttons are visibly disabled with explanatory tooltips; the edit modal renders a banner *"You're editing your own account…"* and locks the role select. Reset Password and Edit Display Name remain allowed (those don't risk lock-out). To demote yourself, ask another super-admin or use the Firebase Console.
+
+**Toolbar — tab-scoped actions instead of a persistent global banner**
+- The four tab-specific buttons that used to live in the top toolbar across all tabs (*Export Schedule*, *Mass Import Personnel*, *CSV Template*, *Enter Simulation*) now live inside the tabs they actually belong to: import + template in the Roster tab header, export + simulation in the Schedule tab toolbar. The header now carries only truly global state — active-database chip, connection-status dot, and (when sim mode is active) an Exit Simulation pill so the supervisor can never get stuck in sandbox by navigating away from Schedule.
+
+**Compatibility**
+- All 108 tests pass. No data-model changes.
+
 ## v4.2.0 — 2026-05-03
 
 **Online-mode integrity + super-admin observability.** v4.0 / v4.1 made Online mode work; v4.2 makes it *defensible* against the dual-source-of-truth concern a senior reviewer raised, and gives the super-admin a way to see Firebase quota usage live so they're never surprised by users hitting limits.

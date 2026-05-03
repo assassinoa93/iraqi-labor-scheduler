@@ -677,6 +677,11 @@ function registerAdminIpc() {
       scopes: ['https://www.googleapis.com/auth/monitoring.read'],
     });
     const client = await auth.getClient();
+    // Capture the SA email so the renderer can show the user *which* account
+    // needs the IAM role — IAM has many entries on a typical project and
+    // "find the row that ends in @<projectId>.iam.gserviceaccount.com" is
+    // the most discoverable hint we can give.
+    const serviceAccountEmail = String(serviceAccount.client_email || '');
 
     // Daily window. We use the last 24h instead of midnight-to-now because
     // (a) the actual quota window is midnight Pacific and translating to
@@ -710,30 +715,53 @@ function registerAdminIpc() {
         out[m.key] = { used: total, limit: m.limit };
       } catch (e) {
         // Expected failure modes:
-        //   - Cloud Monitoring API not enabled on the project (PERMISSION_DENIED)
-        //   - Service account missing monitoring.viewer (PERMISSION_DENIED)
+        //   - Cloud Monitoring API not enabled on the project (status 403,
+        //     reason SERVICE_DISABLED)
+        //   - Service account missing monitoring.viewer (status 403, reason
+        //     IAM_PERMISSION_DENIED)
         //   - Network blip / Google outage (5xx)
-        // Surface as a per-metric error so the panel can show a partial result.
-        const code = (e && e.response && e.response.status) || (e && e.code) || 'UNKNOWN';
-        const message = (e && e.response && e.response.data && e.response.data.error && e.response.data.error.message)
-          || (e && e.message)
-          || 'Cloud Monitoring API call failed';
-        out[m.key] = { used: null, limit: m.limit, error: { code: String(code), message } };
+        // We classify the 403 sub-cause by inspecting the API's structured
+        // error so the panel can guide the super-admin to the right fix
+        // (enable the API vs. grant the role) instead of a generic 403.
+        const status = (e && e.response && e.response.status) || null;
+        const apiErr = e && e.response && e.response.data && e.response.data.error;
+        const reason = apiErr && Array.isArray(apiErr.details)
+          ? (apiErr.details.find((d) => d && d.reason) || {}).reason
+          : null;
+        const message = (apiErr && apiErr.message) || (e && e.message) || 'Cloud Monitoring API call failed';
+        // Map to a stable cause string the renderer can switch on.
+        let cause = 'UNKNOWN';
+        if (status === 403) {
+          if (reason === 'SERVICE_DISABLED' || /API has not been used|has not been used in project/i.test(message)) {
+            cause = 'API_NOT_ENABLED';
+          } else if (reason === 'IAM_PERMISSION_DENIED' || /permission/i.test(message)) {
+            cause = 'PERMISSION_DENIED';
+          } else {
+            cause = 'FORBIDDEN';
+          }
+        } else if (status && status >= 500) {
+          cause = 'UPSTREAM_ERROR';
+        }
+        out[m.key] = {
+          used: null,
+          limit: m.limit,
+          error: { code: String(status || 'UNKNOWN'), cause, message },
+        };
       }
     }
-    return out;
+    return { metrics: out, serviceAccountEmail };
   }
 
   safeHandle('admin:quotaUsage', async ({ projectId, idToken, force } = {}) => {
     await requireSuperAdmin(projectId, idToken);
     const cached = quotaCache.get(projectId);
     if (!force && cached && (Date.now() - cached.ts < QUOTA_CACHE_TTL_MS)) {
-      return { ...cached.payload, fetchedAt: cached.ts, cached: true };
+      return { ...cached.payload.metrics, serviceAccountEmail: cached.payload.serviceAccountEmail, fetchedAt: cached.ts, cached: true };
     }
     const payload = await fetchQuotaUsage(projectId);
     const fetchedAt = Date.now();
     quotaCache.set(projectId, { ts: fetchedAt, payload });
-    return { ...payload, fetchedAt, cached: false };
+    return { ...payload.metrics, serviceAccountEmail: payload.serviceAccountEmail, fetchedAt, cached: false };
   });
 
   // ── Factory reset (Phase 3.6) ──────────────────────────────────────────

@@ -2553,39 +2553,25 @@ export default function App() {
             ? "bg-indigo-50/80 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30"
             : "bg-white/80 dark:bg-[#161b22]/85 border-slate-200 dark:border-slate-800/80"
         )}>
+          {/* v4.2.1 — tab-specific actions (export schedule, mass-import
+              employees, download CSV template, enter simulation) moved out
+              of the global toolbar into their own tabs (Roster + Schedule).
+              The header now only carries truly global state: the active-
+              database chip, the connection-status dot, and an "exit
+              simulation" pill that's visible from any tab while sim mode is
+              on, so the supervisor can never get stuck in sandbox by
+              navigating away from Schedule. */}
           <div className="flex gap-2">
-            <button
-              onClick={exportScheduleCSV}
-              className="apple-press px-5 py-1.5 bg-slate-900 dark:bg-slate-700 border border-slate-700 dark:border-slate-600 rounded-lg text-[10px] font-bold text-white uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 shadow-md flex items-center gap-2"
-            >
-              <Download className="w-3 h-3" />
-              {t('toolbar.exportSchedule')}
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="apple-press px-5 py-1.5 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm flex items-center gap-2"
-            >
-              <FileSpreadsheet className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              {t('toolbar.massImport')}
-            </button>
-            <button
-              onClick={downloadRosterTemplate}
-              className="apple-press px-5 py-1.5 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
-            >
-              {t('toolbar.csvTemplate')}
-            </button>
-            <button
-              onClick={simMode ? exitSimMode : enterSimMode}
-              className={cn(
-                "apple-press px-5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-2 border",
-                simMode
-                  ? "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700"
-                  : "bg-white dark:bg-slate-800/60 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/15"
-              )}
-            >
-              <FlaskConical className="w-3 h-3" />
-              {simMode ? t('sim.toolbar.exit') : t('sim.toolbar.enter')}
-            </button>
+            {simMode && (
+              <button
+                onClick={exitSimMode}
+                title={t('sim.toolbar.exit')}
+                className="apple-press px-4 py-1.5 bg-indigo-600 text-white border border-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 shadow-md flex items-center gap-2"
+              >
+                <FlaskConical className="w-3 h-3" />
+                {t('sim.toolbar.exit')}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3" aria-live="polite">
             {/* Active Firebase project chip — Online mode only. Always
@@ -2781,6 +2767,8 @@ export default function App() {
                 onBulkDelete={handleBulkDelete}
                 onLoadSample={loadSampleData}
                 onBulkAssignShift={() => setIsBulkAssignOpen(true)}
+                onMassImport={() => fileInputRef.current?.click()}
+                onDownloadTemplate={downloadRosterTemplate}
               />
             )}
 
@@ -2847,6 +2835,9 @@ export default function App() {
                 onDismissPaintWarnings={() => setPaintWarnings(null)}
                 staleness={scheduleStaleness}
                 recentlyChangedCells={recentlyChangedCells}
+                onExportSchedule={exportScheduleCSV}
+                simMode={simMode}
+                onEnterSimMode={enterSimMode}
               />
             )}
 

@@ -40,16 +40,26 @@ export interface AuditStats {
   oldestTs: number | null;
 }
 
+export type QuotaErrorCause =
+  | 'API_NOT_ENABLED'
+  | 'PERMISSION_DENIED'
+  | 'FORBIDDEN'
+  | 'UPSTREAM_ERROR'
+  | 'UNKNOWN';
+
 export interface QuotaMetric {
   used: number | null;
   limit: number;
-  error?: { code: string; message: string };
+  error?: { code: string; cause: QuotaErrorCause; message: string };
 }
 
 export interface QuotaUsage {
   reads: QuotaMetric;
   writes: QuotaMetric;
   deletes: QuotaMetric;
+  /** Service-account email pulled from the linked JSON. Helps the user
+   * identify which IAM principal needs the Monitoring Viewer role. */
+  serviceAccountEmail: string;
   fetchedAt: number;
   cached: boolean;
 }
