@@ -65,15 +65,14 @@ export function BulkAssignModal({ isOpen, onClose, selectedCount, shifts, daysIn
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          onClick={onClose}
           className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-label={t('bulkAssign.title')}
         >
+          {/* v5.3.1: sticky backdrop — Esc + X + Cancel are the only paths out. */}
           <motion.div
             key={`${presenceKey}:card`}
-            onClick={e => e.stopPropagation()}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}

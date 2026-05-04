@@ -186,11 +186,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
 
   const workShifts = shifts.filter(s => s.isWork);
 
+  // v5.3.1: backdrop click no longer dismisses — losing 5 minutes of form
+  // entry to one stray click is the wrong default. Esc + X + Cancel are the
+  // only paths out.
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}>
       <motion.div
         ref={cardRef}
-        onClick={e => e.stopPropagation()}
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"

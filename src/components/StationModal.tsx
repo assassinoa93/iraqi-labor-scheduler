@@ -49,9 +49,10 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   // employee is on the roster yet.
   const roleOptions = Array.from(new Set([...availableRoles, 'Driver'])).filter(Boolean).sort();
 
+  // v5.3.1: sticky backdrop — Esc + X + Cancel are the only paths out.
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label={t('modal.station.title')}>
-      <motion.div onClick={e => e.stopPropagation()} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label={t('modal.station.title')}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-slate-100 dark:border-slate-700/60 flex justify-between items-center bg-slate-50 dark:bg-slate-800/40">
           <h3 className="font-black text-slate-800 dark:text-slate-100 uppercase tracking-tighter">{t('modal.station.title')}</h3>
           <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400 dark:text-slate-500" /></button>

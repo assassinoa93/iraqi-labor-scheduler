@@ -2,6 +2,28 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.3.1 — 2026-05-04
+
+**Bulk-add stations UX rebuild + sticky form modals.** Two real-data trial follow-ups on the v5.3.0 bulk-station feature. Supervisors hit two papercuts: (1) clicking outside the popup dismissed the modal and discarded everything they'd typed, and (2) the textarea-only "names list" pattern with one shared row of defaults didn't match the real workflow — outliers (a half-day vehicle, a stricter peak-HC cashier) needed per-row tweaks before commit.
+
+**Per-row editable bulk-station modal** ([`BulkAddStationsModal.tsx`](src/components/BulkAddStationsModal.tsx))
+- Replaced the textarea + single defaults row with a row-table where every station has its own editable cells: name, normal HC, peak HC, opening time, closing time, required role, color, plus a delete button.
+- "Defaults for new rows" panel still exists at the top so the supervisor can set sensible starting values once. Editing it does NOT retroactively touch rows already in the table — a `Wand2` "Apply to all rows" button is the explicit way to stamp current defaults across every existing row (preserves typed-in names).
+- "Add row" / "Add 5 rows" buttons append rows pre-filled with the current defaults.
+- Auto-numbered ID still derives from prefix + sequential index, but now each row carries its preview ID inline. Collisions still highlight the chip in red so the supervisor sees them before pressing Create.
+- Per-row validation on submit: `peakMinHC ≥ normalMinHC` per row; collision check; blank rows are silently skipped (with a hint above the action bar showing the count).
+- Modal widened to `max-w-5xl` with a horizontally-scrolling row table to fit all 8 columns + delete on a single line.
+
+**Sticky form modals** ([`EmployeeModal.tsx`](src/components/EmployeeModal.tsx), [`BulkEditEmployeesModal.tsx`](src/components/BulkEditEmployeesModal.tsx), [`StationModal.tsx`](src/components/StationModal.tsx), [`ShiftModal.tsx`](src/components/ShiftModal.tsx), [`HolidayModal.tsx`](src/components/HolidayModal.tsx), [`BulkAssignModal.tsx`](src/components/BulkAssignModal.tsx), [`BulkAddStationsModal.tsx`](src/components/BulkAddStationsModal.tsx))
+- Removed `onClick={onClose}` from every backdrop div on data-entry modals (and the matching `onClick={e => e.stopPropagation()}` on the inner card). Esc, the X button, and Cancel are now the only paths out — losing 5 minutes of typing to one stray click was the wrong default for forms.
+- Confirmation modals, info dialogs, and lightweight previews are unchanged; the rule is specifically for surfaces with multi-field input where the user has invested typing time.
+
+**i18n** — full English + Arabic refresh for the rebuilt bulk-add modal (defaults panel, row controls, column headers, blanks-skipped hint, per-row HC validation message).
+
+**Compatibility**
+- All 183 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+
 ## v5.3.0 — 2026-05-04
 
 **CSV merge-upsert + bulk station creation.** Two follow-ups from real-data trial. The mass-import was naïvely appending CSV rows to the roster, so re-running an import with even one `empId` collision created duplicate records that fought each other for the same Firestore doc id and clobbered all the supervisor's downstream work (eligibilities, leave balances, schedule entries). And there was no way to bulk-register stations — opening a new arcade with twelve game machines meant clicking Add → fill 8 fields → Save → Add → ... twelve times.

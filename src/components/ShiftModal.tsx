@@ -63,10 +63,10 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
   const shiftEnd = parseHour(formData.end || '00:00');
   const isOutside = (shiftStart < shopStart) || (shiftEnd > shopEnd && shiftEnd !== 0) || (shiftEnd === 0 && shopEnd < 23);
 
+  // v5.3.1: sticky backdrop — Esc + X + Cancel are the only paths out.
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={shift ? t('modal.shift.title.edit') : t('modal.shift.title.new')}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={shift ? t('modal.shift.title.edit') : t('modal.shift.title.new')}>
       <motion.div
-        onClick={e => e.stopPropagation()}
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
