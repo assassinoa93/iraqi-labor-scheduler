@@ -121,7 +121,11 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               the pill on the holidays tab. */}
           <div>
             <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">{t('modal.holiday.field.compMode')}</label>
-            <div className="grid grid-cols-3 gap-2">
+            {/* v5.1.7 — four tiles: inherit + the three Art. 74 modes.
+                "Both" is the strict-text option; visually purple to match
+                the Variables-tab card. Grid stays compact at 2 cols on
+                narrow modal widths, 4 cols when there's space. */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => setCompMode(undefined)}
@@ -132,7 +136,9 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               >
                 {t('modal.holiday.compMode.inherit')}
                 <div className="text-[8px] font-medium normal-case opacity-70 mt-0.5">
-                  {effectiveMode === 'comp-day' ? t('holidays.compMode.compDay') : t('holidays.compMode.cashOt')}
+                  {effectiveMode === 'comp-day' ? t('holidays.compMode.compDay')
+                    : effectiveMode === 'cash-ot' ? t('holidays.compMode.cashOt')
+                    : t('holidays.compMode.both')}
                 </div>
               </button>
               <button
@@ -154,6 +160,16 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
                 )}
               >
                 {t('holidays.compMode.cashOt')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompMode('both')}
+                className={cn(
+                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                  formData.compMode === 'both' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
+                )}
+              >
+                {t('holidays.compMode.both')}
               </button>
             </div>
           </div>

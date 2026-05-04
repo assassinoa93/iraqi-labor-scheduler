@@ -104,6 +104,47 @@ describe('computeHolidayPay — cash-ot mode override', () => {
   });
 });
 
+describe('computeHolidayPay — both mode (v5.1.7 strict-text reading)', () => {
+  it('charges 2× AND tracks comp-day offset when CP lands inside window', () => {
+    const bothHoliday: PublicHoliday = { date: '2026-01-05', name: 'Both', type: 'National', legalReference: 'Art. 74', compMode: 'both' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' }, 8: { shiftCode: 'CP' } } };
+    const r = computeHolidayPay(emp, schedule, [FS, CP], [bothHoliday], baseConfig, HOURLY);
+    // Premium always owed in both mode...
+    expect(r.premiumHolidayHours).toBe(8);
+    expect(r.premiumPay).toBe(8 * HOURLY * 2);
+    // ...AND the comp day is recorded so the supervisor can see it landed.
+    expect(r.perHoliday[0]?.compDayOffset).toBe(3);
+  });
+
+  it('charges 2× even when no CP lands inside the window (still owes both)', () => {
+    const bothHoliday: PublicHoliday = { date: '2026-01-05', name: 'Both', type: 'National', legalReference: 'Art. 74', compMode: 'both' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' } } };
+    const r = computeHolidayPay(emp, schedule, [FS], [bothHoliday], baseConfig, HOURLY);
+    expect(r.premiumHolidayHours).toBe(8);
+    expect(r.perHoliday[0]?.compDayOffset).toBe(null);
+    expect(r.perHoliday[0]?.premiumOwed).toBe(true);
+  });
+
+  it('charges 2× globally when config default is both', () => {
+    const bothConfig = { ...baseConfig, holidayCompMode: 'both' as const };
+    const holiday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' }, 8: { shiftCode: 'CP' } } };
+    const r = computeHolidayPay(emp, schedule, [FS, CP], [holiday], bothConfig, HOURLY);
+    expect(r.premiumHolidayHours).toBe(8);
+    expect(r.perHoliday[0]?.compDayOffset).toBe(3);
+  });
+
+  it('lets a per-holiday compMode=both override a global comp-day default', () => {
+    // Global mode is comp-day (default), but this single holiday is
+    // flagged for strict-text treatment — both premium AND comp tracked.
+    const holiday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74', compMode: 'both' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' }, 8: { shiftCode: 'CP' } } };
+    const r = computeHolidayPay(emp, schedule, [FS, CP], [holiday], baseConfig, HOURLY);
+    expect(r.premiumHolidayHours).toBe(8);
+    expect(r.perHoliday[0]?.compDayOffset).toBe(3);
+  });
+});
+
 describe('computeHolidayPay — bookkeeping', () => {
   it('returns zeros when the employee did not work the holiday', () => {
     const holiday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74' };

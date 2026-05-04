@@ -144,15 +144,24 @@ export interface Shift {
   description: string;
 }
 
-// v2.1 — Art. 74 holiday-OT model. Per the practitioner reading the user
-// adopted, the worker is owed EITHER a compensation rest day OR the 2×
-// cash premium for hours worked on a public holiday — not both. The mode
-// drives whether the auto-scheduler grants a comp day (and the payroll
-// treats holiday hours as regular pay) or skips compensation and pays the
-// premium. The default is `comp-day` because the auto-scheduler can
-// usually rotate OFF days to land within the comp window, eliminating the
-// premium pool entirely.
-export type HolidayCompMode = 'comp-day' | 'cash-ot';
+// v2.1 — Art. 74 holiday-OT model. Three modes, each reflecting a
+// different interpretation / compliance posture super-admins can pick:
+//   • `comp-day` (default) — practitioner reading: worker is owed EITHER
+//     a compensation rest day OR the 2× cash premium, not both. The
+//     auto-scheduler tries to land a CP within `holidayCompWindowDays`;
+//     payroll only pays the 2× premium when no comp day landed inside
+//     the window. Most cost-conservative.
+//   • `cash-ot` — skip the comp rotation entirely and pay 2× cash for
+//     every holiday-work hour. Useful when the team can't absorb the
+//     CP shuffle without breaking coverage.
+//   • `both` (v5.1.7) — strict-text reading of Art. 74: worker is owed
+//     a comp rest day AND the 2× premium. Auto-scheduler still grants
+//     a CP (same as `comp-day`); payroll always pays the premium (same
+//     as `cash-ot`). Maximum compliance posture; most expensive option.
+//
+// Per-holiday overrides on PublicHoliday.compMode take precedence over
+// the company-wide default.
+export type HolidayCompMode = 'comp-day' | 'cash-ot' | 'both';
 
 export interface PublicHoliday {
   // v2.2.0 — stable identity that survives a date edit. Pre-2.2.0

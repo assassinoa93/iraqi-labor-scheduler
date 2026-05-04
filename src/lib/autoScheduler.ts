@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
+import { Employee, Shift, Station, PublicHoliday, Config, Schedule, HolidayCompMode } from '../types';
 import { parseHourBounds, parseHour, type HourBounds } from './time';
 import { getEmployeeLeaveOnDate } from './leaves';
 
@@ -193,9 +193,13 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
   const ramadanCap = config.ramadanDailyHrsCap ?? 6;
   const art86NightStart = config.art86NightStart || ART86_DEFAULT_NIGHT_START;
   const art86NightEnd = config.art86NightEnd || ART86_DEFAULT_NIGHT_END;
-  // v2.1: Art. 74 model. Default 'comp-day' rotates a CP day within the
-  // configured window (default 30 days). 'cash-ot' skips comp tracking
-  // entirely — payroll handles the 2× premium instead.
+  // v2.1 — Art. 74 model. Three modes:
+  //   'comp-day' (default, practitioner): rotate a CP within the window;
+  //     payroll only pays 2× when no comp landed.
+  //   'cash-ot': skip comp rotation; payroll always pays 2×.
+  //   'both' (v5.1.7, strict text): grant CP AND payroll always pays 2×.
+  // For the auto-scheduler, 'comp-day' and 'both' behave identically —
+  // both want a CP rotated in. Only 'cash-ot' suppresses the rotation.
   const compMode = config.holidayCompMode ?? 'comp-day';
   const compWindowDays = Math.max(1, config.holidayCompWindowDays ?? 30);
   // CP shift code is granted as the comp day. Falls back to OFF when CP
@@ -205,8 +209,15 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
   const compCode = hasCPShift ? 'CP' : 'OFF';
   // Per-holiday effective mode lookup. Build once so we don't filter the
   // holidays array in the hot loop.
-  const holidayModeByDate = new Map<string, 'comp-day' | 'cash-ot'>();
+  const holidayModeByDate = new Map<string, HolidayCompMode>();
   for (const h of holidays) holidayModeByDate.set(h.date, h.compMode ?? compMode);
+  // Helper: does this holiday want a comp-day rotation? True for
+  // 'comp-day' AND 'both'. The hot loop below uses this so we don't
+  // re-derive the gate on every iteration.
+  const wantsCompRotation = (dateStr: string): boolean => {
+    const m = holidayModeByDate.get(dateStr) ?? compMode;
+    return m === 'comp-day' || m === 'both';
+  };
 
   // Per-type leave predicates delegate to the unified helper which handles
   // both v1.7 multi-range leaves AND legacy single-range fields.
@@ -450,10 +461,11 @@ export function runAutoScheduler({ employees, shifts, stations, holidays, config
                   if (idx !== undefined) {
                     updatedEmployees[idx] = { ...updatedEmployees[idx], holidayBank: (updatedEmployees[idx].holidayBank || 0) + 1 };
                   }
-                  // Track comp-day debt only when this holiday is in
-                  // 'comp-day' mode — 'cash-ot' holidays don't owe a comp
-                  // day, payroll absorbs the 2× premium instead.
-                  if ((holidayModeByDate.get(dateStr) ?? compMode) === 'comp-day') {
+                  // Track comp-day debt for any holiday whose mode
+                  // wants a comp rotation (`comp-day` and v5.1.7's
+                  // `both`). `cash-ot` skips: payroll absorbs the 2×
+                  // premium and there's no comp day to schedule.
+                  if (wantsCompRotation(dateStr)) {
                     if (!phWorkDays.has(candidate.empId)) phWorkDays.set(candidate.empId, []);
                     const log = phWorkDays.get(candidate.empId)!;
                     if (log[log.length - 1] !== day) {

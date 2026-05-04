@@ -25,11 +25,25 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
   const defaultMode = config.holidayCompMode ?? 'comp-day';
 
   const cycleMode = (current: HolidayCompMode | undefined): HolidayCompMode | undefined => {
-    // Cycle: inherit → comp-day override → cash-ot override → inherit
+    // v5.1.7 — cycle now: inherit → comp-day → cash-ot → both → inherit.
     if (current === undefined) return 'comp-day';
     if (current === 'comp-day') return 'cash-ot';
+    if (current === 'cash-ot') return 'both';
     return undefined;
   };
+  // v5.1.7 — pill colour for each effective Art. 74 mode (matches the
+  // VariablesTab + HolidayModal palette so the visual language is
+  // consistent across surfaces).
+  const pillCls = (mode: HolidayCompMode) =>
+    mode === 'comp-day'
+      ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25'
+      : mode === 'cash-ot'
+        ? 'bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/25'
+        : 'bg-purple-50 dark:bg-purple-500/15 border-purple-200 dark:border-purple-500/30 text-purple-800 dark:text-purple-200 hover:bg-purple-100 dark:hover:bg-purple-500/25';
+  const modeLabel = (mode: HolidayCompMode) =>
+    mode === 'comp-day' ? t('holidays.compMode.compDay')
+      : mode === 'cash-ot' ? t('holidays.compMode.cashOt')
+      : t('holidays.compMode.both');
 
   return (
     <div className="space-y-6">
@@ -66,6 +80,13 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
               >
                 {t('holidays.compMode.cashOt')}
               </button>
+              <button
+                onClick={() => onSetAllCompModes('both')}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-500/15 transition-all"
+                title={t('holidays.bulk.both.tooltip')}
+              >
+                {t('holidays.compMode.both')}
+              </button>
             </div>
           )}
           <button
@@ -79,9 +100,7 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-        {t('holidays.compModeHint', {
-          mode: defaultMode === 'comp-day' ? t('holidays.compMode.compDay') : t('holidays.compMode.cashOt'),
-        })}
+        {t('holidays.compModeHint', { mode: modeLabel(defaultMode) })}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -120,13 +139,11 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
                   onClick={() => onUpdate({ ...holi, compMode: cycleMode(holi.compMode) })}
                   className={cn(
                     'w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
-                    effMode === 'comp-day'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25'
-                      : 'bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/25',
+                    pillCls(effMode),
                   )}
                   title={t('holidays.compMode.cycleHint')}
                 >
-                  {effMode === 'comp-day' ? t('holidays.compMode.compDay') : t('holidays.compMode.cashOt')}
+                  {modeLabel(effMode)}
                   {!isOverride && (
                     <span className="ms-2 normal-case font-medium text-[9px] text-slate-500 dark:text-slate-400 lowercase">{t('holidays.compMode.inherit')}</span>
                   )}

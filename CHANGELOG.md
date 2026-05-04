@@ -2,6 +2,29 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.8 — 2026-05-04
+
+**Art. 74 third reading + Print button label.** End-to-end testing of v5.1.6 was clean across all five tests. Two follow-ups landed in this patch: a strict-text Art. 74 mode for employers who want to honour the letter of the law, and a clearer schedule-toolbar label for the print/PDF flow.
+
+**Art. 74 — `both` mode (strict-text reading)** ([`types.ts`](src/types.ts), [`holidayCompPay.ts`](src/lib/holidayCompPay.ts), [`autoScheduler.ts`](src/lib/autoScheduler.ts), [`compliance.ts`](src/lib/compliance.ts), [`migration.ts`](src/lib/migration.ts), [`VariablesTab.tsx`](src/components/VariablesTab.tsx), [`HolidayModal.tsx`](src/components/HolidayModal.tsx), [`HolidaysTab.tsx`](src/tabs/HolidaysTab.tsx))
+- Pre-v5.1.8 the `HolidayCompMode` union was binary: `'comp-day'` (practitioner reading: comp rest day OR 2× premium, not both) vs `'cash-ot'` (always pay 2×, skip comp rotation). Both readings are defensible, but the literal text of Art. 74 says the worker is owed a comp rest day AND the premium together — and some super-admins running stricter-compliance shops want to honour that.
+- New `'both'` mode is the third option. Behaviour:
+  - **Auto-scheduler** still rotates a CP day inside the configured window (same path as `comp-day`). The `wantsCompRotation()` helper unions the two modes so the hot-loop comp-day-debt tracking fires for both.
+  - **Payroll** always charges the 2× premium (same path as `cash-ot`). `computeHolidayPay()` returns `premiumOwed: true` AND records the `compDayOffset` so the supervisor can see whether the comp day landed.
+  - **Compliance reporting** surfaces a stronger info note: "Worked on a public holiday — comp rest day AND 2× cash premium owed (Art. 74 strict-text mode)."
+  - **HolidaysTab** cycle pill now goes `inherit → comp-day → cash-ot → both → inherit`, with a purple swatch matching the Variables-tab card.
+  - **Bulk-set tile** added to the HolidaysTab toolbar so a super-admin can flip every holiday at once.
+- Default stays `'comp-day'` so existing installs are unaffected. Mode is still per-holiday-overridable; existing per-holiday `cash-ot` / `comp-day` overrides are preserved by the migration normaliser, which now also accepts `'both'` as a valid persisted value.
+- New tests in [`holidayCompPay.test.ts`](src/lib/__tests__/holidayCompPay.test.ts) cover all four scenarios for `'both'` mode (CP lands in window, no CP, global default, per-holiday override).
+
+**Schedule toolbar Print button → "Print / PDF"** ([`i18n.tsx`](src/lib/i18n.tsx))
+- The toolbar button label and tooltip now make explicit that the OS print dialog is also the path to "Save as PDF" — same workflow on Windows / macOS / Chromium-Electron. Pre-v5.1.8 the button just said "Print" and users discovered the PDF path by accident. Both English and Arabic strings updated.
+
+**Compatibility**
+- All 183 tests pass (4 new for `'both'` mode). `tsc --noEmit` clean. Secret-leak audit clean.
+- No data migration. The `HolidayCompMode` union widened, but pre-v5.1.8 docs continue to read as `'comp-day'` / `'cash-ot'` exactly as before.
+- No Firestore index change.
+
 ## v5.1.7 — 2026-05-03
 
 **Documentation update.** Adds high-quality application screenshots to the README to showcase the progress of the Iraqi Labor Scheduler.

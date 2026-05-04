@@ -150,7 +150,12 @@ export function normalizeStationGroup(raw: Record<string, unknown>): { id: strin
 
 // ─── Holiday ─────────────────────────────────────────────────────────────────
 export function normalizeHoliday(raw: Partial<PublicHoliday> & Record<string, unknown>): PublicHoliday {
-  const compMode = raw.compMode === 'cash-ot' || raw.compMode === 'comp-day' ? raw.compMode : undefined;
+  // v5.1.7 — accept the new 'both' mode alongside the original two.
+  // Anything unrecognised falls through to undefined (= inherit).
+  const compMode =
+    raw.compMode === 'cash-ot' || raw.compMode === 'comp-day' || raw.compMode === 'both'
+      ? raw.compMode
+      : undefined;
   // v2.2.0 — stable id. Backfill from `date` when missing so legacy
   // records continue to look up the same way under their existing date
   // string (no surprise reshuffling), while a user re-dating an entry

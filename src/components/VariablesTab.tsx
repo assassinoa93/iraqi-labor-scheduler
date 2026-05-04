@@ -396,7 +396,13 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
           </div>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* v5.1.7 — three-way mode selector. The third "Both" tile is
+              the strict-text reading: comp day + premium together. We
+              keep the two existing tiles' colour scheme (emerald = thrift
+              practitioner reading, amber = cash-only) and add purple for
+              the strict-compliance "both" path so super-admins can spot
+              the cost tier at a glance. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               type="button"
               disabled={readOnly}
@@ -422,6 +428,19 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
             >
               <p className="text-[11px] font-black uppercase tracking-widest text-amber-800">{t('variables.art74.cashOt.title')}</p>
               <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.cashOt.body')}</p>
+            </button>
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'both' }))}
+              className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                config.holidayCompMode === 'both'
+                  ? 'border-purple-500 bg-purple-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <p className="text-[11px] font-black uppercase tracking-widest text-purple-800">{t('variables.art74.both.title')}</p>
+              <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.both.body')}</p>
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

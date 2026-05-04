@@ -507,9 +507,14 @@ export class ComplianceEngine {
             const hol = holidayByDate.get(dStr);
             const effMode = hol?.compMode ?? compModeDefault;
             if (!shift.code.includes('OT') && !shift.code.includes('PH')) {
+              // v5.1.7 — three-mode messaging. 'both' surfaces the
+              // strongest note: BOTH a comp day AND a 2× premium are
+              // owed by the strict-text reading.
               const noteMsg = effMode === 'cash-ot'
                 ? "Worked on a public holiday — 2× cash premium owed (Art. 74 cash mode)."
-                : "Worked on a public holiday — comp rest day owed within the configured window (Art. 74 comp mode).";
+                : effMode === 'both'
+                  ? "Worked on a public holiday — comp rest day AND 2× cash premium owed (Art. 74 strict-text mode)."
+                  : "Worked on a public holiday — comp rest day owed within the configured window (Art. 74 comp mode).";
               violations.push({
                 empId: emp.empId,
                 day,
@@ -519,9 +524,10 @@ export class ComplianceEngine {
                 severity: 'info',
               });
             }
-            // Skip the comp-day-owed scan when the holiday is in cash-ot
-            // mode — there's no comp day to owe.
-            if (effMode !== 'comp-day') return;
+            // v5.1.7 — skip comp-day-owed scan only for cash-ot (no
+            // comp day to owe). 'comp-day' AND 'both' both want the
+            // scan because both grant a comp day.
+            if (effMode === 'cash-ot') return;
 
             const nextSchedule = allSchedules?.[nextMonthKey(config.year, config.month)];
             const nextSchedExists = !!nextSchedule;

@@ -1,11 +1,16 @@
-// Single source of truth for the v2.1 Art. 74 either-or model.
+// Single source of truth for the Art. 74 holiday-OT model.
 //
-// Per the practitioner reading the user adopted: the worker is owed
-// EITHER a comp rest day OR the 2× cash premium for hours worked on a
-// public holiday — not both. The 2× premium fires only when a comp day
-// can NOT be granted inside the configured window. CP / OFF / leave
-// days inside the window count as the comp day; payroll then pays 1×
-// (the regular wage already covered by the monthly salary).
+// Three modes (set globally via config.holidayCompMode, overridable per
+// holiday via PublicHoliday.compMode):
+//
+//   • 'comp-day' (default, practitioner reading) — worker is owed EITHER
+//     a comp rest day OR the 2× cash premium, not both. Premium fires
+//     only when no CP / OFF / leave landed inside the configured window.
+//   • 'cash-ot' — skip comp rotation, pay 2× cash on every holiday hour.
+//   • 'both' (v5.1.7, strict-text reading) — worker is owed a comp rest
+//     day AND the 2× premium. The supervisor still sees comp-day status
+//     (so they can spot windows that didn't land), but payroll always
+//     charges the 2× premium regardless.
 //
 // Pre-2.1 the same gating logic lived inline in three places:
 // PayrollTab (always 2×), DashboardTab (always 2×), otAnalysis (correct
@@ -130,9 +135,21 @@ export function computeHolidayPay(
     let premiumOwed: boolean;
     let compDayOffset: number | null = null;
 
+    // v5.1.7 — three modes branch here:
+    //   cash-ot: premium always; we don't bother computing comp offset.
+    //   comp-day: premium only if no comp landed in window.
+    //   both:    premium always AND we still compute comp offset so the
+    //            supervisor can see whether the comp day landed (the
+    //            scheduler is supposed to grant one regardless of payroll).
     if (effMode === 'cash-ot') {
       premiumOwed = true;
+    } else if (effMode === 'both') {
+      compDayOffset = findCompDayOffset(
+        empSched, nextEmpSched, holidayDay, config.daysInMonth, compWindowMax, shiftByCode,
+      );
+      premiumOwed = true;
     } else {
+      // comp-day (default + practitioner reading)
       compDayOffset = findCompDayOffset(
         empSched, nextEmpSched, holidayDay, config.daysInMonth, compWindowMax, shiftByCode,
       );
