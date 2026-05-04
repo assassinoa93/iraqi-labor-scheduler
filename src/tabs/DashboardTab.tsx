@@ -142,7 +142,16 @@ export function DashboardTab(props: DashboardTabProps) {
   const hasRoster = employees.length > 0;
   const hasStations = stations.length > 0;
   const hasShifts = shifts.some(s => s.isWork);
-  const hasEligibility = employees.length === 0 || employees.every(e => e.category === 'Driver' || e.eligibleStations.length > 0);
+  // v5.4.0: count group-level eligibility too — a station-group assignment
+  // (eligibleGroups) gives the auto-scheduler blanket coverage of every
+  // member station, so it satisfies "assigned to at least one station" just
+  // as well as a per-station entry. Pre-v5.4 this only checked
+  // eligibleStations.length and falsely flagged group-only employees.
+  const hasEligibility = employees.length === 0 || employees.every(e =>
+    e.category === 'Driver'
+    || e.eligibleStations.length > 0
+    || (e.eligibleGroups && e.eligibleGroups.length > 0)
+  );
   const hasScheduleEntries = Object.values(schedule).some(empSched => empSched && Object.keys(empSched).length > 0);
   const setupComplete = hasRoster && hasStations && hasShifts && hasEligibility && hasScheduleEntries;
   const setupChecklist: Array<{ key: string; ok: boolean; labelKey: string }> = [

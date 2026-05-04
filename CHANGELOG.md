@@ -2,6 +2,32 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.4.0 — 2026-05-04
+
+**Drag-and-drop kanban + selection + dashboard eligibility fix.** Real-data trial follow-ups on the v5.3.x layout work. Supervisors wanted to rearrange stations across groups without opening each card's "Move to" dropdown one by one, and the dashboard's "Assign each non-driver to at least one station" hint was firing even when employees had been correctly assigned via station-group eligibility.
+
+**Layout tab — selection + drag-drop** ([`LayoutTab.tsx`](src/tabs/LayoutTab.tsx))
+- Every station card now carries a checkbox for multi-select. Selection survives across re-renders and self-cleans when stations are deleted (so a stale ID can't inflate the toolbar count).
+- Cards are draggable via native HTML5 DnD. Dragging a selected card carries the **whole batch** of selected stations; dragging an unselected card carries just that one (and doesn't mutate the selection). Drag handle shown via a `GripVertical` icon for affordance.
+- Group columns + the ungrouped column are drop zones. Hovering during a drag highlights the column with a blue ring; dropping commits the move via a single `setStations` pass that only writes the affected docs to Firestore. No-op moves (dropping into the same group) are filtered out so the syncStations diff doesn't fire pointless writes.
+- Selection toolbar appears above the kanban when ≥1 card is checked: count, "Move selected to…" dropdown (for keyboard / touch users who can't drag), Delete selected (gated by a confirm dialog showing the count), and Clear selection.
+- Card visual states: selected = blue ring + tinted background + checked checkbox; dragging = 40% opacity so the user can see which cards are moving.
+
+**Dashboard compliance hint — count `eligibleGroups`** ([`DashboardTab.tsx`](src/tabs/DashboardTab.tsx), [`i18n.tsx`](src/lib/i18n.tsx))
+- The setup checklist's "Assign each non-driver to at least one station" check was only inspecting `eligibleStations.length`. Employees who had been assigned via the station-group surface (which gives the auto-scheduler blanket coverage of every member station and is the recommended bulk path) were falsely flagged as missing eligibility. Pre-v5.4 the user had to either re-tick stations individually OR endure the false-positive forever.
+- Fix: the check now passes if the employee is a Driver OR has any per-station eligibility OR has any group eligibility — mirrors the same `hasAny` logic the auto-scheduler uses internally at `autoScheduler.ts:285`.
+- Hint string updated EN + AR to read "at least one station **or station group**" so the supervisor knows both paths satisfy the requirement.
+
+**App.tsx wiring** ([`App.tsx`](src/App.tsx))
+- New `onBulkMoveStations(ids, newGroupId)` and `onBulkDeleteStations(ids)` handlers passed into LayoutTab. Move uses one `setStations(prev => prev.map(...))`; delete is gated by a single ConfirmModal showing the count.
+
+**i18n** — full English + Arabic for the new toolbar / drag hint / per-station-select aria-label / bulk-delete confirm strings.
+
+**Compatibility**
+- All 183 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- Drag-and-drop uses HTML5 DnD (no new dependency); touch devices still have the per-card "Move to" dropdown and the toolbar "Move selected to…" path.
+
 ## v5.3.1 — 2026-05-04
 
 **Bulk-add stations UX rebuild + sticky form modals.** Two real-data trial follow-ups on the v5.3.0 bulk-station feature. Supervisors hit two papercuts: (1) clicking outside the popup dismissed the modal and discarded everything they'd typed, and (2) the textarea-only "names list" pattern with one shared row of defaults didn't match the real workflow — outliers (a half-day vehicle, a stricter peak-HC cashier) needed per-row tweaks before commit.

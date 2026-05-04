@@ -3586,6 +3586,25 @@ export default function App() {
                 onUpdateStation={(st) => setStations(prev => prev.map(s => s.id === st.id ? st : s))}
                 onSaveGroups={(groups) => setStationGroups(groups)}
                 onBulkAdd={() => setIsBulkStationOpen(true)}
+                // v5.4.0 — drag-drop + selection-toolbar bulk move. Single
+                // setStations pass so the kanban only re-renders once and
+                // syncStations only diffs the moved docs.
+                onBulkMoveStations={(ids, newGroupId) => {
+                  const idSet = new Set(ids);
+                  setStations(prev => prev.map(s => idSet.has(s.id) ? { ...s, groupId: newGroupId } : s));
+                }}
+                // Bulk delete from the selection toolbar — gated by a
+                // single confirm dialog showing the count so an accidental
+                // click doesn't wipe the layout.
+                onBulkDeleteStations={(ids) => setConfirmState({
+                  isOpen: true,
+                  title: t('confirm.removeStations.title'),
+                  message: t('confirm.removeStations.body', { count: ids.length }),
+                  onConfirm: () => {
+                    const idSet = new Set(ids);
+                    setStations(prev => prev.filter(s => !idSet.has(s.id)));
+                  },
+                })}
               />
             )}
 

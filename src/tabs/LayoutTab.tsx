@@ -1,11 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers } from 'lucide-react';
+import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers, GripVertical } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { GROUP_ICON_PALETTE, DEFAULT_GROUP_ICON, getGroupIcon } from '../lib/groupIcons';
+
+// v5.4.0 — drag-and-drop payload format. Plain JSON in dataTransfer 'text/plain'
+// because most browsers strip arbitrary mime types when crossing security
+// boundaries. Carries the IDs of every station being dragged at once so the
+// drop handler can apply a single bulk move.
+const DND_MIME = 'application/x-station-ids';
+const DND_FALLBACK_MIME = 'text/plain';
 
 interface LayoutTabProps {
   stations: Station[];
@@ -20,6 +27,13 @@ interface LayoutTabProps {
   // sharing one set of defaults (group, HC, opening / closing time, role,
   // colour). Counterpart to onAddNew which is the single-station path.
   onBulkAdd?: () => void;
+  // v5.4.0 — single-pass move for any number of stations. Drag-drop and
+  // the bulk-toolbar "Move to..." path both call this so the kanban only
+  // re-renders once and Firestore syncStations only diffs the affected docs.
+  onBulkMoveStations?: (stationIds: string[], newGroupId: string | undefined) => void;
+  // v5.4.0 — bulk delete used by the selection toolbar. App.tsx wires this
+  // through a single confirm dialog showing the count.
+  onBulkDeleteStations?: (stationIds: string[]) => void;
 }
 
 const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#059669', '#d97706', '#1d4ed8', '#9333ea', '#be123c', '#475569'];
@@ -36,11 +50,120 @@ const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#05966
 // purely metadata that drive (a) one-click employee eligibility and
 // (b) the workforce planner's group-level rollup.
 export function LayoutTab({
-  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups, onBulkAdd,
+  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups, onBulkAdd, onBulkMoveStations, onBulkDeleteStations,
 }: LayoutTabProps) {
   const { t } = useI18n();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  // v5.4.0 — multi-select state. `selectedIds` is the set of stations whose
+  // checkbox is on. `dropTargetId` is the group being hovered over during a
+  // drag (use '__ungrouped__' for the ungrouped column). `draggingIds` lets
+  // the dragged cards visually fade so the user can see what's moving.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
+  // dragenter/dragleave fire on every child element which causes flicker.
+  // Track a counter per column so we only clear the highlight when the
+  // counter reaches 0 (i.e. cursor truly left the column boundary).
+  const dragEnterCount = useRef<Record<string, number>>({});
+
+  const toggleSelect = (id: string, force?: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const shouldBeOn = force === undefined ? !next.has(id) : force;
+      if (shouldBeOn) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  // Drop the selection state for any station that no longer exists (deleted
+  // either by this tab or by a Firestore subscription update from another
+  // user). Otherwise stale IDs in the set inflate the toolbar count and
+  // would silently no-op on bulk operations.
+  useEffect(() => {
+    const live = new Set(stations.map(s => s.id));
+    setSelectedIds(prev => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (live.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [stations]);
+
+  const handleDragStartCard = (e: React.DragEvent<HTMLDivElement>, stationId: string) => {
+    // If the dragged card is in the current selection, drag the whole batch.
+    // Otherwise drag just this one (and don't mutate selection).
+    const ids = selectedIds.has(stationId) ? Array.from(selectedIds) : [stationId];
+    const payload = JSON.stringify(ids);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData(DND_MIME, payload); } catch { /* Some browsers (older Safari) reject custom mime types — fall back below. */ }
+    e.dataTransfer.setData(DND_FALLBACK_MIME, payload);
+    setDraggingIds(new Set(ids));
+  };
+  const handleDragEndCard = () => {
+    setDraggingIds(new Set());
+    setDropTargetId(null);
+    dragEnterCount.current = {};
+  };
+  const readDragIds = (e: React.DragEvent<HTMLDivElement>): string[] | null => {
+    const raw = e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData(DND_FALLBACK_MIME);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) return parsed;
+    } catch { /* malformed payload — ignore */ }
+    return null;
+  };
+  const handleDragOverColumn = (e: React.DragEvent<HTMLDivElement>) => {
+    // preventDefault is REQUIRED to mark the column as a valid drop target.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const handleDragEnterColumn = (columnKey: string) => {
+    dragEnterCount.current[columnKey] = (dragEnterCount.current[columnKey] || 0) + 1;
+    setDropTargetId(columnKey);
+  };
+  const handleDragLeaveColumn = (columnKey: string) => {
+    const next = (dragEnterCount.current[columnKey] || 1) - 1;
+    dragEnterCount.current[columnKey] = next;
+    if (next <= 0) {
+      dragEnterCount.current[columnKey] = 0;
+      setDropTargetId(prev => prev === columnKey ? null : prev);
+    }
+  };
+  const handleDropOnColumn = (e: React.DragEvent<HTMLDivElement>, targetGroupId: string | undefined) => {
+    e.preventDefault();
+    const ids = readDragIds(e);
+    setDraggingIds(new Set());
+    setDropTargetId(null);
+    dragEnterCount.current = {};
+    if (!ids || ids.length === 0) return;
+    // Filter to stations that would actually change groups — skip no-ops so
+    // the Firestore syncStations diff doesn't fire pointless writes.
+    const movers = ids.filter(id => {
+      const st = stations.find(s => s.id === id);
+      return st && st.groupId !== targetGroupId;
+    });
+    if (movers.length === 0) return;
+    if (onBulkMoveStations) {
+      onBulkMoveStations(movers, targetGroupId);
+    } else {
+      // Fallback path if App.tsx doesn't wire onBulkMoveStations — call
+      // onUpdateStation per affected station. Single-render render bursts
+      // are fine for small N; the bulk handler is the right move at scale.
+      for (const id of movers) {
+        const st = stations.find(s => s.id === id);
+        if (st) onUpdateStation({ ...st, groupId: targetGroupId });
+      }
+    }
+  };
+  const requestBulkDelete = () => {
+    if (selectedIds.size === 0 || !onBulkDeleteStations) return;
+    onBulkDeleteStations(Array.from(selectedIds));
+  };
 
   // Bucket stations by group. The "ungrouped" pseudo-column gets all
   // stations whose groupId is missing or points to a group that no
@@ -128,6 +251,52 @@ export function LayoutTab({
         />
       )}
 
+      {/* v5.4.0 — selection toolbar. Renders only when at least one card
+          is checked. Drag-drop is the primary "move" path; this toolbar
+          adds a "Move to..." for keyboard / touch users + a count + bulk
+          delete + clear. */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 flex-wrap p-3 rounded-xl bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/30">
+          <p className="text-[10px] font-black text-blue-700 dark:text-blue-200 uppercase tracking-widest">
+            {t('layout.selection.count', { count: selectedIds.size })}
+          </p>
+          {onBulkMoveStations && stationGroups.length > 0 && (
+            <select
+              value=""
+              onChange={e => {
+                const target = e.target.value;
+                if (!target) return;
+                const ids = Array.from(selectedIds);
+                onBulkMoveStations(ids, target === '__ungrouped__' ? undefined : target);
+                clearSelection();
+              }}
+              className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">{t('layout.selection.moveTo')}</option>
+              {stationGroups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+              <option value="__ungrouped__">{t('layout.group.ungrouped')}</option>
+            </select>
+          )}
+          {onBulkDeleteStations && (
+            <button
+              onClick={requestBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-200 text-[10px] font-bold uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/25 transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              {t('layout.selection.deleteSelected')}
+            </button>
+          )}
+          <button
+            onClick={clearSelection}
+            className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ms-auto"
+          >
+            {t('layout.selection.clear')}
+          </button>
+        </div>
+      )}
+
       {/* Kanban columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {[...stationGroups.map(g => ({ kind: 'group' as const, group: g })), { kind: 'ungrouped' as const }].map((entry, i) => {
@@ -142,10 +311,20 @@ export function LayoutTab({
             (e.eligibleGroups || []).includes(entry.group.id)
             || items.some(s => e.eligibleStations.includes(s.id))
           ).length;
+          const isDropTarget = dropTargetId === id;
           return (
             <div
               key={id}
-              className="bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col"
+              onDragOver={handleDragOverColumn}
+              onDragEnter={() => handleDragEnterColumn(id)}
+              onDragLeave={() => handleDragLeaveColumn(id)}
+              onDrop={(e) => handleDropOnColumn(e, isUngrouped ? undefined : entry.group.id)}
+              className={cn(
+                'rounded-2xl border overflow-hidden flex flex-col transition-all',
+                isDropTarget
+                  ? 'bg-blue-50 dark:bg-blue-500/15 border-blue-400 dark:border-blue-500/60 ring-2 ring-blue-400 dark:ring-blue-500/40'
+                  : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700',
+              )}
             >
               <div
                 className="px-4 py-3 flex items-center gap-3 border-b border-slate-200 dark:border-slate-700"
@@ -217,6 +396,11 @@ export function LayoutTab({
                     onEdit={() => onEdit(st)}
                     onDelete={() => onDelete(st)}
                     onMoveToGroup={(groupId) => moveStationToGroup(st.id, groupId)}
+                    selected={selectedIds.has(st.id)}
+                    onToggleSelect={() => toggleSelect(st.id)}
+                    onDragStart={(e) => handleDragStartCard(e, st.id)}
+                    onDragEnd={handleDragEndCard}
+                    isDragging={draggingIds.has(st.id)}
                   />
                 ))}
               </div>
@@ -238,6 +422,7 @@ export function LayoutTab({
 
 function StationCard({
   station, employees, groups, onEdit, onDelete, onMoveToGroup,
+  selected, onToggleSelect, onDragStart, onDragEnd, isDragging,
 }: {
   station: Station;
   employees: Employee[];
@@ -245,6 +430,15 @@ function StationCard({
   onEdit: () => void;
   onDelete: () => void;
   onMoveToGroup: (groupId: string | undefined) => void;
+  // v5.4.0 — selection + drag-drop. The card is the drag source; columns
+  // are the drop zones (handled in LayoutTab). When `selected` is true the
+  // card carries a blue ring; when `isDragging` is true it fades so the
+  // user can see what's currently being moved.
+  selected: boolean;
+  onToggleSelect: () => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }) {
   const { t, dir } = useI18n();
   const [moveOpen, setMoveOpen] = useState(false);
@@ -344,8 +538,36 @@ function StationCard({
   ) : null;
 
   return (
-    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all group">
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={cn(
+        'p-3 bg-white dark:bg-slate-900 rounded-xl border hover:shadow-sm transition-all group cursor-grab active:cursor-grabbing',
+        selected
+          ? 'border-blue-400 dark:border-blue-500/60 ring-2 ring-blue-300 dark:ring-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10'
+          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
+        isDragging && 'opacity-40',
+      )}
+    >
       <div className="flex items-start gap-2.5">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          // Stop the drag from kicking in when the user clicks the
+          // checkbox; without this the click sometimes initiates a drag
+          // because the parent has `draggable=true`.
+          onMouseDown={e => e.stopPropagation()}
+          aria-label={t('layout.station.select', { name: station.name })}
+          className="mt-1 shrink-0 cursor-pointer"
+        />
+        <span title={t('layout.station.dragHint')} className="shrink-0">
+          <GripVertical
+            className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 mt-1.5"
+            aria-hidden
+          />
+        </span>
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-white dark:border-slate-700"
           style={{ backgroundColor: station.color || '#3b82f6' }}
