@@ -2,6 +2,22 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.8.1 — 2026-05-04
+
+**`asOfDate` follows the active month picker.** Trial follow-up on v5.8.0: the user picked June at the top of the Payroll tab and noticed the "Annual leave balance as of [date]" field stayed pinned to its previous value. The view contents tracked correctly (current month switched to June), but the projection date was an independent choice.
+
+**Sync the projection date to the active month** ([`PayrollTab.tsx`](src/tabs/PayrollTab.tsx))
+- `asOfDate` now defaults to the **last day of the active month** instead of today. When the supervisor switches months at the top, a `useEffect` keyed on `[config.year, config.month]` re-anchors the projection date to the new month-end.
+- The supervisor can still tweak the day manually after the auto-set; the override persists across re-renders within the same month and only resets when the month picker fires again.
+- The reset button now reads "Reset to month-end" (was "Reset to today") and reverts to the synced default — same anchor the month change uses, so the round-trip is symmetric.
+- Removed the `min={todayStr}` clamp on the date input. The projection helpers degrade gracefully to "no projection" when `asOfDate <= today`, so picking a past day is now allowed (useful when reviewing historical months — same balance is shown).
+
+**i18n** — added `payroll.balance.resetMonthEnd` in EN + AR.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+
 ## v5.8.0 — 2026-05-04
 
 **Date-sensitive holiday bank + OT carry-over hint.** Two follow-ups from the v5.5–v5.7 trial. The Annual Leave column already projected forward to a chosen "as-of" date; the user pointed out that the Holiday Bank column ignored the picker entirely. And after the v5.5 OT-on-holiday fix, the supervisor now correctly sees provisional OT for late-month holidays — but had no way to know the OT would zero out the moment they generated next month's schedule (where the comp days land).

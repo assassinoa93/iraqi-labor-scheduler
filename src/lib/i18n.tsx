@@ -350,6 +350,7 @@ export const en: Dict = {
   'payroll.balance.upload.tooltip': 'Upload a 2-column CSV (Employee ID, Annual Leave Days) to set the current annual-leave balance per employee.',
   'payroll.balance.asOf': 'Annual leave balance as of',
   'payroll.balance.today': 'Reset to today',
+  'payroll.balance.resetMonthEnd': 'Reset to month-end',
   'payroll.balance.current': 'Showing current balance',
   'payroll.balance.projecting': 'Projecting forward — column shows balance after planned annual leaves',
   // v5.5.0 — Manage-leaves button inside the EmployeeModal (so manager
@@ -1596,6 +1597,7 @@ export const ar: Dict = {
   'payroll.balance.upload.tooltip': 'ارفع ملف CSV من عمودين (معرف الموظف، أيام الإجازة السنوية) لتعيين الرصيد الحالي للإجازة السنوية لكل موظف.',
   'payroll.balance.asOf': 'رصيد الإجازة السنوية اعتبارًا من',
   'payroll.balance.today': 'إعادة لليوم',
+  'payroll.balance.resetMonthEnd': 'إعادة لنهاية الشهر',
   'payroll.balance.current': 'يعرض الرصيد الحالي',
   'payroll.balance.projecting': 'تقدير مستقبلي — العمود يعرض الرصيد بعد الإجازات السنوية المخططة',
   'modal.employee.leaves.manageTitle': 'خطة الإجازات',

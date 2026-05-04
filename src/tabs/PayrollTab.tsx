@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers, AlertTriangle } from 'lucide-react';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
@@ -77,8 +77,26 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
   // column shows projected balance as of `asOfDate` = current balance −
   // annual-leave days planned in [today, asOfDate]. Lets the supervisor
   // anticipate balance ahead of an upcoming leave window.
+  // v5.8.1 — `asOfDate` now follows the active month. The user noted that
+  // picking June at the top kept the projection date on the previous
+  // selection. Default behaviour is "show me the balance at the end of
+  // whatever month I'm reviewing"; the user can still tweak the day
+  // manually after the auto-set.
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const [asOfDate, setAsOfDate] = useState<string>(todayStr);
+  const lastDayOfActiveMonth = useMemo(() => {
+    // Day 0 of next month = last day of current month — the standard
+    // JS-Date trick. Format with date-fns to keep YYYY-MM-DD shape.
+    const lastDay = new Date(config.year, config.month, 0);
+    return format(lastDay, 'yyyy-MM-dd');
+  }, [config.year, config.month]);
+  const [asOfDate, setAsOfDate] = useState<string>(lastDayOfActiveMonth);
+  // Re-sync whenever the active month changes — month picker is the
+  // source of truth, the picker input echoes it. Only the year+month
+  // are dependencies, so a manual mid-month tweak by the user persists
+  // across re-renders within the same month.
+  useEffect(() => {
+    setAsOfDate(lastDayOfActiveMonth);
+  }, [lastDayOfActiveMonth]);
   const isProjecting = asOfDate > todayStr;
   // v5.7.0 — search + filter + group-by, parity with the Roster tab. The
   // user explicitly flagged that any surface displaying employee data
@@ -402,16 +420,22 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         <input
           type="date"
           value={asOfDate}
-          min={todayStr}
-          onChange={(e) => setAsOfDate(e.target.value || todayStr)}
+          // No `min` so the supervisor can pick any day in the active
+          // month — including past days (the projection helpers degrade
+          // gracefully to "no projection" when asOfDate <= today).
+          onChange={(e) => setAsOfDate(e.target.value || lastDayOfActiveMonth)}
           className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono"
         />
-        {isProjecting && (
+        {/* v5.8.1 — reset reverts to month-end (the synced default), not
+            today. The user expects the projection to follow the month
+            picker, so "reset" should re-anchor to the same point the
+            month change would set. */}
+        {asOfDate !== lastDayOfActiveMonth && (
           <button
-            onClick={() => setAsOfDate(todayStr)}
+            onClick={() => setAsOfDate(lastDayOfActiveMonth)}
             className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 uppercase tracking-widest"
           >
-            {t('payroll.balance.today')}
+            {t('payroll.balance.resetMonthEnd')}
           </button>
         )}
         <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium ms-auto">
