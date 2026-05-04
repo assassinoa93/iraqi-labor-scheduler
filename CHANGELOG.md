@@ -2,6 +2,27 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.1.9 — 2026-05-04
+
+**CSV roster import — Arabic round-trip + full template.** Real-data trial surfaced two bugs in the mass-import flow. The template was emitted as raw UTF-8 with no byte-order mark, so when a user opened it in Excel, typed Arabic, saved, and reopened it, every Arabic character came back as `?????`. The template also only carried 8 of the 16 fields on the Employee card, so importers had no way to seed phone, hire date, leave balance, rest-day policy, gender, or the hazardous / industrial / hour-exempt flags without re-editing every employee by hand.
+
+**Template — UTF-8 BOM + 16 columns** ([`App.tsx`](src/App.tsx))
+- `downloadRosterTemplate()` now prepends `U+FEFF` so Excel detects UTF-8 on open and preserves it on save. Round-trip with Arabic content is now lossless.
+- Header row expanded from 8 to 16 columns: Employee ID, Employee Name, Role, Department, Contract Type, Weekly Hours, Phone, Hire Date (YYYY-MM-DD), Base Salary (IQD), Annual Leave Balance, Rest Day Policy (0=Rotate,1=Sun,…,7=Sat), Personnel Category (Standard|Driver), Gender (M|F), Hazardous (yes|no), Industrial (yes|no), Hour Exempt (yes|no).
+- Three sample rows (one Arabic-named) so HR teams can see the expected shape and verify the BOM survived the round-trip.
+- Each cell flows through `csvCell()` for proper quoting; rows are joined with CRLF for Excel-friendly line endings.
+
+**Importer — BOM-tolerant + quoted-field aware** ([`App.tsx`](src/App.tsx))
+- `handleImportCSV()` strips a leading `U+FEFF` if present (Excel writes one back when the file already had one).
+- New `parseCsvRow()` correctly handles quoted fields containing commas — Arabic names like `"الجبوري, أحمد"` no longer split across two cells.
+- New `parseBool()` accepts `yes|no|true|false|y|n|1|0` (case-insensitive) for the three flag columns and falls back to per-field defaults.
+- All 16 columns are now consumed: phone, hire date (validated against `YYYY-MM-DD`, falls back to today), annual leave balance, rest-day policy (clamped 0–7), gender (M/F or omitted), and the three boolean flags.
+- File is read as `'utf-8'` explicitly.
+
+**Compatibility**
+- No data migration. Existing 8-column CSVs still import cleanly (extra fields just fall back to defaults).
+- No Firestore schema change.
+
 ## v5.1.8 — 2026-05-04
 
 **Art. 74 third reading + Print button label.** End-to-end testing of v5.1.6 was clean across all five tests. Two follow-ups landed in this patch: a strict-text Art. 74 mode for employers who want to honour the letter of the law, and a clearer schedule-toolbar label for the print/PDF flow.

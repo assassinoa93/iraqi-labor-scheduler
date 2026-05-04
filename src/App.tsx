@@ -25,6 +25,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Employee,
+  EmployeeCategory,
+  Gender,
   Shift,
   PublicHoliday,
   Config,
@@ -1513,47 +1515,95 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // v5.1.9: parse the full 16-column template. Strips a leading UTF-8 BOM
+    // (Excel writes one when re-saving the BOM-prefixed template) and uses a
+    // quoted-field parser so Arabic names containing commas survive.
+    const parseCsvRow = (row: string): string[] => {
+      const out: string[] = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (row[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; }
+          } else cur += ch;
+        } else {
+          if (ch === ',') { out.push(cur); cur = ''; }
+          else if (ch === '"') inQuotes = true;
+          else cur += ch;
+        }
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+    const parseBool = (v: string | undefined, dflt: boolean): boolean => {
+      if (v == null) return dflt;
+      const s = v.trim().toLowerCase();
+      if (s === '') return dflt;
+      if (['true', 'yes', 'y', '1'].includes(s)) return true;
+      if (['false', 'no', 'n', '0'].includes(s)) return false;
+      return dflt;
+    };
+
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split('\n');
+      let text = event.target?.result as string;
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const lines = text.split(/\r?\n/);
       const newEmployees: Employee[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const cols = parseCsvRow(line);
         if (cols.length < 2) continue;
 
-        const [id, name, role, dept, type, hrs, salary, category] = cols;
-        const cat = category?.trim() === 'Driver' ? 'Driver' : 'Standard';
+        const [
+          id, name, role, dept, type, hrs, phone, hireDate, salary,
+          annualLeave, restDay, category, gender, hazardous, industrial, hourExempt,
+        ] = cols;
+
+        const weeklyHrs = parseInt(hrs) || 48;
+        const monthlySalary = parseInt(salary) || DEFAULT_MONTHLY_SALARY_IQD;
+        const restRaw = parseInt(restDay);
+        const fixedRestDay = Number.isFinite(restRaw) && restRaw >= 0 && restRaw <= 7 ? restRaw : 0;
+        const cat: EmployeeCategory = category?.trim() === 'Driver' ? 'Driver' : 'Standard';
+        const g = (gender || '').trim().toUpperCase();
+        const genderField: Gender | undefined = g === 'F' ? 'F' : g === 'M' ? 'M' : undefined;
+        const annualLeaveBal = Number.isFinite(parseInt(annualLeave)) ? Math.max(0, parseInt(annualLeave)) : 21;
+        const hireDateField = /^\d{4}-\d{2}-\d{2}$/.test((hireDate || '').trim())
+          ? hireDate.trim()
+          : format(new Date(), 'yyyy-MM-dd');
+
         newEmployees.push({
           empId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
           name: name || 'Unnamed',
           role: role || 'General Staff',
           department: dept || 'Warehouse',
           contractType: type || 'Permanent',
-          contractedWeeklyHrs: parseInt(hrs) || 48,
+          contractedWeeklyHrs: weeklyHrs,
           shiftEligibility: 'All',
-          isHazardous: false,
-          isIndustrialRotating: true,
-          hourExempt: false,
-          fixedRestDay: 0,
-          phone: '',
-          hireDate: format(new Date(), 'yyyy-MM-dd'),
+          isHazardous: parseBool(hazardous, false),
+          isIndustrialRotating: parseBool(industrial, true),
+          hourExempt: parseBool(hourExempt, false),
+          fixedRestDay,
+          phone: (phone || '').trim(),
+          hireDate: hireDateField,
           notes: 'Imported via CSV',
           eligibleStations: [],
           holidayBank: 0,
-          annualLeaveBalance: 21,
-          baseMonthlySalary: parseInt(salary) || DEFAULT_MONTHLY_SALARY_IQD,
+          annualLeaveBalance: annualLeaveBal,
+          baseMonthlySalary: monthlySalary,
           baseHourlyRate: Math.round(
             baseHourlyRate(
-              { baseMonthlySalary: parseInt(salary) || DEFAULT_MONTHLY_SALARY_IQD, contractedWeeklyHrs: parseInt(hrs) || 48 },
+              { baseMonthlySalary: monthlySalary, contractedWeeklyHrs: weeklyHrs },
               config,
             ),
           ),
           overtimeHours: 0,
-          category: cat
+          category: cat,
+          ...(genderField ? { gender: genderField } : {}),
         });
       }
 
@@ -1562,7 +1612,7 @@ export default function App() {
         showInfo(t('info.csvImport.title'), t('info.csvImport.body', { count: newEmployees.length }));
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(file, 'utf-8');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -1586,13 +1636,43 @@ export default function App() {
   };
 
   const downloadRosterTemplate = () => {
-    const csvContent = "Employee ID,Employee Name,Role,Department,Contract Type,Weekly Hours,Base Salary,Category\nEMP-1100,John Doe,Operator,Warehouse,Permanent,48,1500000,Standard\nEMP-3100,Ali Driver,Driver,Transport,Permanent,56,1400000,Driver";
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // v5.1.9: full 16-column template covering every field on the Employee
+    // card. Prepended with a UTF-8 BOM so Excel detects the encoding and
+    // round-trips Arabic text without turning it into ?????? on save.
+    const headers = [
+      'Employee ID',
+      'Employee Name',
+      'Role',
+      'Department',
+      'Contract Type',
+      'Weekly Hours',
+      'Phone',
+      'Hire Date (YYYY-MM-DD)',
+      'Base Salary (IQD)',
+      'Annual Leave Balance',
+      'Rest Day Policy (0=Rotate,1=Sun,2=Mon,3=Tue,4=Wed,5=Thu,6=Fri,7=Sat)',
+      'Personnel Category (Standard|Driver)',
+      'Gender (M|F)',
+      'Hazardous (yes|no)',
+      'Industrial (yes|no)',
+      'Hour Exempt (yes|no)',
+    ];
+    const sampleRows = [
+      ['EMP-1100', 'John Doe',  'Operator', 'Warehouse', 'Permanent', '48', '07700000000', '2023-01-15', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no'],
+      ['EMP-3100', 'Ali Driver','Driver',   'Transport', 'Permanent', '56', '07712345678', '2022-05-01', '1400000', '21', '5', 'Driver',   'M', 'no',  'no',  'no'],
+      ['EMP-2200', 'أحمد علي',  'Operator', 'Warehouse', 'Permanent', '48', '07798765432', '2024-03-20', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no'],
+    ];
+    const BOM = String.fromCharCode(0xFEFF);
+    const csvContent = BOM + [headers, ...sampleRows]
+      .map(row => row.map(csvCell).join(','))
+      .join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'Roster_Import_Template.csv';
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSaveStation = (st: Station) => {
