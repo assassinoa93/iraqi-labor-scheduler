@@ -2,6 +2,37 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.10.0 — 2026-05-04
+
+**Schedule draft persistence + status indicator.** Trial follow-up. The user reported "when I quit the app and reopen, my drafted (not submitted yet) inputs are cleared" and asked for an explicit Save Draft button + clear status visible per month — including in Offline Demo mode where the existing approval banner was hidden entirely.
+
+**The architecture is right; the gap was synchronisation timing**
+- Online mode persists through Firestore + `persistentLocalCache` ([firestoreClient.ts](src/lib/firestoreClient.ts)) — handles disconnections automatically. No change there.
+- Offline Demo mode persists through the embedded Express server ([electron/main.cjs](electron/main.cjs) + [scripts/build-server.cjs](scripts/build-server.cjs)) with a 500 ms-debounced `/api/save` POST. The bug surfaced when the user closed the window via the OS X button mid-debounce — the `clearTimeout` cleanup fired before the save flushed, dropping the most recent edits.
+- We deliberately did NOT add a parallel localStorage layer (per the user's architectural reminder: "the offline should not interfere with the online database; multiple sources of truth are the wrong pattern"). Both modes still have a single source of truth.
+
+**`beforeunload` safety net** ([`App.tsx`](src/App.tsx))
+- New `useEffect` registers a `beforeunload` listener (Offline mode only). When the window is unloading, we ship the latest serialised body via `navigator.sendBeacon('/api/save', blob)` — a fire-and-forget POST that browsers guarantee to deliver even after `unload` returns. Closes the "user closed mid-debounce" race that was dropping drafts.
+- Online mode skips entirely — the Firestore SDK already handles unload via its own internal queue.
+
+**Explicit "Save Draft" button** ([`ScheduleTab.tsx`](src/tabs/ScheduleTab.tsx), [`App.tsx`](src/App.tsx))
+- New emerald `Save draft` button on the Schedule toolbar, visible only in Offline Demo mode (Online's per-cell sync makes an explicit button there noise).
+- Bypasses the 500 ms debounce: triggers an immediate `/api/save` fetch, awaits the response, surfaces a toast with the outcome (`Draft saved` / `Save failed`).
+- Shows "Saving…" while in flight, error tint on failure, and `title` attr `"Last saved at HH:MM:SS"` on hover so the supervisor has a passive single-glance check before closing the window.
+- Wired through a new `forceSaveNowRef` so the latest body is always available at click time without re-running the auto-save effect.
+
+**Status badge in Offline Demo too** ([`ScheduleApprovalBanner.tsx`](src/components/Schedule/ScheduleApprovalBanner.tsx))
+- Pre-v5.10 the banner returned `null` entirely when `role === null && status === 'draft'` (no approval workflow in Offline Demo).
+- Now renders a stripped-down "Working draft" badge per active month with a "Auto-saved locally — use Save Draft for an immediate flush" hint. No actions, no history, no diff toggle — just the always-visible status indicator the user explicitly asked for.
+- Online mode is unchanged: the full action-bearing banner with submit / lock / save / send-back transitions stays as it was.
+
+**i18n** — full English + Arabic for the Save Draft label, status, last-saved tooltip, and toast strings.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- The `beforeunload` + `sendBeacon` combo works in dev (Vite + tsx server) AND prod (Electron + bundled Express) — both serve `/api/save` on the same port.
+
 ## v5.9.0 — 2026-05-04
 
 **Self-service password lifecycle.** Pre-v5.9 the only way to recover a forgotten password was for the SA to generate a temp password from the SuperAdmin → Users panel and share it out-of-band — which left users locked out whenever the SA was unreachable. This release adds the two standard self-service flows that every modern auth-backed app ships with.

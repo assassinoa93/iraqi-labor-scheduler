@@ -1294,6 +1294,19 @@ export const en: Dict = {
   'changePassword.error.network': 'No connection. Check internet and retry.',
   'changePassword.error.generic': 'Couldn\'t update password — try again.',
   'settings.changePassword': 'Change password',
+
+  // v5.10.0 — explicit "Save draft" button + status indicator for the
+  // Schedule tab. The auto-save + status dot in the global toolbar still
+  // exist; this surface adds a confirmable single-click action with toast
+  // feedback so supervisors know their draft has flushed.
+  'schedule.saveDraft.label': 'Save draft',
+  'schedule.saveDraft.saving': 'Saving…',
+  'schedule.saveDraft.lastSaved': 'Last saved at {time}',
+  'schedule.saveDraft.never': 'Not yet saved this session',
+  'schedule.saveDraft.success.title': 'Draft saved',
+  'schedule.saveDraft.success.body': 'Your edits are persisted. Safe to close the app.',
+  'schedule.saveDraft.error.title': 'Save failed',
+  'schedule.saveDraft.error.body': 'Couldn\'t persist the draft. Check the save indicator in the global toolbar and try again.',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2557,6 +2570,16 @@ export const ar: Dict = {
   'changePassword.error.network': 'لا يوجد اتصال. تحقق من الإنترنت وأعد المحاولة.',
   'changePassword.error.generic': 'تعذّر تحديث كلمة المرور — حاول مرة أخرى.',
   'settings.changePassword': 'تغيير كلمة المرور',
+
+  // v5.10.0 — حفظ المسودة على لوحة الجدول
+  'schedule.saveDraft.label': 'حفظ المسودة',
+  'schedule.saveDraft.saving': 'جارٍ الحفظ…',
+  'schedule.saveDraft.lastSaved': 'آخر حفظ في {time}',
+  'schedule.saveDraft.never': 'لم يتم الحفظ هذه الجلسة بعد',
+  'schedule.saveDraft.success.title': 'تم حفظ المسودة',
+  'schedule.saveDraft.success.body': 'تم حفظ التعديلات. آمن إغلاق التطبيق.',
+  'schedule.saveDraft.error.title': 'فشل الحفظ',
+  'schedule.saveDraft.error.body': 'تعذّر حفظ المسودة. تحقق من مؤشر الحفظ في الشريط العلوي وحاول مرة أخرى.',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

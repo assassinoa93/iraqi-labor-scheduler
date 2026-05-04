@@ -87,9 +87,32 @@ export function ScheduleApprovalBanner({
   const status: ApprovalStatus = approval?.status ?? 'draft';
   const actions = availableActionsFor(status, role);
 
-  // Hide the banner entirely in pristine draft state when offline mode
-  // (role===null) — no workflow there, the existing UI is unchanged.
-  if (role === null && status === 'draft') return null;
+  // v5.10.0 — show a minimal status badge in Offline Demo mode (role===null)
+  // too. Pre-v5.10 the banner returned null entirely there because there's
+  // no approval workflow to show actions for, but the user explicitly asked
+  // for "a current status indicator" on every month plan including Offline.
+  // Render a stripped-down badge: just the status pill (no actions, no
+  // history, no diff toggle), so the supervisor always sees "Working
+  // draft" while editing locally.
+  if (role === null && status === 'draft') {
+    return (
+      <div className="rounded-2xl border p-3 mb-5 shadow-sm flex items-center gap-3 bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700">
+        <Pencil className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+            <span>Working draft</span>
+            <span className="ms-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">· {monthLabel}</span>
+          </p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">
+            Auto-saved locally. Use the Save Draft button on the toolbar for an immediate flush + confirmation.
+          </p>
+        </div>
+        <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">
+          Draft
+        </span>
+      </div>
+    );
+  }
 
   // v5.1.0 — "this is a re-approval" detection. Three signals that this
   // schedule has been through a save → reopen cycle:

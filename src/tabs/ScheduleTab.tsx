@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical } from 'lucide-react';
+import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical, Save } from 'lucide-react';
 import { ScheduleApprovalBanner } from '../components/Schedule/ScheduleApprovalBanner';
 import { format } from 'date-fns';
 import { List, type RowComponentProps } from 'react-window';
@@ -122,6 +122,16 @@ interface ScheduleTabProps {
   onExportHrisBundle?: () => void;
   hrisExportBusy?: boolean;
   hrisLastExportedAt?: number | null;
+
+  // v5.10.0 — explicit "Save draft" force-flush + status surfacing.
+  // Only wired in Offline Demo mode (Online mode auto-syncs on every
+  // cell paint via Firestore so an explicit button would be noise).
+  // App.tsx hands us the latest save state so the badge tracks the
+  // auto-save lifecycle (pending → saving → saved → error). The
+  // button bypasses the 500ms debounce and confirms via toast.
+  onSaveDraft?: () => Promise<void> | void;
+  saveState?: 'idle' | 'pending' | 'saving' | 'saved' | 'error';
+  lastSavedAt?: number | null;
 }
 
 // Layout constants used by both the sticky header row and the virtualized
@@ -303,7 +313,7 @@ export function ScheduleTab({
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
   canRunAuto, runAutoDisabledReason,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
-  onExportSchedule, simMode, onEnterSimMode,
+  onExportSchedule, simMode, onEnterSimMode, onSaveDraft, saveState, lastSavedAt,
   // v5.0 — approval workflow props
   approval, monthLabel, role, canEditCells = true,
   onSubmitForApproval, onLockSchedule, onSendBackSchedule,
@@ -834,6 +844,33 @@ export function ScheduleTab({
             onRunPreserve={(range) => onRunAuto('preserve', range)}
             onRunFresh={(range) => onRunAuto('fresh', range)}
           />
+
+          {/* v5.10.0 — explicit "Save draft" button. Surfaces only in
+              Offline Demo mode (Online's Firestore SDK already auto-syncs
+              every cell paint, so an explicit button there would be
+              noise). Bypasses the 500ms debounce so the supervisor has a
+              clear "I'm done editing for now" action with confirmable
+              outcome (toast + last-saved time in the badge). */}
+          {onSaveDraft && (
+            <button
+              onClick={() => { void onSaveDraft(); }}
+              disabled={saveState === 'saving'}
+              title={lastSavedAt
+                ? t('schedule.saveDraft.lastSaved', { time: format(new Date(lastSavedAt), 'HH:mm:ss') })
+                : t('schedule.saveDraft.never')}
+              className={cn(
+                'apple-press flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-sm border',
+                saveState === 'saving'
+                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-wait'
+                  : saveState === 'error'
+                    ? 'bg-rose-50 dark:bg-rose-500/15 border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-500/25'
+                    : 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25',
+              )}
+            >
+              <Save className="w-4 h-4" />
+              {saveState === 'saving' ? t('schedule.saveDraft.saving') : t('schedule.saveDraft.label')}
+            </button>
+          )}
 
           {onExportSchedule && (
             <button

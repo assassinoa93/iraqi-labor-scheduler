@@ -761,6 +761,16 @@ export default function App() {
   // would otherwise overwrite the user's local Express data with whatever
   // the (possibly empty) Firestore subscription returned, losing any
   // existing offline rosters.
+  // v5.10.0 — keep the latest serialised save body in a ref so the
+  // beforeunload listener can synchronously ship it via sendBeacon when
+  // the window is closed mid-debounce. Without this, the 500ms timeout
+  // below could be cancelled by the unload itself, dropping the user's
+  // most recent draft edits. sendBeacon guarantees the request makes it
+  // out the door even after unload returns; perfect fit for "OS clicked
+  // the X button" mid-paint.
+  const saveBodyRef = React.useRef<string | null>(null);
+  const forceSaveNowRef = React.useRef<() => Promise<void>>(async () => {});
+
   useEffect(() => {
     if (!dataLoaded) return;
     if (simMode) return;
@@ -792,6 +802,28 @@ export default function App() {
       config: configByCo,
       allSchedules: allSchedulesByCo,
     };
+    const serialized = JSON.stringify(body);
+    saveBodyRef.current = serialized;
+    // forceSaveNow flushes the latest body via fetch (so callers can
+    // await + show success). The Save Draft button uses this; the
+    // beforeunload path uses sendBeacon for the synchronous guarantee.
+    forceSaveNowRef.current = async () => {
+      if (!saveBodyRef.current) return;
+      setSaveState('saving');
+      try {
+        await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: saveBodyRef.current,
+        });
+        setSaveState('saved');
+        setLastSavedAt(Date.now());
+      } catch (err) {
+        console.error('[Scheduler] Force-save failed:', err);
+        setSaveState('error');
+        throw err;
+      }
+    };
 
     setSaveState('pending');
     const timeout = setTimeout(() => {
@@ -805,7 +837,7 @@ export default function App() {
       fetch('/api/save' + (skipAudit ? '?skipAudit=1' : ''), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: serialized,
       })
         .then(() => {
           setSaveState('saved');
@@ -819,6 +851,30 @@ export default function App() {
 
     return () => clearTimeout(timeout);
   }, [companies, activeCompanyId, companyData, dataLoaded, simMode, isAuthenticated]);
+
+  // v5.10.0 — beforeunload safety net for Offline Demo mode. If the user
+  // closes the window via the OS X button mid-debounce (the 500ms timer
+  // above gets cancelled by the unload), this ships the most recent
+  // body via sendBeacon — a fire-and-forget POST that the browser
+  // guarantees to deliver even after unload returns. Solves the bug
+  // "drafts cleared on quit" reported during the v5.9 trial. Online
+  // mode skips entirely (Firestore + persistentLocalCache already
+  // handle this without our help).
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const onBeforeUnload = () => {
+      if (!saveBodyRef.current) return;
+      try {
+        const blob = new Blob([saveBodyRef.current], { type: 'application/json' });
+        navigator.sendBeacon('/api/save', blob);
+      } catch {
+        // sendBeacon throws on size limits (~64KB-1MB depending on
+        // browser). Fallback: nothing we can do synchronously here.
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isAuthenticated]);
 
   // Operational State
   const [paintMode, setPaintMode] = useState<{ shiftCode: string; stationId?: string } | null>(null);
@@ -3694,6 +3750,25 @@ export default function App() {
                   if (typeof t.seconds === 'number') return t.seconds * 1000;
                   return null;
                 })()}
+                // v5.10.0 — explicit "Save draft" force-flush. In Online
+                // mode the Firestore SDK already does this on cell paint;
+                // this button gives the supervisor a confirmable
+                // single-click "I'm done editing for now" action and a
+                // visible toast. In Offline Demo mode it bypasses the
+                // 500ms debounce in case the user wants to close the
+                // window immediately after a paint.
+                onSaveDraft={isAuthenticated
+                  ? undefined // Online mode: per-cell sync already covers this
+                  : async () => {
+                      try {
+                        await forceSaveNowRef.current();
+                        showInfo(t('schedule.saveDraft.success.title'), t('schedule.saveDraft.success.body'));
+                      } catch {
+                        showInfo(t('schedule.saveDraft.error.title'), t('schedule.saveDraft.error.body'));
+                      }
+                    }}
+                saveState={saveState}
+                lastSavedAt={lastSavedAt}
               />
             )}
 
