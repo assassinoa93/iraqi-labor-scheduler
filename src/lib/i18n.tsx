@@ -275,6 +275,7 @@ export const en: Dict = {
   'layout.empty': 'No Stations or Assets Defined',
   'layout.emptyHint': 'Start by adding your POS gateways, service windows, or gaming areas.',
   'layout.new': 'New Station',
+  'layout.bulkAdd': 'Bulk Add',
   'layout.normalStaffing': 'Normal Staffing',
   'layout.peakStaffing': 'Peak Staffing',
   'layout.opHours': 'Op Hours',
@@ -612,7 +613,7 @@ export const en: Dict = {
   'info.seed.title': 'Sample Data Loaded',
   'info.seed.body': '35 Operators and 12 Cashiers seeded. Use Auto-Scheduler to populate the month.',
   'info.csvImport.title': 'CSV Import Complete',
-  'info.csvImport.body': 'Successfully imported {count} personnel records.',
+  'info.csvImport.body': '{added} added, {updated} updated, {skipped} unchanged. Existing data (schedule, leaves, station eligibility) was preserved on updated rows.',
   'info.backup.invalidFile': 'Please select a valid .json backup file.',
   'info.backup.parseFailed': 'Error parsing backup file: {msg}',
 
@@ -1136,6 +1137,29 @@ export const en: Dict = {
   'bulkEdit.commit': 'Apply to {count}',
   'info.bulkEdit.title': 'Bulk Edit Applied',
   'info.bulkEdit.body': 'Updated {count} employee record(s).',
+
+  // Bulk station add (v5.3.0)
+  'bulkStation.title': 'Bulk Add Stations',
+  'bulkStation.subtitle': 'Create many stations at once with shared defaults',
+  'bulkStation.field.group': 'Target group',
+  'bulkStation.group.ungrouped': 'Ungrouped',
+  'bulkStation.field.names': 'Station names (one per line)',
+  'bulkStation.namesPlaceholder': 'Cashier Point 5\nCashier Point 6\nCashier Point 7',
+  'bulkStation.countHint': '{count} station(s) will be created',
+  'bulkStation.section.shared': 'Shared properties (applied to every station)',
+  'bulkStation.field.prefix': 'ID prefix',
+  'bulkStation.startsAt': 'Auto-numbering starts at {number}',
+  'bulkStation.preview.title': 'ID preview',
+  'bulkStation.preview.collision': 'This ID already exists — change the prefix or starting number',
+  'bulkStation.summary.empty': 'Type at least one name',
+  'bulkStation.summary.ready': '{count} station(s) ready to create',
+  'bulkStation.commit': 'Create {count}',
+  'bulkStation.error.noNames': 'Add at least one station name.',
+  'bulkStation.error.prefix': 'ID prefix cannot be empty.',
+  'bulkStation.error.collision': 'ID "{id}" already exists. Change the prefix.',
+  'bulkStation.error.hc': 'Peak headcount must be greater than or equal to normal headcount.',
+  'info.bulkStation.title': 'Stations Added',
+  'info.bulkStation.body': 'Created {count} new station(s).',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -1406,6 +1430,7 @@ export const ar: Dict = {
   'layout.empty': 'لا محطات أو أصول مُعرَّفة',
   'layout.emptyHint': 'ابدأ بإضافة نقاط البيع أو نوافذ الخدمة أو مناطق الألعاب.',
   'layout.new': 'محطة جديدة',
+  'layout.bulkAdd': 'إضافة جماعية',
   'layout.normalStaffing': 'الطاقم الطبيعي',
   'layout.peakStaffing': 'الطاقم في الذروة',
   'layout.opHours': 'ساعات التشغيل',
@@ -1744,7 +1769,7 @@ export const ar: Dict = {
   'info.seed.title': 'تم تحميل بيانات نموذجية',
   'info.seed.body': 'تم بذر ٣٥ مشغّلاً و١٢ صرّافاً. استخدم الجدولة التلقائية لملء الشهر.',
   'info.csvImport.title': 'اكتمل استيراد CSV',
-  'info.csvImport.body': 'تم استيراد {count} سجل موظف بنجاح.',
+  'info.csvImport.body': 'تمت إضافة {added}، تحديث {updated}، {skipped} دون تغيير. تم الحفاظ على البيانات الموجودة (الجدول، الإجازات، أهلية المحطات) على السجلات المحدثة.',
   'info.backup.invalidFile': 'يرجى اختيار ملف نسخة احتياطية بصيغة .json.',
   'info.backup.parseFailed': 'خطأ في قراءة ملف النسخة الاحتياطية: {msg}',
 
@@ -2255,6 +2280,29 @@ export const ar: Dict = {
   'bulkEdit.commit': 'تطبيق على {count}',
   'info.bulkEdit.title': 'تم تطبيق التحرير الجماعي',
   'info.bulkEdit.body': 'تم تحديث {count} سجل(سجلات) موظف.',
+
+  // الإضافة الجماعية للمحطات (v5.3.0)
+  'bulkStation.title': 'إضافة محطات جماعيًا',
+  'bulkStation.subtitle': 'إنشاء عدة محطات دفعة واحدة بإعدادات افتراضية مشتركة',
+  'bulkStation.field.group': 'المجموعة المستهدفة',
+  'bulkStation.group.ungrouped': 'بدون مجموعة',
+  'bulkStation.field.names': 'أسماء المحطات (واحد في كل سطر)',
+  'bulkStation.namesPlaceholder': 'نقطة دفع 5\nنقطة دفع 6\nنقطة دفع 7',
+  'bulkStation.countHint': 'سيتم إنشاء {count} محطة',
+  'bulkStation.section.shared': 'الخصائص المشتركة (تُطبَّق على كل محطة)',
+  'bulkStation.field.prefix': 'بادئة المعرف',
+  'bulkStation.startsAt': 'يبدأ الترقيم التلقائي عند {number}',
+  'bulkStation.preview.title': 'معاينة المعرفات',
+  'bulkStation.preview.collision': 'هذا المعرف موجود مسبقًا — غيِّر البادئة أو رقم البدء',
+  'bulkStation.summary.empty': 'اكتب اسمًا واحدًا على الأقل',
+  'bulkStation.summary.ready': '{count} محطة جاهزة للإنشاء',
+  'bulkStation.commit': 'إنشاء {count}',
+  'bulkStation.error.noNames': 'أضف اسم محطة واحدًا على الأقل.',
+  'bulkStation.error.prefix': 'لا يمكن أن تكون بادئة المعرف فارغة.',
+  'bulkStation.error.collision': 'المعرف "{id}" موجود بالفعل. غيِّر البادئة.',
+  'bulkStation.error.hc': 'يجب أن يكون عدد الموظفين في الذروة أكبر من أو يساوي العدد العادي.',
+  'info.bulkStation.title': 'تمت إضافة المحطات',
+  'info.bulkStation.body': 'تم إنشاء {count} محطة جديدة.',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

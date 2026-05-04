@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X } from 'lucide-react';
+import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -16,6 +16,10 @@ interface LayoutTabProps {
   onDelete: (st: Station) => void;
   onUpdateStation: (st: Station) => void;
   onSaveGroups: (groups: StationGroup[]) => void;
+  // v5.3.0 — opens the bulk-add modal that creates N stations at once
+  // sharing one set of defaults (group, HC, opening / closing time, role,
+  // colour). Counterpart to onAddNew which is the single-station path.
+  onBulkAdd?: () => void;
 }
 
 const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#059669', '#d97706', '#1d4ed8', '#9333ea', '#be123c', '#475569'];
@@ -32,7 +36,7 @@ const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#05966
 // purely metadata that drive (a) one-click employee eligibility and
 // (b) the workforce planner's group-level rollup.
 export function LayoutTab({
-  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups,
+  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups, onBulkAdd,
 }: LayoutTabProps) {
   const { t } = useI18n();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -98,6 +102,15 @@ export function LayoutTab({
             <FolderPlus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
             {t('layout.group.new')}
           </button>
+          {onBulkAdd && (
+            <button
+              onClick={onBulkAdd}
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
+            >
+              <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />
+              {t('layout.bulkAdd')}
+            </button>
+          )}
           <button
             onClick={onAddNew}
             className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95 whitespace-nowrap min-w-fit"

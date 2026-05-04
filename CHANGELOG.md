@@ -2,6 +2,37 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.3.0 — 2026-05-04
+
+**CSV merge-upsert + bulk station creation.** Two follow-ups from real-data trial. The mass-import was naïvely appending CSV rows to the roster, so re-running an import with even one `empId` collision created duplicate records that fought each other for the same Firestore doc id and clobbered all the supervisor's downstream work (eligibilities, leave balances, schedule entries). And there was no way to bulk-register stations — opening a new arcade with twelve game machines meant clicking Add → fill 8 fields → Save → Add → ... twelve times.
+
+**CSV importer is now a merge-upsert** ([`App.tsx`](src/App.tsx))
+- Each row is parsed into an explicitly-optional patch — every field is `undefined` when the cell was blank, so the merge step can tell "supervisor wants to clear this" from "supervisor didn't touch this".
+- For each row, the import path matches by `empId`:
+  - **Match found** → only the fields the CSV provided a non-empty value for are overwritten. `eligibleStations`, `eligibleGroups`, `preferredShiftCodes`, `avoidShiftCodes`, `holidayBank`, `overtimeHours`, `leaveRanges`, every schedule entry, and every other field the CSV doesn't carry stay exactly as they were.
+  - **No match** → row is appended as a new employee (legacy v5.1.x behaviour with sensible defaults for blanks).
+  - **Identical to existing** → counted as "skipped" so the toast distinguishes a true no-op from a successful update.
+- Recomputes `baseHourlyRate` only when salary OR weekly hours actually changed in the CSV — same path the EmployeeModal uses for individual edits.
+- Toast now reports three counts: `{added} added, {updated} updated, {skipped} unchanged. Existing data preserved on updated rows.` so the supervisor can verify intent at a glance.
+- New `parseOptionalBool()` helper returns `boolean | undefined` instead of falling back to a default — the upsert path needs the tri-state to leave existing flags alone when the CSV cell is blank.
+
+**Bulk station creation modal** ([`BulkAddStationsModal.tsx`](src/components/BulkAddStationsModal.tsx))
+- Triggered from a new "Bulk Add" button on the Stations tab toolbar (sits between "New Group" and "New Station").
+- Pick a target group (auto-tints the colour to the group's accent), paste / type one station name per line, set the shared properties (normal HC, peak HC, opening time, closing time, required role, color) once, and submit.
+- ID generation: configurable prefix (`ST-` default) auto-numbered from the highest existing station ID matching that prefix, +1. Live preview chip-row shows every ID before commit, with red-tinted chips flagging any collision so the supervisor can adjust the prefix or starting number before pressing Create.
+- The single-station StationModal is unchanged — it's still the right tool for editing or fine-tuning. The bulk modal intentionally doesn't expose per-station overrides (every row gets the same shared defaults); after creation the supervisor opens individual cards to tweak outliers.
+
+**Wiring + dual-mode parity** ([`App.tsx`](src/App.tsx))
+- `handleBulkAddStations()` commits all new stations in a single `setStations` pass that flows through `updateActive → syncStations`, so Offline and Firestore modes hit identical end state. A defensive de-dup step inside the setter protects against a race where another tab adds the same id between modal-open and commit.
+- `handleImportCSV()` likewise lands the entire upserted roster in one `setEmployees` call; `syncEmployees` only fires the per-doc Firestore write for rows that actually changed.
+
+**i18n** — full English + Arabic for both new surfaces and the updated import toast.
+
+**Compatibility**
+- All 183 tests pass. `tsc --noEmit` clean.
+- No data migration. CSV templates from v5.1.9 still work; the importer just gained the merge-by-id semantics.
+- No Firestore schema change.
+
 ## v5.2.0 — 2026-05-04
 
 **Bulk-edit on the Roster tab.** Real-data trial surfaced a workflow gap: with dozens of new hires checked in the roster, the only mass operation available was "delete selected" or "assign a shift code to a date range". To change *card-level* attributes — which station group a batch of new cashiers belongs to, which shifts a fresh cohort of drivers should prefer / avoid, default rest day, contract type — the user had to open each Employee modal, one at a time. v5.2.0 adds a Bulk Edit modal that mirrors the EmployeeModal surface and applies opted-in changes to every selected row in one pass.

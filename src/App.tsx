@@ -54,6 +54,7 @@ import { runAutoScheduler } from './lib/autoScheduler';
 import { TabButton, SidebarGroup } from './components/Primitives';
 import { EmployeeModal } from './components/EmployeeModal';
 import { StationModal } from './components/StationModal';
+import { BulkAddStationsModal } from './components/BulkAddStationsModal';
 import { ShiftModal } from './components/ShiftModal';
 import { HolidayModal } from './components/HolidayModal';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -822,6 +823,7 @@ export default function App() {
   const [paintMode, setPaintMode] = useState<{ shiftCode: string; stationId?: string } | null>(null);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
+  const [isBulkStationOpen, setIsBulkStationOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [scheduleFilter, setScheduleFilter] = useState('');
@@ -1568,7 +1570,7 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // v5.1.9: parse the full 16-column template. Strips a leading UTF-8 BOM
+    // v5.1.9: parses the full 16-column template. Strips a leading UTF-8 BOM
     // (Excel writes one when re-saving the BOM-prefixed template) and uses a
     // quoted-field parser so Arabic names containing commas survive.
     const parseCsvRow = (row: string): string[] => {
@@ -1590,13 +1592,80 @@ export default function App() {
       out.push(cur);
       return out.map(s => s.trim());
     };
-    const parseBool = (v: string | undefined, dflt: boolean): boolean => {
-      if (v == null) return dflt;
+    // v5.3.0: tri-state boolean parser. Returns undefined when the cell is
+    // blank so the upsert path can leave the existing flag untouched
+    // ("don't change") instead of silently overwriting with a default.
+    const parseOptionalBool = (v: string | undefined): boolean | undefined => {
+      if (v == null) return undefined;
       const s = v.trim().toLowerCase();
-      if (s === '') return dflt;
+      if (s === '') return undefined;
       if (['true', 'yes', 'y', '1'].includes(s)) return true;
       if (['false', 'no', 'n', '0'].includes(s)) return false;
-      return dflt;
+      return undefined;
+    };
+    // Parses the row into an explicitly-optional patch. Each field is
+    // undefined when the CSV cell was blank; the upsert path uses that
+    // signal to decide what to overwrite vs leave alone.
+    type RowPatch = {
+      empId: string; // empty -> brand-new auto-id
+      name?: string;
+      role?: string;
+      department?: string;
+      contractType?: string;
+      contractedWeeklyHrs?: number;
+      phone?: string;
+      hireDate?: string;
+      baseMonthlySalary?: number;
+      annualLeaveBalance?: number;
+      fixedRestDay?: number;
+      category?: EmployeeCategory;
+      gender?: Gender; // undefined -> leave as-is
+      isHazardous?: boolean;
+      isIndustrialRotating?: boolean;
+      hourExempt?: boolean;
+    };
+    const parseRow = (cols: string[]): RowPatch | null => {
+      const [
+        id, name, role, dept, type, hrs, phone, hireDate, salary,
+        annualLeave, restDay, category, gender, hazardous, industrial, hourExempt,
+      ] = cols;
+      // The only thing that uniquely identifies a row across imports is the
+      // empId. With no id AND no name there's nothing to upsert against,
+      // skip silently.
+      if (!id?.trim() && !name?.trim()) return null;
+      const trim = (s?: string) => (s ?? '').trim();
+      const blankToUndef = (s?: string) => (trim(s) === '' ? undefined : trim(s));
+      const numOrUndef = (s?: string) => {
+        if (trim(s) === '') return undefined;
+        const n = parseInt(s as string);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const restRaw = numOrUndef(restDay);
+      const fixedRestDay = restRaw !== undefined && restRaw >= 0 && restRaw <= 7 ? restRaw : undefined;
+      const catRaw = trim(category).toLowerCase();
+      const cat: EmployeeCategory | undefined = catRaw === 'driver' ? 'Driver' : catRaw === 'standard' ? 'Standard' : undefined;
+      const g = trim(gender).toUpperCase();
+      const genderField: Gender | undefined = g === 'F' ? 'F' : g === 'M' ? 'M' : undefined;
+      const hireDateField = /^\d{4}-\d{2}-\d{2}$/.test(trim(hireDate)) ? trim(hireDate) : undefined;
+      const annual = numOrUndef(annualLeave);
+      return {
+        empId: trim(id),
+        name: blankToUndef(name),
+        role: blankToUndef(role),
+        department: blankToUndef(dept),
+        contractType: blankToUndef(type),
+        contractedWeeklyHrs: numOrUndef(hrs),
+        phone: blankToUndef(phone),
+        hireDate: hireDateField,
+        baseMonthlySalary: numOrUndef(salary),
+        annualLeaveBalance: annual !== undefined ? Math.max(0, annual) : undefined,
+        fixedRestDay,
+        category: cat,
+        gender: genderField,
+        isHazardous: parseOptionalBool(hazardous),
+        isIndustrialRotating: parseOptionalBool(industrial),
+        hourExempt: parseOptionalBool(hourExempt),
+      };
     };
 
     const reader = new FileReader();
@@ -1604,66 +1673,114 @@ export default function App() {
       let text = event.target?.result as string;
       if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
       const lines = text.split(/\r?\n/);
-      const newEmployees: Employee[] = [];
-
+      const patches: RowPatch[] = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         const cols = parseCsvRow(line);
         if (cols.length < 2) continue;
-
-        const [
-          id, name, role, dept, type, hrs, phone, hireDate, salary,
-          annualLeave, restDay, category, gender, hazardous, industrial, hourExempt,
-        ] = cols;
-
-        const weeklyHrs = parseInt(hrs) || 48;
-        const monthlySalary = parseInt(salary) || DEFAULT_MONTHLY_SALARY_IQD;
-        const restRaw = parseInt(restDay);
-        const fixedRestDay = Number.isFinite(restRaw) && restRaw >= 0 && restRaw <= 7 ? restRaw : 0;
-        const cat: EmployeeCategory = category?.trim() === 'Driver' ? 'Driver' : 'Standard';
-        const g = (gender || '').trim().toUpperCase();
-        const genderField: Gender | undefined = g === 'F' ? 'F' : g === 'M' ? 'M' : undefined;
-        const annualLeaveBal = Number.isFinite(parseInt(annualLeave)) ? Math.max(0, parseInt(annualLeave)) : 21;
-        const hireDateField = /^\d{4}-\d{2}-\d{2}$/.test((hireDate || '').trim())
-          ? hireDate.trim()
-          : format(new Date(), 'yyyy-MM-dd');
-
-        newEmployees.push({
-          empId: id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-          name: name || 'Unnamed',
-          role: role || 'General Staff',
-          department: dept || 'Warehouse',
-          contractType: type || 'Permanent',
-          contractedWeeklyHrs: weeklyHrs,
-          shiftEligibility: 'All',
-          isHazardous: parseBool(hazardous, false),
-          isIndustrialRotating: parseBool(industrial, true),
-          hourExempt: parseBool(hourExempt, false),
-          fixedRestDay,
-          phone: (phone || '').trim(),
-          hireDate: hireDateField,
-          notes: 'Imported via CSV',
-          eligibleStations: [],
-          holidayBank: 0,
-          annualLeaveBalance: annualLeaveBal,
-          baseMonthlySalary: monthlySalary,
-          baseHourlyRate: Math.round(
-            baseHourlyRate(
-              { baseMonthlySalary: monthlySalary, contractedWeeklyHrs: weeklyHrs },
-              config,
-            ),
-          ),
-          overtimeHours: 0,
-          category: cat,
-          ...(genderField ? { gender: genderField } : {}),
-        });
+        const p = parseRow(cols);
+        if (p) patches.push(p);
       }
+      if (patches.length === 0) return;
 
-      if (newEmployees.length > 0) {
-        setEmployees(prev => [...prev, ...newEmployees]);
-        showInfo(t('info.csvImport.title'), t('info.csvImport.body', { count: newEmployees.length }));
-      }
+      // v5.3.0 — merge-upsert semantics. For each CSV row:
+      //   * empId matches an existing employee → patch only the fields the
+      //     CSV provided a non-empty value for. Schedule, leaves, OT history,
+      //     eligibleStations, eligibleGroups, shift preferences, holidayBank
+      //     etc. all stay untouched.
+      //   * empId is empty OR doesn't match → append as a new employee with
+      //     defaults filling in the blanks (legacy behaviour for v5.1.x).
+      // The whole pass replaces the employees array in one setEmployees call
+      // so the Firestore syncEmployees diff only fires for the docs that
+      // actually changed (dual-mode parity).
+      let added = 0;
+      let updated = 0;
+      let skipped = 0;
+      setEmployees(prev => {
+        const byId = new Map(prev.map(e => [e.empId, e]));
+        const next = [...prev];
+        for (const p of patches) {
+          const existing = p.empId ? byId.get(p.empId) : undefined;
+          if (existing) {
+            // Build a shallow patch: only properties the CSV explicitly set.
+            const merged: Employee = { ...existing };
+            if (p.name !== undefined) merged.name = p.name;
+            if (p.role !== undefined) merged.role = p.role;
+            if (p.department !== undefined) merged.department = p.department;
+            if (p.contractType !== undefined) merged.contractType = p.contractType;
+            if (p.contractedWeeklyHrs !== undefined) merged.contractedWeeklyHrs = p.contractedWeeklyHrs;
+            if (p.phone !== undefined) merged.phone = p.phone;
+            if (p.hireDate !== undefined) merged.hireDate = p.hireDate;
+            if (p.baseMonthlySalary !== undefined) merged.baseMonthlySalary = p.baseMonthlySalary;
+            if (p.annualLeaveBalance !== undefined) merged.annualLeaveBalance = p.annualLeaveBalance;
+            if (p.fixedRestDay !== undefined) merged.fixedRestDay = p.fixedRestDay;
+            if (p.category !== undefined) merged.category = p.category;
+            if (p.gender !== undefined) merged.gender = p.gender;
+            if (p.isHazardous !== undefined) merged.isHazardous = p.isHazardous;
+            if (p.isIndustrialRotating !== undefined) merged.isIndustrialRotating = p.isIndustrialRotating;
+            if (p.hourExempt !== undefined) merged.hourExempt = p.hourExempt;
+            // Recompute the OT hourly rate if either input changed — same
+            // path the EmployeeModal uses for individual edits.
+            if (p.baseMonthlySalary !== undefined || p.contractedWeeklyHrs !== undefined) {
+              merged.baseHourlyRate = Math.round(baseHourlyRate(merged, config));
+            }
+            // Detect "no real change" so the toast count and the syncEmployees
+            // diff both reflect intent. JSON-equality is acceptable here:
+            // the patch is shallow, the Employee object is plain JSON.
+            if (JSON.stringify(merged) === JSON.stringify(existing)) {
+              skipped++;
+              continue;
+            }
+            const idx = next.findIndex(e => e.empId === existing.empId);
+            if (idx >= 0) next[idx] = merged;
+            byId.set(existing.empId, merged);
+            updated++;
+          } else {
+            const weeklyHrs = p.contractedWeeklyHrs ?? 48;
+            const monthlySalary = p.baseMonthlySalary ?? DEFAULT_MONTHLY_SALARY_IQD;
+            const fresh: Employee = {
+              empId: p.empId || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+              name: p.name ?? 'Unnamed',
+              role: p.role ?? 'General Staff',
+              department: p.department ?? 'Warehouse',
+              contractType: p.contractType ?? 'Permanent',
+              contractedWeeklyHrs: weeklyHrs,
+              shiftEligibility: 'All',
+              isHazardous: p.isHazardous ?? false,
+              isIndustrialRotating: p.isIndustrialRotating ?? true,
+              hourExempt: p.hourExempt ?? false,
+              fixedRestDay: p.fixedRestDay ?? 0,
+              phone: p.phone ?? '',
+              hireDate: p.hireDate ?? format(new Date(), 'yyyy-MM-dd'),
+              notes: 'Imported via CSV',
+              eligibleStations: [],
+              holidayBank: 0,
+              annualLeaveBalance: p.annualLeaveBalance ?? 21,
+              baseMonthlySalary: monthlySalary,
+              baseHourlyRate: Math.round(baseHourlyRate(
+                { baseMonthlySalary: monthlySalary, contractedWeeklyHrs: weeklyHrs },
+                config,
+              )),
+              overtimeHours: 0,
+              category: p.category ?? 'Standard',
+              ...(p.gender ? { gender: p.gender } : {}),
+            };
+            next.push(fresh);
+            byId.set(fresh.empId, fresh);
+            added++;
+          }
+        }
+        return next;
+      });
+
+      // Toast splits the result so the supervisor can tell whether the import
+      // grew the roster or just patched existing rows. Skipped rows usually
+      // mean "CSV row was identical to current data" — surfaced as a hint.
+      showInfo(
+        t('info.csvImport.title'),
+        t('info.csvImport.body', { added, updated, skipped }),
+      );
     };
     reader.readAsText(file, 'utf-8');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1736,6 +1853,26 @@ export default function App() {
     }
     setIsStationModalOpen(false);
     setSelectedStation(null);
+  };
+
+  // v5.3.0 — single-pass commit for the bulk-station modal. The modal has
+  // already done collision detection against existingStations, but a defensive
+  // de-dup here protects against the (unlikely) race where the user opens
+  // bulk-add, another tab adds an ID via Firestore subscription, and the
+  // commit happens before re-render. setStations routes through updateActive
+  // so syncStations fires once per actually-new doc — Offline + Online land
+  // in identical end state.
+  const handleBulkAddStations = (newStations: Station[]) => {
+    setStations(prev => {
+      const existingIds = new Set(prev.map(s => s.id));
+      const filtered = newStations.filter(s => !existingIds.has(s.id));
+      return [...prev, ...filtered];
+    });
+    setIsBulkStationOpen(false);
+    showInfo(
+      t('info.bulkStation.title'),
+      t('info.bulkStation.body', { count: newStations.length }),
+    );
   };
 
   // v2.2.0 — single source-of-truth setter for active month. The prev /
@@ -3448,6 +3585,7 @@ export default function App() {
                 })}
                 onUpdateStation={(st) => setStations(prev => prev.map(s => s.id === st.id ? st : s))}
                 onSaveGroups={(groups) => setStationGroups(groups)}
+                onBulkAdd={() => setIsBulkStationOpen(true)}
               />
             )}
 
@@ -3644,6 +3782,15 @@ export default function App() {
         onSave={handleSaveStation}
         station={selectedStation}
         availableRoles={rosterRoles}
+      />
+
+      <BulkAddStationsModal
+        isOpen={isBulkStationOpen}
+        onClose={() => setIsBulkStationOpen(false)}
+        existingStations={stations}
+        stationGroups={stationGroups}
+        availableRoles={rosterRoles}
+        onApply={handleBulkAddStations}
       />
 
       <HolidayModal
