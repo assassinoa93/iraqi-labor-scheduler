@@ -59,6 +59,81 @@ export function newLeaveRangeId(): string {
   return `lv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// v5.8.0 — project the holiday-bank balance forward from today to a target
+// date by walking every per-month schedule available in `allSchedules`.
+// Mirrors the auto-scheduler's bank ledger semantics:
+//   * +1 per holiday-day worked (entry is a work shift AND the date is in
+//     the public-holiday list, expanded for multi-day holidays)
+//   * -1 per CP cell (auto-scheduler stamps CP on OFF/leave days that
+//     pay down comp-day debt — those are the comp days being consumed)
+// The accrued/used split lets the UI show "current + accrued − used =
+// projected" so the supervisor can see the math, not just the result.
+// Returns 0/0/0/current when fromDate > toDate.
+//
+// Limitations: this is an APPROXIMATION over already-generated schedules.
+// It can't predict accruals/usage in months whose schedules don't exist
+// yet. The supervisor sees current bank when no future data is available.
+import { Shift, PublicHoliday } from '../types';
+import { expandHolidayDates } from './holidays';
+export function projectHolidayBank(
+  emp: Employee,
+  allSchedules: Record<string, Schedule>,
+  shifts: Shift[],
+  holidays: PublicHoliday[],
+  fromDateStr: string,
+  toDateStr: string,
+): { accrued: number; used: number; projected: number } {
+  if (toDateStr < fromDateStr) {
+    return { accrued: 0, used: 0, projected: emp.holidayBank ?? 0 };
+  }
+  const shiftByCode = new Map(shifts.map(s => [s.code, s]));
+  const expanded = expandHolidayDates(holidays);
+  const holidayDates = new Set(expanded.map(h => h.date));
+  let accrued = 0;
+  let used = 0;
+  // Walk every available schedule key. Names are
+  // `scheduler_schedule_${year}_${month}`. Only consider schedules that
+  // overlap the [fromDate, toDate] interval.
+  for (const [key, sched] of Object.entries(allSchedules)) {
+    const m = /^scheduler_schedule_(\d{4})_(\d{1,2})$/.exec(key);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    const empSched = sched?.[emp.empId];
+    if (!empSched) continue;
+    // Determine the day range within this month that intersects
+    // [fromDate, toDate]. The first day is 1; the last is the month's
+    // calendar length.
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0); // last day of month
+    const monthStartStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const monthEndStr = `${year}-${String(month).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+    if (monthEndStr < fromDateStr || monthStartStr > toDateStr) continue;
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (dateStr < fromDateStr || dateStr > toDateStr) continue;
+      const entry = empSched[day];
+      if (!entry) continue;
+      const shift = shiftByCode.get(entry.shiftCode);
+      if (!shift) continue;
+      // CP cells consume bank.
+      if (entry.shiftCode === 'CP') {
+        used++;
+        continue;
+      }
+      // Holiday-day work accrues bank.
+      if (shift.isWork && holidayDates.has(dateStr)) {
+        accrued++;
+      }
+    }
+    // Avoid an unused `monthStart` warning under strict TS.
+    void monthStart;
+  }
+  const current = emp.holidayBank ?? 0;
+  const projected = Math.max(0, current + accrued - used);
+  return { accrued, used, projected };
+}
+
 // v5.5.0 — count days of leave of a given type that overlap [fromDateStr,
 // toDateStr] (both inclusive). Used by the Payroll tab to project
 // "annual leave balance as of X date" — supervisor sees what each

@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers } from 'lucide-react';
+import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers, AlertTriangle } from 'lucide-react';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWorkedHours } from '../lib/payroll';
-import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange } from '../lib/leaves';
+import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange, projectHolidayBank } from '../lib/leaves';
 import { format } from 'date-fns';
 import { computeHolidayPay, HolidayPayBreakdown } from '../lib/holidayCompPay';
 
@@ -511,6 +511,56 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                   const totalHolidayHours = holidayBreakdown.totalHolidayHours;
                   const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
                   const isOtEligible = totalHours > monthlyHourCap(config);
+
+                  // v5.8.0 — OT carry-over detection. Use case the user
+                  // flagged: comp-day mode + a late-month holiday → premium
+                  // currently shown as owed because the comp window extends
+                  // into next month → schedule the next month and the CP
+                  // lands → premium clears → OT zeroes out. Without the
+                  // hint the supervisor doesn't know they can resolve the
+                  // OT just by generating next month's schedule, so they
+                  // either accept phantom OT pay or hand-pay it.
+                  // Rule:
+                  //   * mode is NOT 'cash-ot' (cash-ot is final, no comp
+                  //     to chase)
+                  //   * at least one in-month holiday has premium owed
+                  //     because its comp window extends past month-end
+                  //   * next month either has no schedule for this
+                  //     employee OR has no CP cells inside the window
+                  // When all three hold, render an amber AlertTriangle
+                  // badge with a hint string.
+                  const compWindowDays = config.holidayCompWindowDays ?? 30;
+                  const globalMode = config.holidayCompMode ?? 'comp-day';
+                  // nextMonthKey same shape the cross-month helpers use.
+                  const nextDate = new Date(config.year, config.month, 1);
+                  const nextMonthKey = `scheduler_schedule_${nextDate.getFullYear()}_${nextDate.getMonth() + 1}`;
+                  const nextEmpSched = allSchedules?.[nextMonthKey]?.[emp.empId];
+                  // Does this employee have any CP placement in the next
+                  // month inside the comp window? Cheap scan — most months
+                  // have only a handful of relevant entries.
+                  const hasNextMonthCP = nextEmpSched
+                    ? Object.entries(nextEmpSched).some(([day, entry]) => {
+                        const d = parseInt(day, 10);
+                        return Number.isFinite(d) && d <= compWindowDays && entry.shiftCode === 'CP';
+                      })
+                    : false;
+                  const showCarryoverHint =
+                    globalMode !== 'cash-ot' &&
+                    otAmount > 0 &&
+                    holidayBreakdown.perHoliday.some(ph => {
+                      if (!ph.premiumOwed) return false;
+                      // Per-holiday compMode override may force cash-ot
+                      // even under a comp-day default — those don't carry
+                      // over so skip them. (computeHolidayPay already
+                      // returns premiumOwed=true for both reasons; we
+                      // approximate by checking the global mode here.)
+                      const m = /^\d{4}-\d{2}-(\d{2})$/.exec(ph.date);
+                      if (!m) return false;
+                      const dayOfMonth = parseInt(m[1], 10);
+                      const windowExtendsIntoNext = dayOfMonth + compWindowDays > config.daysInMonth;
+                      return windowExtendsIntoNext;
+                    }) &&
+                    !hasNextMonthCP;
                   return (
                     <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
@@ -519,12 +569,36 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     </td>
                     <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600 dark:text-slate-300">{totalHours.toFixed(1)}h</td>
                     <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-black tracking-tight",
-                        emp.holidayBank > 0 ? "bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200 shadow-sm" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
-                      )}>
-                        {emp.holidayBank} {t('payroll.days')}
-                      </span>
+                      {(() => {
+                        // v5.8.0 — same as-of-date projection as the
+                        // Annual Leave column, applied to holidayBank.
+                        // Walks every available month schedule between
+                        // today and asOfDate, counting holiday-day
+                        // accruals (+1) and CP placements (-1). Result
+                        // shows "current + accrued − used" as a
+                        // footnote when any change is in flight.
+                        const proj = isProjecting && allSchedules
+                          ? projectHolidayBank(emp, allSchedules, shifts, holidays, todayStr, asOfDate)
+                          : { accrued: 0, used: 0, projected: emp.holidayBank };
+                        const showFootnote = isProjecting && (proj.accrued > 0 || proj.used > 0);
+                        return (
+                          <div className="space-y-0.5">
+                            <span className={cn(
+                              'px-3 py-1 rounded-full text-[10px] font-black tracking-tight',
+                              proj.projected > 0 ? 'bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500',
+                            )}>
+                              {proj.projected} {t('payroll.days')}
+                            </span>
+                            {showFootnote && (
+                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 pl-1">
+                                {emp.holidayBank}
+                                {proj.accrued > 0 && ` + ${proj.accrued}`}
+                                {proj.used > 0 && ` − ${proj.used}`}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       {(() => {
@@ -591,6 +665,20 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                           <span className="text-emerald-600 dark:text-emerald-300">{` (${totalHolidayHours.toFixed(1)}h holiday — comp day granted)`}</span>
                         )}
                       </div>
+                      {/* v5.8.0 — OT carry-over hint badge. Surfaces when
+                          the OT showing here is provisional: it'll clear
+                          once next month's schedule is generated and the
+                          comp days land. Tooltip explains the resolution
+                          path so the supervisor knows what to do. */}
+                      {showCarryoverHint && (
+                        <div
+                          className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-100 text-[8px] font-black uppercase tracking-widest"
+                          title={t('payroll.ot.carryover.tooltip')}
+                        >
+                          <AlertTriangle className="w-2.5 h-2.5" />
+                          {t('payroll.ot.carryover.badge')}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tighter">

@@ -336,6 +336,12 @@ export const en: Dict = {
   'payroll.group.headcount': '{count} people',
   'payroll.group.otRollup': 'OT: +{ot} IQD',
   'payroll.group.netRollup': 'Net: {net} IQD',
+  // v5.8.0 — OT carry-over indicator. Comp-day mode + late-month holiday
+  // → premium currently shown as owed because the comp window extends
+  // into next month. Generating next month's schedule places the CP and
+  // clears the OT.
+  'payroll.ot.carryover.badge': 'Plan next month',
+  'payroll.ot.carryover.tooltip': 'This OT is provisional — the holiday\'s comp window extends into next month. Generate next month\'s schedule and the comp day (CP) will land, clearing this OT under Art. 74 comp-day mode.',
   // v5.5.0 — minimal annual-leave-balance updater (separate UI surface
   // from the full payroll CSV; reuses the same parser).
   'payroll.balance.template': 'Balance template',
@@ -1580,6 +1586,9 @@ export const ar: Dict = {
   'payroll.group.headcount': '{count} موظف',
   'payroll.group.otRollup': 'إضافي: +{ot} د.ع',
   'payroll.group.netRollup': 'صافي: {net} د.ع',
+  // v5.8.0 — مؤشر ترحيل الإضافي
+  'payroll.ot.carryover.badge': 'خطّط الشهر القادم',
+  'payroll.ot.carryover.tooltip': 'هذا الإضافي مؤقت — نافذة التعويض للعطلة تمتد إلى الشهر القادم. أنشئ جدول الشهر القادم وسيُوضع يوم التعويض (CP) ويُلغى هذا الإضافي وفقًا لوضع يوم التعويض في المادة 74.',
   // الإضافات في v5.5.0
   'payroll.balance.template': 'قالب الرصيد',
   'payroll.balance.template.tooltip': 'تنزيل ملف CSV من عمودين (معرف الموظف، أيام الإجازة السنوية) مسبق التعبئة بالقيم الحالية — عدِّله وأعِد رفعه للتحديث الجماعي.',

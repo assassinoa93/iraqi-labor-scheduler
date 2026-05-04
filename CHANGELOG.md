@@ -2,6 +2,35 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.8.0 — 2026-05-04
+
+**Date-sensitive holiday bank + OT carry-over hint.** Two follow-ups from the v5.5–v5.7 trial. The Annual Leave column already projected forward to a chosen "as-of" date; the user pointed out that the Holiday Bank column ignored the picker entirely. And after the v5.5 OT-on-holiday fix, the supervisor now correctly sees provisional OT for late-month holidays — but had no way to know the OT would zero out the moment they generated next month's schedule (where the comp days land).
+
+**Holiday bank follows the as-of-date** ([`leaves.ts`](src/lib/leaves.ts), [`PayrollTab.tsx`](src/tabs/PayrollTab.tsx))
+- New `projectHolidayBank()` helper walks every per-month schedule in `allSchedules` between `fromDateStr` and `toDateStr`, mirroring the auto-scheduler's bank ledger:
+  - **+1** per holiday-day worked (entry is a work shift AND the date is in the public-holiday list, expanded for multi-day holidays)
+  - **−1** per CP cell (the auto-scheduler stamps CP on OFF/leave days that pay down comp-day debt — those are the comp days being consumed)
+  - Returns `{ accrued, used, projected }` so the UI can show the math, not just the result.
+- The Holiday Bank column on PayrollTab now uses the same as-of-date projection as the Annual Leave column. When projecting, the cell shows the projected number with a `current + accrued − used` footnote so the supervisor sees exactly which schedules contributed.
+- Approximation note: the helper can only project from already-generated schedules. Months without a schedule contribute zero — the projection is a lower bound, not a forecast.
+
+**OT carry-over hint** ([`PayrollTab.tsx`](src/tabs/PayrollTab.tsx))
+- Per the user: "there has to be an indicator when there is an OT planned and Comp day the default rule selected, telling the person that they need to plan the month after as well to get rid of the OT indicated."
+- Per-employee OT cell now carries an amber **"Plan next month"** badge when ALL of the following hold:
+  - global `holidayCompMode` is NOT `cash-ot` (cash-only mode has no comp to chase)
+  - the row's `otAmount > 0`
+  - at least one in-month holiday with premium owed has its comp window extending past month-end (i.e. the holiday's `dayOfMonth + holidayCompWindowDays > daysInMonth`)
+  - next month's schedule for this employee either doesn't exist OR has no CP cells inside the window
+- Tooltip explains the resolution: "This OT is provisional — generate next month's schedule and the comp day will land, clearing this OT under Art. 74 comp-day mode."
+- Once the supervisor generates next month's schedule and CP cells appear inside the comp window, the badge disappears automatically — same `allSchedules` plumbing that `computeHolidayPay` already uses for the cross-month comp lookup.
+
+**i18n** — full English + Arabic for the new badge label + tooltip.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- The hint is a pure-derived signal — no new persisted fields. Toggle the active month or generate the next-month schedule to verify behaviour live.
+
 ## v5.7.0 — 2026-05-04
 
 **Per-tab consistency batch.** Three follow-ups from the v5.6 trial. None are bugs in the strict sense — they're consistency / discoverability gaps where the same data behaved differently across tabs.
