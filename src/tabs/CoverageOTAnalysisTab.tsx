@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   TrendingUp, Calendar as CalendarIcon,
   Users, MapPin, Clock, Lightbulb, Sparkles, Info,
@@ -8,6 +8,7 @@ import { Card, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { analyzeOT, suggestMitigations, OTMitigation } from '../lib/otAnalysis';
+import { EmployeeOTDetailModal } from '../components/EmployeeOTDetailModal';
 
 interface Props {
   employees: Employee[];
@@ -58,6 +59,16 @@ export function CoverageOTAnalysisTab(props: Props) {
 
   const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
   const overCapPct = analysis.totalOTPay > 0 ? Math.round((analysis.totalOverCapPay / analysis.totalOTPay) * 100) : 0;
+
+  // v5.6.0 — per-employee OT detail modal. Clicking a "Who burned the OT"
+  // row drills into a per-day breakdown with the cap-crossing day flagged
+  // and the holiday/comp-day status visible per row, so the supervisor can
+  // answer "was this OT because they worked a holiday or because they went
+  // over their monthly cap?" without flipping back to the schedule grid.
+  const [drillEmpId, setDrillEmpId] = useState<string | null>(null);
+  const drillEmp = useMemo(() => employees.find(e => e.empId === drillEmpId) || null, [employees, drillEmpId]);
+  const drillRow = useMemo(() => analysis.byEmployee.find(e => e.empId === drillEmpId), [analysis, drillEmpId]);
+  const stationNameById = useMemo(() => new Map(stations.map(s => [s.id, s.name])), [stations]);
   const holidayPct = analysis.totalOTPay > 0 ? Math.round((analysis.totalHolidayPay / analysis.totalOTPay) * 100) : 0;
 
   // Empty-state when no schedule or roster — same gating logic the
@@ -225,7 +236,13 @@ export function CoverageOTAnalysisTab(props: Props) {
                   const overCapColor = emp.payableOverCapHours > 0 ? 'text-rose-700 dark:text-rose-200' : 'text-slate-300 dark:text-slate-600';
                   const holidayColor = emp.holidayHours > 0 ? 'text-amber-700 dark:text-amber-200' : 'text-slate-300 dark:text-slate-600';
                   return (
-                    <div key={emp.empId} className="p-3 px-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <button
+                      key={emp.empId}
+                      type="button"
+                      onClick={() => setDrillEmpId(emp.empId)}
+                      title={t('otAnalysis.byEmployee.drillHint')}
+                      className="w-full text-start p-3 px-4 hover:bg-blue-50/40 dark:hover:bg-blue-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500/40 focus:ring-inset"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{emp.empName}</p>
@@ -246,7 +263,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">IQD</p>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
                 {analysis.byEmployee.length > 20 && (
@@ -282,6 +299,24 @@ export function CoverageOTAnalysisTab(props: Props) {
         </>
       )}
 
+      <EmployeeOTDetailModal
+        isOpen={drillEmpId !== null}
+        onClose={() => setDrillEmpId(null)}
+        employee={drillEmp}
+        schedule={schedule}
+        shifts={shifts}
+        config={config}
+        holidays={holidays}
+        allSchedules={allSchedules}
+        stationNameById={stationNameById}
+        totalHours={drillRow?.totalHours ?? 0}
+        payableOverCapHours={drillRow?.payableOverCapHours ?? 0}
+        holidayHours={drillRow?.holidayHours ?? 0}
+        totalOTPay={drillRow?.totalOTPay ?? 0}
+        premiumHolidayHours={drillRow?.premiumHolidayHours ?? 0}
+        overCapPay={drillRow?.overCapPay ?? 0}
+        holidayPay={drillRow?.holidayPay ?? 0}
+      />
     </div>
   );
 }

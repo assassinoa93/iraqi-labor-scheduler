@@ -2,6 +2,34 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.6.0 — 2026-05-04
+
+**Drill into "Who burned the OT".** The Coverage / OT Analysis card was reporting month-level rollups only — supervisor saw "30h Over-cap, 58,594 IQD Holiday" but had no way to find out which days the OT actually came from, or whether it was driven by the worker going over the monthly cap vs. premium owed for working a public holiday. v5.6.0 makes each row in the card clickable and opens a detail modal that answers both questions.
+
+**EmployeeOTDetailModal** ([`EmployeeOTDetailModal.tsx`](src/components/EmployeeOTDetailModal.tsx))
+- Click any row in the "Who burned the OT" card → opens a per-employee drill-down for the active month.
+- **KPI strip** mirrors the card's totals so the user can verify they clicked the right person.
+- **"Why OT?" callout** decomposes the OT pay into its two independent reasons:
+  - `Xh over-cap @ 1.5×` — Iraqi Labor Law Art. 70: hours above the {cap}h monthly cap are payable as OT regardless of holiday status.
+  - `Yh holiday premium @ 2×` — Art. 74: premium owed where mode is `cash-ot` / `both`, OR `comp-day` mode where the comp window expired without a CP/OFF day landing.
+  - `Zh holiday work compensated by comp day` — Art. 74 comp-day mode: those hours appear on a holiday but contribute 0 to OT pay because the rest day IS the compensation.
+- **Cap-crossed banner** flags the exact day the running cumulative crossed the monthly cap so the supervisor sees where the OT region begins.
+- **Per-day table** lists every worked day in the month: day number, date, day-of-week, shift code, station, hours, running cumulative. Days that pushed the cumulative past the cap are tinted rose. Each holiday row carries one of two tags:
+  - amber `PH 2×` — premium owed on this day.
+  - emerald `PH +CP {N}d` — comp day landed N days later, no premium owed (Art. 74 comp-day mode).
+- **Hours-by-station footer** gives a quick rollup so the supervisor sees where the work landed without scanning the per-day table.
+- Sticky modal: backdrop click does NOT dismiss (per the v5.3.1 form-modal pattern); Esc + X + Cancel are the only paths out.
+- Uses the same `computeHolidayPay` source-of-truth that the rest of payroll / dashboard / OT analysis use, so the per-holiday status numbers can't diverge from anywhere else they're shown.
+
+**Wiring** ([`CoverageOTAnalysisTab.tsx`](src/tabs/CoverageOTAnalysisTab.tsx))
+- Per-employee row promoted from `<div>` to `<button>` with focus ring + hover tint. Title attr ("Click to see day-by-day hours and the exact reason OT was charged") so keyboard / screen-reader users get the affordance too.
+
+**i18n** — full English + Arabic for the modal labels, KPI tiles, "Why OT?" lines, table headers, holiday tags, and the new drill-hint tooltip on the card row.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change. The modal reads from the same `analyzeOT` result as the card, plus calls `computeHolidayPay` per-employee for the per-holiday breakdown.
+
 ## v5.5.0 — 2026-05-04
 
 **Holiday + leave overhaul: OT bug fix, manager comp-mode, leave reach, and projected balances.** Real-data trial against the v5.4 build surfaced a tangle of holiday / leave / OT issues. This release addresses every distinct complaint as one batch.
