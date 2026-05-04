@@ -5,8 +5,8 @@ import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Pr
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWorkedHours } from '../lib/payroll';
-import { LeaveManagerModal } from '../components/LeaveManagerModal';
-import { listAllLeaveRangesIncludingPainted } from '../lib/leaves';
+import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange } from '../lib/leaves';
+import { format } from 'date-fns';
 import { computeHolidayPay, HolidayPayBreakdown } from '../lib/holidayCompPay';
 
 type PayrollSortKey =
@@ -32,6 +32,10 @@ interface PayrollTabProps {
   prevMonth: () => void;
   nextMonth: () => void;
   setActiveMonth: (year: number, month: number) => void;
+  // v5.5.0 — LeaveManagerModal opening lifted to App.tsx so the same
+  // modal is reachable from EmployeeModal too. The Payroll row's leaves
+  // button now just calls back into App with the target employee.
+  onOpenLeaveManager: (emp: Employee) => void;
 }
 
 const csvCell = (v: string | number): string => {
@@ -62,13 +66,20 @@ const parseCSVLine = (line: string): string[] => {
   return out;
 };
 
-export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth, setActiveMonth }: PayrollTabProps) {
+export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth, setActiveMonth, onOpenLeaveManager }: PayrollTabProps) {
   const { t } = useI18n();
-  const [leaveEditFor, setLeaveEditFor] = useState<Employee | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const balanceImportInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<PayrollSortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  // v5.5.0 — date-sensitive balance projection. When set, the Annual Leave
+  // column shows projected balance as of `asOfDate` = current balance −
+  // annual-leave days planned in [today, asOfDate]. Lets the supervisor
+  // anticipate balance ahead of an upcoming leave window.
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const [asOfDate, setAsOfDate] = useState<string>(todayStr);
+  const isProjecting = asOfDate > todayStr;
 
   const handleSort = (k: string) => {
     if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -262,7 +273,75 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
               if (importInputRef.current) importInputRef.current.value = '';
             }}
           />
+          {/* v5.5.0 — minimal 2-column annual-leave-balance updater. Same
+              import logic as the full payroll CSV (it accepts partial
+              column sets), but the friendlier UI advertises the simpler
+              format so HR can drop in just `Employee ID,Annual Leave Days`. */}
+          <button
+            onClick={() => {
+              const headers = ['Employee ID', 'Annual Leave Days'];
+              const csvRows = employees.map(e => [e.empId, e.annualLeaveBalance]);
+              const csv = [headers, ...csvRows].map(r => r.map(csvCell).join(',')).join('\n');
+              const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'AnnualLeave_Balance_Template.csv';
+              a.click();
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
+            title={t('payroll.balance.template.tooltip')}
+          >
+            <Download className="w-3 h-3" />
+            {t('payroll.balance.template')}
+          </button>
+          <button
+            onClick={() => balanceImportInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-all shadow-sm"
+            title={t('payroll.balance.upload.tooltip')}
+          >
+            <Upload className="w-3 h-3" />
+            {t('payroll.balance.upload')}
+          </button>
+          <input
+            ref={balanceImportInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importPayrollCSV(f);
+              if (balanceImportInputRef.current) balanceImportInputRef.current.value = '';
+            }}
+          />
         </div>
+      </div>
+
+      {/* v5.5.0 — date-sensitive projection bar. Setting a future date
+          re-renders the Annual Leave column with the projected balance
+          (current − planned annual leaves between today and the date),
+          so the supervisor can verify "if I approve a 14-day leave for
+          Ali starting Sep 1, what's his balance on Oct 1?" without
+          mental arithmetic. Today's date keeps the view at "as of now". */}
+      <div className="flex items-center gap-3 flex-wrap p-3 rounded-xl bg-blue-50/40 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30">
+        <span className="text-[10px] font-black text-blue-700 dark:text-blue-200 uppercase tracking-widest">{t('payroll.balance.asOf')}</span>
+        <input
+          type="date"
+          value={asOfDate}
+          min={todayStr}
+          onChange={(e) => setAsOfDate(e.target.value || todayStr)}
+          className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono"
+        />
+        {isProjecting && (
+          <button
+            onClick={() => setAsOfDate(todayStr)}
+            className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 uppercase tracking-widest"
+          >
+            {t('payroll.balance.today')}
+          </button>
+        )}
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium ms-auto">
+          {isProjecting ? t('payroll.balance.projecting') : t('payroll.balance.current')}
+        </p>
       </div>
 
       {importMsg && (
@@ -310,19 +389,41 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-black tracking-tight",
-                        emp.annualLeaveBalance < 5 ? "bg-orange-100 dark:bg-orange-500/25 text-orange-700 dark:text-orange-200" : "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200 shadow-sm"
-                      )}>
-                        {emp.annualLeaveBalance} {t('payroll.days')}
-                      </span>
+                      {(() => {
+                        // v5.5.0 — when the user picked a future asOfDate,
+                        // show projected balance = current − planned annual
+                        // leaves between today and that date. The base
+                        // (un-projected) value still appears below as a
+                        // small footnote so the supervisor can see both
+                        // numbers at once.
+                        const consumedDays = isProjecting
+                          ? countLeaveDaysOfTypeInRange(emp, 'annual', todayStr, asOfDate)
+                          : 0;
+                        const projected = Math.max(0, emp.annualLeaveBalance - consumedDays);
+                        const lowBalance = projected < 5;
+                        return (
+                          <div className="space-y-0.5">
+                            <span className={cn(
+                              "px-3 py-1 rounded-full text-[10px] font-black tracking-tight",
+                              lowBalance ? "bg-orange-100 dark:bg-orange-500/25 text-orange-700 dark:text-orange-200" : "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200 shadow-sm",
+                            )}>
+                              {projected} {t('payroll.days')}
+                            </span>
+                            {isProjecting && consumedDays > 0 && (
+                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 pl-1">
+                                {emp.annualLeaveBalance} − {consumedDays}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       {(() => {
                         const ranges = listAllLeaveRangesIncludingPainted(emp, schedule, config);
                         return (
                           <button
-                            onClick={() => setLeaveEditFor(emp)}
+                            onClick={() => onOpenLeaveManager(emp)}
                             title={ranges.length === 0 ? t('payroll.leavesNone') : ranges.map(r => `${r.type}: ${r.start} → ${r.end}`).join('\n')}
                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight"
                           >
@@ -366,18 +467,9 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         </div>
       </Card>
 
-      <LeaveManagerModal
-        isOpen={leaveEditFor !== null}
-        employee={leaveEditFor}
-        schedule={schedule}
-        config={config}
-        onClose={() => setLeaveEditFor(null)}
-        onSave={(next) => {
-          onUpdateEmployee(next);
-          setLeaveEditFor(null);
-        }}
-      />
-
+      {/* v5.5.0 — LeaveManagerModal moved to App.tsx so the same modal can
+          be opened from the EmployeeModal too. The Payroll-row "Leaves"
+          button calls back into App via onOpenLeaveManager. */}
     </div>
   );
 }

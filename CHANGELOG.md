@@ -2,6 +2,44 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.5.0 — 2026-05-04
+
+**Holiday + leave overhaul: OT bug fix, manager comp-mode, leave reach, and projected balances.** Real-data trial against the v5.4 build surfaced a tangle of holiday / leave / OT issues. This release addresses every distinct complaint as one batch.
+
+**OT bug — comp-day holidays no longer billed as 1.5× over-cap** ([`otAnalysis.ts`](src/lib/otAnalysis.ts), [`otAnalysis.test.ts`](src/lib/__tests__/otAnalysis.test.ts))
+- The user observed that working a 4-day Eid still surfaced over-cap OT on the holiday hours, even though their config was `holidayCompMode='comp-day'` (premium not owed). Pre-v5.5 the over-cap formula was `overCap − premiumHolidayHours`, which only deducted the premium-rate subset and left the compensated subset eligible for the 1.5× pool. The comp-day-replaces-a-rest-day mathematics often kept monthly hours formally over cap when the comp day landed in the next month, so the worker got billed 1.5× OT on hours that were already paid for via the comp rest day.
+- Fix: `payableOverCapHours = max(0, overCap − premiumHolidayHours − compensatedHolidayHours)`. Every holiday hour is now compensated by EITHER the 2× premium OR the comp day — never both, never as 1.5× OT. Matches the user's mental model and the practitioner reading of Art. 74.
+- New unit test pins down the case the user hit: 4-day end-of-month holiday with comp days landing in next month → totalOverCapPay = 0 (was non-zero pre-v5.5).
+
+**Multi-day holiday accrual + defensive expansion** ([`autoScheduler.ts`](src/lib/autoScheduler.ts), [`autoScheduler.test.ts`](src/lib/__tests__/autoScheduler.test.ts))
+- The auto-scheduler already increments `holidayBank` per holiday-day worked via the `expandHolidayDates()` helper (each day of an N-day holiday becomes a separate `PublicHoliday` record). However, expansion was happening only at the App.tsx call site — a unit test or any direct caller of `runAutoScheduler` got the raw single-record list and silently lost the per-day +1 accrual on multi-day holidays.
+- Fix: `runAutoScheduler` now calls `expandHolidayDates` defensively on entry. The helper is idempotent so already-expanded callers see no behaviour change.
+- Two new tests pin down the contract: in-month holidays where bank accrual fully nets against in-month CP placements (bank ends at zero, schedule shows the CP cells), and end-of-month holidays where comp credit must carry forward (bank stays positive at month end).
+
+**Manager + supervisor reach into leave management** ([`EmployeeModal.tsx`](src/components/EmployeeModal.tsx), [`App.tsx`](src/App.tsx), [`PayrollTab.tsx`](src/tabs/PayrollTab.tsx))
+- Pre-v5.5 the `LeaveManagerModal` was only mounted inside `PayrollTab`, gating leave-plan management behind Payroll write access — which means manager (Payroll read-only) and supervisor (Payroll none) couldn't manage leave plans at all. The user explicitly flagged: "the supervisor and manager should be able to see the credits of holidays and manage the leave plans".
+- Fix: hoisted `LeaveManagerModal` to App.tsx, added a "Manage leaves" button inside the EmployeeModal that opens it for the currently-edited employee. Any role with Roster access (all four) can now reach leave management. The Payroll-tab "Leaves" button still works — it now calls back into App.tsx via a new `onOpenLeaveManager` prop.
+
+**Manager-editable holiday compensation default** ([`VariablesTab.tsx`](src/components/VariablesTab.tsx), [`App.tsx`](src/App.tsx))
+- Per the user request: "the manager should be able to determine how to deal with overtime to choose comp or cash or both as the default measure". Pre-v5.5 `holidayCompMode` was governance config (Variables tab, super_admin-edit only); manager + supervisor could only see, not edit.
+- Fix: new `holidayCompModeReadOnly` prop on VariablesTab, defaulting to `readOnly` for back-compat. App.tsx wires it as `false` for manager + super_admin (and Offline mode) and `true` for admin + supervisor. Same per-section override pattern that v5.1.3 introduced for the operating-window block.
+- Default is unchanged: `'comp-day'` (matches the user's "by default it should be set to the Comp" preference).
+
+**Painted leaves can now be adopted into managed plans** ([`LeaveManagerModal.tsx`](src/components/LeaveManagerModal.tsx))
+- Pre-v5.5, leaves the supervisor painted directly on the schedule grid (AL/SL/MAT cells) showed up in the LeaveManagerModal as read-only entries with a `PAINTED` tag — the user could see them but couldn't edit / extend / remove them from the dialog.
+- Fix: each painted entry now carries an "Adopt as plan" button (down-arrow icon). Clicking it adds a copy as a managed range in the draft list — the supervisor can then edit dates, add notes, or delete it like any other planned leave. Schedule cells are unaffected; the managed range, when applied, restamps identical leave codes.
+
+**Date-sensitive annual-leave balance + minimal balance updater** ([`PayrollTab.tsx`](src/tabs/PayrollTab.tsx), [`leaves.ts`](src/lib/leaves.ts))
+- Per the user request: "the view for the credits and annual leave should be date sensitive with a view saying balance as of X date (selected) this helps the supervisor anticipate the annual leave balance by a specific date and able to update the current leave balance state by uploading a CSV with the employee ID and his current balance".
+- New "Annual leave balance as of [date]" picker above the Payroll table. When set to a future date, the Annual Leave column shows projected balance = current − annual leaves planned in [today, asOfDate]. Reasoning shown as a small `current − consumed` footnote so the supervisor sees both numbers at once.
+- New `countLeaveDaysOfTypeInRange()` helper in `leaves.ts` overlaps `leaveRanges` (and legacy single-range fields) against any date interval. Type-parametrised so future surfaces can project sick / maternity balances the same way.
+- New "Balance template" + "Update balances" buttons in the Payroll toolbar: download a 2-column CSV (`Employee ID, Annual Leave Days`) prefilled with current values, edit, re-upload to bulk-set. Reuses the existing payroll-CSV parser which already accepts partial column sets — the new UI just advertises the simpler format.
+
+**Compatibility**
+- All 186 tests pass (3 new). `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- The OT formula change is observably different for any month where an employee worked a public holiday with a CP scheduled inside the comp window — those months will now report less over-cap OT pay than v5.4. This is the bug fix; the new value is what compliance with Art. 74 actually entails.
+
 ## v5.4.0 — 2026-05-04
 
 **Drag-and-drop kanban + selection + dashboard eligibility fix.** Real-data trial follow-ups on the v5.3.x layout work. Supervisors wanted to rearrange stations across groups without opening each card's "Move to" dropdown one by one, and the dashboard's "Assign each non-driver to at least one station" hint was firing even when employees had been correctly assigned via station-group eligibility.

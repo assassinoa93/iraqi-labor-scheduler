@@ -102,6 +102,122 @@ describe('runAutoScheduler — PH comp-day debt tracking', () => {
     expect(Math.abs(hA - hB)).toBeLessThanOrEqual(16);
   });
 
+  // v5.5.0 — verifies that working an N-day public holiday accrues N comp
+  // days, not 1. User observed in real-data trial that working a 4-day Eid
+  // felt like only 1 comp day landed; this test pins down the per-day
+  // accrual semantic via expandHolidayDates() so a regression in either the
+  // expansion helper or the auto-scheduler debt tracking can't slip past.
+  // Defensive expansion now lives inside runAutoScheduler so callers don't
+  // need to remember to expand multi-day holidays beforehand.
+  it('grants one comp day per holiday-day worked on a multi-day holiday (in-month case nets to zero)', () => {
+    // A 4-day Eid starting on day 5. Single station, two employees so the
+    // PH debt logic has rotation room. Each holiday-day worked by an
+    // employee:
+    //   * adds +1 to holidayBank (line autoScheduler.ts:462)
+    //   * adds +1 to phDebt (line :473) — drives next-week-rest priority
+    // The auto-scheduler then places a CP on the next OFF/leave day to
+    // pay down debt, and that CP day decrements the bank by 1 (line :544).
+    // Net effect for a holiday whose comp days land entirely in-month:
+    // bank ends at zero, debt ends at zero, but the CP days are visible
+    // on the schedule grid. End-of-month case below covers carryover.
+    const eid: PublicHoliday = {
+      date: '2026-01-05', name: 'Eid', type: 'Religious',
+      legalReference: 'Art. 74', isFixed: false, durationDays: 4,
+    };
+    const CP: Shift = { code: 'CP', name: 'Comp', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
+    const employees = [mkEmp('A'), mkEmp('B')];
+    const { schedule, updatedEmployees: updated } = runAutoScheduler({
+      employees, shifts: [FS, OFF, CP],
+      stations: [STATION], holidays: [eid], config,
+      isPeakDay: () => false,
+    });
+    // Sum holiday-day work shifts per employee. Days 5-8 are the four
+    // expanded holiday entries.
+    const holidayDays = [5, 6, 7, 8];
+    const holidayWork: Record<string, number> = { A: 0, B: 0 };
+    for (const id of ['A', 'B']) {
+      for (const d of holidayDays) {
+        if (schedule[id]?.[d]?.shiftCode === 'FS') holidayWork[id]++;
+      }
+    }
+    // Verify the schedule actually staffed every holiday day — proves the
+    // expansion ran and the scheduler treated all four as PH instances.
+    expect(holidayWork.A + holidayWork.B).toBe(4);
+
+    // Count CP placements per employee — these are how the bank pays down.
+    const cpPlaced: Record<string, number> = { A: 0, B: 0 };
+    for (const id of ['A', 'B']) {
+      for (let d = 1; d <= 31; d++) {
+        if (schedule[id]?.[d]?.shiftCode === 'CP') cpPlaced[id]++;
+      }
+    }
+    // Net contract: bank = accrued (= holidayWork) − used (= cpPlaced).
+    // For an in-month holiday with enough remaining days to land all CPs
+    // before month-end, this nets to zero. The semantic is "holidayBank is
+    // unspent comp credit" — visible accrual without spending requires
+    // a separate lifetime counter (deferred).
+    for (const id of ['A', 'B']) {
+      const u = updated.find(e => e.empId === id)!;
+      expect(u.holidayBank).toBe(holidayWork[id] - cpPlaced[id]);
+      // And every accrued day did get a CP — debt fully paid in-month.
+      expect(cpPlaced[id]).toBe(holidayWork[id]);
+    }
+  });
+
+  it('carries unspent comp credit forward when a multi-day holiday lands at month-end', () => {
+    // 4-day Eid on Jan 28-31. Days 28-31 are the only days left in the
+    // month, so any CP intended to pay back the holiday work has to fall
+    // INSIDE the holiday window itself (where they're working) — which
+    // can't happen — or be deferred to next month. Either way, the
+    // holidayBank should end the month positive, NOT zero.
+    const eid: PublicHoliday = {
+      date: '2026-01-28', name: 'Eid', type: 'Religious',
+      legalReference: 'Art. 74', isFixed: false, durationDays: 4,
+    };
+    const CP: Shift = { code: 'CP', name: 'Comp', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
+    const employees = [mkEmp('A'), mkEmp('B')];
+    const { schedule, updatedEmployees: updated } = runAutoScheduler({
+      employees, shifts: [FS, OFF, CP],
+      stations: [STATION], holidays: [eid], config,
+      isPeakDay: () => false,
+    });
+    const holidayDays = [28, 29, 30, 31];
+    const holidayWork: Record<string, number> = { A: 0, B: 0 };
+    for (const id of ['A', 'B']) {
+      for (const d of holidayDays) {
+        if (schedule[id]?.[d]?.shiftCode === 'FS') holidayWork[id]++;
+      }
+    }
+    expect(holidayWork.A + holidayWork.B).toBe(4);
+    // No CP can be placed in the days AFTER the holiday window (none exist).
+    // Some CP may have landed on day 28 itself if the alternate employee
+    // started their holiday-debt before any holiday worked — but the total
+    // unspent comp credit across both employees should equal the total
+    // holiday-day work minus any CP days the scheduler managed to place.
+    const cpPlaced: Record<string, number> = { A: 0, B: 0 };
+    for (const id of ['A', 'B']) {
+      for (let d = 1; d <= 31; d++) {
+        if (schedule[id]?.[d]?.shiftCode === 'CP') cpPlaced[id]++;
+      }
+    }
+    let totalAccrued = 0;
+    let totalRemaining = 0;
+    for (const id of ['A', 'B']) {
+      const u = updated.find(e => e.empId === id)!;
+      totalAccrued += holidayWork[id];
+      totalRemaining += u.holidayBank;
+      // Bank invariant: cannot exceed accrued; cannot be negative.
+      expect(u.holidayBank).toBeGreaterThanOrEqual(0);
+      expect(u.holidayBank).toBeLessThanOrEqual(holidayWork[id]);
+    }
+    // Net contract: bank-remaining + cp-placed = accrued, across both.
+    expect(totalRemaining + cpPlaced.A + cpPlaced.B).toBe(totalAccrued);
+    // For an end-of-month holiday with no days after to pay down, at least
+    // some credit MUST carry forward — that's the whole point of the
+    // 30-day window crossing into next month.
+    expect(totalRemaining).toBeGreaterThan(0);
+  });
+
   it('writes OFF on every non-work day so the schedule grid is fully populated', () => {
     const employees = [mkEmp('A'), mkEmp('B')];
     const { schedule } = runAutoScheduler({

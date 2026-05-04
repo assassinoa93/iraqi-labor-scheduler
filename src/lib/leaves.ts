@@ -59,6 +59,50 @@ export function newLeaveRangeId(): string {
   return `lv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// v5.5.0 — count days of leave of a given type that overlap [fromDateStr,
+// toDateStr] (both inclusive). Used by the Payroll tab to project
+// "annual leave balance as of X date" — supervisor sees what each
+// employee's balance will be after planned consumption between today
+// and the chosen target date. Reads from the canonical `leaveRanges`
+// array AND the legacy single-range fields so projections work on
+// records that haven't been migrated yet. Painted-but-unadopted cells
+// aren't counted because they only exist in-month and projecting
+// across multiple months would mean walking allSchedules — out of scope
+// for this projection. Adopt them via the LeaveManagerModal to include.
+export function countLeaveDaysOfTypeInRange(
+  emp: Employee,
+  type: LeaveType,
+  fromDateStr: string,
+  toDateStr: string,
+): number {
+  if (toDateStr < fromDateStr) return 0;
+  const ranges: Array<{ start: string; end: string }> = [];
+  if (Array.isArray(emp.leaveRanges)) {
+    for (const r of emp.leaveRanges) {
+      if (r && r.type === type && r.start && r.end) ranges.push({ start: r.start, end: r.end });
+    }
+  }
+  if (type === 'annual' && emp.annualLeaveStart && emp.annualLeaveEnd) {
+    ranges.push({ start: emp.annualLeaveStart, end: emp.annualLeaveEnd });
+  }
+  if (type === 'sick' && emp.sickLeaveStart && emp.sickLeaveEnd) {
+    ranges.push({ start: emp.sickLeaveStart, end: emp.sickLeaveEnd });
+  }
+  if (type === 'maternity' && emp.maternityLeaveStart && emp.maternityLeaveEnd) {
+    ranges.push({ start: emp.maternityLeaveStart, end: emp.maternityLeaveEnd });
+  }
+  let total = 0;
+  for (const r of ranges) {
+    const ovStart = r.start > fromDateStr ? r.start : fromDateStr;
+    const ovEnd = r.end < toDateStr ? r.end : toDateStr;
+    if (ovEnd >= ovStart) {
+      const days = Math.floor((new Date(ovEnd).getTime() - new Date(ovStart).getTime()) / 86400000) + 1;
+      total += days;
+    }
+  }
+  return total;
+}
+
 // Walk an employee's painted schedule cells in the active month and derive
 // LeaveRange entries from contiguous runs of AL / SL / MAT codes (v1.15).
 // Pre-1.15 the leave-history view in the Roster + Credits & Payroll tabs

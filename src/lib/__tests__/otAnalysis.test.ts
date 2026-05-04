@@ -140,6 +140,42 @@ describe('analyzeOT — does not double-count holiday hours', () => {
     expect(a.totalOverCapPay).toBe(0);
     expect(a.totalHolidayPay).toBeGreaterThan(0);
   });
+
+  // v5.5.0 — the previous test only covered the case where premium is owed
+  // (no CP scheduled). The user's real-data trial hit the OTHER branch:
+  // working a 4-day holiday end-of-month, comp days landed in next month
+  // (premium NOT owed) — but the worker was still billed 1.5× over-cap on
+  // the 4 holiday days that inflated total hours past the cap. v5.5
+  // subtracts compensatedHolidayHours too, so the comp day fully absorbs
+  // those hours from the OT pool.
+  it('subtracts compensated holiday hours too — comp day means no 1.5× OT either', () => {
+    // 4-day holiday at end of month (Jan 28-31). Worker covers all 4 days.
+    // Earlier in the month they worked 24 normal days. Total = 28 work days
+    // × 8h = 224h. Cap = 192. Raw over-cap = 32h. 32h on holidays.
+    const holidays: PublicHoliday[] = [
+      { date: '2026-01-28', name: 'Eid d1', type: 'Religious', legalReference: 'Art. 74' },
+      { date: '2026-01-29', name: 'Eid d2', type: 'Religious', legalReference: 'Art. 74' },
+      { date: '2026-01-30', name: 'Eid d3', type: 'Religious', legalReference: 'Art. 74' },
+      { date: '2026-01-31', name: 'Eid d4', type: 'Religious', legalReference: 'Art. 74' },
+    ];
+    const CP: Shift = { code: 'CP', name: 'Comp', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
+    // Work day 1-24, hold day 28-31. Days 25-27 unscheduled (off).
+    const workDays = [...Array.from({ length: 24 }, (_, i) => i + 1), 28, 29, 30, 31];
+    const schedule: Schedule = sched('A', 'ST-A', workDays);
+    // Comp days planned in February (next month).
+    const nextSched: Schedule = { A: { 5: { shiftCode: 'CP' }, 12: { shiftCode: 'CP' }, 19: { shiftCode: 'CP' }, 26: { shiftCode: 'CP' } } };
+    const allSchedules = { 'scheduler_schedule_2026_2': nextSched };
+
+    const a = analyzeOT([mkEmp('A')], schedule, [FS, OFF, CP], [STATION_A], holidays, config, allSchedules);
+
+    expect(a.totalHolidayHours).toBe(32);
+    // All 4 holidays have a CP within window → premium NOT owed → premiumHours = 0.
+    expect(a.totalHolidayPay).toBe(0);
+    // Raw over-cap = 224 - 192 = 32. Subtract premium (0) + compensated (32) → 0.
+    // Pre-v5.5 this would have been 32 (the bug). Post-v5.5: 0.
+    expect(a.totalOverCapHours).toBe(0);
+    expect(a.totalOverCapPay).toBe(0);
+  });
 });
 
 describe('analyzeOT — Art. 74 comp-day vs cash-ot (v2.1)', () => {

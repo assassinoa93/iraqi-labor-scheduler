@@ -322,6 +322,25 @@ export const en: Dict = {
   'payroll.import.empty': 'CSV file appears empty.',
   'payroll.import.missingId': 'CSV must include an "Employee ID" column.',
   'payroll.import.summary': 'Imported: {updated} updated, {skipped} skipped (no matching Employee ID).',
+  // v5.5.0 — minimal annual-leave-balance updater (separate UI surface
+  // from the full payroll CSV; reuses the same parser).
+  'payroll.balance.template': 'Balance template',
+  'payroll.balance.template.tooltip': 'Download a 2-column CSV (Employee ID, Annual Leave Days) prefilled with current values — edit and re-upload to bulk-update.',
+  'payroll.balance.upload': 'Update balances',
+  'payroll.balance.upload.tooltip': 'Upload a 2-column CSV (Employee ID, Annual Leave Days) to set the current annual-leave balance per employee.',
+  'payroll.balance.asOf': 'Annual leave balance as of',
+  'payroll.balance.today': 'Reset to today',
+  'payroll.balance.current': 'Showing current balance',
+  'payroll.balance.projecting': 'Projecting forward — column shows balance after planned annual leaves',
+  // v5.5.0 — Manage-leaves button inside the EmployeeModal (so manager
+  // and supervisor can reach the LeaveManagerModal from the Roster, not
+  // only from Payroll which they may not have write access to).
+  'modal.employee.leaves.manageTitle': 'Leave plan',
+  'modal.employee.leaves.manageHint': 'Record and edit annual / sick / maternity leave windows. Painted-on-grid leaves can be adopted into the plan from inside the manager.',
+  'modal.employee.leaves.manageOpen': 'Manage leaves',
+  // v5.5.0 — adopt painted-leave action inside LeaveManagerModal.
+  'leaves.modal.painted.adopt': 'Adopt as plan',
+  'leaves.modal.painted.adoptHint': 'Promote this schedule-painted entry into the managed leave plan so you can edit, extend, or delete it from this dialog.',
   'payroll.col.employee': 'Employee',
   'payroll.col.hours': 'Hours',
   'payroll.col.holidayBank': 'Holiday Bank',
@@ -1494,6 +1513,20 @@ export const ar: Dict = {
   'payroll.export.csv': 'تصدير CSV',
   'payroll.export.tooltip': 'ملف CSV لكل موظف جاهز للاستيراد إلى أنظمة HRIS (SAP، كيان HR). يشمل الساعات والأوفرتايم والأرصدة وصافي المستحق.',
   'payroll.import.csv': 'استيراد CSV',
+  // الإضافات في v5.5.0
+  'payroll.balance.template': 'قالب الرصيد',
+  'payroll.balance.template.tooltip': 'تنزيل ملف CSV من عمودين (معرف الموظف، أيام الإجازة السنوية) مسبق التعبئة بالقيم الحالية — عدِّله وأعِد رفعه للتحديث الجماعي.',
+  'payroll.balance.upload': 'تحديث الأرصدة',
+  'payroll.balance.upload.tooltip': 'ارفع ملف CSV من عمودين (معرف الموظف، أيام الإجازة السنوية) لتعيين الرصيد الحالي للإجازة السنوية لكل موظف.',
+  'payroll.balance.asOf': 'رصيد الإجازة السنوية اعتبارًا من',
+  'payroll.balance.today': 'إعادة لليوم',
+  'payroll.balance.current': 'يعرض الرصيد الحالي',
+  'payroll.balance.projecting': 'تقدير مستقبلي — العمود يعرض الرصيد بعد الإجازات السنوية المخططة',
+  'modal.employee.leaves.manageTitle': 'خطة الإجازات',
+  'modal.employee.leaves.manageHint': 'سجِّل وعدِّل نوافذ الإجازات السنوية / المرضية / الأمومة. يمكن تبني الإجازات المرسومة على الجدول داخل المدير.',
+  'modal.employee.leaves.manageOpen': 'إدارة الإجازات',
+  'leaves.modal.painted.adopt': 'تبني كخطة',
+  'leaves.modal.painted.adoptHint': 'ترقية هذا الإدخال المرسوم على الجدول إلى خطة إجازة مُدارة بحيث يمكنك تعديله أو تمديده أو حذفه من هذا الحوار.',
   'payroll.import.tooltip': 'ارفع ملف CSV لتحديث رصيد العطل ورصيد الإجازة السنوية والراتب الأساسي لكل موظف. تُحسب باقي الأعمدة تلقائيًا.',
   'payroll.import.empty': 'ملف CSV يبدو فارغًا.',
   'payroll.import.missingId': 'يجب أن يحتوي CSV على عمود "Employee ID".',

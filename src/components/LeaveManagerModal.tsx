@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Plus, Trash2, Calendar, Heart, Stethoscope, Baby, Paintbrush } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Heart, Stethoscope, Baby, Paintbrush, ArrowDownToLine } from 'lucide-react';
 import { Employee, LeaveRange, LeaveType, Schedule, Config } from '../types';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
@@ -82,6 +82,23 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
 
   const removeRange = (idx: number) => {
     setDraft(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // v5.5.0 — promote a schedule-derived (painted) range into the managed
+  // draft list so the supervisor can edit / extend / delete it from this
+  // modal. The painted cells stay on the schedule grid; the new managed
+  // range carries the same dates and type. From the user's POV: "I painted
+  // an AL day on the grid → now I can manage it like any other planned
+  // leave from this dialog." Once committed, the leaveRange writer takes
+  // over: re-painting the same range yields identical cells, and the user
+  // can extend / shorten the range via the date inputs without leaving the
+  // modal. Painted-vs-managed dedup re-runs on next open so the painted
+  // entry no longer appears (the managed range fully covers it).
+  const adoptPaintedRange = (r: typeof paintedRanges[number]) => {
+    setDraft(prev => [
+      ...prev,
+      { id: newLeaveRangeId(), type: r.type, start: r.start, end: r.end, notes: '' },
+    ]);
   };
 
   const commit = () => {
@@ -295,6 +312,21 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                                 </span>
                               </div>
                             </div>
+                            {/* v5.5.0: lift the painted range into the
+                                managed draft so it becomes editable. The
+                                painted cells on the schedule stay until the
+                                user explicitly removes them; the managed
+                                range will be re-applied on save and the
+                                cells stay identical. */}
+                            <button
+                              type="button"
+                              onClick={() => adoptPaintedRange(r)}
+                              title={t('leaves.modal.painted.adoptHint')}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-50 dark:hover:bg-emerald-500/15 hover:border-emerald-300 dark:hover:border-emerald-500/40 transition-colors shrink-0"
+                            >
+                              <ArrowDownToLine className="w-3 h-3" />
+                              {t('leaves.modal.painted.adopt')}
+                            </button>
                           </div>
                         </div>
                       );

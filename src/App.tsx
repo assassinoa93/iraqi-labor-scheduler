@@ -53,6 +53,7 @@ import { cn } from './lib/utils';
 import { runAutoScheduler } from './lib/autoScheduler';
 import { TabButton, SidebarGroup } from './components/Primitives';
 import { EmployeeModal } from './components/EmployeeModal';
+import { LeaveManagerModal } from './components/LeaveManagerModal';
 import { StationModal } from './components/StationModal';
 import { BulkAddStationsModal } from './components/BulkAddStationsModal';
 import { ShiftModal } from './components/ShiftModal';
@@ -824,6 +825,10 @@ export default function App() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [isStationModalOpen, setIsStationModalOpen] = useState(false);
   const [isBulkStationOpen, setIsBulkStationOpen] = useState(false);
+  // v5.5.0 — lifted from PayrollTab so the LeaveManagerModal can also be
+  // opened from inside the EmployeeModal (giving manager + supervisor a
+  // path to leave management without needing Payroll write access).
+  const [leaveEditFor, setLeaveEditFor] = useState<Employee | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [scheduleFilter, setScheduleFilter] = useState('');
@@ -3545,6 +3550,7 @@ export default function App() {
                     surfaceLeaveCoverageHint(prev, next);
                   }
                 }}
+                onOpenLeaveManager={(emp) => setLeaveEditFor(emp)}
               />
             )}
 
@@ -3747,6 +3753,15 @@ export default function App() {
                 // monitor-only on cells). Offline mode (role===null) is
                 // single-user and fully editable.
                 operatingWindowReadOnly={role === 'admin'}
+                // v5.5.0 — holidayCompMode (Comp / Cash / Both default for
+                // public-holiday work) is also OPERATIONAL config and the
+                // manager owns it. Per the user request: "the manager should
+                // be able to determine how to deal with overtime to choose
+                // comp or cash or both as the default". Super_admin can also
+                // edit (they can edit everything). Admin + supervisor stay
+                // read-only here. Offline mode (role===null) is fully
+                // editable as a single-user fallback.
+                holidayCompModeReadOnly={role !== null && role !== 'super_admin' && role !== 'manager'}
               />
             )}
 
@@ -3793,6 +3808,28 @@ export default function App() {
         stationGroups={stationGroups}
         shifts={shifts}
         config={config}
+        // v5.5.0 — open the LeaveManagerModal from inside the Employee
+        // card. setLeaveEditFor is the same setter the Payroll tab uses,
+        // so the modal opens with the same plumbing regardless of where
+        // the user came from.
+        onManageLeaves={editingEmployee ? () => setLeaveEditFor(editingEmployee) : undefined}
+      />
+
+      {/* v5.5.0 — LeaveManagerModal hoisted to App.tsx so it's reachable
+          from BOTH the Payroll tab and the EmployeeModal. Pre-v5.5 it
+          only mounted inside PayrollTab, which gated leave management
+          behind Payroll write access (super_admin / admin only). Manager
+          + supervisor now reach it through the Employee card. */}
+      <LeaveManagerModal
+        isOpen={leaveEditFor !== null}
+        employee={leaveEditFor}
+        schedule={schedule}
+        config={config}
+        onClose={() => setLeaveEditFor(null)}
+        onSave={(next) => {
+          setEmployees(prev => prev.map(e => e.empId === next.empId ? next : e));
+          setLeaveEditFor(null);
+        }}
       />
 
       <StationModal

@@ -30,6 +30,12 @@ interface Props {
   // consistent with cell-edit gate). Defaults to `readOnly` if not
   // supplied so legacy callers keep their previous behaviour.
   operatingWindowReadOnly?: boolean;
+  // v5.5.0 — holidayCompMode is also operational rather than governance:
+  // it determines how the business pays for holiday work (comp day vs 2×
+  // cash vs both). The manager owns this decision. Same precedent as the
+  // operating-window override: defaults to `readOnly` so legacy callers
+  // keep their previous behaviour.
+  holidayCompModeReadOnly?: boolean;
 }
 
 // CapDef carries i18n keys (resolved at render time so language toggles update
@@ -132,13 +138,18 @@ function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, 
   );
 }
 
-export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operatingWindowReadOnly }: Props) {
+export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operatingWindowReadOnly, holidayCompModeReadOnly }: Props) {
   const { t } = useI18n();
   // v5.1.3 — operating window has its own write-gate (manager + supervisor
   // own operational hours). When the prop is omitted, fall back to
   // `readOnly` so callers from before v5.1.3 don't accidentally widen
   // editing rights.
   const opsReadOnly = operatingWindowReadOnly ?? readOnly;
+  // v5.5.0 — holidayCompMode is also OPERATIONAL config (not governance):
+  // the manager decides whether holiday work is comp-day, 2× cash, or both.
+  // Falls back to `readOnly` when the prop isn't supplied so legacy callers
+  // don't accidentally widen access.
+  const compModeReadOnly = holidayCompModeReadOnly ?? readOnly;
   // Governance setter: swallowed when `readOnly` so cap / pay / hazardous /
   // driver controls that don't honour `disabled` are no-ops at the data
   // layer. The operating-window section uses the raw setter (gated by
@@ -405,8 +416,8 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               type="button"
-              disabled={readOnly}
-              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'comp-day' }))}
+              disabled={compModeReadOnly}
+              onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'comp-day' }))}
               className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                 (config.holidayCompMode ?? 'comp-day') === 'comp-day'
                   ? 'border-emerald-500 bg-emerald-50 shadow-sm'
@@ -418,8 +429,8 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
             </button>
             <button
               type="button"
-              disabled={readOnly}
-              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'cash-ot' }))}
+              disabled={compModeReadOnly}
+              onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'cash-ot' }))}
               className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                 config.holidayCompMode === 'cash-ot'
                   ? 'border-amber-500 bg-amber-50 shadow-sm'
@@ -431,8 +442,8 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
             </button>
             <button
               type="button"
-              disabled={readOnly}
-              onClick={() => setConfig(prev => ({ ...prev, holidayCompMode: 'both' }))}
+              disabled={compModeReadOnly}
+              onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'both' }))}
               className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                 config.holidayCompMode === 'both'
                   ? 'border-purple-500 bg-purple-50 shadow-sm'

@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule, HolidayCompMode } from '../types';
 import { parseHourBounds, parseHour, type HourBounds } from './time';
 import { getEmployeeLeaveOnDate } from './leaves';
+import { expandHolidayDates } from './holidays';
 
 interface RunArgs {
   employees: Employee[];
@@ -76,13 +77,24 @@ const shiftOverlapsNightWindow = (shiftStart: string, shiftEnd: string, nightSta
  * are governed by maxConsecWorkDays + the rolling-7-day weekly cap; the candidate
  * sort prefers those who recently rested, distributing rest naturally across the week.
  */
-export function runAutoScheduler({ employees, shifts, stations, holidays, config, isPeakDay, allSchedules, preserveExisting, startDay, endDay }: RunArgs): RunResult {
+export function runAutoScheduler({ employees, shifts, stations, holidays: rawHolidays, config, isPeakDay, allSchedules, preserveExisting, startDay, endDay }: RunArgs): RunResult {
   const newSchedule: Schedule = {};
   const workShifts = shifts.filter(s => s.isWork);
 
   if (workShifts.length === 0 || stations.length === 0) {
     throw new Error('Auto-scheduler requires shifts and stations defined.');
   }
+
+  // v5.5.0 — defensively fan multi-day holidays here so a caller that
+  // forgets to pre-expand still gets correct per-day comp accrual. Pre-v5.5
+  // App.tsx was the only caller and it expanded via the `holidays` memo at
+  // App.tsx:227, but a unit test (and any future caller) hitting
+  // runAutoScheduler with the raw HolidaysTab list would silently lose the
+  // per-day +1 accrual on multi-day holidays — manifesting as the user's
+  // real-data report "I worked a 4-day Eid but only got 1 comp day."
+  // expandHolidayDates is idempotent — single-day holidays pass through
+  // unchanged so re-expanding an already-expanded list is a no-op.
+  const holidays = expandHolidayDates(rawHolidays);
 
   // v2.2.0 — clamp the active range to a sane window inside the month.
   // Defaults to the full month so existing callers behave identically.

@@ -173,10 +173,20 @@ export function analyzeOT(
     if (totalHours === 0) continue;
 
     const overCapHours = Math.max(0, totalHours - cap);
-    // Subtract premium-rate holiday hours from the over-cap pool — those
-    // are already covered at the higher 2× rate. Non-premium holiday
-    // hours (comp granted) stay eligible for the 1.5× over-cap pool.
-    const payableOverCapHours = Math.max(0, overCapHours - premiumHolidayHours);
+    // v5.5.0: subtract ALL holiday hours from the over-cap pool, not just
+    // the premium-paid subset. Pre-v5.5 the formula was `overCap -
+    // premiumHolidayHours`, which incorrectly billed 1.5× OT on the
+    // compensated subset (holiday hours where a CP/OFF landed inside the
+    // window). Real-data trial: a 4-day holiday at end of month was given
+    // 4 comp days in the next month, premium owed = 0, but the worker
+    // still got billed 1.5× on the over-cap inflated by those holiday
+    // hours. The user's mental model (and the correct read of Art. 74) is:
+    // every holiday hour is compensated by EITHER the 2× premium OR the
+    // comp day — never both, never as 1.5× OT. The comp-day-replaces-a-
+    // rest-day mathematics may keep monthly hours formally over cap, but
+    // the rest day IS the compensation, not OT.
+    const compensatedHolidayHours = breakdown.compensatedHolidayHours;
+    const payableOverCapHours = Math.max(0, overCapHours - premiumHolidayHours - compensatedHolidayHours);
     const overCapPay = payableOverCapHours * hourly * otRateDay;
     const holidayPay = breakdown.premiumPay;
     const totalOTPay = overCapPay + holidayPay;

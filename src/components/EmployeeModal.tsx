@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, CalendarHeart } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Station, StationGroup, Config, Shift } from '../types';
 import { cn } from '../lib/utils';
@@ -24,6 +24,12 @@ interface EmployeeModalProps {
   stationGroups: StationGroup[];
   shifts: Shift[];
   config: Pick<Config, 'standardWeeklyHrsCap'>;
+  // v5.5.0 — opens the LeaveManagerModal scoped to the currently-edited
+  // employee. Surfacing it from the Employee card lets manager + supervisor
+  // (who don't have Payroll write access) reach leave-plan management
+  // without needing the Payroll tab. App.tsx wires the actual modal
+  // open/close + save plumbing.
+  onManageLeaves?: () => void;
 }
 
 const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
@@ -56,7 +62,7 @@ const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
   return seed;
 };
 
-export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config }: EmployeeModalProps) {
+export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config, onManageLeaves }: EmployeeModalProps) {
   const { t } = useI18n();
   // useModalKeys handles Escape; initial focus is wired to the first
   // input below (not the close button) so pressing Enter after open
@@ -476,13 +482,33 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
              </label>
           </div>
 
-          {/* Leave windows (sick / annual / maternity) are managed from the
-              Credits & Payroll tab, where leaves can span multiple ranges and
-              be tracked per request. The single-range fields previously here
-              were misleading. */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            {t('modal.employee.leaves.movedNote')}
-          </div>
+          {/* v5.5.0 — leave plan inline access. Pre-v5.5 this surface only
+              showed a hint pointing to the Credits & Payroll tab, which
+              meant manager + supervisor (no Payroll write access) couldn't
+              manage leave plans at all. The button now opens
+              LeaveManagerModal directly so any role with EmployeeModal
+              access can record sick / annual / maternity windows and see
+              the painted-leave history. App.tsx wires the actual save. */}
+          {onManageLeaves && (
+            <div className="p-4 bg-emerald-50/40 dark:bg-emerald-500/10 rounded-lg border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <CalendarHeart className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">{t('modal.employee.leaves.manageTitle')}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">{t('modal.employee.leaves.manageHint')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onManageLeaves}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-sm whitespace-nowrap"
+              >
+                {t('modal.employee.leaves.manageOpen')}
+              </button>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.notes')}</label>
             <textarea
