@@ -2,6 +2,29 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.2.0 — 2026-05-04
+
+**Bulk-edit on the Roster tab.** Real-data trial surfaced a workflow gap: with dozens of new hires checked in the roster, the only mass operation available was "delete selected" or "assign a shift code to a date range". To change *card-level* attributes — which station group a batch of new cashiers belongs to, which shifts a fresh cohort of drivers should prefer / avoid, default rest day, contract type — the user had to open each Employee modal, one at a time. v5.2.0 adds a Bulk Edit modal that mirrors the EmployeeModal surface and applies opted-in changes to every selected row in one pass.
+
+**New BulkEditEmployeesModal** ([`BulkEditEmployeesModal.tsx`](src/components/BulkEditEmployeesModal.tsx))
+- Triggered from a new "Bulk Edit (N)" button on the Roster toolbar that appears whenever at least one employee is selected (sits next to "Assign Shift" and "Remove Selected").
+- **List fields** (eligible station groups, eligible individual stations, preferred shifts, avoid shifts) each have a four-way mode pill — `Skip` / `Add to` / `Remove` / `Replace`. Skip leaves the field alone; Replace overwrites with just the picked items. The hairy "carve-out" expansion logic from the single-employee EmployeeModal is intentionally NOT mirrored — predictable add/remove semantics matter more at scale.
+- **Scalar fields** (role, department, contract type, weekly hours, rest day policy, personnel category, gender, annual leave balance) each gate behind a "Change" switch. Untoggle = skip; toggle on = use the entered value. Drafts are preserved when the toggle is flipped off, so the user can back out without re-typing.
+- **Boolean flags** (hazardous, industrial, hour exempt) use the same gating: a Change switch enables an On/Off toggle for the field's new value.
+- Footer surfaces a live count of queued changes ("3 change(s) queued for 12 employee(s)") and disables Apply when nothing is selected, so an empty submit can't silently no-op.
+
+**Wiring in App.tsx** ([`App.tsx`](src/App.tsx))
+- New `applyBulkEdit(patch)` mutates every selected employee in a single `setEmployees` pass. Routes through the same `updateActive('employees', ...)` setter as every other roster mutation, so the Firestore `syncEmployees` fan-out fires once per affected doc — Offline and Online modes get identical end state (dual-mode parity preserved).
+- Weekly-hours changes recompute `baseHourlyRate` on the modified record, matching the per-employee path in EmployeeModal. Gender supports an explicit "unset" via `null` so bulk-clearing the field is possible.
+- Toast surfaces a confirmation ("Updated 12 employee record(s).") once the patch lands, so the supervisor knows the silent in-place update succeeded.
+
+**i18n** ([`i18n.tsx`](src/lib/i18n.tsx))
+- Full English + Arabic key set for every label, mode pill, summary string, and toast.
+
+**Compatibility**
+- All 183 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change (the modal only writes existing Employee fields).
+
 ## v5.1.9 — 2026-05-04
 
 **CSV roster import — Arabic round-trip + full template.** Real-data trial surfaced two bugs in the mass-import flow. The template was emitted as raw UTF-8 with no byte-order mark, so when a user opened it in Excel, typed Arabic, saved, and reopened it, every Arabic character came back as `?????`. The template also only carried 8 of the 16 fields on the Employee card, so importers had no way to seed phone, hire date, leave balance, rest-day policy, gender, or the hazardous / industrial / hour-exempt flags without re-editing every employee by hand.

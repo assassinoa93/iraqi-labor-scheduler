@@ -1112,6 +1112,30 @@ export const en: Dict = {
   'bulkAssign.overwriteOff': 'Existing entries are preserved. Only currently-empty cells get the new shift.',
   'bulkAssign.summary': 'Will paint up to {cells} cells ({count} employees × {days} days) in the active month.',
   'bulkAssign.apply': 'Apply',
+
+  // Roster bulk-edit (v5.2.0)
+  'roster.bulkEdit': 'Bulk Edit',
+  'bulkEdit.title': 'Bulk Edit Employees',
+  'bulkEdit.subtitle': '{count} employees selected — only the sections you opt into will change',
+  'bulkEdit.change': 'Change',
+  'bulkEdit.section.groups': 'Eligible station groups',
+  'bulkEdit.section.stations': 'Eligible individual stations',
+  'bulkEdit.section.shiftPrefs': 'Shift preferences',
+  'bulkEdit.section.preferred': 'Preferred shifts',
+  'bulkEdit.section.avoid': 'Avoid shifts',
+  'bulkEdit.section.scalars': 'Card fields',
+  'bulkEdit.section.flags': 'Flags',
+  'bulkEdit.mode.skip': 'Skip',
+  'bulkEdit.mode.add': 'Add to',
+  'bulkEdit.mode.remove': 'Remove',
+  'bulkEdit.mode.replace': 'Replace',
+  'bulkEdit.stations.empty': 'No stations defined yet — add some on the Layout tab.',
+  'bulkEdit.shifts.empty': 'No work shifts defined yet — add some on the Shifts tab.',
+  'bulkEdit.summary.nothing': 'Pick at least one section to apply',
+  'bulkEdit.summary.ready': '{changes} change(s) queued for {count} employee(s)',
+  'bulkEdit.commit': 'Apply to {count}',
+  'info.bulkEdit.title': 'Bulk Edit Applied',
+  'info.bulkEdit.body': 'Updated {count} employee record(s).',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2207,6 +2231,30 @@ export const ar: Dict = {
   'bulkAssign.overwriteOff': 'يتم الحفاظ على القيم الحالية. الخلايا الفارغة فقط تحصل على المناوبة الجديدة.',
   'bulkAssign.summary': 'سيتم رسم حتى {cells} خلية ({count} موظفين × {days} أيام) في الشهر النشط.',
   'bulkAssign.apply': 'تطبيق',
+
+  // Roster bulk-edit (v5.2.0)
+  'roster.bulkEdit': 'تحرير جماعي',
+  'bulkEdit.title': 'تحرير جماعي للموظفين',
+  'bulkEdit.subtitle': 'تم تحديد {count} موظف — لن يتغير سوى الأقسام التي تختار تفعيلها',
+  'bulkEdit.change': 'تغيير',
+  'bulkEdit.section.groups': 'مجموعات المحطات المؤهلة',
+  'bulkEdit.section.stations': 'محطات فردية مؤهلة',
+  'bulkEdit.section.shiftPrefs': 'تفضيلات المناوبات',
+  'bulkEdit.section.preferred': 'المناوبات المفضلة',
+  'bulkEdit.section.avoid': 'المناوبات المتجنبة',
+  'bulkEdit.section.scalars': 'حقول البطاقة',
+  'bulkEdit.section.flags': 'الأعلام',
+  'bulkEdit.mode.skip': 'تخطٍ',
+  'bulkEdit.mode.add': 'إضافة',
+  'bulkEdit.mode.remove': 'إزالة',
+  'bulkEdit.mode.replace': 'استبدال',
+  'bulkEdit.stations.empty': 'لم يتم تعريف أي محطات بعد — أضفها من علامة التخطيط.',
+  'bulkEdit.shifts.empty': 'لم يتم تعريف أي مناوبات عمل بعد — أضفها من علامة المناوبات.',
+  'bulkEdit.summary.nothing': 'اختر قسمًا واحدًا على الأقل للتطبيق',
+  'bulkEdit.summary.ready': '{changes} تغيير(ات) معلقة لـ {count} موظف(ين)',
+  'bulkEdit.commit': 'تطبيق على {count}',
+  'info.bulkEdit.title': 'تم تطبيق التحرير الجماعي',
+  'info.bulkEdit.body': 'تم تحديث {count} سجل(سجلات) موظف.',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

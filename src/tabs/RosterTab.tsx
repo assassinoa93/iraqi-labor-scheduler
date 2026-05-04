@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download } from 'lucide-react';
+import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
@@ -24,6 +24,10 @@ interface RosterTabProps {
   onBulkDelete: () => void;
   onLoadSample: () => void;
   onBulkAssignShift?: () => void;
+  // v5.2.0 — opens the bulk-edit modal that mass-applies field changes
+  // (eligible stations / groups, shift preferences, role, contract, etc.)
+  // to every selected employee in one pass. Counterpart to onBulkDelete.
+  onBulkEdit?: () => void;
   // v4.2.1 — moved from the global toolbar so roster operations live with
   // the roster. `onMassImport` opens the OS file picker (the actual file
   // input + parser stays in App.tsx since it uses several App-level
@@ -37,7 +41,7 @@ type SortKey = 'empId' | 'name' | 'role';
 export function RosterTab({
   employees, stations, stationGroups = [], searchTerm, setSearchTerm,
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
-  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift,
+  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift, onBulkEdit,
   onMassImport, onDownloadTemplate,
 }: RosterTabProps) {
   const { t } = useI18n();
@@ -117,6 +121,15 @@ export function RosterTab({
             >
               <CalendarRange className="w-3.5 h-3.5" />
               {t('roster.bulkAssign')} ({selectedEmployees.size})
+            </button>
+          )}
+          {selectedEmployees.size > 0 && onBulkEdit && (
+            <button
+              onClick={onBulkEdit}
+              className="flex items-center gap-2 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-blue-100 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-all font-mono"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              {t('roster.bulkEdit')} ({selectedEmployees.size})
             </button>
           )}
           {selectedEmployees.size > 0 && (

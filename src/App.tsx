@@ -64,6 +64,7 @@ import { SimulationDeltaPanel, SimDeltaMetric } from './components/SimulationDel
 import { CoverageHintToast } from './components/CoverageHintToast';
 import { SuggestionPane, RecentChange } from './components/SuggestionPane';
 import { BulkAssignModal } from './components/BulkAssignModal';
+import { BulkEditEmployeesModal, BulkEditPatch } from './components/BulkEditEmployeesModal';
 import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
 import { getEmployeeLeaveOnDate } from './lib/leaves';
@@ -911,6 +912,7 @@ export default function App() {
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
   // Lightweight info dialog — single OK button, no destructive action. Used
   // in place of native `alert()` so the message respects RTL layout and the
@@ -1303,6 +1305,57 @@ export default function App() {
     // schedule-level undo (Auto-Schedule undo stack) if available.
     setCellUndoStack([]);
     setIsBulkAssignOpen(false);
+  };
+
+  // v5.2.0 — applies a BulkEditPatch to every selected employee in a single
+  // setEmployees pass. Routes through the same updateActive setter as the
+  // single-employee modal, so the Firestore syncEmployees fan-out fires once
+  // (or once per affected doc, depending on the diff) — both Offline and
+  // Online modes get the same end state. List ops use predictable
+  // add/remove/replace semantics; the EmployeeModal's "carve-out" magic is
+  // intentionally NOT mirrored here because it would surprise the supervisor
+  // when applied to fifty rows at once.
+  const applyBulkEdit = (patch: BulkEditPatch) => {
+    const applyList = (current: string[] | undefined, mode: typeof patch.stations.mode, ids: string[]): string[] => {
+      const cur = current || [];
+      if (mode === 'add')     return Array.from(new Set([...cur, ...ids]));
+      if (mode === 'remove')  return cur.filter(x => !ids.includes(x));
+      if (mode === 'replace') return [...ids];
+      return cur;
+    };
+    setEmployees(prev => prev.map(emp => {
+      if (!selectedEmployees.has(emp.empId)) return emp;
+      const next: Employee = { ...emp };
+      if (patch.stations.mode !== 'skip')        next.eligibleStations  = applyList(emp.eligibleStations,  patch.stations.mode,        patch.stations.ids);
+      if (patch.groups.mode !== 'skip')          next.eligibleGroups    = applyList(emp.eligibleGroups,    patch.groups.mode,          patch.groups.ids);
+      if (patch.preferredShifts.mode !== 'skip') next.preferredShiftCodes = applyList(emp.preferredShiftCodes, patch.preferredShifts.mode, patch.preferredShifts.codes);
+      if (patch.avoidShifts.mode !== 'skip')     next.avoidShiftCodes     = applyList(emp.avoidShiftCodes,     patch.avoidShifts.mode,     patch.avoidShifts.codes);
+      if (patch.role !== undefined) next.role = patch.role;
+      if (patch.department !== undefined) next.department = patch.department;
+      if (patch.contractType !== undefined) next.contractType = patch.contractType;
+      if (patch.contractedWeeklyHrs !== undefined) {
+        next.contractedWeeklyHrs = patch.contractedWeeklyHrs;
+        // Keep the stored OT hourly rate in sync — same recompute path the
+        // EmployeeModal uses when the user changes weekly hours individually.
+        next.baseHourlyRate = Math.round(baseHourlyRate(next, config));
+      }
+      if (patch.fixedRestDay !== undefined) next.fixedRestDay = patch.fixedRestDay;
+      if (patch.category !== undefined) next.category = patch.category;
+      if (patch.gender !== undefined) {
+        if (patch.gender === null) delete next.gender;
+        else next.gender = patch.gender;
+      }
+      if (patch.annualLeaveBalance !== undefined) next.annualLeaveBalance = patch.annualLeaveBalance;
+      if (patch.isHazardous !== undefined) next.isHazardous = patch.isHazardous;
+      if (patch.isIndustrialRotating !== undefined) next.isIndustrialRotating = patch.isIndustrialRotating;
+      if (patch.hourExempt !== undefined) next.hourExempt = patch.hourExempt;
+      return next;
+    }));
+    setIsBulkEditOpen(false);
+    showInfo(
+      t('info.bulkEdit.title'),
+      t('info.bulkEdit.body', { count: selectedEmployees.size }),
+    );
   };
 
   const handleClearAllData = () => {
@@ -3374,6 +3427,7 @@ export default function App() {
                 onBulkDelete={handleBulkDelete}
                 onLoadSample={loadSampleData}
                 onBulkAssignShift={() => setIsBulkAssignOpen(true)}
+                onBulkEdit={() => setIsBulkEditOpen(true)}
                 onMassImport={() => fileInputRef.current?.click()}
                 onDownloadTemplate={downloadRosterTemplate}
               />
@@ -3799,6 +3853,16 @@ export default function App() {
         shifts={shifts}
         daysInMonth={config.daysInMonth}
         onApply={handleBulkAssignShift}
+      />
+
+      <BulkEditEmployeesModal
+        isOpen={isBulkEditOpen}
+        onClose={() => setIsBulkEditOpen(false)}
+        selectedCount={selectedEmployees.size}
+        stations={stations}
+        stationGroups={stationGroups}
+        shifts={shifts}
+        onApply={applyBulkEdit}
       />
 
       {/* Print-only view of the master schedule. Hidden via CSS in normal display
