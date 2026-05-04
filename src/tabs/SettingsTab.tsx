@@ -9,6 +9,7 @@ import {
 } from '../lib/firebaseConfigStorage';
 import { getActiveConfig } from '../lib/firebase';
 import { useConfirm } from '../components/ConfirmModal';
+import { ChangePasswordModal } from '../components/ChangePasswordModal';
 
 interface SettingsTabProps {
   config: Config;
@@ -48,6 +49,10 @@ export function SettingsTab({
   const [signingOut, setSigningOut] = React.useState(false);
   const [connectionCode, setConnectionCode] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  // v5.9.0 — self-service "Change my password" modal. Surfaced only in
+  // online mode (gated by isAuthenticated downstream) since Offline
+  // Demo has no per-user credentials.
+  const [changePwdOpen, setChangePwdOpen] = React.useState(false);
   const handleSignOut = async () => {
     if (!onSignOut) return;
     setSigningOut(true);
@@ -163,6 +168,18 @@ export function SettingsTab({
                 {signingOut ? 'Signing out…' : 'Sign out'}
               </button>
             )}
+            {/* v5.9.0 — let the signed-in user rotate their own password
+                without having to involve the SA. Re-auth happens inside
+                the modal (Firebase requires it before updatePassword). */}
+            {isAuthenticated && (
+              <button
+                onClick={() => setChangePwdOpen(true)}
+                className="apple-press px-6 py-2 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 dark:hover:bg-blue-500/25 font-mono flex items-center gap-2"
+              >
+                <KeyRound className="w-3 h-3" />
+                {t('settings.changePassword')}
+              </button>
+            )}
             {onSwitchMode && (
               <button
                 onClick={onSwitchMode}
@@ -238,6 +255,7 @@ export function SettingsTab({
           )}
         </div>
       )}
+      <ChangePasswordModal isOpen={changePwdOpen} onClose={() => setChangePwdOpen(false)} />
     </div>
   );
 }

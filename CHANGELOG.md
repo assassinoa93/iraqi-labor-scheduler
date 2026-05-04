@@ -2,6 +2,34 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.9.0 — 2026-05-04
+
+**Self-service password lifecycle.** Pre-v5.9 the only way to recover a forgotten password was for the SA to generate a temp password from the SuperAdmin → Users panel and share it out-of-band — which left users locked out whenever the SA was unreachable. This release adds the two standard self-service flows that every modern auth-backed app ships with.
+
+**"Forgot password?" on the login screen** ([`PasswordResetModal.tsx`](src/components/PasswordResetModal.tsx), [`LoginScreen.tsx`](src/components/LoginScreen.tsx))
+- New link below the Sign-in button opens a small modal asking for the user's email.
+- Hands the email to Firebase Auth's `sendPasswordResetEmail` — Firebase mails the user a one-time link that lands on a Firebase-hosted page where they choose a new password.
+- Pre-fills the email field with whatever the user typed on the sign-in form so they don't retype.
+- Always shows the same "If an account exists, a link is on its way" success state regardless of whether the email matched a real user — keeps the form from being usable as an account-enumeration oracle (Firebase silently swallows `user-not-found` for the same reason; we treat it defensively too).
+- Surfaces only `auth/invalid-email` (typo the user can fix on the spot), `network-request-failed`, and `too-many-requests` as visible errors. Everything else folds into the silent success state.
+
+**"Change my password" inside Settings** ([`ChangePasswordModal.tsx`](src/components/ChangePasswordModal.tsx), [`SettingsTab.tsx`](src/tabs/SettingsTab.tsx))
+- New button alongside Sign-out, visible only when `isAuthenticated` (Offline Demo has no per-user credentials).
+- Re-auth gate: Firebase requires a recent re-auth before `updatePassword`, so the modal asks for the current password first, runs `reauthenticateWithCredential(EmailAuthProvider.credential(...))`, then `updatePassword`. Fails fast with a clear error if the current password is wrong.
+- Validates new password ≥ 8 chars, new !== current, new === confirm. Show/hide eye icon on each field. Stays signed in on success.
+
+**Why the SA can't see current passwords (architectural note in the conversation, not a code change)**
+- Firebase Auth (and every properly-built auth system) stores passwords as one-way salted hashes — Google uses scrypt. The plaintext is never stored anywhere. The Admin SDK can `updateUser({ password })` to **set** a new one but there is no API to **read** the current one. This is industry standard (OWASP, NIST 800-63). The two flows shipped here are the secure equivalents: self-reset via email, or SA-generated temp password (which already exists).
+
+**Sticky modals** — both new modals follow the v5.3.1 form-modal pattern (no backdrop dismissal; Esc + X + Cancel are the only paths out).
+
+**i18n** — full English + Arabic key set for both flows.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- Online mode only. Offline Demo has no auth provider, so neither modal is reachable from there.
+
 ## v5.8.1 — 2026-05-04
 
 **`asOfDate` follows the active month picker.** Trial follow-up on v5.8.0: the user picked June at the top of the Payroll tab and noticed the "Annual leave balance as of [date]" field stayed pinned to its previous value. The view contents tracked correctly (current month switched to June), but the projection date was an independent choice.

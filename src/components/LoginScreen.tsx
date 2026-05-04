@@ -13,6 +13,7 @@ import { useAuth } from '../lib/auth';
 import { clearMode } from '../lib/mode';
 import { cn } from '../lib/utils';
 import { getActiveStoredEntry } from '../lib/firebaseConfigStorage';
+import { PasswordResetModal } from './PasswordResetModal';
 
 interface Props {
   // Fired when the user wants to switch to a different Firebase project or
@@ -29,6 +30,12 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // v5.9.0 — self-service password reset modal. Pre-v5.9 the only reset
+  // path was the SA generating a temp password in the SuperAdmin panel
+  // and sharing it out-of-band, which left users locked out whenever
+  // the SA was unreachable. The modal hands the email to Firebase Auth's
+  // sendPasswordResetEmail, which mails them a one-time link.
+  const [resetOpen, setResetOpen] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +141,16 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
           >
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+          {/* v5.9.0 — self-service "Forgot password" entry point. Routes
+              through Firebase Auth's sendPasswordResetEmail; SA no longer
+              has to be in the loop for routine resets. */}
+          <button
+            type="button"
+            onClick={() => setResetOpen(true)}
+            className="block mx-auto text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+          >
+            Forgot password?
+          </button>
         </form>
 
         <div className="mt-6 flex flex-col items-center gap-3">
@@ -154,6 +171,11 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
           </button>
         </div>
       </div>
+      <PasswordResetModal
+        isOpen={resetOpen}
+        onClose={() => setResetOpen(false)}
+        initialEmail={email}
+      />
     </div>
   );
 }
