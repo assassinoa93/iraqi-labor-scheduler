@@ -34,22 +34,40 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
   // canonical index.
   const visible = useMemo(() => {
     const indexed = shifts.map((s, originalIndex) => ({ shift: s, originalIndex }));
-    if (!sortKey) return indexed;
-    const dirMul = sortDir === 'asc' ? 1 : -1;
-    const sorted = [...indexed].sort((a, b) => {
-      let va: number | string;
-      let vb: number | string;
-      switch (sortKey) {
-        case 'code': va = a.shift.code.toLowerCase(); vb = b.shift.code.toLowerCase(); break;
-        case 'name': va = a.shift.name.toLowerCase(); vb = b.shift.name.toLowerCase(); break;
-        case 'hours': va = a.shift.durationHrs; vb = b.shift.durationHrs; break;
-        case 'status': va = a.shift.isWork ? 1 : 0; vb = b.shift.isWork ? 1 : 0; break;
-      }
-      if (va < vb) return -1 * dirMul;
-      if (va > vb) return 1 * dirMul;
-      return 0;
+    if (sortKey) {
+      const dirMul = sortDir === 'asc' ? 1 : -1;
+      const sorted = [...indexed].sort((a, b) => {
+        let va: number | string;
+        let vb: number | string;
+        switch (sortKey) {
+          case 'code': va = a.shift.code.toLowerCase(); vb = b.shift.code.toLowerCase(); break;
+          case 'name': va = a.shift.name.toLowerCase(); vb = b.shift.name.toLowerCase(); break;
+          case 'hours': va = a.shift.durationHrs; vb = b.shift.durationHrs; break;
+          case 'status': va = a.shift.isWork ? 1 : 0; vb = b.shift.isWork ? 1 : 0; break;
+        }
+        if (va < vb) return -1 * dirMul;
+        if (va > vb) return 1 * dirMul;
+        return 0;
+      });
+      return sorted;
+    }
+    // v5.7.0 — default order: working shifts on top, non-working at the
+    // bottom. Pre-v5.7 the default was the canonical array order, which
+    // meant a freshly-seeded list mixed OFF / CP / AL / SL / MAT in with
+    // FS / MS etc. depending on insert order. The auto-scheduler hot loop
+    // operates only on `isWork: true` shifts; surfacing them at the top
+    // matches the supervisor's mental model ("the work shifts I assign
+    // are what I should see first; the leave/system codes are reference
+    // material at the bottom"). Within each partition we preserve the
+    // canonical (manually-reordered) order so the up/down buttons still
+    // act on a stable index — see the disable logic below for the
+    // cross-partition guard.
+    return [...indexed].sort((a, b) => {
+      const aWork = a.shift.isWork ? 0 : 1;
+      const bWork = b.shift.isWork ? 0 : 1;
+      if (aWork !== bWork) return aWork - bWork;
+      return a.originalIndex - b.originalIndex;
     });
-    return sorted;
   }, [shifts, sortKey, sortDir]);
 
   const sortActive = sortKey !== null;
@@ -102,25 +120,37 @@ export function ShiftsTab({ shifts, onAddNew, onEdit, onDelete, onMove }: Shifts
                       Disabled while a sort is active so the visible row
                       doesn't appear to move "wrong" — the up/down would
                       swap underlying positions while the sort keeps the
-                      visible order, which reads as a non-response. */}
-                  <div className="flex flex-col items-center gap-1" title={sortActive ? t('shifts.reorder.disabled.sortActive') : undefined}>
-                    <button
-                      disabled={sortActive || originalIndex === 0}
-                      onClick={() => onMove(originalIndex, 'up')}
-                      aria-label={`${t('shifts.moveUp')}: ${s.code}`}
-                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronUp className="w-3 h-3" />
-                    </button>
-                    <button
-                      disabled={sortActive || originalIndex === shifts.length - 1}
-                      onClick={() => onMove(originalIndex, 'down')}
-                      aria-label={`${t('shifts.moveDown')}: ${s.code}`}
-                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-                  </div>
+                      visible order, which reads as a non-response.
+                      v5.7.0 — also disabled when a swap would cross the
+                      isWork/non-isWork partition (default ordering keeps
+                      working shifts on top), since the canonical swap
+                      would visibly do nothing under the partition rule. */}
+                  {(() => {
+                    const prev = originalIndex > 0 ? shifts[originalIndex - 1] : null;
+                    const next = originalIndex < shifts.length - 1 ? shifts[originalIndex + 1] : null;
+                    const upBlockedByPartition = !sortActive && prev !== null && prev.isWork !== s.isWork;
+                    const downBlockedByPartition = !sortActive && next !== null && next.isWork !== s.isWork;
+                    return (
+                      <div className="flex flex-col items-center gap-1" title={sortActive ? t('shifts.reorder.disabled.sortActive') : (upBlockedByPartition || downBlockedByPartition ? t('shifts.reorder.disabled.partition') : undefined)}>
+                        <button
+                          disabled={sortActive || originalIndex === 0 || upBlockedByPartition}
+                          onClick={() => onMove(originalIndex, 'up')}
+                          aria-label={`${t('shifts.moveUp')}: ${s.code}`}
+                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          disabled={sortActive || originalIndex === shifts.length - 1 || downBlockedByPartition}
+                          onClick={() => onMove(originalIndex, 'down')}
+                          aria-label={`${t('shifts.moveDown')}: ${s.code}`}
+                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-6 py-4 text-end">
                   <div className="flex items-center justify-end gap-2">

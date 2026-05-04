@@ -18,9 +18,15 @@ interface HolidaysTabProps {
   // changes uniformly (e.g. switching the whole year to cash-ot during
   // a peak season).
   onSetAllCompModes: (mode: HolidayCompMode | undefined) => void;
+  // v5.7.0 — per-holiday compMode is governance-equivalent to the global
+  // holidayCompMode in VariablesTab; both decide how holiday work is paid.
+  // VariablesTab gates that setting to manager + super_admin only — this
+  // prop carries the same gate to the per-holiday inline picker + bulk-set
+  // buttons so supervisors can't bypass the rule by editing per-holiday.
+  compModeReadOnly?: boolean;
 }
 
-export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUpdate, onSetAllCompModes }: HolidaysTabProps) {
+export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUpdate, onSetAllCompModes, compModeReadOnly }: HolidaysTabProps) {
   const { t } = useI18n();
   const defaultMode = config.holidayCompMode ?? 'comp-day';
 
@@ -55,8 +61,11 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
         <div className="flex items-center gap-2 flex-wrap">
           {/* v2.2.0 — bulk-set every holiday at once. Useful when the
               supervisor wants to flip the whole year to cash-ot during
-              a peak quarter, then back to inherit afterwards. */}
-          {holidays.length > 0 && (
+              a peak quarter, then back to inherit afterwards.
+              v5.7.0 — gated by `compModeReadOnly` (same rule as the
+              VariablesTab default-comp-mode editor): only manager and
+              super_admin can change the policy. */}
+          {holidays.length > 0 && !compModeReadOnly && (
             <div className="flex items-center bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
               <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-2">{t('holidays.bulk.label')}</span>
               <button
@@ -135,19 +144,38 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
 
               <div className="mt-3">
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">{t('holidays.compMode.label')}</p>
-                <button
-                  onClick={() => onUpdate({ ...holi, compMode: cycleMode(holi.compMode) })}
-                  className={cn(
-                    'w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
-                    pillCls(effMode),
-                  )}
-                  title={t('holidays.compMode.cycleHint')}
-                >
-                  {modeLabel(effMode)}
-                  {!isOverride && (
-                    <span className="ms-2 normal-case font-medium text-[9px] text-slate-500 dark:text-slate-400 lowercase">{t('holidays.compMode.inherit')}</span>
-                  )}
-                </button>
+                {/* v5.7.0 — when compModeReadOnly, render the pill as a
+                    static label (no onClick, no hover affordance) so the
+                    supervisor can SEE the policy in effect for each
+                    holiday but can't change it. */}
+                {compModeReadOnly ? (
+                  <div
+                    className={cn(
+                      'w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest cursor-default opacity-90',
+                      pillCls(effMode),
+                    )}
+                    title={t('holidays.compMode.readOnly.tooltip')}
+                  >
+                    {modeLabel(effMode)}
+                    {!isOverride && (
+                      <span className="ms-2 normal-case font-medium text-[9px] text-slate-500 dark:text-slate-400 lowercase">{t('holidays.compMode.inherit')}</span>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onUpdate({ ...holi, compMode: cycleMode(holi.compMode) })}
+                    className={cn(
+                      'w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                      pillCls(effMode),
+                    )}
+                    title={t('holidays.compMode.cycleHint')}
+                  >
+                    {modeLabel(effMode)}
+                    {!isOverride && (
+                      <span className="ms-2 normal-case font-medium text-[9px] text-slate-500 dark:text-slate-400 lowercase">{t('holidays.compMode.inherit')}</span>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="flex justify-between items-center py-3 border-t border-slate-50 dark:border-slate-700/60 mt-4">

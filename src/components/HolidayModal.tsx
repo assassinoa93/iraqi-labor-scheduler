@@ -16,6 +16,11 @@ interface HolidayModalProps {
   // v2.1.2: configured global compMode so the per-holiday picker can
   // show "(default)" against the inheriting option.
   defaultCompMode?: HolidayCompMode;
+  // v5.7.0 — gates the per-holiday compMode picker. Same rule as the
+  // VariablesTab default-comp-mode editor: only manager + super_admin
+  // can change Art. 74 policy. When true the picker shows the effective
+  // mode but the buttons are disabled.
+  compModeReadOnly?: boolean;
 }
 
 const empty = (): PublicHoliday => ({
@@ -31,7 +36,7 @@ const empty = (): PublicHoliday => ({
   legalReference: 'Art. 74',
 });
 
-export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode = 'comp-day' }: HolidayModalProps) {
+export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode = 'comp-day', compModeReadOnly = false }: HolidayModalProps) {
   const { t } = useI18n();
   useModalKeys(isOpen, onClose);
   const [formData, setFormData] = useState<PublicHoliday>(holiday || empty());
@@ -118,19 +123,25 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
 
           {/* Per-holiday Art. 74 compMode picker. Lets the user pre-set
               the override at create time instead of saving then editing
-              the pill on the holidays tab. */}
+              the pill on the holidays tab.
+              v5.7.0 — disabled when compModeReadOnly. Same governance
+              rule as VariablesTab: only manager + super_admin can change
+              Art. 74 policy. The picker still SHOWS the effective mode
+              (so the supervisor knows what's in force) but the buttons
+              are click-disabled. */}
           <div>
             <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">{t('modal.holiday.field.compMode')}</label>
             {/* v5.1.7 — four tiles: inherit + the three Art. 74 modes.
                 "Both" is the strict-text option; visually purple to match
                 the Variables-tab card. Grid stays compact at 2 cols on
                 narrow modal widths, 4 cols when there's space. */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" title={compModeReadOnly ? t('holidays.compMode.readOnly.tooltip') : undefined}>
               <button
                 type="button"
-                onClick={() => setCompMode(undefined)}
+                disabled={compModeReadOnly}
+                onClick={() => compModeReadOnly ? null : setCompMode(undefined)}
                 className={cn(
-                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                   formData.compMode === undefined ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
                 )}
               >
@@ -143,9 +154,10 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               </button>
               <button
                 type="button"
-                onClick={() => setCompMode('comp-day')}
+                disabled={compModeReadOnly}
+                onClick={() => compModeReadOnly ? null : setCompMode('comp-day')}
                 className={cn(
-                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                   formData.compMode === 'comp-day' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
                 )}
               >
@@ -153,9 +165,10 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               </button>
               <button
                 type="button"
-                onClick={() => setCompMode('cash-ot')}
+                disabled={compModeReadOnly}
+                onClick={() => compModeReadOnly ? null : setCompMode('cash-ot')}
                 className={cn(
-                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                   formData.compMode === 'cash-ot' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
                 )}
               >
@@ -163,9 +176,10 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               </button>
               <button
                 type="button"
-                onClick={() => setCompMode('both')}
+                disabled={compModeReadOnly}
+                onClick={() => compModeReadOnly ? null : setCompMode('both')}
                 className={cn(
-                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all',
+                  'px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed',
                   formData.compMode === 'both' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
                 )}
               >

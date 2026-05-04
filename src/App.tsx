@@ -3727,6 +3727,11 @@ export default function App() {
                   setHolidays(prev => prev.map(h => (h.id ?? h.date) === targetId ? holi : h));
                 }}
                 onSetAllCompModes={(mode) => setHolidays(prev => prev.map(h => ({ ...h, compMode: mode })))}
+                // v5.7.0 — same gate as the VariablesTab default-comp-mode
+                // editor: only manager + super_admin can change Art. 74
+                // policy. Pre-v5.7 supervisor could bypass the rule by
+                // cycling per-holiday compMode pills here.
+                compModeReadOnly={role !== null && role !== 'super_admin' && role !== 'manager'}
               />
             )}
 
@@ -3855,6 +3860,7 @@ export default function App() {
         onSave={handleSaveHoliday}
         holiday={editingHoliday}
         defaultCompMode={config.holidayCompMode ?? 'comp-day'}
+        compModeReadOnly={role !== null && role !== 'super_admin' && role !== 'manager'}
       />
 
       <ShiftModal

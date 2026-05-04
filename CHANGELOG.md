@@ -2,6 +2,34 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.7.0 — 2026-05-04
+
+**Per-tab consistency batch.** Three follow-ups from the v5.6 trial. None are bugs in the strict sense — they're consistency / discoverability gaps where the same data behaved differently across tabs.
+
+**Per-holiday `compMode` gate — same rule as VariablesTab** ([`HolidaysTab.tsx`](src/tabs/HolidaysTab.tsx), [`HolidayModal.tsx`](src/components/HolidayModal.tsx), [`App.tsx`](src/App.tsx))
+- v5.5.0 gated the global `holidayCompMode` (Variables tab) to manager + super_admin only — Art. 74 policy is governance config, not operations. But the per-holiday `compMode` override pills on the Holidays tab and the picker tiles in HolidayModal stayed editable for any role with `holidays: 'read'` access (i.e. supervisors), which let them bypass the rule on a per-holiday basis. The user explicitly flagged this asymmetry: "the same field is available in public holidays tab which a supervisor can edit; this should follow the same logic."
+- Fix: new `compModeReadOnly` prop on both HolidaysTab and HolidayModal (defaulting to true for back-compat). App.tsx wires both gates via the same `role !== 'super_admin' && role !== 'manager'` predicate. When read-only, the inline cycle pill renders as a static badge (so the supervisor can SEE the policy in effect for each holiday), the bulk-set toolbar is hidden, and the modal picker tiles are disabled with a tooltip explaining the gate.
+
+**Default shift sort — working on top, non-working at bottom** ([`ShiftsTab.tsx`](src/tabs/ShiftsTab.tsx))
+- Pre-v5.7 the default shift list rendered in canonical array order, which mixed work shifts (FS, MS, ES) with system / leave codes (OFF, CP, AL, SL, MAT) depending on insert order. Per the user: "there has to be a default sort of having non-working shift at the bottom and the working shifts at the top."
+- Fix: when no column header sort is active, partition by `isWork` (working first) then preserve canonical index within each partition. Reorder buttons stay enabled within a partition but disable when an adjacent swap would cross the work/non-work boundary (since the partition rule would visibly absorb the swap into a no-op). New tooltip explains the cross-partition guard.
+- Header sorts (Code / Name / Hours / Status) work exactly as before — the partition only kicks in when no explicit sort is selected.
+
+**PayrollTab — filter / sort / group, parity with the Roster tab** ([`PayrollTab.tsx`](src/tabs/PayrollTab.tsx))
+- Per the user: "the credits and payroll has no filtering, sorting, grouping features which should be the case wherever I have employee data". Sorting was already present (column headers); filtering and grouping were not.
+- New compact toolbar above the table:
+  - **Search** — name / employee ID / department, same shape as RosterTab.
+  - **Role filter** + **Department filter** — pickers populated from the live roster.
+  - **Group by** — None / Department / Role / Personnel category (Standard | Driver). Each group section gets a sticky header row with per-group rollups: headcount, total OT pay, total Net Payable. Sorting still applies inside each group.
+- Filter pipeline: search → role → dept → sort → group. Active filter count appears in the toolbar when narrowed (`{shown}/{total}`).
+
+**i18n** — full English + Arabic for the new payroll filter / group strings, the partition-blocked shift reorder tooltip, and the read-only `compMode` tooltip in the holidays surfaces.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- The shift partition is display-only — the underlying `shifts` array is unchanged, so any code that walks the array by index still sees the same ordering it did pre-v5.7.
+
 ## v5.6.0 — 2026-05-04
 
 **Drill into "Who burned the OT".** The Coverage / OT Analysis card was reporting month-level rollups only — supervisor saw "30h Over-cap, 58,594 IQD Holiday" but had no way to find out which days the OT actually came from, or whether it was driven by the worker going over the monthly cap vs. premium owed for working a public holiday. v5.6.0 makes each row in the card clickable and opens a detail modal that answers both questions.

@@ -322,6 +322,20 @@ export const en: Dict = {
   'payroll.import.empty': 'CSV file appears empty.',
   'payroll.import.missingId': 'CSV must include an "Employee ID" column.',
   'payroll.import.summary': 'Imported: {updated} updated, {skipped} skipped (no matching Employee ID).',
+  // v5.7.0 — Payroll filter + sort + group-by, parity with the Roster tab.
+  'payroll.filter.searchPlaceholder': 'Search name / ID / department…',
+  'payroll.filter.role': 'Filter by role',
+  'payroll.filter.allRoles': 'All roles',
+  'payroll.filter.dept': 'Filter by department',
+  'payroll.filter.allDepts': 'All departments',
+  'payroll.filter.groupBy': 'Group by',
+  'payroll.filter.groupBy.none': 'No grouping',
+  'payroll.filter.groupBy.department': 'Department',
+  'payroll.filter.groupBy.role': 'Role',
+  'payroll.filter.groupBy.category': 'Personnel category',
+  'payroll.group.headcount': '{count} people',
+  'payroll.group.otRollup': 'OT: +{ot} IQD',
+  'payroll.group.netRollup': 'Net: {net} IQD',
   // v5.5.0 — minimal annual-leave-balance updater (separate UI surface
   // from the full payroll CSV; reuses the same parser).
   'payroll.balance.template': 'Balance template',
@@ -382,6 +396,10 @@ export const en: Dict = {
   'shifts.moveUp': 'Move up',
   'shifts.moveDown': 'Move down',
   'shifts.reorder.disabled.sortActive': 'Clear the active sort to reorder shifts.',
+  // v5.7.0 — partition-aware reorder guard. Default sort puts working
+  // shifts on top, non-working at the bottom; cross-partition swaps
+  // would visibly do nothing under the partition rule.
+  'shifts.reorder.disabled.partition': 'Reorder blocked: working and non-working shifts are partitioned by default. Apply a column sort to reorder freely.',
   'holidays.title': 'Public Holidays & Non-Working Days',
   'holidays.subtitle': 'Custom calendar overrides for the Iraq region.',
   'holidays.new': 'New Holiday',
@@ -395,6 +413,9 @@ export const en: Dict = {
   'holidays.compMode.both': 'Both (CP + 2×)',
   'holidays.compMode.inherit': '(default)',
   'holidays.compMode.cycleHint': 'Click to cycle: inherit default → comp day → cash OT → both.',
+  // v5.7.0 — read-only state for non-manager / non-super-admin users.
+  // Same rule as VariablesTab default-comp-mode editor.
+  'holidays.compMode.readOnly.tooltip': 'Art. 74 mode is governance config — only manager and super-admin can change it.',
   'holidays.compModeHint': 'Default Art. 74 mode is "{mode}". Click any holiday\'s pill to override that single day — useful when a peak week makes the comp-day rotation impossible (cash OT instead) or for high-compliance employers who pay both a comp day AND the premium.',
   'holidays.bulk.label': 'Set all',
   'holidays.bulk.inherit.tooltip': 'Reset every holiday to inherit the global default (clears all per-holiday overrides).',
@@ -1545,6 +1566,20 @@ export const ar: Dict = {
   'payroll.export.csv': 'تصدير CSV',
   'payroll.export.tooltip': 'ملف CSV لكل موظف جاهز للاستيراد إلى أنظمة HRIS (SAP، كيان HR). يشمل الساعات والأوفرتايم والأرصدة وصافي المستحق.',
   'payroll.import.csv': 'استيراد CSV',
+  // إضافات v5.7.0 — الفرز/التصفية/التجميع للأجور
+  'payroll.filter.searchPlaceholder': 'ابحث عن الاسم / المعرف / القسم…',
+  'payroll.filter.role': 'تصفية حسب الدور',
+  'payroll.filter.allRoles': 'كل الأدوار',
+  'payroll.filter.dept': 'تصفية حسب القسم',
+  'payroll.filter.allDepts': 'كل الأقسام',
+  'payroll.filter.groupBy': 'تجميع حسب',
+  'payroll.filter.groupBy.none': 'بدون تجميع',
+  'payroll.filter.groupBy.department': 'القسم',
+  'payroll.filter.groupBy.role': 'الدور',
+  'payroll.filter.groupBy.category': 'فئة الموظف',
+  'payroll.group.headcount': '{count} موظف',
+  'payroll.group.otRollup': 'إضافي: +{ot} د.ع',
+  'payroll.group.netRollup': 'صافي: {net} د.ع',
   // الإضافات في v5.5.0
   'payroll.balance.template': 'قالب الرصيد',
   'payroll.balance.template.tooltip': 'تنزيل ملف CSV من عمودين (معرف الموظف، أيام الإجازة السنوية) مسبق التعبئة بالقيم الحالية — عدِّله وأعِد رفعه للتحديث الجماعي.',
@@ -1604,6 +1639,7 @@ export const ar: Dict = {
   'shifts.moveUp': 'تحريك للأعلى',
   'shifts.moveDown': 'تحريك للأسفل',
   'shifts.reorder.disabled.sortActive': 'أوقف الفرز النشط لإعادة ترتيب المناوبات.',
+  'shifts.reorder.disabled.partition': 'إعادة الترتيب محظورة: المناوبات العاملة وغير العاملة مفصولة افتراضيًا. طبّق فرز عمود لإعادة الترتيب بحرية.',
   'holidays.title': 'العطلات الرسمية وأيام العطل',
   'holidays.subtitle': 'تخصيصات تقويم لمنطقة العراق.',
   'holidays.new': 'عطلة جديدة',
@@ -1617,6 +1653,7 @@ export const ar: Dict = {
   'holidays.compMode.both': 'كلاهما (يوم تعويض + ٢×)',
   'holidays.compMode.inherit': '(الافتراضي)',
   'holidays.compMode.cycleHint': 'انقر للتبديل: الوضع الافتراضي → يوم تعويض → بدل نقدي → كلاهما.',
+  'holidays.compMode.readOnly.tooltip': 'وضع المادة 74 إعداد حوكمي — فقط المدير والمسؤول الأعلى يمكنهما تغييره.',
   'holidays.compModeHint': 'الوضع الافتراضي للمادة ٧٤ هو "{mode}". انقر على شارة أي عطلة لاستثنائها — مفيد إذا تعذّر تدوير يوم تعويض (يُدفع ٢× نقدًا)، أو لأصحاب العمل الذين يلتزمون بالنص الحرفي ويمنحون كلاهما.',
   'holidays.bulk.label': 'تعيين الكل',
   'holidays.bulk.inherit.tooltip': 'إعادة تعيين كل العطلات لترث الوضع الافتراضي العام (يمسح جميع الاستثناءات).',

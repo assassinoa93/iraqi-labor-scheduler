@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { Download, Calendar, Upload, FileSpreadsheet } from 'lucide-react';
+import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers } from 'lucide-react';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -80,6 +80,27 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [asOfDate, setAsOfDate] = useState<string>(todayStr);
   const isProjecting = asOfDate > todayStr;
+  // v5.7.0 — search + filter + group-by, parity with the Roster tab. The
+  // user explicitly flagged that any surface displaying employee data
+  // should support these. groupBy is 'none' | 'department' | 'role' |
+  // 'category' (Standard / Driver). Sort still works inside each group;
+  // group headers separate the sections so figures roll up per group.
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [groupBy, setGroupBy] = useState<'none' | 'department' | 'role' | 'category'>('none');
+  // Derive role + department option lists from the current roster so the
+  // pickers show only values that actually exist (no stale options).
+  const roleOptions = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach(e => { if (e.role) set.add(e.role); });
+    return Array.from(set).sort();
+  }, [employees]);
+  const deptOptions = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach(e => { if (e.department) set.add(e.department); });
+    return Array.from(set).sort();
+  }, [employees]);
 
   const handleSort = (k: string) => {
     if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -115,10 +136,25 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
     });
   }, [employees, schedule, shifts, holidays, config, allSchedules]);
 
+  // v5.7.0 — filter pipeline: search (name / id / dept) → role filter →
+  // dept filter → sort. Same shape as RosterTab so the two tabs stay
+  // mentally consistent.
+  const filteredRows = useMemo<Row[]>(() => {
+    const q = searchTerm.toLowerCase().trim();
+    return rows.filter(r => {
+      if (roleFilter !== 'all' && r.emp.role !== roleFilter) return false;
+      if (deptFilter !== 'all' && r.emp.department !== deptFilter) return false;
+      if (!q) return true;
+      return r.emp.name.toLowerCase().includes(q)
+        || r.emp.empId.toLowerCase().includes(q)
+        || r.emp.department.toLowerCase().includes(q);
+    });
+  }, [rows, searchTerm, roleFilter, deptFilter]);
+
   const sortedRows = useMemo<Row[]>(() => {
-    if (!sortKey) return rows;
+    if (!sortKey) return filteredRows;
     const dirMul = sortDir === 'asc' ? 1 : -1;
-    const sorted = [...rows].sort((a, b) => {
+    const sorted = [...filteredRows].sort((a, b) => {
       let va: number | string;
       let vb: number | string;
       switch (sortKey) {
@@ -136,7 +172,46 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
       return 0;
     });
     return sorted;
-  }, [rows, sortKey, sortDir]);
+  }, [filteredRows, sortKey, sortDir]);
+
+  // v5.7.0 — group-by partitioning. When groupBy is set, sortedRows are
+  // bucketed into groups (preserving the active sort within each group)
+  // and rendered with a sticky group header above each section. Each
+  // group header carries small per-group rollups (count + total OT pay +
+  // total net payable) so the supervisor can compare group spend at a
+  // glance without re-sorting the whole table.
+  type GroupedSection = {
+    key: string;
+    label: string;
+    rows: Row[];
+    totalOTPay: number;
+    totalNetPayable: number;
+  };
+  const groupedSections = useMemo<GroupedSection[]>(() => {
+    if (groupBy === 'none') return [];
+    const buckets = new Map<string, Row[]>();
+    for (const r of sortedRows) {
+      let key: string;
+      if (groupBy === 'department') key = r.emp.department || '—';
+      else if (groupBy === 'role') key = r.emp.role || '—';
+      else key = r.emp.category || 'Standard';
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(r);
+    }
+    const sections: GroupedSection[] = [];
+    for (const [key, rs] of buckets) {
+      sections.push({
+        key,
+        label: key,
+        rows: rs,
+        totalOTPay: rs.reduce((s, r) => s + r.otAmount, 0),
+        totalNetPayable: rs.reduce((s, r) => s + r.netPayable, 0),
+      });
+    }
+    sections.sort((a, b) => a.label.localeCompare(b.label));
+    return sections;
+  }, [sortedRows, groupBy]);
+  const filtersActive = searchTerm !== '' || roleFilter !== 'all' || deptFilter !== 'all';
 
   // Per-row CSV export. Columns map 1:1 to the visible payroll table so
   // the user can paste into HRIS systems (SAP, Kayan HR) where the
@@ -350,6 +425,62 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         </div>
       )}
 
+      {/* v5.7.0 — search + role/dept filter + group-by, parity with the
+          Roster tab. The user explicitly flagged that any tab showing
+          employee data should support these. Active filter count appears
+          above the table when narrowed; group headers show per-group OT
+          + Net Payable rollups when groupBy is active. */}
+      <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <input
+            type="text"
+            placeholder={t('payroll.filter.searchPlaceholder')}
+            className="w-full ps-9 pe-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-blue-500 outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          aria-label={t('payroll.filter.role')}
+          className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+        >
+          <option value="all">{t('payroll.filter.allRoles')}</option>
+          {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+          aria-label={t('payroll.filter.dept')}
+          className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+        >
+          <option value="all">{t('payroll.filter.allDepts')}</option>
+          {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <div className="flex items-center gap-1.5 ms-auto">
+          <Layers className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.filter.groupBy')}</span>
+          <select
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
+            aria-label={t('payroll.filter.groupBy')}
+            className="px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
+          >
+            <option value="none">{t('payroll.filter.groupBy.none')}</option>
+            <option value="department">{t('payroll.filter.groupBy.department')}</option>
+            <option value="role">{t('payroll.filter.groupBy.role')}</option>
+            <option value="category">{t('payroll.filter.groupBy.category')}</option>
+          </select>
+        </div>
+        {filtersActive && (
+          <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+            {sortedRows.length}/{rows.length}
+          </span>
+        )}
+      </div>
+
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
@@ -368,13 +499,20 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
-              {sortedRows.map(({ emp, totalHours, baseMonthly, hourlyRate, standardOTHours, holidayBreakdown, otAmount, netPayable }) => {
-                const totalHolidayHours = holidayBreakdown.totalHolidayHours;
-                const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
-                const isOtEligible = totalHours > monthlyHourCap(config);
-
-                return (
-                  <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+              {/* v5.7.0 — when groupBy is active, render a header row above
+                  each group section with per-group rollups. Sorting still
+                  applies inside each group; the headers just punctuate the
+                  visual flow. */}
+              {(() => {
+                // The actual per-row JSX — extracted into an IIFE so the
+                // grouped + ungrouped paths share one renderer instead of
+                // duplicating the ~80-line cell layout.
+                const renderRow = ({ emp, totalHours, baseMonthly, hourlyRate, standardOTHours, holidayBreakdown, otAmount, netPayable }: Row) => {
+                  const totalHolidayHours = holidayBreakdown.totalHolidayHours;
+                  const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
+                  const isOtEligible = totalHours > monthlyHourCap(config);
+                  return (
+                    <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
                       <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{emp.empId}</div>
@@ -460,8 +598,33 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+                  );
+                };
+                if (groupBy === 'none') {
+                  return sortedRows.map(renderRow);
+                }
+                // Render a group header row above each group's rows. The
+                // header carries per-group OT and Net Payable totals so
+                // the supervisor sees group spend at a glance.
+                return groupedSections.flatMap(section => [
+                  <tr key={`__group_${section.key}`} className="bg-slate-100 dark:bg-slate-800/60 border-y border-slate-200 dark:border-slate-700">
+                    <td colSpan={10} className="px-6 py-2">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{section.label}</span>
+                        <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400">
+                          {t('payroll.group.headcount', { count: section.rows.length })}
+                        </span>
+                        <span className="ms-auto text-[9px] font-mono text-slate-500 dark:text-slate-400">
+                          {t('payroll.group.otRollup', { ot: Math.round(section.totalOTPay).toLocaleString() })}
+                          {' · '}
+                          {t('payroll.group.netRollup', { net: Math.round(section.totalNetPayable).toLocaleString() })}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>,
+                  ...section.rows.map(renderRow),
+                ]);
+              })()}
             </tbody>
           </table>
         </div>
