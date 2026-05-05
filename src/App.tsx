@@ -3711,6 +3711,19 @@ export default function App() {
                     setStations(prev => prev.filter(s => !idSet.has(s.id)));
                   },
                 })}
+                // v5.13.0 — drag-drop role gate. When a station's
+                // requiredRoles don't intersect the target group's
+                // eligibleRoles, the kanban routes the rejected station
+                // to ungrouped instead of placing in a category that
+                // can't staff it. Toast surfaces which stations were
+                // rejected and why so the supervisor can adjust roles.
+                onRoleMismatchDrop={(targetGroupName, rejected) => {
+                  const names = rejected.map(r => r.name).join(', ');
+                  showInfo(
+                    t('layout.dnd.roleMismatch.title'),
+                    t('layout.dnd.roleMismatch.body', { count: rejected.length, names, group: targetGroupName }),
+                  );
+                }}
               />
             )}
 

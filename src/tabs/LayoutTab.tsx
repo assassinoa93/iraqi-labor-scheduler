@@ -34,6 +34,10 @@ interface LayoutTabProps {
   // v5.4.0 — bulk delete used by the selection toolbar. App.tsx wires this
   // through a single confirm dialog showing the count.
   onBulkDeleteStations?: (stationIds: string[]) => void;
+  // v5.13.0 — fired when one or more stations were dropped into a group
+  // whose eligibleRoles gate rejects them. App.tsx surfaces a toast
+  // explaining why those stations landed in ungrouped instead.
+  onRoleMismatchDrop?: (targetGroupName: string, rejected: Array<{ id: string; name: string; required: string[] }>) => void;
 }
 
 const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#059669', '#d97706', '#1d4ed8', '#9333ea', '#be123c', '#475569'];
@@ -50,7 +54,7 @@ const GROUP_COLOR_PALETTE = ['#0f766e', '#7c3aed', '#dc2626', '#0e7490', '#05966
 // purely metadata that drive (a) one-click employee eligibility and
 // (b) the workforce planner's group-level rollup.
 export function LayoutTab({
-  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups, onBulkAdd, onBulkMoveStations, onBulkDeleteStations,
+  stations, employees, stationGroups, onAddNew, onEdit, onDelete, onUpdateStation, onSaveGroups, onBulkAdd, onBulkMoveStations, onBulkDeleteStations, onRoleMismatchDrop,
 }: LayoutTabProps) {
   const { t } = useI18n();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -141,23 +145,61 @@ export function LayoutTab({
     setDropTargetId(null);
     dragEnterCount.current = {};
     if (!ids || ids.length === 0) return;
-    // Filter to stations that would actually change groups — skip no-ops so
-    // the Firestore syncStations diff doesn't fire pointless writes.
-    const movers = ids.filter(id => {
+
+    // v5.13.0 — partition the drop set into "compatible" + "rejected"
+    // based on the target group's eligibleRoles gate.
+    //   * Target is ungrouped (undefined groupId) → no gate, all pass.
+    //   * Target group has no eligibleRoles set → no gate, all pass.
+    //   * Target has eligibleRoles → station passes only when its
+    //     requiredRoles intersect (or station has no requiredRoles set,
+    //     meaning "any role" is fine and the station inherits the gate
+    //     when the move lands).
+    // Rejected stations get routed to ungrouped instead so they're still
+    // visible (and can be re-dragged after the supervisor adjusts roles).
+    // Heads-up: a rejected mover is NOT silently dropped — it lands in
+    // ungrouped with a toast explaining why.
+    const targetGroup = targetGroupId
+      ? stationGroups.find(g => g.id === targetGroupId)
+      : undefined;
+    const gate = targetGroup?.eligibleRoles;
+    const compatible: string[] = [];
+    const rejected: { id: string; name: string; required: string[] }[] = [];
+    for (const id of ids) {
       const st = stations.find(s => s.id === id);
-      return st && st.groupId !== targetGroupId;
-    });
-    if (movers.length === 0) return;
-    if (onBulkMoveStations) {
-      onBulkMoveStations(movers, targetGroupId);
-    } else {
-      // Fallback path if App.tsx doesn't wire onBulkMoveStations — call
-      // onUpdateStation per affected station. Single-render render bursts
-      // are fine for small N; the bulk handler is the right move at scale.
-      for (const id of movers) {
-        const st = stations.find(s => s.id === id);
-        if (st) onUpdateStation({ ...st, groupId: targetGroupId });
+      if (!st) continue;
+      if (st.groupId === targetGroupId) continue; // No-op; skip.
+      if (!gate || gate.length === 0) {
+        compatible.push(id);
+        continue;
       }
+      const required = st.requiredRoles || [];
+      const overlaps = required.length === 0 || required.some(r => gate.includes(r));
+      if (overlaps) {
+        compatible.push(id);
+      } else {
+        rejected.push({ id, name: st.name, required });
+      }
+    }
+    if (compatible.length === 0 && rejected.length === 0) return;
+
+    // Apply moves. Compatible go to the target; rejected get routed to
+    // ungrouped so they remain visible (and the supervisor can adjust).
+    const apply = (idsToMove: string[], groupId: string | undefined) => {
+      if (idsToMove.length === 0) return;
+      if (onBulkMoveStations) {
+        onBulkMoveStations(idsToMove, groupId);
+      } else {
+        for (const id of idsToMove) {
+          const st = stations.find(s => s.id === id);
+          if (st) onUpdateStation({ ...st, groupId });
+        }
+      }
+    };
+    apply(compatible, targetGroupId);
+    apply(rejected.map(r => r.id), undefined);
+
+    if (rejected.length > 0 && onRoleMismatchDrop) {
+      onRoleMismatchDrop(targetGroup?.name || '—', rejected);
     }
   };
   const requestBulkDelete = () => {
@@ -219,6 +261,47 @@ export function LayoutTab({
   const handleUpdateGroup = (id: string, patch: Partial<StationGroup>) => {
     onSaveGroups(stationGroups.map(g => g.id === id ? { ...g, ...patch } : g));
   };
+
+  // v5.13.0 — when a group's eligibleRoles change, propagate any newly-
+  // added roles into each station inside the group. Append-only: existing
+  // station.requiredRoles entries are preserved (nothing is silently
+  // removed). Stations whose requiredRoles is empty inherit the group's
+  // full set so they match the gate without manual touch-up. Removed
+  // roles fall to drag-drop validation: stations requiring a now-disallowed
+  // role won't fall out automatically (they keep their requiredRoles)
+  // but future drops respect the new gate. Caller is the in-header roles
+  // editor.
+  const handleUpdateGroupEligibleRoles = (groupId: string, nextRoles: string[]) => {
+    const prevGroup = stationGroups.find(g => g.id === groupId);
+    const prevRoles = new Set(prevGroup?.eligibleRoles || []);
+    const newlyAdded = nextRoles.filter(r => !prevRoles.has(r));
+    onSaveGroups(stationGroups.map(g => g.id === groupId ? { ...g, eligibleRoles: nextRoles } : g));
+    if (newlyAdded.length === 0 && nextRoles.length > 0) return;
+    for (const st of stations) {
+      if (st.groupId !== groupId) continue;
+      const current = st.requiredRoles || [];
+      if (current.length === 0) {
+        // Empty station inherits the new full set so the role gate has
+        // something to match against.
+        if (nextRoles.length > 0) onUpdateStation({ ...st, requiredRoles: [...nextRoles] });
+        continue;
+      }
+      // Append-only merge — keep what the supervisor already set.
+      const merged = Array.from(new Set([...current, ...newlyAdded]));
+      if (merged.length !== current.length) {
+        onUpdateStation({ ...st, requiredRoles: merged });
+      }
+    }
+  };
+
+  // Roles available across the active roster, used to populate the
+  // group-level role picker. Pulled from live employees so a freshly
+  // added role appears immediately.
+  const availableRoles = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach(e => { if (e.role) set.add(e.role); });
+    return Array.from(set).sort();
+  }, [employees]);
 
   const handleDeleteGroup = (id: string) => {
     // Drop the group; stations that referenced it fall through to
@@ -399,7 +482,11 @@ export function LayoutTab({
                       autoFocus
                       type="text"
                       defaultValue={entry.group.name}
-                      onBlur={e => { handleUpdateGroup(entry.group.id, { name: e.target.value.trim() || entry.group.name }); setEditingGroupId(null); }}
+                      onBlur={e => { handleUpdateGroup(entry.group.id, { name: e.target.value.trim() || entry.group.name }); }}
+                      // v5.13.0 — Enter just commits the rename without
+                      // closing the editor, so the supervisor can move
+                      // straight into the eligible-roles picker below.
+                      // Esc still bails out entirely.
                       onKeyDown={e => {
                         if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
                         if (e.key === 'Escape') setEditingGroupId(null);
@@ -411,6 +498,15 @@ export function LayoutTab({
                   )}
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                     {items.length} {t('layout.group.stations')} · {eligibleEmps} {t('layout.group.eligible')}
+                    {/* v5.13.0 — passive eligible-roles indicator. Renders
+                        in the header sub-line whenever the group has a role
+                        gate set, so the supervisor can see the policy at a
+                        glance even when not editing. */}
+                    {!isUngrouped && (entry.group.eligibleRoles?.length ?? 0) > 0 && (
+                      <span className="ms-2 normal-case text-[9px] font-medium text-slate-500 dark:text-slate-400 lowercase">
+                        · {t('layout.group.eligibleRoles.summary', { roles: entry.group.eligibleRoles!.join(', ') })}
+                      </span>
+                    )}
                   </p>
                 </div>
                 {/* v5.11.0 — per-group select toggle. Picks all stations
@@ -457,6 +553,63 @@ export function LayoutTab({
                   </div>
                 )}
               </div>
+
+              {/* v5.13.0 — eligible-roles editor panel. Renders as a row
+                  below the column header when the group is in edit mode.
+                  Multi-select chips backed by the live roster. Clicking
+                  Done propagates any newly-added roles into every
+                  station inside the group (append-only — existing
+                  station.requiredRoles stay), then closes the editor. */}
+              {editing && !isUngrouped && (
+                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/20">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+                    {t('layout.group.eligibleRoles.label')}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableRoles.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                        {t('layout.group.eligibleRoles.empty')}
+                      </p>
+                    ) : (
+                      availableRoles.map(role => {
+                        const active = (entry.group.eligibleRoles || []).includes(role);
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => {
+                              const cur = entry.group.eligibleRoles || [];
+                              const next = active
+                                ? cur.filter(r => r !== role)
+                                : [...cur, role];
+                              handleUpdateGroupEligibleRoles(entry.group.id, next);
+                            }}
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all',
+                              active
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/40',
+                            )}
+                          >
+                            {role}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2.5">
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      {t('layout.group.eligibleRoles.help')}
+                    </p>
+                    <button
+                      onClick={() => setEditingGroupId(null)}
+                      className="px-3 py-1 rounded text-[9px] font-bold uppercase tracking-widest bg-slate-700 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white shrink-0"
+                    >
+                      {t('layout.group.eligibleRoles.done')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="p-3 space-y-2 min-h-[120px]">
                 {items.length === 0 && (

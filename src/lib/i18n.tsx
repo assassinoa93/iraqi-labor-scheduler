@@ -1320,6 +1320,15 @@ export const en: Dict = {
   'schedule.carryForward.helpOn': 'Holidays whose comp window expires roll into next-month accrual instead of OT premium. Plan next month to redeem them.',
   'schedule.carryForward.helpOff': 'Unspent comp credit will be paid as 2× cash premium (OT). Use only when finalising payroll or closing the business.',
   'schedule.carryForward.pending': '{count} comp day(s) for {workers} worker(s) carrying forward to next month.',
+
+  // v5.13.0 — group-level eligible roles (Layout kanban inline editor)
+  'layout.group.eligibleRoles.label': 'Eligible roles',
+  'layout.group.eligibleRoles.empty': 'No roles in the roster yet — add an employee with a role to see them here.',
+  'layout.group.eligibleRoles.help': 'Stations dropped into this group will be checked against this list. Adding a role here also appends it to every station inside.',
+  'layout.group.eligibleRoles.done': 'Done',
+  'layout.group.eligibleRoles.summary': 'roles: {roles}',
+  'layout.dnd.roleMismatch.title': 'Routed to Ungrouped',
+  'layout.dnd.roleMismatch.body': '{count} station(s) ({names}) couldn\'t join "{group}" because their required role isn\'t in the group\'s eligible-roles list. They were placed in Ungrouped instead — adjust the group\'s roles, or change each station\'s required role, then drag them in again.',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2606,6 +2615,15 @@ export const ar: Dict = {
   'schedule.carryForward.helpOn': 'العطلات التي تنتهي نافذة تعويضها تُرحَّل كرصيد للشهر القادم بدلًا من احتسابها وقتًا إضافيًا. خطّط الشهر القادم لاستهلاكها.',
   'schedule.carryForward.helpOff': 'الرصيد غير المستهلك سيُدفع كعلاوة نقدية ضعفية (وقت إضافي). استخدم هذا فقط عند إغلاق دورة الأجور أو إغلاق العمل.',
   'schedule.carryForward.pending': '{count} يوم تعويض لـ {workers} موظف يتم ترحيلها إلى الشهر القادم.',
+
+  // v5.13.0 — الأدوار المؤهلة على مستوى المجموعة
+  'layout.group.eligibleRoles.label': 'الأدوار المؤهلة',
+  'layout.group.eligibleRoles.empty': 'لا توجد أدوار في كشف الموظفين بعد — أضف موظفًا بدور لتظهر هنا.',
+  'layout.group.eligibleRoles.help': 'سيتم التحقق من المحطات التي تُسحب إلى هذه المجموعة مقابل هذه القائمة. إضافة دور هنا يُضيفه أيضًا إلى كل المحطات داخل المجموعة.',
+  'layout.group.eligibleRoles.done': 'تم',
+  'layout.group.eligibleRoles.summary': 'الأدوار: {roles}',
+  'layout.dnd.roleMismatch.title': 'تم التوجيه إلى "بدون مجموعة"',
+  'layout.dnd.roleMismatch.body': 'لم تستطع {count} محطة ({names}) الانضمام إلى "{group}" لأن دورها المطلوب ليس في قائمة الأدوار المؤهلة للمجموعة. تم وضعها في "بدون مجموعة" — عدِّل أدوار المجموعة أو غيِّر دور المحطة المطلوب ثم اسحبها مرة أخرى.',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

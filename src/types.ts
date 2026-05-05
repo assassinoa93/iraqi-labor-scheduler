@@ -112,6 +112,15 @@ export interface StationGroup {
   // groupIcons.tsx). Pre-2.2.0 saves don't have it; rendering falls
   // back to the default `boxes` icon.
   icon?: string;
+  // v5.13.0 — eligible roles for the group. When set, defines the
+  // master role gate for every station inside: dragging a station
+  // whose requiredRoles don't intersect with this set falls back to
+  // ungrouped instead of placing in a category that can't staff it,
+  // and editing this list propagates appended roles into each
+  // station's requiredRoles (existing roles are preserved).
+  // Pre-v5.13 saves don't have it; missing means "no role gate" and
+  // every station is welcome (legacy behaviour).
+  eligibleRoles?: string[];
 }
 
 export interface Station {

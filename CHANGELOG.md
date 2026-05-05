@@ -2,6 +2,41 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.13.0 — 2026-05-04
+
+**Group-level eligible roles + role-aware drag-drop.** Trial follow-up. The user reported: "When I set a group, I can only edit the name after it is set, but I can not edit the eligible roles for this group… also when I accidentally drag e.g. a cashier station and place it in games, if the role required for this station does not match the container (group) it becomes unassigned to a group."
+
+This release adds the missing role gate at the group level + the cascade behaviour the user described.
+
+**New `eligibleRoles?: string[]` on StationGroup** ([`types.ts`](src/types.ts))
+- Optional array of roles this group accepts (e.g. "Cashier" group → `['Cashier']`; "Games" group → `['Game Operator']`).
+- Pre-v5.13 saves don't have it; missing means "no role gate" so every station is welcome (legacy behaviour).
+
+**Inline roles editor in the kanban column header** ([`LayoutTab.tsx`](src/tabs/LayoutTab.tsx))
+- When the user clicks the existing pencil-edit icon on a group header, the column expands a roles-picker panel below the title row alongside the name input.
+- Multi-select chips backed by the live roster — every role currently assigned to an employee shows up automatically.
+- Pressing Enter on the name input commits the rename **without closing the editor** so the supervisor can move straight to roles. Esc bails out entirely. "Done" button closes the editor explicitly.
+- Passive summary line in the column sub-header (`roles: Cashier, Operator`) stays visible even when not editing, so the policy is always at-a-glance.
+
+**Append-on-change propagation** ([`LayoutTab.tsx`](src/tabs/LayoutTab.tsx))
+- New `handleUpdateGroupEligibleRoles()` triggers when the supervisor toggles a role chip:
+  1. Saves the new `eligibleRoles` on the group.
+  2. For each station in the group: if the station has no `requiredRoles`, it inherits the group's full set so the role gate has something to match against. If the station already has roles, any newly-added group roles are **appended** (not replaced) — existing supervisor decisions are preserved.
+- Removing a role from the group is non-destructive: stations keep their `requiredRoles` (no silent removal). Future drops respect the new gate but in-place stations stay where they are.
+
+**Drag-drop role gate** ([`LayoutTab.tsx`](src/tabs/LayoutTab.tsx), [`App.tsx`](src/App.tsx))
+- `handleDropOnColumn` now partitions the drop set into compatible + rejected based on whether each dragged station's `requiredRoles` intersect the target group's `eligibleRoles`.
+- Compatible stations land in the target group as before. **Rejected stations route to Ungrouped** instead of being placed in a category that can't staff them — they remain visible and can be re-dragged after adjustments.
+- Rejection isn't silent: an info toast surfaces with the exact stations that couldn't join, why, and what to do (`Adjust the group's roles, or change each station's required role, then drag them in again`).
+- Targets without an `eligibleRoles` gate (or stations with no `requiredRoles`) bypass the check entirely — same as legacy v5.4 drag-drop.
+
+**i18n** — full English + Arabic for the editor labels, summary line, "Done" button, and the role-mismatch toast.
+
+**Compatibility**
+- All 189 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- Default behaviour unchanged for groups without `eligibleRoles` set — they accept any station, just like pre-v5.13.
+
 ## v5.12.0 — 2026-05-04
 
 **Carry-forward unspent comp days as accrual.** Trial follow-up. The user reported: "when there is an outstanding amount of CP the calculator is granting it as OT — I need a checkbox saying 'consider CP that are not given in this month as accrual'… upon checking it X amount of CP days for X workers has been accrualed for the next month, instead of calculating it as OT. The only case for OT calculation for the outstanding amount of CP would be when we want to close the business."
