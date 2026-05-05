@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers, GripVertical } from 'lucide-react';
+import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers, GripVertical, CheckSquare, Square } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -165,6 +165,35 @@ export function LayoutTab({
     onBulkDeleteStations(Array.from(selectedIds));
   };
 
+  // v5.11.0 — master select-all + per-group select. The master toggle
+  // adds every visible station to the selection set; clicking it again
+  // when everything is already selected clears the set. Per-group
+  // toggle picks all stations in one kanban column at once. Both feed
+  // into the same selectedIds state so the existing bulk-move /
+  // bulk-delete toolbar works without modification.
+  const allStationsSelected = stations.length > 0 && selectedIds.size === stations.length;
+  const selectAllStations = () => {
+    if (allStationsSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(stations.map(s => s.id)));
+    }
+  };
+  const toggleSelectGroup = (memberIds: string[]) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const allInGroup = memberIds.length > 0 && memberIds.every(id => next.has(id));
+      if (allInGroup) {
+        // Deselect every member.
+        for (const id of memberIds) next.delete(id);
+      } else {
+        // Select every member (additive — preserves out-of-group selection).
+        for (const id of memberIds) next.add(id);
+      }
+      return next;
+    });
+  };
+
   // Bucket stations by group. The "ungrouped" pseudo-column gets all
   // stations whose groupId is missing or points to a group that no
   // longer exists (e.g. a deleted group).
@@ -232,6 +261,29 @@ export function LayoutTab({
             >
               <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />
               {t('layout.bulkAdd')}
+            </button>
+          )}
+          {/* v5.11.0 — master Select-all toggle. Pre-v5.11 the only way
+              to select every station was clicking each card individually,
+              which the user flagged as too slow for "I want to delete all
+              stations" / "I want to bulk-move every station". Click once
+              to add every station to the selection set; click again to
+              clear. Selection state is shared with the per-card checkbox
+              (drag-and-drop) and per-column checkbox (group-level
+              select). */}
+          {stations.length > 0 && (
+            <button
+              onClick={selectAllStations}
+              title={allStationsSelected ? t('layout.selectAll.deselectTooltip') : t('layout.selectAll.tooltip')}
+              className={cn(
+                'flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm border',
+                allStationsSelected
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60',
+              )}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              {allStationsSelected ? t('layout.selectAll.deselect') : t('layout.selectAll')}
             </button>
           )}
           <button
@@ -361,6 +413,31 @@ export function LayoutTab({
                     {items.length} {t('layout.group.stations')} · {eligibleEmps} {t('layout.group.eligible')}
                   </p>
                 </div>
+                {/* v5.11.0 — per-group select toggle. Picks all stations
+                    in this column at once (additive — preserves selection
+                    in other columns). Click again when all are selected
+                    to deselect just this column's members. */}
+                {items.length > 0 && (() => {
+                  const memberIds = items.map(s => s.id);
+                  const allSelected = memberIds.every(id => selectedIds.has(id));
+                  const Icon = allSelected ? CheckSquare : Square;
+                  return (
+                    <button
+                      onClick={() => toggleSelectGroup(memberIds)}
+                      title={allSelected
+                        ? t('layout.group.deselectAll', { name: groupName })
+                        : t('layout.group.selectAll', { name: groupName })}
+                      className={cn(
+                        'p-1.5 rounded transition-colors shrink-0',
+                        allSelected
+                          ? 'text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15'
+                          : 'text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-white/60 dark:hover:bg-slate-700/60',
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                    </button>
+                  );
+                })()}
                 {!isUngrouped && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button

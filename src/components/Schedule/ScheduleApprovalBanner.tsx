@@ -107,8 +107,11 @@ export function ScheduleApprovalBanner({
             Auto-saved locally. Use the Save Draft button on the toolbar for an immediate flush + confirmation.
           </p>
         </div>
-        <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">
-          Draft
+        <span className={cn(
+          'px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase shrink-0',
+          statusPillCls('draft'),
+        )}>
+          {statusPillLabel('draft')}
         </span>
       </div>
     );
@@ -143,6 +146,18 @@ export function ScheduleApprovalBanner({
           <p className={cn('text-[11px] font-medium', config.subColor)}>
             · {monthLabel}
           </p>
+          {/* v5.11.0 — high-contrast status pill on the right end of
+              the title row. Pre-v5.11 the status was implicit in the
+              banner colour + title text; the user reported "I still
+              don't see current status of the plan" so we add an
+              explicit always-visible pill (DRAFT / SUBMITTED / LOCKED /
+              SAVED / REJECTED) that's impossible to miss. */}
+          <span className={cn(
+            'ms-auto px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest shrink-0',
+            statusPillCls(status),
+          )}>
+            {statusPillLabel(status)}
+          </span>
         </div>
 
         {config.bodyLines.length > 0 && (
@@ -445,5 +460,34 @@ function bannerConfigFor(
           'This is the official version. Admin can export to HRIS or reopen for amendments.',
         ]),
       };
+  }
+}
+
+// v5.11.0 — high-contrast pill colour scheme for the always-visible
+// status badge on the banner. Distinct from the banner's own background
+// tint so the pill reads as a separate signal — "this is the workflow
+// state right now".
+function statusPillCls(status: ApprovalStatus): string {
+  switch (status) {
+    case 'draft':
+      return 'bg-slate-700 dark:bg-slate-200 text-white dark:text-slate-900';
+    case 'submitted':
+      return 'bg-amber-600 dark:bg-amber-300 text-white dark:text-amber-900';
+    case 'locked':
+      return 'bg-blue-600 dark:bg-blue-300 text-white dark:text-blue-900';
+    case 'saved':
+      return 'bg-emerald-600 dark:bg-emerald-300 text-white dark:text-emerald-900';
+    case 'rejected':
+      return 'bg-rose-600 dark:bg-rose-300 text-white dark:text-rose-900';
+  }
+}
+
+function statusPillLabel(status: ApprovalStatus): string {
+  switch (status) {
+    case 'draft':     return 'Draft';
+    case 'submitted': return 'Awaiting manager';
+    case 'locked':    return 'Awaiting admin';
+    case 'saved':     return 'Locked';
+    case 'rejected':  return 'Sent back';
   }
 }

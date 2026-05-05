@@ -2,6 +2,36 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.11.0 — 2026-05-04
+
+**Online schedule draft persistence + visible status pill + station select-all.** Trial follow-up. The user reported the v5.10 Save Draft button was Offline-only — but they were testing in Online mode and losing future-month drafts on close. Plus the existing approval banner was too subtle for "I want to see the schedule's status at a glance", and the only way to bulk-act on stations was clicking each card individually.
+
+**Save Draft now works in Online mode** ([`App.tsx`](src/App.tsx))
+- Pre-v5.11 the Save Draft button was rendered only when `!isAuthenticated` (Offline Demo) under the assumption that Firestore's per-cell auto-sync was sufficient. The user reported lost drafts after closing the window mid-microtask: cell-paint queues a microtask that runs typically <1ms later, but a fast OS-X-button close before that fires can drop the write.
+- Online path now uses `waitForPendingWrites(db)` from the Firestore SDK. The toast that surfaces "Draft saved" only fires once Firestore has ACK'd every queued mutation against the server — not against IndexedDB cache. If the network is offline the await blocks until reconnect, then the toast fires accurately.
+
+**`beforeunload` warning when mid-edit (Online)** ([`App.tsx`](src/App.tsx))
+- New `lastScheduleEditAtRef` stamps every cell-paint timestamp.
+- Online-mode `beforeunload` listener triggers the browser's native "Leave site?" prompt if the user is closing within 5 seconds of the last paint — generous safety net for the close-mid-microtask race.
+- Offline-mode `sendBeacon` flush from v5.10 is preserved.
+
+**Prominent status pill in the approval banner** ([`ScheduleApprovalBanner.tsx`](src/components/Schedule/ScheduleApprovalBanner.tsx))
+- New always-visible pill on the right end of the banner title row: `DRAFT` (slate) / `AWAITING MANAGER` (amber) / `AWAITING ADMIN` (blue) / `LOCKED` (emerald) / `SENT BACK` (rose). High-contrast colours so the workflow state is impossible to miss.
+- Same pill renders on the stripped-down Offline-Demo banner from v5.10.
+- The original banner copy + role-driven action buttons stay exactly as they were; the pill is purely additive.
+
+**Station kanban — master Select-all + per-group select** ([`LayoutTab.tsx`](src/tabs/LayoutTab.tsx))
+- New "Select all" toolbar button: clicking once adds every station to the selection set; clicking again clears. Toggles label between "Select all" and "Clear selection" so the action is obvious.
+- New per-column checkbox icon in each kanban group header: clicking adds every station in that group to the selection (additive — preserves selection in other columns); clicking when all are already selected deselects just that column's members.
+- Both feed into the existing `selectedIds` state from v5.4.0, so the existing bulk-move dropdown / bulk-delete / clear toolbar works without any changes. Drag-and-drop moves the entire selection at once.
+
+**i18n** — full English + Arabic for the new Save Draft (Online), select-all toolbar, and per-group select tooltips.
+
+**Compatibility**
+- All 186 tests pass. `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- The `beforeunload` warning fires only inside the 5-second post-edit window — the user won't see it during normal navigation.
+
 ## v5.10.0 — 2026-05-04
 
 **Schedule draft persistence + status indicator.** Trial follow-up. The user reported "when I quit the app and reopen, my drafted (not submitted yet) inputs are cleared" and asked for an explicit Save Draft button + clear status visible per month — including in Offline Demo mode where the existing approval banner was hidden entirely.

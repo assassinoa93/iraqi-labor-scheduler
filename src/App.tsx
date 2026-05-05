@@ -421,6 +421,10 @@ export default function App() {
 
   type ScheduleUpdater = Schedule | ((prev: Schedule) => Schedule);
   const setSchedule = React.useCallback((updater: ScheduleUpdater) => {
+    // v5.11.0 — stamp the edit time so the Online beforeunload warning
+    // can decide whether the user is mid-edit. Cell paint is the only
+    // path through this setter.
+    lastScheduleEditAtRef.current = Date.now();
     setAllSchedules(prev => {
       const current = prev[scheduleKey] ?? {};
       const next = typeof updater === 'function' ? (updater as (p: Schedule) => Schedule)(current) : updater;
@@ -770,6 +774,13 @@ export default function App() {
   // the X button" mid-paint.
   const saveBodyRef = React.useRef<string | null>(null);
   const forceSaveNowRef = React.useRef<() => Promise<void>>(async () => {});
+  // v5.11.0 — track the timestamp of the most recent schedule edit so
+  // the Online-mode beforeunload warning can decide whether the user
+  // is mid-edit. Updated on every cell paint via the schedule update
+  // path; cleared a few seconds after the last edit so the warning
+  // doesn't fire spuriously when the user just navigates away after
+  // a successful sync.
+  const lastScheduleEditAtRef = React.useRef<number>(0);
 
   useEffect(() => {
     if (!dataLoaded) return;
@@ -857,11 +868,44 @@ export default function App() {
   // above gets cancelled by the unload), this ships the most recent
   // body via sendBeacon — a fire-and-forget POST that the browser
   // guarantees to deliver even after unload returns. Solves the bug
-  // "drafts cleared on quit" reported during the v5.9 trial. Online
-  // mode skips entirely (Firestore + persistentLocalCache already
-  // handle this without our help).
+  // "drafts cleared on quit" reported during the v5.9 trial.
+  // v5.11.0 — extended to Online mode too. Pre-v5.11 we relied on the
+  // Firestore SDK's own queue (persistentLocalCache writes go to
+  // IndexedDB synchronously and flush on next launch). That works in
+  // theory but the user reported lost future-month drafts after a
+  // quick close, suggesting a race somewhere — most likely:
+  //   * cell-paint setSchedule() schedules a microtask
+  //   * before the microtask fires (typically <1ms but not guaranteed),
+  //     the window is killed
+  //   * the queued write never reaches IndexedDB either
+  // We now add a `beforeunload` warning in Online mode that fires
+  // a confirm prompt if there's unflushed state — same browser-level
+  // protection as "you have unsaved changes" everywhere else.
   useEffect(() => {
-    if (isAuthenticated) return;
+    if (isAuthenticated) {
+      // Online mode: warn the user when leaving within 5 seconds of the
+      // last cell paint. The Firestore SDK queues writes synchronously
+      // to IndexedDB, but the dispatch from React state setter to that
+      // queue happens through a microtask — close the window mid-paint
+      // and the queued write may never reach IndexedDB. The 5s window
+      // is generous: paints typically flush sub-millisecond, but the
+      // warning fires only if the user is actively editing AND
+      // immediately closes. Outside that window the SDK has had ample
+      // time to land the write.
+      const onBeforeUnload = (e: BeforeUnloadEvent) => {
+        const since = Date.now() - lastScheduleEditAtRef.current;
+        if (lastScheduleEditAtRef.current > 0 && since < 5000) {
+          // Modern browsers ignore custom strings here but the
+          // empty preventDefault is enough to trigger the prompt.
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      };
+      window.addEventListener('beforeunload', onBeforeUnload);
+      return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    }
+    // Offline mode: send the latest body via sendBeacon (synchronously
+    // queued, browser-guaranteed delivery even after unload).
     const onBeforeUnload = () => {
       if (!saveBodyRef.current) return;
       try {
@@ -3757,16 +3801,36 @@ export default function App() {
                 // visible toast. In Offline Demo mode it bypasses the
                 // 500ms debounce in case the user wants to close the
                 // window immediately after a paint.
-                onSaveDraft={isAuthenticated
-                  ? undefined // Online mode: per-cell sync already covers this
-                  : async () => {
-                      try {
-                        await forceSaveNowRef.current();
-                        showInfo(t('schedule.saveDraft.success.title'), t('schedule.saveDraft.success.body'));
-                      } catch {
-                        showInfo(t('schedule.saveDraft.error.title'), t('schedule.saveDraft.error.body'));
-                      }
-                    }}
+                // v5.11.0 — Save Draft now works in BOTH modes:
+                //   * Offline Demo: bypasses the 500ms /api/save debounce
+                //   * Online: awaits Firestore's pending-writes queue via
+                //     waitForPendingWrites() so the toast confirms the
+                //     drafts have actually reached Firestore (not just
+                //     IndexedDB cache). Pre-v5.11 the button was hidden
+                //     in Online mode under the assumption that auto-sync
+                //     was sufficient — the user reported lost drafts
+                //     after closing the window mid-microtask, so an
+                //     explicit confirmable action is now needed in both.
+                onSaveDraft={async () => {
+                  try {
+                    if (isAuthenticated) {
+                      const { getDb } = await import('./lib/firestoreClient');
+                      const { waitForPendingWrites } = await import('firebase/firestore');
+                      const db = await getDb();
+                      // Block until every queued mutation has been
+                      // ACK'd by the server. If we're offline this
+                      // resolves only when the network comes back —
+                      // the toast then reads "saved" against actual
+                      // server state, not a hopeful local cache write.
+                      await waitForPendingWrites(db);
+                    } else {
+                      await forceSaveNowRef.current();
+                    }
+                    showInfo(t('schedule.saveDraft.success.title'), t('schedule.saveDraft.success.body'));
+                  } catch {
+                    showInfo(t('schedule.saveDraft.error.title'), t('schedule.saveDraft.error.body'));
+                  }
+                }}
                 saveState={saveState}
                 lastSavedAt={lastSavedAt}
               />
