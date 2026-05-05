@@ -8,16 +8,34 @@ on:
 permissions:
   contents: write
 
+# v5.18 — opt into Node.js 24 for the JavaScript actions runtime per
+# the GitHub deprecation notice (Sep 2025). GitHub is removing Node 20
+# from runners in Sep 2026; setting this env var now forces every
+# JavaScript action onto Node 24 even if a maintainer hasn't bumped
+# their action bundle yet, eliminating the "Node.js 20 actions are
+# deprecated" annotation that appeared on every release. Safe to
+# remove once Node 24 becomes the runner default in mid-2026.
+# https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   release:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # v5 ships with a Node 24 bundle. Pre-v5 (v4) was a Node 20 bundle
+        # and showed up in the deprecation annotation.
+        uses: actions/checkout@v5
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        # v5 ships with a Node 24 bundle. Same deprecation reason as
+        # checkout above. Note: `node-version: 20` below is the Node
+        # version the BUILD runs against (npm scripts, electron-builder)
+        # — that's independent of the action runtime and stays at 20
+        # because Electron 33 internally targets Node 20.
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           # v5.1.6 — built-in npm cache keyed on package-lock.json. Restores
@@ -121,6 +139,11 @@ jobs:
           Get-Content dist-electron/SHA256SUMS.txt
 
       - name: Upload SHA256SUMS to release
+        # Major-version pin: lets security/Node-version patches in the
+        # v2 line flow in automatically. The workflow-level
+        # FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 env var above forces this
+        # action onto Node 24 even on releases where the bundled Node
+        # version hasn't been bumped yet.
         uses: softprops/action-gh-release@v2
         with:
           files: dist-electron/SHA256SUMS.txt
