@@ -20,7 +20,7 @@
 // Keeps old backups loadable forever — even those generated before the
 // migration layer existed get the same treatment.
 
-import { Employee, Shift, Station, PublicHoliday, Config, Schedule, ScheduleEntry, Company } from '../types';
+import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule, ScheduleEntry, Company } from '../types';
 import { DEFAULT_CONFIG } from './initialData';
 
 // Bump this when introducing a structural migration. Stored in
@@ -117,6 +117,26 @@ export function normalizeShift(raw: Partial<Shift> & Record<string, unknown>): S
 }
 
 // ─── Station ─────────────────────────────────────────────────────────────────
+// v5.14.0 — sanitise an hourly-demand slot list coming from disk.
+// Drops malformed entries silently rather than blowing up the load —
+// the supervisor sees a station with one fewer slot, not a crash.
+function normalizeHourlyDemandSlots(raw: unknown): { startHour: number; endHour: number; hc: number }[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: { startHour: number; endHour: number; hc: number }[] = [];
+  for (const s of raw) {
+    if (!s || typeof s !== 'object') continue;
+    const slot = s as { startHour?: unknown; endHour?: unknown; hc?: unknown };
+    const startHour = Number(slot.startHour);
+    const endHour = Number(slot.endHour);
+    const hc = Number(slot.hc);
+    if (!Number.isFinite(startHour) || !Number.isFinite(endHour) || !Number.isFinite(hc)) continue;
+    if (startHour < 0 || startHour > 23 || endHour < 1 || endHour > 24) continue;
+    if (startHour >= endHour) continue;
+    out.push({ startHour, endHour, hc: Math.max(0, hc) });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 export function normalizeStation(raw: Partial<Station> & Record<string, unknown>): Station {
   return {
     id: String(raw.id ?? ''),
@@ -130,13 +150,17 @@ export function normalizeStation(raw: Partial<Station> & Record<string, unknown>
     description: typeof raw.description === 'string' ? raw.description : undefined,
     // v1.16: optional group membership.
     groupId: typeof raw.groupId === 'string' && raw.groupId.length > 0 ? raw.groupId : undefined,
+    // v5.14.0: hourly demand profiles. Pre-v5.14 stations don't have
+    // these — undefined preserves legacy "use flat min HC" behaviour.
+    normalHourlyDemand: normalizeHourlyDemandSlots(raw.normalHourlyDemand),
+    peakHourlyDemand: normalizeHourlyDemandSlots(raw.peakHourlyDemand),
   };
 }
 
 // v1.16: station groups are persisted alongside stations. Pre-1.16 saves
 // don't include this list — defaults to empty so consumers can treat it
 // uniformly without null-checks.
-export function normalizeStationGroup(raw: Record<string, unknown>): { id: string; name: string; color?: string; description?: string; icon?: string } {
+export function normalizeStationGroup(raw: Record<string, unknown>): StationGroup {
   return {
     id: String(raw.id ?? ''),
     name: String(raw.name ?? ''),
@@ -145,6 +169,11 @@ export function normalizeStationGroup(raw: Record<string, unknown>): { id: strin
     // v2.2.0 — preset icon name. Pre-2.2.0 groups carry undefined and the
     // renderer falls back to the default `boxes` glyph.
     icon: typeof raw.icon === 'string' ? raw.icon : undefined,
+    // v5.13.0: optional eligible-roles gate. Pre-v5.13 saves carry
+    // undefined — drag-drop + auto-scheduler treat absent as "no gate".
+    eligibleRoles: Array.isArray(raw.eligibleRoles)
+      ? (raw.eligibleRoles as unknown[]).filter((r): r is string => typeof r === 'string')
+      : undefined,
   };
 }
 

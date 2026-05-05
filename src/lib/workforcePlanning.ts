@@ -2,6 +2,7 @@ import { Employee, Shift, Station, StationGroup, PublicHoliday, Config } from '.
 import { format, getDaysInMonth } from 'date-fns';
 import { parseHour, getOperatingHoursForDow } from './time';
 import { monthlyHourCap } from './payroll';
+import { totalDailyHeadcountHours } from './stationDemand';
 
 // Mirrored from compliance.ts (which keeps this private). Driver caps under
 // Iraqi Labor Law Art. 88 — 56h weekly. Mirroring is fine: the constant
@@ -150,9 +151,14 @@ function stationDemand(args: AnalyzeArgs): Map<string, StationDemand> {
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const peak = isPeakDay(day);
-      const minHC = peak ? st.peakMinHC : st.normalMinHC;
-      if (minHC <= 0) continue;
-      const dayHours = openHrs * minHC;
+      // v5.14.0 — sum hourly demand across the operating window. For
+      // stations with a flat min HC this still equals openHrs × minHC
+      // (legacy result preserved). For stations with an hourly profile
+      // this correctly reflects the variable demand — e.g. cashier
+      // station 11–23 with 1/2/3 PAX across three windows produces
+      // 1×4 + 2×4 + 3×4 = 24 PAX-hrs, not the legacy openHrs × peakMinHC.
+      const dayHours = totalDailyHeadcountHours(st, peak, Math.floor(parseHour(st.openingTime)), Math.ceil(parseHour(st.closingTime)));
+      if (dayHours <= 0) continue;
       if (peak) peakHours += dayHours;
       else nonPeakHours += dayHours;
       // Track holiday-specific work hours. Each one becomes 1 hour of

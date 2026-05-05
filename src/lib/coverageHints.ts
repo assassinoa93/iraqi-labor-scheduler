@@ -19,6 +19,7 @@
 import { Employee, Shift, Station, Schedule, Config, PublicHoliday } from '../types';
 import { previewAssignmentWarnings } from './compliance';
 import { getEmployeeLeaveOnDate } from './leaves';
+import { peakDailyHC } from './stationDemand';
 
 export interface CoverageGap {
   // The day-of-month (1-based) where the gap appeared.
@@ -119,7 +120,8 @@ export function detectCoverageGap(args: DetectArgs): CoverageGap | undefined {
   // mode treats any vacated work shift as worth suggesting alternates for.
   if (!permissive) {
     const peak = isPeakDay(day);
-    const required = peak ? station.peakMinHC : station.normalMinHC;
+    // v5.14.0 — peakDailyHC honours hourly demand profiles when set.
+    const required = peakDailyHC(station, peak);
     if (required <= 0) return undefined;
   }
 

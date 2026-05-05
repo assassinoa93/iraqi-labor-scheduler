@@ -2,6 +2,55 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.14.0 — 2026-05-04
+
+**Per-station hourly demand profiles.** The user's biggest scheduling win: stations now carry hour-by-hour headcount requirements instead of one flat number per day-type. A cashier station that needs 1 PAX 11–15, 2 PAX 15–19, 3 PAX 19–23 is now a first-class concept, with separate profiles for normal vs peak days. Auto-scheduler, workforce planning, staffing advisory, and coverage hints all read through the same helper so the figures can't diverge.
+
+**New type + helper** ([`types.ts`](src/types.ts), [`stationDemand.ts`](src/lib/stationDemand.ts))
+- `HourlyDemandSlot = { startHour, endHour, hc }` — half-open `[startHour, endHour)` ranges. `endHour: 24` represents end-of-day. Slots aren't required to be contiguous; gaps mean "0 PAX needed there" (explicit-zero semantics — supervisor opted in).
+- `Station.normalHourlyDemand?` and `Station.peakHourlyDemand?` — when non-empty, OVERRIDE the flat `normalMinHC` / `peakMinHC` value across the entire 24-hour day.
+- `getRequiredHC(station, hour, isPeakDay)` — single source of truth. Pre-v5.14 stations without an hourly profile get the flat value (legacy behaviour preserved verbatim).
+- `totalDailyHeadcountHours()`, `peakDailyHC()`, `validateHourlyDemand()` helpers for consumers that need rollups, day-level worst-case views, or save-time validation.
+
+**Auto-scheduler integration** ([`autoScheduler.ts`](src/lib/autoScheduler.ts))
+- The hot-loop's `requiredHC = peak ? st.peakMinHC : st.normalMinHC` is now `getRequiredHC(st, hour, peak)`. Stations with a flat min HC behave identically; stations with hourly profiles get correctly under-staffed in low-demand windows and fully staffed in peak windows.
+- Direct user benefit: less OT (the scheduler stops over-staffing morning hours when the station only needs PAX in the afternoon), fewer violations (proper coverage during the actually-busy windows), more accurate workforce planning (FTE math reflects real demand, not the worst-hour proxy).
+
+**Workforce planning + staffing advisory + coverage hints** ([`workforcePlanning.ts`](src/lib/workforcePlanning.ts), [`staffingAdvisory.ts`](src/lib/staffingAdvisory.ts), [`coverageHints.ts`](src/lib/coverageHints.ts))
+- Workforce planning's per-station monthly-hours math now sums hourly demand across the operating window via `totalDailyHeadcountHours()` instead of `openHrs × minHC`. For variable-demand stations the FTE recommendation correctly reflects the integral, not the peak.
+- Staffing advisory's day-level coverage gap counter uses `peakDailyHC()` (worst-hour view) so the supervisor sees gaps when the station is short during its busy windows, not flagged as covered just because the morning was sparse.
+- Coverage-hints' "is this station required today?" check uses `peakDailyHC()` for the same reason.
+
+**Per-station editor in StationModal** ([`StationModal.tsx`](src/components/StationModal.tsx))
+- Modal widened to `max-w-2xl` with vertical scroll for the longer form.
+- New collapsible "Hourly demand profile" section. Auto-expanded when the station already has hourly slots; collapsed by default for new stations to keep the form concise.
+- Two parallel slot lists (Normal day / Peak day), each with `[start hour] → [end hour] [hc PAX]` rows + delete button + "Add slot" button. Hours are dropdowns 0–23 / 1–24 so the supervisor can't type "25" by accident.
+- "Active" badge on the section header when any slot is configured — visible at a glance.
+- "Copy from normal" button on the peak section so a supervisor whose peak just adds higher PAX to the same windows doesn't have to re-type them.
+- Fallback-hint copy when no slots are set: `"No slots — falling back to flat HC (N PAX/hr while open)"`.
+- Save-time validation surfaces friendly errors for overlap, end ≤ start, out-of-range hours, negative HC.
+
+**Migration normalizers fixed** ([`migration.ts`](src/lib/migration.ts))
+- Critical end-to-end fix uncovered while building this feature: `normalizeStation` and `normalizeStationGroup` were building object literals with explicit keys and silently STRIPPING any field they didn't know about. Round-tripping a Station through normalize would have lost the new `normalHourlyDemand` / `peakHourlyDemand` fields, AND the v5.13 `eligibleRoles` field on StationGroup that already shipped.
+- `normalizeStation`: pass through both hourly demand fields with `normalizeHourlyDemandSlots()` validation (drops malformed slots, keeps well-formed ones, returns undefined for empty).
+- `normalizeStationGroup`: pass through `eligibleRoles` (filtered to strings only) + return type changed to `StationGroup` instead of an inline literal so future fields can't be silently dropped.
+- Pre-v5.13 saves that lacked these fields continue to load as undefined / legacy behaviour — no migration needed.
+
+**Firestore + security audit** ([`firestore.rules`](firestore.rules))
+- Verified the rules use schemaless wildcard collection matches (`match /{collection}/{docId}`) with no field-level allow-list. Adding `eligibleRoles`, `normalHourlyDemand`, `peakHourlyDemand`, `carryForwardUnspentCompDays` (and any future Station / StationGroup / Config field) requires zero rule changes — the only field-level gate in the rules is the operating-window check on the config doc, untouched here.
+
+**Tests** ([`stationDemand.test.ts`](src/lib/__tests__/stationDemand.test.ts), [`autoScheduler.test.ts`](src/lib/__tests__/autoScheduler.test.ts))
+- 14 new tests for `getRequiredHC` / `totalDailyHeadcountHours` / `peakDailyHC` / `validateHourlyDemand` covering legacy fallback, slot lookup, gap-zero semantics, peak vs normal selection, exclusive endHour boundary, and validation edge cases.
+- 2 new auto-scheduler integration tests: hourly profile drives staffing, flat fallback unchanged.
+
+**Deferred to follow-up**
+- BulkAddStationsModal hourly-demand defaults — bulk-create still uses flat HC; supervisor can edit each new station's hourly profile individually after creation. Will land in a follow-up release once the per-station UX has been validated in beta.
+
+**Compatibility**
+- All 205 tests pass (16 new). `tsc --noEmit` clean.
+- No data migration required. Pre-v5.14 stations / groups continue to load and render identically.
+- No Firestore schema or rules change.
+
 ## v5.13.0 — 2026-05-04
 
 **Group-level eligible roles + role-aware drag-drop.** Trial follow-up. The user reported: "When I set a group, I can only edit the name after it is set, but I can not edit the eligible roles for this group… also when I accidentally drag e.g. a cashier station and place it in games, if the role required for this station does not match the container (group) it becomes unassigned to a group."

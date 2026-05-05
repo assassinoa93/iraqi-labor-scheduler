@@ -3,6 +3,7 @@ import { Employee, Shift, Station, PublicHoliday, Config, Schedule, HolidayCompM
 import { parseHourBounds, parseHour, type HourBounds } from './time';
 import { getEmployeeLeaveOnDate } from './leaves';
 import { expandHolidayDates } from './holidays';
+import { getRequiredHC } from './stationDemand';
 
 interface RunArgs {
   employees: Employee[];
@@ -400,7 +401,13 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
         const stBounds = stationBounds.get(st.id)!;
         if (hour < stBounds.open || hour >= stBounds.close) continue;
 
-        const requiredHC = peak ? st.peakMinHC : st.normalMinHC;
+        // v5.14.0 — read through the helper so per-station hourly demand
+        // profiles (when configured) override the flat min HC. Stations
+        // without an hourly profile fall through to the flat value
+        // unchanged. Auto-scheduler now correctly staffs a cashier
+        // station that needs 1 PAX 11–15 + 2 PAX 15–19 + 3 PAX 19–23
+        // instead of treating the whole day as one number.
+        const requiredHC = getRequiredHC(st, hour, peak);
         if (requiredHC <= 0) continue;
 
         let currentHC = headcountAtHour(st.id, hour);

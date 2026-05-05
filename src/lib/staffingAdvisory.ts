@@ -1,6 +1,7 @@
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
 import { monthlyHourCap, baseHourlyRate } from './payroll';
 import { runAutoScheduler } from './autoScheduler';
+import { peakDailyHC } from './stationDemand';
 import { format } from 'date-fns';
 
 // Three flavours of staffing recommendation surfaced on the dashboard:
@@ -332,7 +333,10 @@ export function simulateWithExtraHires(
   for (let d = 1; d <= config.daysInMonth; d++) {
     for (const st of stations) {
       const peak = isPeakDay(d);
-      const required = peak ? st.peakMinHC : st.normalMinHC;
+      // v5.14.0 — peakDailyHC respects per-station hourly demand: for
+      // a variable-demand station it returns the worst-hour HC; for a
+      // flat-min-HC station it just returns the legacy value.
+      const required = peakDailyHC(st, peak);
       if (required <= 0) continue;
       let count = 0;
       for (const emp of augmented) {

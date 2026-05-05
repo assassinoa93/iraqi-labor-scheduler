@@ -1329,6 +1329,23 @@ export const en: Dict = {
   'layout.group.eligibleRoles.summary': 'roles: {roles}',
   'layout.dnd.roleMismatch.title': 'Routed to Ungrouped',
   'layout.dnd.roleMismatch.body': '{count} station(s) ({names}) couldn\'t join "{group}" because their required role isn\'t in the group\'s eligible-roles list. They were placed in Ungrouped instead — adjust the group\'s roles, or change each station\'s required role, then drag them in again.',
+
+  // v5.14.0 — per-station hourly demand editor (StationModal)
+  'modal.station.hourly.title': 'Hourly demand profile',
+  'modal.station.hourly.activeBadge': 'Active',
+  'modal.station.hourly.help': 'Override the flat headcount with hour-by-hour windows. Auto-scheduler + workforce planning + staffing advisory all read from this profile when set. Gaps between slots mean 0 PAX needed there.',
+  'modal.station.hourly.normalDay': 'Normal day',
+  'modal.station.hourly.peakDay': 'Peak day',
+  'modal.station.hourly.copyNormalToPeak': 'Copy from normal',
+  'modal.station.hourly.copyNormalToPeak.tooltip': 'Replace peak-day slots with a copy of the normal-day slots. Useful when peak just adds a higher PAX count to the same windows.',
+  'modal.station.hourly.empty': 'No slots — falling back to flat HC ({fallback} PAX/hr while open). Add a slot to override.',
+  'modal.station.hourly.addSlot': 'Add slot',
+  'modal.station.hourly.removeSlot': 'Remove slot',
+  'modal.station.hourly.startHour': 'Start hour',
+  'modal.station.hourly.endHour': 'End hour',
+  'modal.station.hourly.hc': 'Headcount required',
+  'modal.station.error.hourlyNormal': 'Normal-day hourly demand:',
+  'modal.station.error.hourlyPeak': 'Peak-day hourly demand:',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2624,6 +2641,23 @@ export const ar: Dict = {
   'layout.group.eligibleRoles.summary': 'الأدوار: {roles}',
   'layout.dnd.roleMismatch.title': 'تم التوجيه إلى "بدون مجموعة"',
   'layout.dnd.roleMismatch.body': 'لم تستطع {count} محطة ({names}) الانضمام إلى "{group}" لأن دورها المطلوب ليس في قائمة الأدوار المؤهلة للمجموعة. تم وضعها في "بدون مجموعة" — عدِّل أدوار المجموعة أو غيِّر دور المحطة المطلوب ثم اسحبها مرة أخرى.',
+
+  // v5.14.0 — محرر الطلب الساعي للمحطة
+  'modal.station.hourly.title': 'ملف الطلب الساعي',
+  'modal.station.hourly.activeBadge': 'مُفعَّل',
+  'modal.station.hourly.help': 'تجاوز عدد الموظفين الثابت بنوافذ ساعة بساعة. يقرأ المُجدوِل التلقائي وتخطيط القوى العاملة والاستشارة من هذا الملف عند تعيينه. الفجوات بين الفترات تعني 0 عامل مطلوب.',
+  'modal.station.hourly.normalDay': 'يوم عادي',
+  'modal.station.hourly.peakDay': 'يوم ذروة',
+  'modal.station.hourly.copyNormalToPeak': 'نسخ من العادي',
+  'modal.station.hourly.copyNormalToPeak.tooltip': 'استبدل فترات يوم الذروة بنسخة من فترات اليوم العادي. مفيد عندما يضيف يوم الذروة عددًا أعلى فقط لنفس النوافذ.',
+  'modal.station.hourly.empty': 'لا فترات — يُستخدم العدد الثابت ({fallback} عامل/ساعة أثناء العمل). أضف فترة للتجاوز.',
+  'modal.station.hourly.addSlot': 'إضافة فترة',
+  'modal.station.hourly.removeSlot': 'حذف الفترة',
+  'modal.station.hourly.startHour': 'ساعة البداية',
+  'modal.station.hourly.endHour': 'ساعة النهاية',
+  'modal.station.hourly.hc': 'عدد الموظفين المطلوب',
+  'modal.station.error.hourlyNormal': 'الطلب الساعي ليوم عادي:',
+  'modal.station.error.hourlyPeak': 'الطلب الساعي ليوم ذروة:',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

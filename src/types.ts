@@ -123,6 +123,26 @@ export interface StationGroup {
   eligibleRoles?: string[];
 }
 
+// v5.14.0 — per-station hourly demand. A list of half-open hour ranges
+// `[startHour, endHour)` each carrying the required headcount during
+// that window. Slots aren't required to be contiguous — gaps between
+// covered hours mean the required HC is 0 there. When the array is
+// empty (or undefined), the station falls back to the flat
+// normalMinHC / peakMinHC value across all 24 hours (legacy behaviour).
+//
+// Example: a cashier station that needs 1 PAX 11:00–15:00, 2 PAX
+// 15:00–19:00, 3 PAX 19:00–23:00:
+//   [{ startHour: 11, endHour: 15, hc: 1 },
+//    { startHour: 15, endHour: 19, hc: 2 },
+//    { startHour: 19, endHour: 23, hc: 3 }]
+//
+// 0 ≤ startHour < endHour ≤ 24. endHour=24 represents end-of-day.
+export interface HourlyDemandSlot {
+  startHour: number;
+  endHour: number;
+  hc: number;
+}
+
 export interface Station {
   id: string;
   name: string;
@@ -131,8 +151,17 @@ export interface Station {
   // Pre-1.16 stations have `groupId` = undefined; the auto-scheduler
   // falls back to direct `eligibleStations` checks (legacy behaviour).
   groupId?: string;
-  normalMinHC: number; // Min Headcount for normal days
-  peakMinHC: number;   // Min Headcount for peak days
+  normalMinHC: number; // Min Headcount for normal days (flat fallback)
+  peakMinHC: number;   // Min Headcount for peak days (flat fallback)
+  // v5.14.0 — optional hourly demand profiles. When set (non-empty),
+  // they OVERRIDE the flat min HC values for the corresponding day
+  // type. The auto-scheduler + workforce planner read via the
+  // getRequiredHC() helper which resolves either form transparently.
+  // Day type (peak vs normal) and hour are passed in by the caller;
+  // each station can have a different profile for normal vs peak days
+  // (e.g. cashier needs 1 PAX 11–15 normal but 3 PAX 11–15 peak).
+  normalHourlyDemand?: HourlyDemandSlot[];
+  peakHourlyDemand?: HourlyDemandSlot[];
   requiredRoles?: string[]; // Roles allowed to work here
   openingTime: string; // HH:mm
   closingTime: string; // HH:mm

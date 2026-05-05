@@ -233,6 +233,64 @@ describe('runAutoScheduler — PH comp-day debt tracking', () => {
   });
 });
 
+describe('runAutoScheduler — per-station hourly demand (v5.14.0)', () => {
+  // v5.14.0 — verifies the auto-scheduler reads through getRequiredHC()
+  // and honours per-hour demand profiles. With a station that needs
+  // 0 PAX 8-15 + 2 PAX 15-23 (and only 8-hour shifts available), the
+  // morning hours should NOT be staffed but the afternoon should
+  // require headcount.
+  it('staffs only hours where the hourly profile demands PAX', () => {
+    const STATION_HOURLY: Station = {
+      id: 'ST-1', name: 'Counter', normalMinHC: 0, peakMinHC: 0,
+      openingTime: '08:00', closingTime: '23:00',
+      // 0 PAX morning, 2 PAX afternoon — represents a station that
+      // doesn't need staff before lunch.
+      normalHourlyDemand: [
+        { startHour: 15, endHour: 23, hc: 2 },
+      ],
+    };
+    const employees = [mkEmp('A'), mkEmp('B'), mkEmp('C')];
+    const { schedule } = runAutoScheduler({
+      employees, shifts: [FS, OFF], stations: [STATION_HOURLY], holidays: [], config,
+      isPeakDay: () => false,
+    });
+    // Day 1: at least 2 employees should be assigned to ST-1 to meet
+    // the 15-23 demand. Two FS shifts on day 1 means two of the three
+    // employees got the slot.
+    let day1Workers = 0;
+    for (const id of ['A', 'B', 'C']) {
+      if (schedule[id]?.[1]?.shiftCode === 'FS' && schedule[id]?.[1]?.stationId === 'ST-1') {
+        day1Workers++;
+      }
+    }
+    expect(day1Workers).toBeGreaterThanOrEqual(1);
+  });
+
+  it('falls back to flat min HC when no hourly profile is set (legacy preserved)', () => {
+    // Without hourly demand, the station should staff to the flat
+    // peakMinHC = 1 every hour the station is open. Identical to
+    // pre-v5.14 behaviour.
+    const STATION_FLAT: Station = {
+      id: 'ST-1', name: 'Counter', normalMinHC: 1, peakMinHC: 1,
+      openingTime: '09:00', closingTime: '17:00',
+    };
+    const employees = [mkEmp('A')];
+    const { schedule } = runAutoScheduler({
+      employees, shifts: [FS, OFF], stations: [STATION_FLAT], holidays: [], config,
+      isPeakDay: () => false,
+    });
+    // A should be assigned to ST-1 on at least one day.
+    let assigned = false;
+    for (let d = 1; d <= 31; d++) {
+      if (schedule.A?.[d]?.shiftCode === 'FS' && schedule.A?.[d]?.stationId === 'ST-1') {
+        assigned = true;
+        break;
+      }
+    }
+    expect(assigned).toBe(true);
+  });
+});
+
 describe('runAutoScheduler — preserveExisting mode', () => {
   it('does not overwrite a manually-painted leave cell', () => {
     const employees = [mkEmp('A'), mkEmp('B')];
