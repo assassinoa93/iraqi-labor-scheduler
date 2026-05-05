@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRequiredHC, totalDailyHeadcountHours, peakDailyHC, validateHourlyDemand } from '../stationDemand';
+import { getRequiredHC, totalDailyHeadcountHours, peakDailyHC, validateHourlyDemand, nextSlotDefaults } from '../stationDemand';
 import type { Station } from '../../types';
 
 const flatStation: Station = {
@@ -107,5 +107,39 @@ describe('validateHourlyDemand', () => {
 
   it('flags negative HC', () => {
     expect(validateHourlyDemand([{ startHour: 0, endHour: 5, hc: -1 }])).toMatch(/headcount/i);
+  });
+});
+
+describe('nextSlotDefaults', () => {
+  it('starts at 8am with a 4-hour run when the slot list is empty', () => {
+    expect(nextSlotDefaults([])).toEqual({ startHour: 8, endHour: 12, hc: 1 });
+  });
+
+  it('starts where the previous slot ended', () => {
+    expect(nextSlotDefaults([{ startHour: 11, endHour: 15, hc: 2 }]))
+      .toEqual({ startHour: 15, endHour: 19, hc: 1 });
+  });
+
+  it('caps the new slot end at 24 (end-of-day)', () => {
+    // Last slot ends at 22 → next would naturally run 22-26, must clamp to 24.
+    expect(nextSlotDefaults([{ startHour: 18, endHour: 22, hc: 2 }]))
+      .toEqual({ startHour: 22, endHour: 24, hc: 1 });
+  });
+
+  it('caps the new slot start at 23 when the previous slot ends at 24', () => {
+    // Last slot already covers up to end-of-day; next slot can't start at 24.
+    // Start clamps to 23, end stays at 24 (since 23+4=27 also clamps to 24).
+    expect(nextSlotDefaults([{ startHour: 20, endHour: 24, hc: 1 }]))
+      .toEqual({ startHour: 23, endHour: 24, hc: 1 });
+  });
+
+  it('uses the LAST slot in the list as the anchor (not the max-end)', () => {
+    // Defensive: even if slots are ordered weirdly, we anchor off the
+    // tail. Validation will reject overlap separately, so this is the
+    // pragmatic "I just clicked Add another slot" behaviour.
+    expect(nextSlotDefaults([
+      { startHour: 18, endHour: 22, hc: 2 },
+      { startHour: 8, endHour: 12, hc: 1 },
+    ])).toEqual({ startHour: 12, endHour: 16, hc: 1 });
   });
 });

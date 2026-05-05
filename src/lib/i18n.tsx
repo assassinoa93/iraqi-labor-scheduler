@@ -1263,6 +1263,14 @@ export const en: Dict = {
   'bulkStation.error.prefix': 'ID prefix cannot be empty.',
   'bulkStation.error.collision': 'ID "{id}" already exists. Change the prefix.',
   'bulkStation.error.hcRow': 'Peak headcount must be ≥ normal headcount on row "{name}".',
+  // v5.15.0 — bulk hourly-demand defaults panel + per-row badge.
+  'bulkStation.hourly.title': 'Hourly demand profile (optional)',
+  'bulkStation.hourly.optional': 'Off — flat HC',
+  'bulkStation.hourly.activeBadge': '{n}+{p} slots',
+  'bulkStation.hourly.help': 'Set an hour-by-hour PAX profile that every newly-added row will inherit. Each row keeps its own copy, so you can fine-tune individual stations later in the regular Edit Station modal. Leave empty to use the flat normal/peak headcount above.',
+  'bulkStation.error.hourlyNormal': 'Hourly profile (normal day):',
+  'bulkStation.error.hourlyPeak': 'Hourly profile (peak day):',
+  'bulkStation.row.hourlyBadge.tooltip': 'This row inherited an hourly demand profile (normal+peak slot counts shown). Edit per-row slots in the Edit Station modal after bulk-create.',
   'info.bulkStation.title': 'Stations Added',
   'info.bulkStation.body': 'Created {count} new station(s).',
 
@@ -2579,6 +2587,13 @@ export const ar: Dict = {
   'bulkStation.error.prefix': 'لا يمكن أن تكون بادئة المعرف فارغة.',
   'bulkStation.error.collision': 'المعرف "{id}" موجود بالفعل. غيِّر البادئة.',
   'bulkStation.error.hcRow': 'يجب أن يكون عدد الموظفين في الذروة ≥ العدد العادي في الصف "{name}".',
+  'bulkStation.hourly.title': 'ملف الطلب الساعي (اختياري)',
+  'bulkStation.hourly.optional': 'متوقف — عدد ثابت',
+  'bulkStation.hourly.activeBadge': '{n}+{p} فترات',
+  'bulkStation.hourly.help': 'حدد ملف عدد موظفين ساعة بساعة، وسيرثه كل صف يُضاف لاحقًا. يحتفظ كل صف بنسخته الخاصة، لذا يمكنك ضبط محطات محددة لاحقًا من خلال نافذة تعديل المحطة العادية. اتركه فارغًا لاستخدام العدد الثابت أعلاه.',
+  'bulkStation.error.hourlyNormal': 'الملف الساعي (يوم عادي):',
+  'bulkStation.error.hourlyPeak': 'الملف الساعي (يوم ذروة):',
+  'bulkStation.row.hourlyBadge.tooltip': 'ورِث هذا الصف ملف طلب ساعي (يظهر عدد فترات اليوم العادي + الذروة). عدّل فترات كل صف من نافذة تعديل المحطة بعد الإنشاء.',
   'info.bulkStation.title': 'تمت إضافة المحطات',
   'info.bulkStation.body': 'تم إنشاء {count} محطة جديدة.',
 

@@ -2,6 +2,41 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.15.0 — 2026-05-05
+
+**Bulk station creation now carries the v5.14 hourly-demand profile.** Closes the loop on the per-station hourly-demand feature: supervisors who add 10 cashier counters in a single bulk-create no longer have to open each one afterwards to set the same 11–15/15–19/19–23 profile by hand. The Defaults panel in [BulkAddStationsModal](src/components/BulkAddStationsModal.tsx) gets a collapsible "Hourly demand profile (optional)" section; every newly-added row inherits a deep copy of the slots; "Apply defaults to all rows" stamps both the flat fields AND the hourly profile across existing rows.
+
+**Shared editor component** ([HourlyDemandEditor.tsx](src/components/HourlyDemandEditor.tsx))
+- Extracted the slot-list editor that originally lived inline in StationModal so both surfaces (StationModal + BulkAddStationsModal) render the exact same `[start hour] → [end hour] [hc PAX]` rows. Future tweaks (drag-to-reorder, per-slot notes, validation hints) land in both places automatically.
+- Hours stay dropdowns 0–23 / 1–24 — no freeform numeric input, supervisor can't type "25" by accident.
+- The `nextSlotDefaults()` helper (start where the last slot ended, run 4 hours, clamp to 0–24) moved into [stationDemand.ts](src/lib/stationDemand.ts) so it's testable as pure logic and both consumers pull from the same authoritative source.
+
+**Bulk modal Defaults panel** ([BulkAddStationsModal.tsx](src/components/BulkAddStationsModal.tsx))
+- Collapsible "Hourly demand profile (optional)" section sits below the existing flat-HC defaults grid. Default collapsed to keep the modal lean for supervisors who only want the legacy flat-HC bulk add.
+- Header carries an at-a-glance status badge: blue `N+P slots` when slots are configured, grey `Off — flat HC` when nothing is set. So the supervisor can tell whether the next bulk-create will inherit a profile without expanding the section.
+- Inside: Normal-day editor + Peak-day editor (separate slot lists), with the same "Copy from normal" affordance as StationModal so a supervisor whose peak just adds higher PAX to the same windows doesn't have to re-type them.
+- Save-time validation: malformed defaults slots (overlap, end ≤ start, out-of-range hours, negative HC) block submit with a friendly error tagged Normal-day vs Peak-day, so a single bulk-create can't ship N malformed stations to disk.
+
+**Per-row inheritance + indicator**
+- `StationDraft` row shape gains `normalHourlyDemand: HourlyDemandSlot[]` and `peakHourlyDemand: HourlyDemandSlot[]` (always arrays — empty means "use the flat HC", non-empty means "override with this hourly profile"). Adding a row deep-clones the defaults panel's slots so per-row edits in the future won't mutate the panel state.
+- Each row in the table shows a small read-only blue badge `🕐 N+P` next to the name input when the row carries a profile (counts of normal+peak slots). The badge is advisory only — actual per-row slot tweaks happen in the regular Edit Station modal post-create. The bulk modal would get unmanageable if each row carried its own 24h profile UI; the bulk flow is for stamping a consistent template across N stations, fine-tuning is a separate step.
+- Final station emit: empty arrays stay omitted on the persisted Station record (legacy stations continue to read as "flat HC only" via the explicit-undefined path in `stationDemand.getRequiredHC`). Non-empty arrays land as deep copies so subsequent in-app edits to one station don't mutate the others created in the same batch.
+
+**i18n**
+- `bulkStation.hourly.title`, `bulkStation.hourly.help`, `bulkStation.hourly.activeBadge` (`{n}+{p} slots`), `bulkStation.hourly.optional`, `bulkStation.error.hourlyNormal`, `bulkStation.error.hourlyPeak`, `bulkStation.row.hourlyBadge.tooltip` — all in both EN and AR.
+
+**Tests** ([stationDemand.test.ts](src/lib/__tests__/stationDemand.test.ts))
+- 5 new tests for `nextSlotDefaults`: empty list seeds 8–12, starts where previous ends, clamps end at 24, clamps start at 23 when previous ends at 24, anchors off the tail of the list (defensive — validation rejects overlap separately).
+
+**Wizard pass — no changes needed**
+- The end-to-end audit found that the only "wizard" in the app is `SuperAdminWizard.tsx`, which is purely Firebase project + super-admin account setup. It doesn't seed stations, employees, or any company-level data — the user creates those from the populated tabs after sign-in. Nothing to update there for hourly-demand.
+- `initialData.ts` (the demo seed for Offline mode) intentionally uses the legacy flat-HC station shape — that path is the explicit fallback in `getRequiredHC()` and works unchanged. Demo users who want to play with hourly demand opt in via the StationModal's collapsible section.
+
+**Compatibility**
+- All 210 tests pass (5 new). `tsc --noEmit` clean. Vite production build clean.
+- Dual-mode parity preserved: bulk-create writes Station records with optional hourly arrays; both Offline (server.ts) and Online (Firestore) data layers accept the new shape because `firestore.rules` is schemaless on collection wildcards (already verified in v5.14.0) and the offline server stores Station records as opaque JSON. `migration.ts` (fixed in v5.14.0) round-trips the hourly fields through normalize.
+- Existing flat-HC bulk-create flow is unchanged for supervisors who don't expand the new section.
+
 ## v5.14.0 — 2026-05-04
 
 **Per-station hourly demand profiles.** The user's biggest scheduling win: stations now carry hour-by-hour headcount requirements instead of one flat number per day-type. A cashier station that needs 1 PAX 11–15, 2 PAX 15–19, 3 PAX 19–23 is now a first-class concept, with separate profiles for normal vs peak days. Auto-scheduler, workforce planning, staffing advisory, and coverage hints all read through the same helper so the figures can't diverge.

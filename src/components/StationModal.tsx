@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 import { Station, HourlyDemandSlot } from '../types';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
 import { validateHourlyDemand } from '../lib/stationDemand';
-import { cn } from '../lib/utils';
+import { HourlyDemandEditor, nextSlotDefaults } from './HourlyDemandEditor';
 
 interface StationModalProps {
   isOpen: boolean;
@@ -71,13 +71,7 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
     const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
     setFormData(prev => {
       const list = prev[key] || [];
-      // Default new slot to the next free hour after the last slot ends —
-      // saves the supervisor a typo-prone "set start to 11" step in the
-      // common build-up-from-empty workflow.
-      const lastEnd = list.length > 0 ? list[list.length - 1].endHour : 8;
-      const startHour = Math.min(23, lastEnd);
-      const endHour = Math.min(24, startHour + 4);
-      return { ...prev, [key]: [...list, { startHour, endHour, hc: 1 }] };
+      return { ...prev, [key]: [...list, nextSlotDefaults(list)] };
     });
   };
   const removeSlot = (kind: 'normal' | 'peak', idx: number) => {
@@ -187,15 +181,13 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
                   {t('modal.station.hourly.help')}
                 </p>
                 {/* Normal day */}
-                <HourlyEditor
-                  kind="normal"
+                <HourlyDemandEditor
                   label={t('modal.station.hourly.normalDay')}
                   slots={formData.normalHourlyDemand || []}
                   fallback={formData.normalMinHC}
                   onAdd={() => addSlot('normal')}
                   onRemove={(i) => removeSlot('normal', i)}
                   onUpdate={(i, p) => updateSlot('normal', i, p)}
-                  t={t}
                 />
                 {/* Peak day */}
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
@@ -214,15 +206,12 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
                       </button>
                     )}
                   </div>
-                  <HourlyEditor
-                    kind="peak"
-                    label=""
+                  <HourlyDemandEditor
                     slots={formData.peakHourlyDemand || []}
                     fallback={formData.peakMinHC}
                     onAdd={() => addSlot('peak')}
                     onRemove={(i) => removeSlot('peak', i)}
                     onUpdate={(i, p) => updateSlot('peak', i, p)}
-                    t={t}
                   />
                 </div>
               </div>
@@ -244,92 +233,3 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   );
 }
 
-// v5.14.0 — slot-list editor used by both the normal-day and peak-day
-// sections in the StationModal. Each row is a [start hour] → [end hour]
-// [hc] tuple with a delete button. Hours are dropdowns 0–23 / 1–24
-// rather than freeform inputs so the supervisor can't type "25" by
-// accident. When the slot list is empty, a fallback hint shows what
-// the auto-scheduler will use instead (the flat min HC value).
-function HourlyEditor({
-  kind, label, slots, fallback, onAdd, onRemove, onUpdate, t,
-}: {
-  kind: 'normal' | 'peak';
-  label: string;
-  slots: HourlyDemandSlot[];
-  fallback: number;
-  onAdd: () => void;
-  onRemove: (i: number) => void;
-  onUpdate: (i: number, patch: Partial<HourlyDemandSlot>) => void;
-  t: (key: string, vars?: Record<string, string | number>) => string;
-}) {
-  const startOptions = Array.from({ length: 24 }, (_, h) => h);
-  const endOptions = Array.from({ length: 24 }, (_, h) => h + 1);
-  return (
-    <div className="space-y-2">
-      {label && (
-        <p className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">{label}</p>
-      )}
-      {slots.length === 0 ? (
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
-          {t('modal.station.hourly.empty', { fallback })}
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          {slots.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
-                value={s.startHour}
-                onChange={e => onUpdate(i, { startHour: parseInt(e.target.value) })}
-                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-xs font-mono"
-                aria-label={t('modal.station.hourly.startHour')}
-              >
-                {startOptions.map(h => (
-                  <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                ))}
-              </select>
-              <span className="text-slate-400 dark:text-slate-500 text-xs">→</span>
-              <select
-                value={s.endHour}
-                onChange={e => onUpdate(i, { endHour: parseInt(e.target.value) })}
-                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-xs font-mono"
-                aria-label={t('modal.station.hourly.endHour')}
-              >
-                {endOptions.map(h => (
-                  <option key={h} value={h}>{h === 24 ? '24:00' : String(h).padStart(2, '0') + ':00'}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={0}
-                value={s.hc}
-                onChange={e => onUpdate(i, { hc: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-xs font-mono text-center"
-                aria-label={t('modal.station.hourly.hc')}
-              />
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">PAX</span>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                aria-label={t('modal.station.hourly.removeSlot')}
-                className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/15 rounded"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={onAdd}
-        className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors',
-          'bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/40 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-500/25',
-        )}
-      >
-        <Plus className="w-3 h-3" />
-        {t('modal.station.hourly.addSlot')}
-      </button>
-    </div>
-  );
-}

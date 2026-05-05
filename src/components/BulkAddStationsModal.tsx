@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Layers, Plus, Trash2, Wand2 } from 'lucide-react';
-import { Station, StationGroup } from '../types';
+import { X, Layers, Plus, Trash2, Wand2, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { Station, StationGroup, HourlyDemandSlot } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { HourlyDemandEditor, nextSlotDefaults } from './HourlyDemandEditor';
+import { validateHourlyDemand } from '../lib/stationDemand';
 
 // v5.3.0 — bulk station creation modal.
 // v5.3.1 — rewritten around per-row editable fields. The first version
@@ -15,6 +17,16 @@ import { useModalKeys } from '../lib/hooks';
 // New shape: a "Defaults for new rows" header + an editable rows table
 // where every row carries its own copy of the params and can be tuned
 // independently. Auto-numbering is preserved.
+//
+// v5.15.0 — defaults panel now also carries an OPTIONAL hourly-demand
+// profile (normal-day + peak-day slot lists). When set, every newly-added
+// row inherits a deep copy. The per-row table doesn't expose the slot
+// editor inline (a 24-hour profile would blow up row width and overwhelm
+// the bulk workflow); instead each row shows a small "Hourly: N+M" badge
+// when the row carries a profile so the supervisor can see at-a-glance
+// which rows opted in. Per-row tweaks happen in the regular StationModal
+// after bulk-create — the bulk flow is for stamping a consistent template
+// across N stations, fine-tuning is a separate step.
 //
 // Sticky modal: the backdrop click no longer dismisses the modal — only the
 // X button, Cancel button, or Esc key close it. Avoids losing 5 minutes of
@@ -37,6 +49,13 @@ interface StationDraft {
   closingTime: string;
   requiredRole: string;
   color: string;
+  // v5.15.0 — optional hourly-demand profiles. Inherited from the
+  // defaults panel when the supervisor adds a row. Empty arrays mean
+  // "use the flat HC values above" (legacy behaviour); non-empty arrays
+  // override the flat values across the entire 24-hour day, with gaps
+  // interpreted as "0 PAX needed there" (matches stationDemand.ts).
+  normalHourlyDemand: HourlyDemandSlot[];
+  peakHourlyDemand: HourlyDemandSlot[];
 }
 
 const DEFAULT_PREFIX = 'ST-';
@@ -46,10 +65,16 @@ const seedDefaults = (): StationDraft => ({
   name: '', normalMinHC: 0, peakMinHC: 1,
   openingTime: '11:00', closingTime: '23:00',
   requiredRole: '', color: DEFAULT_COLOR,
+  normalHourlyDemand: [], peakHourlyDemand: [],
 });
 
 const cloneFromDefaults = (d: StationDraft): StationDraft => ({
-  ...d, name: '', // name always blank on a new row — user types it
+  ...d,
+  name: '', // name always blank on a new row — user types it
+  // Deep-copy the slot arrays so per-row edits in the future (when the
+  // table grows an inline editor) don't mutate the defaults panel state.
+  normalHourlyDemand: d.normalHourlyDemand.map(s => ({ ...s })),
+  peakHourlyDemand: d.peakHourlyDemand.map(s => ({ ...s })),
 });
 
 export function BulkAddStationsModal({
@@ -66,12 +91,18 @@ export function BulkAddStationsModal({
   const [defaults, setDefaults] = useState<StationDraft>(() => seedDefaults());
   const [rows, setRows] = useState<StationDraft[]>(() => [seedDefaults()]);
   const [error, setError] = useState<string | null>(null);
+  // v5.15.0 — collapsible hourly-demand section in the Defaults panel.
+  // Default collapsed so the modal doesn't overwhelm supervisors who
+  // just want the legacy flat-HC bulk add. Auto-expanded on re-open if
+  // the defaults already carry slots so the supervisor sees them.
+  const [hourlyExpanded, setHourlyExpanded] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setGroupId('');
     setPrefix(DEFAULT_PREFIX);
     setDefaults(seedDefaults());
+    setHourlyExpanded(false);
     setRows([seedDefaults()]);
     setError(null);
   }, [isOpen]);
@@ -142,7 +173,36 @@ export function BulkAddStationsModal({
   const applyDefaultsToAll = () => {
     // Stamp the current defaults across every existing row (preserves the
     // names — the supervisor's typed-in names should never be overwritten).
-    setRows(prev => prev.map(r => ({ ...defaults, name: r.name })));
+    // Slot arrays are deep-copied per row so the defaults panel and each
+    // row's slots stay independent.
+    setRows(prev => prev.map(r => ({
+      ...defaults,
+      name: r.name,
+      normalHourlyDemand: defaults.normalHourlyDemand.map(s => ({ ...s })),
+      peakHourlyDemand: defaults.peakHourlyDemand.map(s => ({ ...s })),
+    })));
+  };
+
+  // v5.15.0 — slot mutators for the defaults-panel hourly editor. Mirrors
+  // the StationModal helpers; only the defaults are editable in this
+  // modal (per-row hourly editing happens in StationModal post-create).
+  const addDefaultSlot = (kind: 'normal' | 'peak') => {
+    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+    setDefaults(d => ({ ...d, [key]: [...d[key], nextSlotDefaults(d[key])] }));
+  };
+  const removeDefaultSlot = (kind: 'normal' | 'peak', idx: number) => {
+    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+    setDefaults(d => ({ ...d, [key]: d[key].filter((_, i) => i !== idx) }));
+  };
+  const updateDefaultSlot = (kind: 'normal' | 'peak', idx: number, patch: Partial<HourlyDemandSlot>) => {
+    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+    setDefaults(d => ({
+      ...d,
+      [key]: d[key].map((s, i) => i === idx ? { ...s, ...patch } : s),
+    }));
+  };
+  const copyNormalToPeak = () => {
+    setDefaults(d => ({ ...d, peakHourlyDemand: d.normalHourlyDemand.map(s => ({ ...s })) }));
   };
 
   const apply = () => {
@@ -154,6 +214,18 @@ export function BulkAddStationsModal({
         setError(t('bulkStation.error.hcRow', { name: r.name }));
         return;
       }
+    }
+    // v5.15.0 — validate the defaults-panel hourly slots once before
+    // they get stamped onto every emitted station. Catching overlap or
+    // bad-range errors here means a single bulk-create can't ship N
+    // malformed stations to disk.
+    if (defaults.normalHourlyDemand.length > 0) {
+      const e = validateHourlyDemand(defaults.normalHourlyDemand);
+      if (e) { setError(t('bulkStation.error.hourlyNormal') + ' ' + e); return; }
+    }
+    if (defaults.peakHourlyDemand.length > 0) {
+      const e = validateHourlyDemand(defaults.peakHourlyDemand);
+      if (e) { setError(t('bulkStation.error.hourlyPeak') + ' ' + e); return; }
     }
     // Collision check across the contiguous numbering used at submit time.
     for (let seq = 0; seq < cleanRows.length; seq++) {
@@ -177,6 +249,16 @@ export function BulkAddStationsModal({
       };
       if (groupId) station.groupId = groupId;
       if (r.requiredRole) station.requiredRoles = [r.requiredRole];
+      // v5.15.0 — copy the inherited hourly slots through to the final
+      // Station record. Empty arrays stay omitted so legacy stations
+      // continue to read as "flat HC only" via the explicit-undefined
+      // path in stationDemand.getRequiredHC.
+      if (r.normalHourlyDemand.length > 0) {
+        station.normalHourlyDemand = r.normalHourlyDemand.map(s => ({ ...s }));
+      }
+      if (r.peakHourlyDemand.length > 0) {
+        station.peakHourlyDemand = r.peakHourlyDemand.map(s => ({ ...s }));
+      }
       return station;
     });
     onApply(stations);
@@ -309,6 +391,77 @@ export function BulkAddStationsModal({
                 />
               </DefaultsField>
             </div>
+
+            {/* v5.15.0 — collapsible hourly-demand profile inside the
+                Defaults panel. When the supervisor sets slots here, every
+                newly-added row inherits a deep copy. The "Apply defaults
+                to all rows" button stamps both the flat fields AND the
+                hourly profile across existing rows. Per-row hourly tweaks
+                happen in the regular StationModal post-create. */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => setHourlyExpanded(v => !v)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+              >
+                {hourlyExpanded ? <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />}
+                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                  {t('bulkStation.hourly.title')}
+                </span>
+                {(defaults.normalHourlyDemand.length > 0 || defaults.peakHourlyDemand.length > 0) ? (
+                  <span className="ms-auto text-[9px] font-black uppercase tracking-widest bg-blue-600 text-white px-1.5 py-0.5 rounded">
+                    {t('bulkStation.hourly.activeBadge', {
+                      n: defaults.normalHourlyDemand.length,
+                      p: defaults.peakHourlyDemand.length,
+                    })}
+                  </span>
+                ) : (
+                  <span className="ms-auto text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    {t('bulkStation.hourly.optional')}
+                  </span>
+                )}
+              </button>
+              {hourlyExpanded && (
+                <div className="p-4 space-y-4 border-t border-slate-200 dark:border-slate-700">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {t('bulkStation.hourly.help')}
+                  </p>
+                  <HourlyDemandEditor
+                    label={t('modal.station.hourly.normalDay')}
+                    slots={defaults.normalHourlyDemand}
+                    fallback={defaults.normalMinHC}
+                    onAdd={() => addDefaultSlot('normal')}
+                    onRemove={(i) => removeDefaultSlot('normal', i)}
+                    onUpdate={(i, p) => updateDefaultSlot('normal', i, p)}
+                  />
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">
+                        {t('modal.station.hourly.peakDay')}
+                      </span>
+                      {defaults.normalHourlyDemand.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={copyNormalToPeak}
+                          title={t('modal.station.hourly.copyNormalToPeak.tooltip')}
+                          className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200"
+                        >
+                          {t('modal.station.hourly.copyNormalToPeak')}
+                        </button>
+                      )}
+                    </div>
+                    <HourlyDemandEditor
+                      slots={defaults.peakHourlyDemand}
+                      fallback={defaults.peakMinHC}
+                      onAdd={() => addDefaultSlot('peak')}
+                      onRemove={(i) => removeDefaultSlot('peak', i)}
+                      onUpdate={(i, p) => updateDefaultSlot('peak', i, p)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* PER-ROW EDITABLE TABLE. Each row carries its own params — the
@@ -371,12 +524,30 @@ export function BulkAddStationsModal({
                           )}
                         </td>
                         <td className="px-2 py-1.5">
-                          <input
-                            type="text" value={row.name}
-                            onChange={e => updateRow(i, { name: e.target.value })}
-                            placeholder={t('bulkStation.row.namePlaceholder')}
-                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text" value={row.name}
+                              onChange={e => updateRow(i, { name: e.target.value })}
+                              placeholder={t('bulkStation.row.namePlaceholder')}
+                              className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1 px-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            {/* v5.15.0 — small read-only badge showing
+                                whether this row inherited an hourly
+                                profile from the defaults. The badge is
+                                advisory only — actual editing of the row's
+                                slots happens in StationModal post-create
+                                (the bulk modal would get unmanageable if
+                                each row carried its own 24h profile UI). */}
+                            {(row.normalHourlyDemand.length > 0 || row.peakHourlyDemand.length > 0) && (
+                              <span
+                                className="shrink-0 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/40 rounded px-1.5 py-0.5"
+                                title={t('bulkStation.row.hourlyBadge.tooltip')}
+                              >
+                                <Clock className="w-2.5 h-2.5" />
+                                {row.normalHourlyDemand.length}+{row.peakHourlyDemand.length}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-2 py-1.5">
                           <input

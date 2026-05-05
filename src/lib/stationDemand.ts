@@ -96,6 +96,20 @@ export function peakDailyHC(
   return isPeakDay ? station.peakMinHC : station.normalMinHC;
 }
 
+// v5.15.0 — returns the tuple a brand-new slot should default to: starts
+// where the last slot ends (or 8am for an empty list) and runs 4 hours,
+// capped at the 0–24 range. Saves the supervisor a typo-prone "set start
+// to 11" step in the common build-up-from-empty workflow. Lives here
+// (next to validateHourlyDemand) so both the StationModal editor and the
+// BulkAddStationsModal defaults panel pull from the same authoritative
+// source.
+export function nextSlotDefaults(existing: HourlyDemandSlot[]): HourlyDemandSlot {
+  const lastEnd = existing.length > 0 ? existing[existing.length - 1].endHour : 8;
+  const startHour = Math.min(23, lastEnd);
+  const endHour = Math.min(24, startHour + 4);
+  return { startHour, endHour, hc: 1 };
+}
+
 // Validation: returns null if the slot list is well-formed, or an error
 // message string. Used by the editor to gate save.
 export function validateHourlyDemand(slots: HourlyDemandSlot[]): string | null {
