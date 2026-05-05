@@ -30,14 +30,25 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Install Node.js
-        # v5 ships with a Node 24 bundle. Same deprecation reason as
-        # checkout above. Note: `node-version: 20` below is the Node
-        # version the BUILD runs against (npm scripts, electron-builder)
-        # — that's independent of the action runtime and stays at 20
-        # because Electron 33 internally targets Node 20.
+        # v5 ships with a Node 24 bundle (action runtime). Same Node 20
+        # deprecation reason as checkout above.
+        #
+        # `node-version: 24` is the BUILD Node — the version npm scripts
+        # (tsc, vite, vitest, electron-builder, sharp prebuilds) run
+        # against. Bumped from 20 to 24 (current LTS, supported through
+        # April 2028) so the entire workflow runs on a single Node
+        # version, matching the action runtime above.
+        #
+        # Important: this is INDEPENDENT of the Node version Electron 33
+        # bundles internally (still Node 20). electron-builder spawns the
+        # Electron binary which uses its own bundled Node — the build
+        # Node only runs the packaging tooling, not the app itself.
+        # Verified compatible: sharp ^0.34.5 (has Node 24 Windows
+        # prebuilds), electron-builder ^25 (supports Node 22+24), and
+        # all the vite/vitest/tsx/esbuild line which require Node 18+.
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           # v5.1.6 — built-in npm cache keyed on package-lock.json. Restores
           # ~/.npm on every run; saves 60-90s of re-download per release and
           # avoids the ECONNRESET we hit on v5.1.5 when the registry blipped.
