@@ -36,12 +36,21 @@ export interface HolidayPayBreakdown {
   compensatedHolidayHours: number;
   // IQD owed in 2× holiday pay. Caller multiplies elsewhere if needed.
   premiumPay: number;
+  // v5.12.0 — when carryForwardUnspentCompDays is true, holidays whose
+  // comp window expired land here instead of premiumHolidayHours. The
+  // unspent comp credit accrues to the employee's holidayBank for
+  // redemption in subsequent months rather than firing a 2× cash bill.
+  // Caller surfaces this as "X CP days carried forward to next month".
+  carriedForwardCompDays: number;
   // Per-holiday-date detail so callers can render the timeline.
   perHoliday: Array<{
     date: string;          // YYYY-MM-DD
     hours: number;
     premiumOwed: boolean;
     compDayOffset: number | null; // days to first non-work entry; null = none found
+    // v5.12.0 — true when this holiday's comp credit is being carried
+    // forward (premium NOT owed because of carryForwardUnspentCompDays).
+    carriedForward: boolean;
   }>;
 }
 
@@ -101,6 +110,11 @@ export function computeHolidayPay(
   const otRateNight = config.otRateNight ?? 2.0;
   const compModeDefault = config.holidayCompMode ?? 'comp-day';
   const compWindowMax = Math.max(1, config.holidayCompWindowDays ?? 30);
+  // v5.12.0 — default true so the supervisor's natural workflow ("plan
+  // next month and let the comp days land there") doesn't surface as
+  // OT until they explicitly opt out (e.g. when closing the business
+  // and there's no future month to redeem against).
+  const carryForward = config.carryForwardUnspentCompDays ?? true;
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
   const holidayByDate = new Map(holidays.map(h => [h.date, h]));
 
@@ -111,6 +125,7 @@ export function computeHolidayPay(
 
   let totalHolidayHours = 0;
   let premiumHolidayHours = 0;
+  let carriedForwardCompDays = 0;
   const perHoliday: HolidayPayBreakdown['perHoliday'] = [];
 
   // Walk only the holidays that fall inside the active month — those are
@@ -141,6 +156,7 @@ export function computeHolidayPay(
     //   both:    premium always AND we still compute comp offset so the
     //            supervisor can see whether the comp day landed (the
     //            scheduler is supposed to grant one regardless of payroll).
+    let carriedForwardHere = false;
     if (effMode === 'cash-ot') {
       premiumOwed = true;
     } else if (effMode === 'both') {
@@ -153,11 +169,31 @@ export function computeHolidayPay(
       compDayOffset = findCompDayOffset(
         empSched, nextEmpSched, holidayDay, config.daysInMonth, compWindowMax, shiftByCode,
       );
-      premiumOwed = compDayOffset === null;
+      // v5.12.0 — when carryForward is on AND the window expired
+      // without a comp day landing, treat the unspent comp credit as
+      // an accrual rather than firing a 2× cash bill. The supervisor
+      // sees this as "X CP days carried forward to next month" so
+      // they know to plan next month's schedule with that capacity in
+      // mind. When carryForward is off (closing the business / final
+      // payroll cycle), legacy behaviour kicks in: window expired =
+      // premium owed.
+      if (compDayOffset === null && carryForward) {
+        premiumOwed = false;
+        carriedForwardHere = true;
+        carriedForwardCompDays += 1;
+      } else {
+        premiumOwed = compDayOffset === null;
+      }
     }
 
     if (premiumOwed) premiumHolidayHours += hours;
-    perHoliday.push({ date: holiday.date, hours, premiumOwed, compDayOffset });
+    perHoliday.push({
+      date: holiday.date,
+      hours,
+      premiumOwed,
+      compDayOffset,
+      carriedForward: carriedForwardHere,
+    });
   }
 
   const compensatedHolidayHours = totalHolidayHours - premiumHolidayHours;
@@ -167,6 +203,7 @@ export function computeHolidayPay(
     totalHolidayHours,
     premiumHolidayHours,
     compensatedHolidayHours,
+    carriedForwardCompDays,
     premiumPay,
     perHoliday,
   };

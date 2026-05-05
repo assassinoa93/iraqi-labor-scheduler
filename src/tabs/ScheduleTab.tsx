@@ -132,6 +132,19 @@ interface ScheduleTabProps {
   onSaveDraft?: () => Promise<void> | void;
   saveState?: 'idle' | 'pending' | 'saving' | 'saved' | 'error';
   lastSavedAt?: number | null;
+
+  // v5.12.0 — carry-forward toggle for unspent comp days. When on
+  // (default), comp windows that expire without a CP landing roll the
+  // unspent credit into next-month accrual instead of firing a 2× cash
+  // premium. Off = legacy "premium owed when window expires" — right
+  // call when closing the business or finalising payroll where deferred
+  // comp can't be honoured. App.tsx owns the config write; this tab
+  // just renders the toggle and the "X CP days carry to next month"
+  // hint below the schedule grid when carry-forward is active and there
+  // are pending accruals.
+  carryForwardUnspentCompDays?: boolean;
+  onToggleCarryForward?: (next: boolean) => void;
+  pendingCarriedForwardCount?: { count: number; workers: number };
 }
 
 // Layout constants used by both the sticky header row and the virtualized
@@ -314,6 +327,7 @@ export function ScheduleTab({
   canRunAuto, runAutoDisabledReason,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
   onExportSchedule, simMode, onEnterSimMode, onSaveDraft, saveState, lastSavedAt,
+  carryForwardUnspentCompDays, onToggleCarryForward, pendingCarriedForwardCount,
   // v5.0 — approval workflow props
   approval, monthLabel, role, canEditCells = true,
   onSubmitForApproval, onLockSchedule, onSendBackSchedule,
@@ -675,6 +689,58 @@ export function ScheduleTab({
           hrisExportBusy={hrisExportBusy}
           hrisLastExportedAt={hrisLastExportedAt}
         />
+      )}
+
+      {/* v5.12.0 — carry-forward CP toggle. Surfaces above the schedule
+          grid so the supervisor sees the policy in effect for the
+          current month. When checked: holidays whose comp window
+          expires roll into next-month accrual instead of OT. When
+          unchecked (e.g. closing the business): legacy "premium owed"
+          behaviour. The hint below shows the running count of CP days
+          + workers carrying forward so the supervisor knows what next
+          month's planning needs to absorb. */}
+      {onToggleCarryForward !== undefined && (
+        <div className={cn(
+          'flex items-center gap-3 flex-wrap p-3 rounded-xl border shadow-sm',
+          carryForwardUnspentCompDays
+            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+            : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30',
+        )}>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!carryForwardUnspentCompDays}
+              onChange={(e) => onToggleCarryForward(e.target.checked)}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <span className={cn(
+              'text-[11px] font-bold uppercase tracking-widest',
+              carryForwardUnspentCompDays
+                ? 'text-emerald-800 dark:text-emerald-200'
+                : 'text-amber-800 dark:text-amber-200',
+            )}>
+              {t('schedule.carryForward.label')}
+            </span>
+          </label>
+          {carryForwardUnspentCompDays && pendingCarriedForwardCount && pendingCarriedForwardCount.count > 0 && (
+            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 ms-2">
+              {t('schedule.carryForward.pending', {
+                count: pendingCarriedForwardCount.count,
+                workers: pendingCarriedForwardCount.workers,
+              })}
+            </span>
+          )}
+          <p className={cn(
+            'text-[10px] leading-relaxed ms-auto max-w-md',
+            carryForwardUnspentCompDays
+              ? 'text-emerald-700 dark:text-emerald-300'
+              : 'text-amber-700 dark:text-amber-300',
+          )}>
+            {carryForwardUnspentCompDays
+              ? t('schedule.carryForward.helpOn')
+              : t('schedule.carryForward.helpOff')}
+          </p>
+        </div>
       )}
 
       {/* The toolbar stacks vertically by default and only goes single-row at

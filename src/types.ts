@@ -274,6 +274,16 @@ export interface Config {
   // beyond 7 days surface a `recommendation` info note but don't block.
   holidayCompWindowDays?: number;
   holidayCompRecommendedDays?: number; // Default 7
+  // v5.12.0 — when true (default), holidays whose comp window expires
+  // without a CP landing roll the unspent comp credit into the
+  // employee's holidayBank for redemption in subsequent months instead
+  // of falling back to the 2× cash premium. Closer to how the practice
+  // actually works in Iraqi shops where the supervisor wants to defer
+  // comp redemption rather than write a OT cheque.
+  // When false: legacy behaviour — premium owed if window expires
+  // (right call when closing the business or finalising a payroll
+  // cycle where deferred comp can't be honoured).
+  carryForwardUnspentCompDays?: boolean;
 }
 
 // Severity tiers for compliance findings:

@@ -3,6 +3,8 @@ import { analyzeOT, suggestMitigations } from '../otAnalysis';
 import { baseHourlyRate } from '../payroll';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../../types';
 
+// v5.12.0 — these tests pre-date carryForwardUnspentCompDays (defaults
+// true). Legacy "premium owed when window expires" requires opt-out.
 const config: Config = {
   company: 'Test', year: 2026, month: 1, daysInMonth: 31,
   weekendPolicy: 'Friday Only', weeklyRestDayPrimary: 6,
@@ -11,6 +13,7 @@ const config: Config = {
   standardWeeklyHrsCap: 48, hazardousWeeklyHrsCap: 36,
   minRestBetweenShiftsHrs: 11, shopOpeningTime: '09:00', shopClosingTime: '17:00',
   peakDays: [], holidays: [], otRateDay: 1.5, otRateNight: 2.0,
+  carryForwardUnspentCompDays: false,
 };
 
 const FS: Shift = { code: 'FS', name: 'Full', start: '09:00', end: '17:00', durationHrs: 8, breakMin: 30, isIndustrial: false, isHazardous: false, isWork: true, description: '' };

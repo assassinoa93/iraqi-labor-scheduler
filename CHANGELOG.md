@@ -2,6 +2,36 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.12.0 — 2026-05-04
+
+**Carry-forward unspent comp days as accrual.** Trial follow-up. The user reported: "when there is an outstanding amount of CP the calculator is granting it as OT — I need a checkbox saying 'consider CP that are not given in this month as accrual'… upon checking it X amount of CP days for X workers has been accrualed for the next month, instead of calculating it as OT. The only case for OT calculation for the outstanding amount of CP would be when we want to close the business."
+
+This release implements that exact toggle.
+
+**New `carryForwardUnspentCompDays` config flag** ([`types.ts`](src/types.ts), [`holidayCompPay.ts`](src/lib/holidayCompPay.ts))
+- Defaults to **true** (matches the supervisor's natural workflow: "I'll plan next month and let the comp days land there").
+- When **on**: a holiday whose comp window expires without a CP landing rolls the unspent comp credit into the employee's `holidayBank` for next-month redemption — premium NOT owed, no OT firing.
+- When **off** (legacy v5.5.0 behaviour): comp window expiry → premium owed → OT. Right call when finalising payroll for a closed cycle (closing the business / final pay run) where deferred comp can't be honoured.
+- Per-holiday `compMode: 'cash-ot'` overrides the carry-forward — cash-ot is the explicit "always pay 2×, never rotate" mode and the toggle has no effect there.
+- New `carriedForwardCompDays` field on `HolidayPayBreakdown` plus `carriedForward: boolean` on each per-holiday record so callers can render the breakdown.
+
+**Toggle UI on the Schedule tab** ([`ScheduleTab.tsx`](src/tabs/ScheduleTab.tsx), [`App.tsx`](src/App.tsx))
+- New checkbox bar above the schedule grid (right under the approval banner). Tints emerald when on (carry-forward active), amber when off (final-payroll mode).
+- Live "X comp day(s) for Y worker(s) carrying forward to next month" hint surfaces when the toggle is on AND there are pending accruals — App.tsx walks every employee through `computeHolidayPay` and rolls up the totals.
+- Help copy explains both states explicitly so the supervisor knows when to flip it.
+
+**Tests** ([`holidayCompPay.test.ts`](src/lib/__tests__/holidayCompPay.test.ts))
+- New `carryForwardUnspentCompDays (v5.12.0)` describe block — 3 cases:
+  - Carries forward (premium = 0, count = 1) when window expires
+  - Does NOT carry forward when CP lands in window — that's a normal comp day
+  - Does NOT carry forward when mode is cash-ot — premium is the whole point of cash-ot
+- Existing tests opted into the legacy behaviour by setting `carryForwardUnspentCompDays: false` on their config fixtures (preserves the original test intent: "premium owed when window expires").
+
+**Compatibility**
+- All 189 tests pass (3 new). `tsc --noEmit` clean.
+- No data migration. No Firestore schema change.
+- Default is `true` (new behaviour). The change is observably different for any month where an employee worked a public holiday whose comp window expired without a CP landing — those now show 0 OT pay and a carry-forward count instead. Supervisors who want the legacy "premium owed" behaviour for a final payroll cycle can flip the toggle off per month.
+
 ## v5.11.0 — 2026-05-04
 
 **Online schedule draft persistence + visible status pill + station select-all.** Trial follow-up. The user reported the v5.10 Save Draft button was Offline-only — but they were testing in Online mode and losing future-month drafts on close. Plus the existing approval banner was too subtle for "I want to see the schedule's status at a glance", and the only way to bulk-act on stations was clicking each card individually.

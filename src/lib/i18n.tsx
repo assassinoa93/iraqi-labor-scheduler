@@ -1314,6 +1314,12 @@ export const en: Dict = {
   'schedule.saveDraft.success.body': 'Your edits are persisted. Safe to close the app.',
   'schedule.saveDraft.error.title': 'Save failed',
   'schedule.saveDraft.error.body': 'Couldn\'t persist the draft. Check the save indicator in the global toolbar and try again.',
+
+  // v5.12.0 — carry-forward unspent CP toggle (above the schedule grid)
+  'schedule.carryForward.label': 'Carry unspent comp days to next month',
+  'schedule.carryForward.helpOn': 'Holidays whose comp window expires roll into next-month accrual instead of OT premium. Plan next month to redeem them.',
+  'schedule.carryForward.helpOff': 'Unspent comp credit will be paid as 2× cash premium (OT). Use only when finalising payroll or closing the business.',
+  'schedule.carryForward.pending': '{count} comp day(s) for {workers} worker(s) carrying forward to next month.',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2594,6 +2600,12 @@ export const ar: Dict = {
   'schedule.saveDraft.success.body': 'تم حفظ التعديلات. آمن إغلاق التطبيق.',
   'schedule.saveDraft.error.title': 'فشل الحفظ',
   'schedule.saveDraft.error.body': 'تعذّر حفظ المسودة. تحقق من مؤشر الحفظ في الشريط العلوي وحاول مرة أخرى.',
+
+  // v5.12.0 — مفتاح ترحيل أيام التعويض غير المستهلكة
+  'schedule.carryForward.label': 'ترحيل أيام التعويض غير المستهلكة إلى الشهر القادم',
+  'schedule.carryForward.helpOn': 'العطلات التي تنتهي نافذة تعويضها تُرحَّل كرصيد للشهر القادم بدلًا من احتسابها وقتًا إضافيًا. خطّط الشهر القادم لاستهلاكها.',
+  'schedule.carryForward.helpOff': 'الرصيد غير المستهلك سيُدفع كعلاوة نقدية ضعفية (وقت إضافي). استخدم هذا فقط عند إغلاق دورة الأجور أو إغلاق العمل.',
+  'schedule.carryForward.pending': '{count} يوم تعويض لـ {workers} موظف يتم ترحيلها إلى الشهر القادم.',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

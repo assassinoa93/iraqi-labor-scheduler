@@ -3833,6 +3833,30 @@ export default function App() {
                 }}
                 saveState={saveState}
                 lastSavedAt={lastSavedAt}
+                // v5.12.0 — carry-forward CP toggle. Defaults true; the
+                // supervisor flips it off only when finalising payroll
+                // (closing the business / final cycle) so deferred comp
+                // can no longer be honoured and falls back to OT premium.
+                // Pending count is computed live: walk active month's
+                // employees through computeHolidayPay and sum each
+                // employee's carriedForwardCompDays into a total +
+                // distinct-worker count for the hint string.
+                carryForwardUnspentCompDays={config.carryForwardUnspentCompDays ?? true}
+                onToggleCarryForward={(next) => setConfig(prev => ({ ...prev, carryForwardUnspentCompDays: next }))}
+                pendingCarriedForwardCount={(() => {
+                  if (!(config.carryForwardUnspentCompDays ?? true)) return undefined;
+                  let total = 0;
+                  let workers = 0;
+                  for (const emp of employees) {
+                    const hourly = baseHourlyRate(emp, config);
+                    const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourly, allSchedules);
+                    if (breakdown.carriedForwardCompDays > 0) {
+                      total += breakdown.carriedForwardCompDays;
+                      workers += 1;
+                    }
+                  }
+                  return { count: total, workers };
+                })()}
               />
             )}
 

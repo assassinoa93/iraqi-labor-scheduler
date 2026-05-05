@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { computeHolidayPay } from '../holidayCompPay';
 import { Employee, Shift, PublicHoliday, Config, Schedule } from '../../types';
 
+// v5.12.0 — these tests pre-date the carryForwardUnspentCompDays flag
+// (which now defaults to true). The legacy "premium owed when comp
+// window expires" branch requires opt-out via the flag. New tests at
+// the bottom exercise the carry-forward default explicitly.
 const baseConfig: Config = {
   company: 'Test', year: 2026, month: 1, daysInMonth: 31,
   weekendPolicy: 'Friday Only', weeklyRestDayPrimary: 6,
@@ -11,6 +15,7 @@ const baseConfig: Config = {
   minRestBetweenShiftsHrs: 11, shopOpeningTime: '09:00', shopClosingTime: '17:00',
   peakDays: [], holidays: [], otRateDay: 1.5, otRateNight: 2.0,
   holidayCompMode: 'comp-day', holidayCompWindowDays: 30, holidayCompRecommendedDays: 7,
+  carryForwardUnspentCompDays: false,
 };
 
 const FS: Shift = { code: 'FS', name: 'Full', start: '09:00', end: '17:00', durationHrs: 8, breakMin: 30, isIndustrial: false, isHazardous: false, isWork: true, description: '' };
@@ -101,6 +106,51 @@ describe('computeHolidayPay — cash-ot mode override', () => {
     const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' }, 8: { shiftCode: 'CP' } } };
     const r = computeHolidayPay(emp, schedule, [FS, CP], [holiday], cashConfig, HOURLY);
     expect(r.premiumHolidayHours).toBe(0);
+  });
+});
+
+describe('computeHolidayPay — carryForwardUnspentCompDays (v5.12.0)', () => {
+  // v5.12.0 default-true behaviour: when comp window expires without a
+  // CP landing, the unspent comp credit is carried forward (accrued for
+  // next month redemption) instead of falling back to the 2× cash
+  // premium. The user's flow: "I'll plan next month and let the comp
+  // days land there — don't bill me OT for them now."
+  const carryConfig: Config = { ...baseConfig, carryForwardUnspentCompDays: true };
+
+  it('carries forward instead of charging 2× when comp window expires', () => {
+    // Holiday on day 5; window is 30 days; no CP/OFF inside window
+    // means the legacy code billed 8h × 2× premium. With carry-forward
+    // on, premium is 0 and one comp day is recorded as carried forward.
+    const holiday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74' };
+    const schedule: Schedule = { 'EMP-1': {} };
+    for (let d = 5; d <= 31; d++) schedule['EMP-1'][d] = { shiftCode: 'FS' };
+    const r = computeHolidayPay(emp, schedule, [FS], [holiday], carryConfig, HOURLY);
+    expect(r.totalHolidayHours).toBe(8);
+    expect(r.premiumHolidayHours).toBe(0);
+    expect(r.premiumPay).toBe(0);
+    expect(r.carriedForwardCompDays).toBe(1);
+    expect(r.perHoliday[0]?.carriedForward).toBe(true);
+  });
+
+  it('does NOT carry forward when a CP lands in the window — that\'s a normal comp day', () => {
+    // Comp day landed → window not expired → no carry-forward, no
+    // premium. The supervisor sees this as the expected flow.
+    const holiday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' }, 8: { shiftCode: 'CP' } } };
+    const r = computeHolidayPay(emp, schedule, [FS, CP], [holiday], carryConfig, HOURLY);
+    expect(r.premiumHolidayHours).toBe(0);
+    expect(r.carriedForwardCompDays).toBe(0);
+    expect(r.perHoliday[0]?.carriedForward).toBe(false);
+  });
+
+  it('does NOT carry forward when mode is cash-ot — premium is the whole point of cash-ot', () => {
+    // cash-ot is "always pay 2×, never rotate comp days". The carry-
+    // forward flag has no effect there — premium is still owed.
+    const cashHoliday: PublicHoliday = { date: '2026-01-05', name: 'H', type: 'National', legalReference: 'Art. 74', compMode: 'cash-ot' };
+    const schedule: Schedule = { 'EMP-1': { 5: { shiftCode: 'FS' } } };
+    const r = computeHolidayPay(emp, schedule, [FS], [cashHoliday], carryConfig, HOURLY);
+    expect(r.premiumHolidayHours).toBe(8);
+    expect(r.carriedForwardCompDays).toBe(0);
   });
 });
 
