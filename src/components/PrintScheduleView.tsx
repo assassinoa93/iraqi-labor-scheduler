@@ -23,10 +23,23 @@ export function PrintScheduleView({ employees, shifts, holidays, config, schedul
   const holidayDates = new Set(holidays.map(h => h.date));
   const monthLabel = format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy');
 
+  // v5.18.0 — only render shift codes that actually appear in this month's
+  // schedule, so the legend stays focused. Skip the falsy/empty placeholder
+  // (unstaffed cells produce no code).
+  const usedCodes = new Set<string>();
+  for (const empSched of Object.values(schedule || {})) {
+    for (const entry of Object.values(empSched || {})) {
+      if (entry?.shiftCode) usedCodes.add(entry.shiftCode);
+    }
+  }
+  const legendShifts = shifts
+    .filter(s => usedCodes.has(s.code))
+    .sort((a, b) => a.code.localeCompare(b.code));
+
   return (
     <div className="print-only">
       <header className="print-header">
-        <h1>{config.company || 'Iraqi Labor Scheduler'}</h1>
+        <h1>{config.company || t('print.defaultCompany')}</h1>
         <p>{t('schedule.title')} — {monthLabel}</p>
         <p className="print-meta">{t('pdf.generated')}: {format(new Date(), 'yyyy-MM-dd HH:mm')} · {employees.length} {t('payroll.col.employee').toLowerCase()}</p>
       </header>
@@ -79,6 +92,31 @@ export function PrintScheduleView({ employees, shifts, holidays, config, schedul
           ))}
         </tbody>
       </table>
+      {legendShifts.length > 0 && (
+        <section className="print-legend">
+          <h2 className="print-legend-title">{t('print.legend.title')}</h2>
+          <table className="print-legend-table">
+            <thead>
+              <tr>
+                <th>{t('print.legend.col.code')}</th>
+                <th>{t('print.legend.col.name')}</th>
+                <th>{t('print.legend.col.hours')}</th>
+                <th>{t('print.legend.col.duration')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {legendShifts.map(s => (
+                <tr key={s.code}>
+                  <td className={'print-legend-code ' + getShiftColor(s.code).split(' ')[0]}>{s.code}</td>
+                  <td>{s.name}</td>
+                  <td>{s.start}–{s.end}</td>
+                  <td>{s.durationHrs}h{s.breakMin ? ` · ${s.breakMin}m ${t('print.legend.break')}` : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <footer className="print-footer">
         <p>{t('reports.previewHeader')} · {monthLabel}</p>
       </footer>

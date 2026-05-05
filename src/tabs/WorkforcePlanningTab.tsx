@@ -97,7 +97,16 @@ export function WorkforcePlanningTab(props: Props) {
   // the valley months that come before. Reuses the annual demand curve;
   // mode toggles whether PT contracts can scale up/down.
   const roadmap = useMemo(
-    () => buildHiringRoadmap({ annual, employees, mode, config: forecastConfig }),
+    () => buildHiringRoadmap({
+      annual, employees, mode, config: forecastConfig,
+      // v5.18.0 — derive lead months from the config'd lead-time-weeks.
+      // ceil(weeks / 4) keeps a 4-week pipeline at 1 month, an 8-week
+      // pipeline at 2 months. Defaults to 1 when unset (matches the
+      // pre-v5.18 hardcoded default in buildHiringRoadmap).
+      leadMonths: forecastConfig.hiringLeadTimeWeeks
+        ? Math.max(1, Math.ceil(forecastConfig.hiringLeadTimeWeeks / 4))
+        : 1,
+    }),
     [annual, employees, mode, forecastConfig],
   );
   const drillMonth = drillMonthIndex
@@ -205,7 +214,7 @@ export function WorkforcePlanningTab(props: Props) {
             {isForecasting && (
               <button
                 onClick={() => setForecastYear(config.year)}
-                className="ml-1 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                className="ms-1 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
                 title={t('workforce.forecast.resetTooltip')}
               >
                 {t('workforce.forecast.reset')}
@@ -1352,6 +1361,44 @@ function MonthDrilldownPanel({
           <p className="text-[10px] text-slate-500 mt-0.5">IQD / mo</p>
         </div>
       </div>
+
+      {/* v5.18.0 — leave-aware effective HC banner. Surfaced only when
+          the month has any planned leave; tells the supervisor that the
+          "you have N FTE" baseline is misleading because part of that
+          headcount is on leave that month. The decimal FTE-loss is
+          conservative — counts every leave day at face value (no
+          weekend / off-day discount), which matches how the auto-
+          scheduler treats leave (a leave day is unavailable regardless). */}
+      {month.plannedLeaveFTELoss > 0 && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+          <div className="flex items-start gap-2">
+            <span className="text-[9px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">
+              {t('workforce.drilldown.leaveImpact.title')}
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-700 dark:text-slate-200 mt-1 leading-snug">
+            {t('workforce.drilldown.leaveImpact.body', {
+              fte: month.plannedLeaveFTELoss.toFixed(2),
+              affected: month.affectedEmployeeCount,
+            })}
+          </p>
+          {(month.plannedLeaveBreakdown.annual > 0
+            || month.plannedLeaveBreakdown.sick > 0
+            || month.plannedLeaveBreakdown.maternity > 0) && (
+            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400">
+              {month.plannedLeaveBreakdown.annual > 0 && (
+                <span>{t('payroll.leaveType.annual')}: <span className="font-bold">{month.plannedLeaveBreakdown.annual.toFixed(2)}</span></span>
+              )}
+              {month.plannedLeaveBreakdown.sick > 0 && (
+                <span>{t('payroll.leaveType.sick')}: <span className="font-bold">{month.plannedLeaveBreakdown.sick.toFixed(2)}</span></span>
+              )}
+              {month.plannedLeaveBreakdown.maternity > 0 && (
+                <span>{t('payroll.leaveType.maternity')}: <span className="font-bold">{month.plannedLeaveBreakdown.maternity.toFixed(2)}</span></span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {topRoles.length > 0 && (
         <div className="space-y-2">

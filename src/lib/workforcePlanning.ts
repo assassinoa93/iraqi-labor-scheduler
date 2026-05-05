@@ -3,6 +3,7 @@ import { format, getDaysInMonth } from 'date-fns';
 import { parseHour, getOperatingHoursForDow } from './time';
 import { monthlyHourCap } from './payroll';
 import { totalDailyHeadcountHours } from './stationDemand';
+import { countLeaveDaysOfTypeInRange } from './leaves';
 
 // Mirrored from compliance.ts (which keeps this private). Driver caps under
 // Iraqi Labor Law Art. 88 — 56h weekly. Mirroring is fine: the constant
@@ -415,6 +416,18 @@ export interface MonthlyPlanSummary {
   recommendedFTE: number;
   recommendedPartTime: number;
   recommendedMonthlySalary: number;
+  // v5.18.0 — effective FTE lost to planned leave. Sum of
+  // (leaveDaysInMonth / daysInMonth) across every employee who has a
+  // LeaveRange overlapping this month. Two annual leaves of 14 days each
+  // in a 30-day month → 14/30 + 14/30 ≈ 0.93 FTE-equivalent off the
+  // available roster. Surfaced as a separate line so the supervisor can
+  // see why the "you have N people" headline is misleading for August
+  // when 4 cashiers are on annual.
+  plannedLeaveFTELoss: number;
+  // Same idea per leave type so the UI can break it down.
+  plannedLeaveBreakdown: { annual: number; sick: number; maternity: number };
+  // Number of employees with at least one leave day in this month.
+  affectedEmployeeCount: number;
   // The complete monthly plan for drill-down. UI may keep just the summary
   // when rendering the at-a-glance row and lazy-load the full plan when the
   // supervisor expands a month.
@@ -619,6 +632,29 @@ export function analyzeWorkforceAnnual({
     const monthRequired = plan.byRole.reduce((s, r) => s + r.monthlyRequiredHours, 0);
     annualRequiredHours += monthRequired;
     annualRecommendedSalary += plan.recommendedMonthlySalary;
+
+    // v5.18.0 — fold planned leave into the per-month effective HC
+    // headline. Pre-v5.18 the recommendedFTE figure assumed every
+    // contracted employee was working all month; in August (when 4
+    // employees plan annual leave) that overstates the available roster.
+    // We compute leave-days-in-month per employee per leave type, divide
+    // by daysInMonth to get an FTE-equivalent loss, and surface it as a
+    // separate field so the UI can show "August: -2.3 effective FTE
+    // due to planned leave" alongside the demand-driven recommendation.
+    const monthStart = `${baseConfig.year}-${String(m).padStart(2, '0')}-01`;
+    const monthEnd = `${baseConfig.year}-${String(m).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    let annualLeaveDays = 0, sickLeaveDays = 0, maternityLeaveDays = 0;
+    const affected = new Set<string>();
+    for (const emp of employees) {
+      const a = countLeaveDaysOfTypeInRange(emp, 'annual', monthStart, monthEnd);
+      const s = countLeaveDaysOfTypeInRange(emp, 'sick', monthStart, monthEnd);
+      const mat = countLeaveDaysOfTypeInRange(emp, 'maternity', monthStart, monthEnd);
+      annualLeaveDays += a;
+      sickLeaveDays += s;
+      maternityLeaveDays += mat;
+      if (a + s + mat > 0) affected.add(emp.empId);
+    }
+    const fteLossDecimal = (annualLeaveDays + sickLeaveDays + maternityLeaveDays) / daysInMonth;
     byMonth.push({
       monthIndex: m,
       monthName: MONTH_NAMES[m - 1],
@@ -626,6 +662,13 @@ export function analyzeWorkforceAnnual({
       recommendedFTE: plan.totalRecommendedFTE,
       recommendedPartTime: plan.totalRecommendedPartTime,
       recommendedMonthlySalary: plan.recommendedMonthlySalary,
+      plannedLeaveFTELoss: Number(fteLossDecimal.toFixed(2)),
+      plannedLeaveBreakdown: {
+        annual: Number((annualLeaveDays / daysInMonth).toFixed(2)),
+        sick: Number((sickLeaveDays / daysInMonth).toFixed(2)),
+        maternity: Number((maternityLeaveDays / daysInMonth).toFixed(2)),
+      },
+      affectedEmployeeCount: affected.size,
       plan,
     });
   }

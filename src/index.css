@@ -717,4 +717,42 @@
     color: #94a3b8;
     text-align: center;
   }
+  /* v5.18.0 — shift-code legend printed below the schedule. Without it
+     the printed page just shows two-letter codes (FS / MS / NS …) with
+     no key for what they mean. Limited to codes actually used in this
+     month so the legend stays small even with a 30-shift library. */
+  .print-legend {
+    margin-top: 4mm;
+    page-break-inside: avoid;
+  }
+  .print-legend-title {
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    margin-bottom: 2mm;
+  }
+  .print-legend-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7pt;
+  }
+  .print-legend-table th {
+    text-align: start;
+    padding: 1mm 2mm;
+    border-bottom: 0.5pt solid #94a3b8;
+    color: #475569;
+    font-weight: 700;
+  }
+  .print-legend-table td {
+    padding: 1mm 2mm;
+    border-bottom: 0.25pt solid #e2e8f0;
+    color: #1e293b;
+  }
+  .print-legend-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700;
+    width: 8mm;
+  }
 }

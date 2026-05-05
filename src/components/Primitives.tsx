@@ -340,6 +340,7 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
 
 export function ScheduleCell({
   value, onClick, isRecent, onMouseDown, onMouseEnter, readOnly, diff,
+  hasViolation, empId, day, ariaLabel,
 }: {
   value: string;
   onClick: (e: React.MouseEvent) => void;
@@ -359,6 +360,15 @@ export function ScheduleCell({
   //   • removed  → rose    (cell was filled in snapshot, now empty)
   // undefined / null = no diff state, render normally.
   diff?: 'added' | 'modified' | 'removed' | null;
+  // v5.18.0 — per-cell violation marker. When ComplianceEngine has flagged
+  // this (empId, day) as a hard rule breach, render a small red corner dot
+  // so the supervisor spots violations during paint instead of having to
+  // visit the side panel. Set empId+day data attributes alongside so arrow-
+  // key navigation can find sibling cells via DOM querying.
+  hasViolation?: boolean;
+  empId?: string;
+  day?: number;
+  ariaLabel?: string;
 }) {
   // The diff-outline + recent-change-outline are mutually compatible —
   // recent-cell pulses, diff stays static — but we precompute the class
@@ -368,17 +378,65 @@ export function ScheduleCell({
     diff === 'modified' ? 'outline outline-2 outline-amber-500 dark:outline-amber-300 z-10' :
     diff === 'removed'  ? 'outline outline-2 outline-rose-500 dark:outline-rose-400 z-10' :
     null;
+
+  // v5.18.0 — arrow-key navigation. The cell is keyboard-focusable when
+  // editable (tabIndex=0) so Tab moves between cells in DOM order; arrow
+  // keys jump to neighbours via data-cell-* attributes (see ScheduleTab
+  // row). Enter / Space activate the cell (paint or open the picker, same
+  // as a click). Skipped entirely for read-only cells — they're inert.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (readOnly) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick(e as unknown as React.MouseEvent);
+      return;
+    }
+    if (!empId || day === undefined) return;
+    let dEmp = 0;
+    let dDay = 0;
+    if (e.key === 'ArrowLeft') dDay = -1;
+    else if (e.key === 'ArrowRight') dDay = 1;
+    else if (e.key === 'ArrowUp') dEmp = -1;
+    else if (e.key === 'ArrowDown') dEmp = 1;
+    else return;
+    e.preventDefault();
+    const root = e.currentTarget.ownerDocument;
+    if (dDay !== 0) {
+      // Same employee, neighbouring day. Walk by day index until we find
+      // a rendered cell — virtualization may skip far-off rows but day
+      // siblings on the same row are always present.
+      const target = root.querySelector<HTMLButtonElement>(
+        `[data-cell-emp="${cssEscape(empId)}"][data-cell-day="${day + dDay}"]`,
+      );
+      target?.focus();
+    } else {
+      // Same day, prev/next employee. Walk DOM order — siblings nearest
+      // in source position are likely adjacent in the visible viewport.
+      const cells = Array.from(
+        root.querySelectorAll<HTMLButtonElement>(`[data-cell-day="${day}"]`),
+      );
+      const idx = cells.findIndex(el => el.getAttribute('data-cell-emp') === empId);
+      const target = cells[idx + dEmp];
+      target?.focus();
+    }
+  };
+
   return (
     <button
       onClick={onClick}
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
+      onKeyDown={handleKeyDown}
       aria-disabled={readOnly || undefined}
+      aria-label={ariaLabel}
+      tabIndex={readOnly ? -1 : 0}
+      data-cell-emp={empId}
+      data-cell-day={day}
       className={cn(
         // v2.6 — softened transition (transform + colour only) so the cell
         // doesn't reflow text on hover; transform-gpu hint keeps the scale
         // animation buttery on the compositor.
-        "w-full h-10 border-none flex items-center justify-center font-bold text-[10px] relative select-none transform-gpu transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "w-full h-10 border-none flex items-center justify-center font-bold text-[10px] relative select-none transform-gpu transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:z-20",
         // Hover scale only when interactive — read-only cells must NOT
         // animate on hover, otherwise they still read as clickable.
         !readOnly && "group-hover:scale-[1.04]",
@@ -398,24 +456,72 @@ export function ScheduleCell({
       )}
     >
       {value}
+      {hasViolation && (
+        <span
+          aria-hidden
+          title="Compliance violation"
+          className="absolute top-0.5 end-0.5 w-1.5 h-1.5 rounded-full bg-red-500 dark:bg-red-400 shadow-[0_0_0_1px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_1px_rgba(15,23,42,0.8)]"
+        />
+      )}
     </button>
   );
 }
 
-export function SettingField({ label, value, onChange, type = 'text', options, disabled }: { label: string; value: any; onChange: (v: string) => void; type?: 'text' | 'number' | 'select' | 'time' | 'date'; options?: string[]; disabled?: boolean }) {
+function cssEscape(s: string): string {
+  // CSS.escape is unavailable in older runtimes; a strict whitelist of
+  // characters that won't appear in employee IDs (`EMP-####`) covers our
+  // case without pulling in a polyfill. Falls back to escape for safety.
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(s);
+  }
+  return s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+}
+
+// v5.18.0 — `required`/`min`/`max`/`step`/`error` props. The previous API
+// ignored numeric bounds, which let the user enter negative weekly hours
+// or a 0-IQD salary that silently broke payroll math. `required` paints a
+// red asterisk and exposes `aria-required` so assistive tech and the
+// browser's native validation both pick it up. `error` renders a small
+// inline message under the input (use for cross-field validation that
+// the per-input min/max/required can't catch).
+export function SettingField({
+  label, value, onChange, type = 'text', options, disabled,
+  required, min, max, step, error, placeholder,
+}: {
+  label: string;
+  value: any;
+  onChange: (v: string) => void;
+  type?: 'text' | 'number' | 'select' | 'time' | 'date';
+  options?: string[];
+  disabled?: boolean;
+  required?: boolean;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+  error?: string | null;
+  placeholder?: string;
+}) {
   // v2.6 — common input/select base class. Apple-style softened border,
   // explicit dark surface so the field reads as recessed against the
   // card background, and a 2px focus ring tinted to the accent.
-  const base = "w-full px-4 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 dark:focus:border-blue-400 transition-all shadow-sm placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-900/40";
+  const base = "w-full px-4 py-2 bg-white dark:bg-slate-800/60 border rounded-lg text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all shadow-sm placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-900/40";
+  const tone = error
+    ? 'border-rose-300 dark:border-rose-500/50 focus:ring-rose-500/40 focus:border-rose-400'
+    : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500/40 focus:border-blue-400 dark:focus:border-blue-400';
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</label>
+      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1">
+        <span>{label}</span>
+        {required && <span aria-hidden className="text-rose-500 dark:text-rose-300 text-[11px] leading-none">*</span>}
+      </label>
       {type === 'select' ? (
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className={base}
+          aria-required={required || undefined}
+          aria-invalid={!!error || undefined}
+          className={cn(base, tone)}
         >
           {options?.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -425,8 +531,18 @@ export function SettingField({ label, value, onChange, type = 'text', options, d
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className={base}
+          required={required}
+          aria-required={required || undefined}
+          aria-invalid={!!error || undefined}
+          min={min}
+          max={max}
+          step={step}
+          placeholder={placeholder}
+          className={cn(base, tone)}
         />
+      )}
+      {error && (
+        <p role="alert" className="text-[10px] font-bold text-rose-600 dark:text-rose-300">{error}</p>
       )}
     </div>
   );

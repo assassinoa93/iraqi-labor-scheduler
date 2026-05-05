@@ -72,6 +72,19 @@ export function BulkEditEmployeesModal({
   const { t } = useI18n();
   useModalKeys(isOpen, onClose);
   const [patch, setPatch] = useState<BulkEditPatch>(() => emptyPatch());
+  // v5.18.0 — applying-state. Larger selections (200+ employees) trigger
+  // a synchronous map() in App.tsx that briefly freezes the UI; the
+  // button state below tells the user "we got the click, please wait"
+  // so they don't tap twice and double-apply. Cleared by the modal
+  // close that follows a successful apply; the parent owns the actual
+  // mutation so we yield via requestAnimationFrame to give React time
+  // to paint the spinner before the heavy work runs.
+  const [applying, setApplying] = useState(false);
+  // Reset applying state whenever the modal opens — defensive in case a
+  // previous apply errored before close fired.
+  useEffect(() => {
+    if (isOpen) setApplying(false);
+  }, [isOpen]);
 
   // Per-field "change me" toggles for scalar fields. Kept separate from the
   // patch object so the user can type a value, untick the toggle to back
@@ -173,7 +186,12 @@ export function BulkEditEmployeesModal({
     if (enabled.hazardous) p.isHazardous = draft.hazardous;
     if (enabled.industrial) p.isIndustrialRotating = draft.industrial;
     if (enabled.hourExempt) p.hourExempt = draft.hourExempt;
-    onApply(p);
+    setApplying(true);
+    // Yield to the browser so the disabled/spinner state paints before
+    // the parent's heavy map() blocks the main thread. Without this the
+    // button stays static while the work runs and the user thinks the
+    // app froze.
+    requestAnimationFrame(() => onApply(p));
   };
 
   // Counts a patch field as "active" so the apply button can show how many
@@ -536,18 +554,25 @@ export function BulkEditEmployeesModal({
               : t('bulkEdit.summary.ready', { changes: activeChanges, count: selectedCount })}
           </p>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
+            <button onClick={onClose} disabled={applying} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed">{t('action.cancel')}</button>
             <button
               onClick={apply}
-              disabled={activeChanges === 0}
+              disabled={activeChanges === 0 || applying}
               className={cn(
-                'px-8 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
+                'px-8 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest inline-flex items-center gap-2',
                 activeChanges === 0
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white',
+                  : applying
+                    ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 cursor-wait'
+                    : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white',
               )}
             >
-              {t('bulkEdit.commit', { count: selectedCount })}
+              {applying && (
+                <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden />
+              )}
+              {applying
+                ? t('bulkEdit.applying', { count: selectedCount })
+                : t('bulkEdit.commit', { count: selectedCount })}
             </button>
           </div>
         </div>

@@ -149,8 +149,8 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-3 pr-1">
-            <div className="text-right">
+          <div className="hidden sm:flex items-center gap-3 pe-1">
+            <div className="text-end">
               <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.preview.compliance')}</p>
               <p className={cn(
                 "text-3xl font-black leading-none mt-1",
@@ -340,7 +340,7 @@ function FindingsList({ title, findings, tone, Icon }: {
             <AlertCircle className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", iconClass)} />
             <div className="min-w-0 flex-1">
               <p className={cn("text-[11px] font-black leading-tight", ruleClass)}>
-                {v.rule} <span className={cn("font-mono text-[9px] font-bold ml-0.5", articleClass)}>{v.article}</span>
+                {v.rule} <span className={cn("font-mono text-[9px] font-bold ms-0.5", articleClass)}>{v.article}</span>
               </p>
               <p className={cn("text-[10px] leading-snug mt-0.5", messageClass)}>{v.message}</p>
             </div>

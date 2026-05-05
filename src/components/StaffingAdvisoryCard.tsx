@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TrendingDown, ShieldCheck, Crown, ArrowRight, Info, MapPin, FlaskConical, CheckCircle2, AlertTriangle, Loader2, Scale, ChevronDown, ChevronRight } from 'lucide-react';
+import { TrendingDown, ShieldCheck, Crown, ArrowRight, Info, MapPin, FlaskConical, CheckCircle2, AlertTriangle, Loader2, Scale, ChevronDown, ChevronRight, CalendarClock } from 'lucide-react';
+import { addWeeks, format } from 'date-fns';
 import { StaffingAdvisory, StaffingMode, StationHire, simulateWithExtraHires, StaffingArgs, SimulationResult } from '../lib/staffingAdvisory';
 import { RULE_LABEL_I18N_KEYS, RULE_ARTICLES } from '../lib/fines';
 import { cn } from '../lib/utils';
@@ -34,6 +35,21 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
   // v5.17.0 — fines breakdown collapses by default to keep the card
   // compact; supervisors who want the per-rule Pareto can expand it.
   const [finesExpanded, setFinesExpanded] = useState(false);
+  // v5.18.0 — what-if slider for hire count. Lets the supervisor scrub
+  // between 0 and the active mode's recommendation to see how the cost /
+  // benefit curve scales. Linear interpolation against the active
+  // mode's recommendation; not a re-simulation (the Validate button
+  // handles ground truth) — this is the back-of-envelope
+  // "what changes if I hire 3 instead of 5?" view. Default = the active
+  // mode's recommended hires so the displayed curve starts at "exactly
+  // what you see on the KPI cards above".
+  const [whatIfHires, setWhatIfHires] = useState<number | null>(null);
+  // Reset the what-if scrub whenever the active mode changes so we
+  // always start at "this mode's recommendation" instead of carrying
+  // over the previous mode's slider position.
+  React.useEffect(() => {
+    setWhatIfHires(null);
+  }, [activeMode]);
 
   const modes: Array<{ key: ModeKey; icon: React.ComponentType<{ className?: string }>; tone: string; data: StaffingMode; titleKey: string; bodyKey: string }> = [
     { key: 'eliminateOT', icon: TrendingDown, tone: 'emerald', data: advisory.eliminateOT, titleKey: 'advisory.mode.eliminateOT.title', bodyKey: 'advisory.mode.eliminateOT.body' },
@@ -171,6 +187,109 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
             active.data.netMonthlyDelta >= 0 ? "text-emerald-500 dark:text-emerald-300" : "text-amber-500 dark:text-amber-300",
           )} />
         </div>
+
+        {/* v5.18.0 — what-if cost-curve slider. Scrub between 0 and the
+            active mode's recommended hire count to see how OT, fines, and
+            salary scale linearly. Useful for budget conversations: "what
+            does spending 3 hires instead of 5 buy us?". Linear interp
+            against the active mode — Validate runs the real simulation
+            for ground truth. */}
+        {active.data.hiresNeeded > 0 && (() => {
+          const max = active.data.hiresNeeded;
+          const cur = whatIfHires ?? max;
+          const ratio = max > 0 ? cur / max : 0;
+          const otSaved = Math.round(active.data.monthlyOTSaved * ratio);
+          const finesAvoided = Math.round(active.data.monthlyFinesAvoided * ratio);
+          const salaryAdded = Math.round(advisory.avgMonthlySalary * cur);
+          const net = otSaved + finesAvoided - salaryAdded;
+          const isAtRecommended = whatIfHires === null || whatIfHires === max;
+          return (
+            <div className={cn(
+              'p-4 rounded-xl border',
+              isAtRecommended
+                ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                : 'bg-violet-50 dark:bg-violet-500/10 border-violet-200 dark:border-violet-500/30',
+            )}>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <p className={cn(
+                  'text-[10px] font-black uppercase tracking-widest',
+                  isAtRecommended ? 'text-slate-500 dark:text-slate-400' : 'text-violet-700 dark:text-violet-200',
+                )}>
+                  {isAtRecommended ? t('advisory.whatIf.title') : t('advisory.whatIf.title.scrubbing')}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                    {cur} / {max}
+                  </span>
+                  {!isAtRecommended && (
+                    <button
+                      type="button"
+                      onClick={() => setWhatIfHires(null)}
+                      className="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-200 hover:text-violet-900 dark:hover:text-violet-100"
+                    >
+                      {t('advisory.whatIf.reset')}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={max}
+                step={1}
+                value={cur}
+                onChange={e => setWhatIfHires(parseInt(e.target.value, 10))}
+                aria-label={t('advisory.whatIf.aria')}
+                className="w-full accent-violet-600"
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[10px]">
+                <div>
+                  <p className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
+                  <p className="text-base font-black text-slate-800 dark:text-slate-100">+{cur}</p>
+                </div>
+                <div>
+                  <p className="font-black text-emerald-600 dark:text-emerald-300 uppercase tracking-widest">{t('advisory.kpi.otSaved')}</p>
+                  <p className="text-sm font-black text-emerald-700 dark:text-emerald-200 font-mono">{fmtIQD(otSaved)}</p>
+                </div>
+                <div>
+                  <p className="font-black text-rose-600 dark:text-rose-300 uppercase tracking-widest">{t('advisory.kpi.salaryAdded')}</p>
+                  <p className="text-sm font-black text-rose-700 dark:text-rose-200 font-mono">{fmtIQD(salaryAdded)}</p>
+                </div>
+                <div>
+                  <p className={cn('font-black uppercase tracking-widest', net >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300')}>{t('advisory.kpi.netMonthly')}</p>
+                  <p className={cn('text-sm font-black font-mono', net >= 0 ? 'text-emerald-700 dark:text-emerald-200' : 'text-amber-700 dark:text-amber-200')}>{net >= 0 ? '+' : '−'}{fmtIQD(net)}</p>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-2 leading-snug">
+                {t('advisory.whatIf.note')}
+              </p>
+            </div>
+          );
+        })()}
+
+        {/* v5.18.0 — hiring lead-time hint. Surfaces the "post by" date
+            when the active mode recommends ≥1 hire AND the supervisor has
+            configured a lead time (Variables tab). 4-week lead time on a
+            recommendation made today → "post jobs by {today + 4 weeks}".
+            Hidden otherwise so the card stays compact for the common
+            case (no lead configured / no hires recommended). */}
+        {active.data.hiresNeeded > 0 && (simArgs.config.hiringLeadTimeWeeks ?? 0) > 0 && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/30 rounded-lg flex items-center gap-3">
+            <CalendarClock className="w-5 h-5 text-blue-600 dark:text-blue-300 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-200">
+                {t('advisory.leadTime.title')}
+              </p>
+              <p className="text-[11px] text-slate-700 dark:text-slate-200 font-medium leading-snug mt-0.5">
+                {t('advisory.leadTime.body', {
+                  hires: active.data.hiresNeeded,
+                  weeks: simArgs.config.hiringLeadTimeWeeks ?? 0,
+                  date: format(addWeeks(new Date(), simArgs.config.hiringLeadTimeWeeks ?? 0), 'yyyy-MM-dd'),
+                })}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* v5.17.0 — fines exposure breakdown. Collapsible to keep the
             card compact. Pulls `currentPotentialFines` (today's fine
@@ -329,7 +448,7 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
                 </span>
               </div>
             </div>
-            <div className="text-right shrink-0">
+            <div className="text-end shrink-0">
               <p className={cn(
                 "text-2xl font-black leading-none",
                 tone === 'emerald' && "text-emerald-700 dark:text-emerald-200",

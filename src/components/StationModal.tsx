@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { Station, HourlyDemandSlot } from '../types';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
 import { validateHourlyDemand } from '../lib/stationDemand';
+import type { DemandSuggestion } from '../lib/demandHistory';
 import { HourlyDemandEditor, nextSlotDefaults } from './HourlyDemandEditor';
 import { cn } from '../lib/utils';
 
@@ -18,6 +19,13 @@ interface StationModalProps {
   // Operator, Security, etc.) can be required at station level — not
   // just the hardcoded "Driver" the modal shipped with.
   availableRoles?: string[];
+  // v5.18.0 — closure that runs `suggestHourlyDemandFromHistory` against
+  // the active company's allSchedules + shifts + holidays + config. The
+  // parent owns the data; the modal just calls in when the user clicks
+  // "Suggest from history". Optional so existing call sites (tests,
+  // BulkAddStationsModal) compile unchanged — when omitted, the suggest
+  // button doesn't render.
+  onSuggestFromHistory?: (stationId: string) => DemandSuggestion | null;
 }
 
 const empty = (): Station => ({
@@ -25,7 +33,7 @@ const empty = (): Station => ({
   openingTime: '08:00', closingTime: '23:00', color: '#3B82F6'
 });
 
-export function StationModal({ isOpen, onClose, onSave, station, availableRoles = [] }: StationModalProps) {
+export function StationModal({ isOpen, onClose, onSave, station, availableRoles = [], onSuggestFromHistory }: StationModalProps) {
   const { t } = useI18n();
   const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   const [formData, setFormData] = useState<Station>(empty());
@@ -35,13 +43,39 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   // without having to hunt for the section. Collapsed by default for
   // brand-new stations to keep the form concise.
   const [hourlyExpanded, setHourlyExpanded] = useState(false);
+  // v5.18.0 — last "suggest from history" outcome. Surfaced as a small
+  // banner below the section header so the supervisor sees the diagnostics
+  // (months analysed, day counts, no-data note) and can revert / re-run.
+  const [suggestionInfo, setSuggestionInfo] = useState<DemandSuggestion | null>(null);
 
   useEffect(() => {
     setFormData(station ?? empty());
     setError(null);
+    setSuggestionInfo(null);
     const hasHourly = !!(station?.normalHourlyDemand?.length || station?.peakHourlyDemand?.length);
     setHourlyExpanded(hasHourly);
   }, [station, isOpen]);
+
+  // v5.18.0 — invoke the parent-supplied closure to compute hourly demand
+  // from past schedules. Replaces the current normal/peak slot lists with
+  // the suggestion (only when it returned data), expands the section so
+  // the user sees the result, and stamps the diagnostics banner. The
+  // user's existing slots are clobbered — this is intentional, the
+  // supervisor will review and edit before saving the modal.
+  const handleSuggestFromHistory = () => {
+    if (!onSuggestFromHistory) return;
+    const result = onSuggestFromHistory(formData.id || station?.id || '');
+    if (!result) return;
+    setSuggestionInfo(result);
+    if (!result.noData) {
+      setFormData(prev => ({
+        ...prev,
+        normalHourlyDemand: result.normal,
+        peakHourlyDemand: result.peak,
+      }));
+      setHourlyExpanded(true);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -61,26 +95,35 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
       const err = validateHourlyDemand(formData.peakHourlyDemand);
       if (err) { setError(t('modal.station.error.hourlyPeak') + ' ' + err); return; }
     }
+    if (formData.holidayHourlyDemand && formData.holidayHourlyDemand.length > 0) {
+      const err = validateHourlyDemand(formData.holidayHourlyDemand);
+      if (err) { setError(t('modal.station.error.hourlyHoliday') + ' ' + err); return; }
+    }
     onSave({ ...formData, id: trimmedId, name: trimmedName });
     onClose();
   };
 
   // v5.14.0 — slot mutators for the inline editor. Each section (normal /
-  // peak) gets its own list; both flow through these helpers so the
-  // editing logic stays consistent.
-  const addSlot = (kind: 'normal' | 'peak') => {
-    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+  // peak / holiday in v5.18.0) gets its own list; all flow through these
+  // helpers so the editing logic stays consistent.
+  type DemandKind = 'normal' | 'peak' | 'holiday';
+  const keyForKind = (kind: DemandKind) =>
+    kind === 'normal' ? 'normalHourlyDemand' :
+    kind === 'peak' ? 'peakHourlyDemand' :
+    'holidayHourlyDemand';
+  const addSlot = (kind: DemandKind) => {
+    const key = keyForKind(kind);
     setFormData(prev => {
       const list = prev[key] || [];
       return { ...prev, [key]: [...list, nextSlotDefaults(list)] };
     });
   };
-  const removeSlot = (kind: 'normal' | 'peak', idx: number) => {
-    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+  const removeSlot = (kind: DemandKind, idx: number) => {
+    const key = keyForKind(kind);
     setFormData(prev => ({ ...prev, [key]: (prev[key] || []).filter((_, i) => i !== idx) }));
   };
-  const updateSlot = (kind: 'normal' | 'peak', idx: number, patch: Partial<HourlyDemandSlot>) => {
-    const key = kind === 'normal' ? 'normalHourlyDemand' : 'peakHourlyDemand';
+  const updateSlot = (kind: DemandKind, idx: number, patch: Partial<HourlyDemandSlot>) => {
+    const key = keyForKind(kind);
     setFormData(prev => ({
       ...prev,
       [key]: (prev[key] || []).map((s, i) => i === idx ? { ...s, ...patch } : s),
@@ -90,6 +133,15 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
     setFormData(prev => ({
       ...prev,
       peakHourlyDemand: (prev.normalHourlyDemand || []).map(s => ({ ...s })),
+    }));
+  };
+  // v5.18.0 — copy the peak profile into the holiday slot. Most
+  // entertainment venues' holiday demand is "peak-or-higher"; starting
+  // from peak gives the supervisor a sensible base to nudge upward.
+  const copyPeakToHoliday = () => {
+    setFormData(prev => ({
+      ...prev,
+      holidayHourlyDemand: (prev.peakHourlyDemand || []).map(s => ({ ...s })),
     }));
   };
 
@@ -232,6 +284,46 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   {t('modal.station.hourly.help')}
                 </p>
+                {/* v5.18.0 — suggest from history. Surfaced only when the
+                    parent wired the closure. Disabled for unsaved stations
+                    (no id yet) since the helper keys off station.id. */}
+                {onSuggestFromHistory && (
+                  <div className="flex items-start gap-3 p-3 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/40 rounded-lg">
+                    <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-black text-violet-700 dark:text-violet-200 uppercase tracking-widest">
+                        {t('modal.station.hourly.suggest.title')}
+                      </p>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed mt-0.5">
+                        {t('modal.station.hourly.suggest.body')}
+                      </p>
+                      {suggestionInfo && suggestionInfo.noData && (
+                        <p className="text-[10px] text-rose-600 dark:text-rose-300 font-bold mt-1">
+                          {t('modal.station.hourly.suggest.noData')}
+                        </p>
+                      )}
+                      {suggestionInfo && !suggestionInfo.noData && (
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-200 font-bold mt-1">
+                          {t('modal.station.hourly.suggest.applied', {
+                            months: suggestionInfo.monthsAnalyzed,
+                            normal: suggestionInfo.normalDayCount,
+                            peak: suggestionInfo.peakDayCount,
+                          })}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleSuggestFromHistory}
+                        disabled={!formData.id?.trim()}
+                        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!formData.id?.trim() ? t('modal.station.hourly.suggest.needsId') : undefined}
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {t('modal.station.hourly.suggest.cta')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Normal day */}
                 <HourlyDemandEditor
                   label={t('modal.station.hourly.normalDay')}
@@ -264,6 +356,68 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
                     onAdd={() => addSlot('peak')}
                     onRemove={(i) => removeSlot('peak', i)}
                     onUpdate={(i, p) => updateSlot('peak', i, p)}
+                  />
+                </div>
+                {/* v5.18.0 — holiday tier. Optional override that wins
+                    over peak on holiday dates when the supervisor sets
+                    it. Use cases: a much higher headcount for festival
+                    days at an entertainment venue, OR a flat 0 when the
+                    shop closes for Eid. The auto-shift generator and
+                    `getRequiredHC` consult this tier when callers pass
+                    `isHoliday=true`; otherwise holiday dates fall back
+                    to peak (preserves pre-v5.18 behaviour). */}
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">
+                      {t('modal.station.hourly.holidayDay')}
+                    </span>
+                    {(formData.peakHourlyDemand?.length ?? 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={copyPeakToHoliday}
+                        title={t('modal.station.hourly.copyPeakToHoliday.tooltip')}
+                        className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200"
+                      >
+                        {t('modal.station.hourly.copyPeakToHoliday')}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                      {t('modal.station.hourly.holidayFlat')}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={50}
+                      step={1}
+                      value={formData.holidayMinHC ?? ''}
+                      placeholder={t('modal.station.hourly.holidayFlat.placeholder')}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setFormData(prev => ({ ...prev, holidayMinHC: undefined }));
+                          return;
+                        }
+                        const n = parseInt(raw, 10);
+                        if (Number.isFinite(n)) {
+                          setFormData(prev => ({ ...prev, holidayMinHC: Math.max(0, Math.min(50, n)) }));
+                        }
+                      }}
+                      className="w-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-xs font-mono text-center"
+                      aria-label={t('modal.station.hourly.holidayFlat')}
+                    />
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">PAX</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                      {t('modal.station.hourly.holidayFlat.help')}
+                    </span>
+                  </div>
+                  <HourlyDemandEditor
+                    slots={formData.holidayHourlyDemand || []}
+                    fallback={formData.holidayMinHC ?? formData.peakMinHC}
+                    onAdd={() => addSlot('holiday')}
+                    onRemove={(i) => removeSlot('holiday', i)}
+                    onUpdate={(i, p) => updateSlot('holiday', i, p)}
                   />
                 </div>
               </div>

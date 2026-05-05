@@ -43,7 +43,7 @@ export function CompanySwitcher({ companies, activeCompanyId, onSwitch, onAdd, o
 
   return (
     <div className="space-y-1">
-      <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest pl-1 mb-1">{t('company.header')}</p>
+      <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest ps-1 mb-1">{t('company.header')}</p>
       <div className="space-y-1">
         {companies.map(c => {
           const active = c.id === activeCompanyId;

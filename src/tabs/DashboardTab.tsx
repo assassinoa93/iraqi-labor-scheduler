@@ -420,7 +420,7 @@ export function DashboardTab(props: DashboardTabProps) {
                                   : t('dashboard.optim.byStation.reason.gap', { gap: p.coverageGap })}
                             </p>
                           </div>
-                          <div className="text-right shrink-0">
+                          <div className="text-end shrink-0">
                             <p className="text-lg font-black text-rose-300 leading-none">+{p.hires}</p>
                             <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">{t('dashboard.optim.byStation.toHire')}</p>
                           </div>
@@ -550,7 +550,7 @@ export function DashboardTab(props: DashboardTabProps) {
                 </div>
                 <div className="text-xs font-bold text-slate-400 dark:text-slate-500 w-24 shrink-0">{v.article}</div>
                 <div className={cn("text-xs font-medium flex-1", v.article.includes("Art. 67") || v.article.includes("Art. 68") ? "text-red-600 dark:text-red-300 font-bold" : "text-slate-500 dark:text-slate-400 font-medium")}>
-                  {v.message} {v.count && v.count > 1 && <span className="text-blue-600 dark:text-blue-300 font-black ml-1 uppercase">({v.count} {t('dashboard.times')})</span>}
+                  {v.message} {v.count && v.count > 1 && <span className="text-blue-600 dark:text-blue-300 font-black ms-1 uppercase">({v.count} {t('dashboard.times')})</span>}
                 </div>
               </div>
             ))}
@@ -600,7 +600,7 @@ export function DashboardTab(props: DashboardTabProps) {
 
               {Array.from({ length: config.daysInMonth }, (_, i) => i + 1).map(day => (
                 <React.Fragment key={day}>
-                  <div className="flex flex-col justify-center pr-4 border-r border-slate-100 dark:border-slate-700/60">
+                  <div className="flex flex-col justify-center pe-4 border-e border-slate-100 dark:border-slate-700/60">
                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{t('dashboard.day')} {day}</span>
                     <span className="text-[8px] text-slate-300 dark:text-slate-600 font-bold">{format(new Date(config.year, config.month - 1, day), 'EEE')}</span>
                   </div>

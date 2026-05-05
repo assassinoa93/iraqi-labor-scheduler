@@ -198,7 +198,7 @@ export function UsersPanel({ companies }: Props) {
         <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
           <table className="w-full text-[11px]">
             <thead className="bg-slate-50 dark:bg-slate-800/60">
-              <tr className="text-left">
+              <tr className="text-start">
                 <Th>Email</Th>
                 <Th>Role</Th>
                 <Th>Companies</Th>
@@ -374,14 +374,14 @@ function Th({ children, align }: { children: React.ReactNode; align?: 'right' })
   return (
     <th className={cn(
       "px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400",
-      align === 'right' && 'text-right',
+      align === 'right' && 'text-end',
     )}>
       {children}
     </th>
   );
 }
 function Td({ children, align }: { children: React.ReactNode; align?: 'right' }) {
-  return <td className={cn("px-3 py-2.5", align === 'right' && 'text-right')}>{children}</td>;
+  return <td className={cn("px-3 py-2.5", align === 'right' && 'text-end')}>{children}</td>;
 }
 
 function IconBtn({ children, label, onClick, tone, disabled }: { children: React.ReactNode; label: string; onClick: () => void; tone?: 'danger'; disabled?: boolean }) {
@@ -825,7 +825,7 @@ function TabPermsGrid({ value, onChange }: { value: TabPerms; onChange: (next: T
       <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800/40">
         <table className="w-full text-[11px]">
           <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/60 text-left">
+            <tr className="bg-slate-50 dark:bg-slate-800/60 text-start">
               <th className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Tab</th>
               <th className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 w-[180px]">Access</th>
             </tr>
@@ -851,8 +851,8 @@ function TabPermsGrid({ value, onChange }: { value: TabPerms; onChange: (next: T
       </div>
       <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
         <strong>Hidden</strong> = tab does not appear in the sidebar.
-        <strong className="ml-2">Read</strong> = tab visible, all add/edit/delete actions are disabled.
-        <strong className="ml-2">Full</strong> = read + write + delete.
+        <strong className="ms-2">Read</strong> = tab visible, all add/edit/delete actions are disabled.
+        <strong className="ms-2">Full</strong> = read + write + delete.
       </p>
     </div>
   );

@@ -127,7 +127,7 @@ function Section({ title, subtitle, icon: Icon, iconBg, iconText, caps, config, 
                     const v = parseFloat(e.target.value);
                     setConfig(prev => ({ ...prev, [cap.key]: Number.isFinite(v) ? v : cap.defaultValue }));
                   }}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-end focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
               </div>
@@ -490,6 +490,35 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
           treatment as the rest of the legal-variables section. */}
       <FineRatesSection config={config} setConfig={setConfig} readOnly={readOnly} />
 
+      {/* v5.18.0 — hiring lead-time (weeks). Drives the staffing
+          advisory's "post jobs by" hint and the workforce-planning
+          hiring roadmap (converted to leadMonths via ceil(weeks/4)).
+          Operational config (not legal), so it follows the operatingWindow
+          gate rather than the strict labor-law gate. */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">{t('variables.hiringLead.title')}</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{t('variables.hiringLead.body')}</p>
+        </div>
+        <div className="p-5">
+          <div className="max-w-xs">
+            <SettingField
+              label={t('variables.hiringLead.label')}
+              type="number"
+              min={0}
+              max={52}
+              step={1}
+              value={config.hiringLeadTimeWeeks ?? 0}
+              onChange={v => {
+                const n = parseInt(v, 10);
+                setConfig(prev => ({ ...prev, hiringLeadTimeWeeks: Number.isFinite(n) && n >= 0 ? Math.min(52, n) : 0 }));
+              }}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="border-t border-slate-100 pt-6 text-[11px] text-slate-400 leading-relaxed">
         <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 mb-2">{t('variables.references.title')}</p>
         <p>{t('variables.references.body')}</p>
@@ -590,7 +619,7 @@ function FineRatesSection({ config, setConfig, readOnly }: {
                     const v = parseFloat(e.target.value);
                     updateRate(ruleKey, Number.isFinite(v) ? v : seedDefault);
                   }}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-end focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
                 {isOverridden && !readOnly && (

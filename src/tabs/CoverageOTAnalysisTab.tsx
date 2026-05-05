@@ -198,7 +198,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                             {t('otAnalysis.byStation.contributors', { n: st.contributors })} · {st.totalHours.toFixed(0)}h {t('otAnalysis.byStation.totalHours')}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
+                        <div className="text-end shrink-0">
                           <p className="text-lg font-black text-slate-900 dark:text-slate-50 leading-none">{fmtIQD(st.totalOTPay)}</p>
                           <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">IQD / mo</p>
                         </div>
@@ -248,7 +248,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                           <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{emp.empName}</p>
                           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{emp.empId} · {emp.totalHours.toFixed(0)}h / {emp.cap}h cap</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 shrink-0 text-right">
+                        <div className="grid grid-cols-2 gap-3 shrink-0 text-end">
                           <div>
                             <p className={cn("text-sm font-black", overCapColor)}>{emp.payableOverCapHours.toFixed(1)}h</p>
                             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('otAnalysis.byEmployee.overCap')}</p>
@@ -258,7 +258,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('otAnalysis.byEmployee.holiday')}</p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0 w-24">
+                        <div className="text-end shrink-0 w-24">
                           <p className="text-sm font-black text-slate-900 dark:text-slate-50">{fmtIQD(emp.totalOTPay)}</p>
                           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">IQD</p>
                         </div>

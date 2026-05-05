@@ -139,7 +139,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <button
             onClick={() => pickRole('super-admin')}
-            className="apple-press text-left p-7 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-xl transition-all group"
+            className="apple-press text-start p-7 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-xl transition-all group"
           >
             <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center mb-5 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/25 transition-colors">
               <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-300" />
@@ -152,7 +152,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
 
           <button
             onClick={() => pickRole('user')}
-            className="apple-press text-left p-7 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
+            className="apple-press text-start p-7 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mb-5 group-hover:bg-blue-100 dark:group-hover:bg-blue-500/25 transition-colors">
               <UsersIcon className="w-6 h-6 text-blue-600 dark:text-blue-300" />
@@ -188,7 +188,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <button
             onClick={() => setStep('wizard')}
-            className="apple-press text-left p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-xl transition-all group"
+            className="apple-press text-start p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-xl transition-all group"
           >
             <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center mb-4 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/25 transition-colors">
               <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
@@ -200,7 +200,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
           </button>
           <button
             onClick={() => setStep('reconnect-wizard')}
-            className="apple-press text-left p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
+            className="apple-press text-start p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
           >
             <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mb-4 group-hover:bg-blue-100 dark:group-hover:bg-blue-500/25 transition-colors">
               <KeyRound className="w-5 h-5 text-blue-600 dark:text-blue-300" />
@@ -235,7 +235,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
 
         <button
           onClick={() => setStep('paste')}
-          className="apple-press w-full text-left p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
+          className="apple-press w-full text-start p-6 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xl transition-all group"
         >
           <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mb-4 group-hover:bg-blue-100 dark:group-hover:bg-blue-500/25 transition-colors">
             <Link2 className="w-5 h-5 text-blue-600 dark:text-blue-300" />
@@ -439,7 +439,7 @@ function SavedDatabasesList({
                 : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800",
             )}
           >
-            <button onClick={() => onPick(e.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+            <button onClick={() => onPick(e.id)} className="flex items-center gap-3 flex-1 min-w-0 text-start">
               <Database className={cn(
                 "w-4 h-4 shrink-0",
                 stored.active === e.id ? "text-blue-600 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",

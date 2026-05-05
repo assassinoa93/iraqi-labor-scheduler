@@ -614,7 +614,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                               {proj.projected} {t('payroll.days')}
                             </span>
                             {showFootnote && (
-                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 pl-1">
+                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 ps-1">
                                 {emp.holidayBank}
                                 {proj.accrued > 0 && ` + ${proj.accrued}`}
                                 {proj.used > 0 && ` − ${proj.used}`}
@@ -646,7 +646,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                               {projected} {t('payroll.days')}
                             </span>
                             {isProjecting && consumedDays > 0 && (
-                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 pl-1">
+                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 ps-1">
                                 {emp.annualLeaveBalance} − {consumedDays}
                               </p>
                             )}
@@ -660,7 +660,13 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                         return (
                           <button
                             onClick={() => onOpenLeaveManager(emp)}
-                            title={ranges.length === 0 ? t('payroll.leavesNone') : ranges.map(r => `${r.type}: ${r.start} → ${r.end}`).join('\n')}
+                            title={ranges.length === 0
+                              ? t('payroll.leavesNone')
+                              : ranges.map(r => t('payroll.leaveRange.line', {
+                                  type: t(`payroll.leaveType.${r.type}`),
+                                  start: r.start,
+                                  end: r.end,
+                                })).join('\n')}
                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight"
                           >
                             <Calendar className="w-3 h-3 text-slate-500 dark:text-slate-400" />

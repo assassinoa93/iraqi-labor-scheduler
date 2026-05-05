@@ -69,6 +69,8 @@ import { BulkAssignModal } from './components/BulkAssignModal';
 import { BulkEditEmployeesModal, BulkEditPatch } from './components/BulkEditEmployeesModal';
 import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
+import { suggestHourlyDemandFromHistory } from './lib/demandHistory';
+import { PlanEverythingWizard } from './components/PlanEverythingWizard';
 import { getEmployeeLeaveOnDate } from './lib/leaves';
 import {
   normalizeEmployees, normalizeShifts, normalizeStations, normalizeHolidays,
@@ -317,6 +319,13 @@ export default function App() {
   // would spam the user), and stamp localStorage so the SuperAdmin → Quota
   // panel can show "last hit at …" pre-emptively.
   const [quotaState, setQuotaState] = useState<{ exhaustedAt: number; resetAt: Date } | null>(null);
+  // v5.18.0 — last non-quota sync failure. Decoupled from updateActive's
+  // closure scope (which can't call showInfo directly without a forward
+  // reference, see comments around the existing quotaState useEffect).
+  // A separate effect below picks up `syncErrorState`, surfaces it once
+  // via the info toast machinery, then clears it. Includes `at` so the
+  // effect's dep array reacts to repeat failures of the same domain.
+  const [syncErrorState, setSyncErrorState] = useState<{ domain: string; message: string; at: number } | null>(null);
 
   // Domain setters scoped to the active company. Each accepts either a
   // value or an updater function and merges the result back into companyData.
@@ -363,6 +372,16 @@ export default function App() {
             } catch { /* localStorage quota itself exhausted — nothing useful to do */ }
           }
         };
+        // v5.18.0 — Online-mode save state. Pre-v5.18 saveState only
+        // tracked Offline Demo's /api/save lifecycle (the effect at the
+        // top of this file bails out under isAuthenticated), so the Save
+        // Draft badge in the schedule toolbar showed "Last saved: never"
+        // forever in Online mode and the user had no visual confirmation
+        // that Firestore writes were landing. We now mirror the same
+        // pending → saving → saved/error transitions onto the per-domain
+        // sync below so the badge tracks the actual Firestore write
+        // outcome.
+        setSaveState('saving');
         queueMicrotask(() => {
           // Audit write is fire-and-forget (logged on failure but doesn't
           // block the user's edit). Decoupled from data sync so a network
@@ -401,10 +420,33 @@ export default function App() {
               default:              return null;
             }
           })();
-          sync?.catch((err) => {
-            console.error(`[Scheduler] Firestore ${String(key)} sync failed:`, err);
-            handleQuotaError(err);
-          });
+          if (sync) {
+            sync.then(() => {
+              setSaveState('saved');
+              setLastSavedAt(Date.now());
+            }).catch((err) => {
+              console.error(`[Scheduler] Firestore ${String(key)} sync failed:`, err);
+              setSaveState('error');
+              handleQuotaError(err);
+              // v5.18.0 — surface non-quota errors as a user-visible info
+              // toast. Quota exhaustion already pops its own dedicated
+              // modal (handleQuotaError → quotaState → useEffect →
+              // showInfo); this catches the rest (permission denied,
+              // network drop, malformed payload) so the user knows their
+              // edit didn't land instead of seeing only console output.
+              const quota = detectQuotaExhausted(err);
+              if (!quota.exhausted) {
+                const message = err instanceof Error ? err.message : String(err);
+                setSyncErrorState({ domain: String(key), message, at: Date.now() });
+              }
+            });
+          } else {
+            // Domain change emitted no sync (e.g. allSchedules diff with
+            // no actual month change). Fall back to "saved" immediately
+            // so the badge doesn't stay stuck on "saving".
+            setSaveState('saved');
+            setLastSavedAt(Date.now());
+          }
         });
       }
       return { ...prev, [activeCompanyId]: { ...current, [key]: next } };
@@ -1013,6 +1055,8 @@ export default function App() {
   const backupInputRef = React.useRef<HTMLInputElement>(null);
 
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  // v5.18.0 — Plan-Everything wizard open flag.
+  const [isPlanWizardOpen, setIsPlanWizardOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
@@ -1048,6 +1092,22 @@ export default function App() {
     );
   }, [quotaState, showInfo, t]);
 
+  // v5.18.0 — surface non-quota Firestore sync errors via the same info-
+  // toast machinery. Pre-v5.18 these failures only logged to the console,
+  // so a user whose write failed (auth lapse, network drop, malformed
+  // payload, permission rule mismatch) saw no feedback and assumed the
+  // edit had landed. Cleared once shown so a repeat failure of the same
+  // domain can re-fire (timestamp `at` is part of the dep so duplicates
+  // re-trigger).
+  useEffect(() => {
+    if (!syncErrorState) return;
+    showInfo(
+      t('info.error.title'),
+      t('info.syncFailed.body', { domain: syncErrorState.domain, message: syncErrorState.message }),
+    );
+    setSyncErrorState(null);
+  }, [syncErrorState, showInfo, t]);
+
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     title: string;
@@ -1077,6 +1137,16 @@ export default function App() {
   }, [schedule, employees, shifts, config, holidays, allSchedules]);
   const violations = useMemo(() => findings.filter(v => (v.severity ?? 'violation') === 'violation'), [findings]);
   const infoFindings = useMemo(() => findings.filter(v => v.severity === 'info'), [findings]);
+  // v5.18.0 — `${empId}:${day}` key set for hard violations only. The
+  // Schedule grid threads this through to ScheduleCell to paint a small
+  // red corner dot on each flagged cell. Memoized off `violations` so
+  // unrelated re-renders (modal open/close, filter typing) don't rebuild
+  // the set or invalidate the row's prop equality.
+  const violationCellKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of violations) set.add(`${v.empId}:${v.day}`);
+    return set;
+  }, [violations]);
 
   // Shared peak-day helper used by both the auto-scheduler and the coverage heatmap.
   const isPeakDay = React.useCallback((day: number): boolean => {
@@ -1300,14 +1370,49 @@ export default function App() {
   };
 
   const handleSaveShift = (shift: Shift) => {
+    // v5.18.0 — when the user opens an auto-generated shift in the modal
+    // and saves it, strip the `autoGenerated` flag so it becomes a user-
+    // curated record. "Clear all auto-generated" then leaves it alone.
+    const owned: Shift = shift.autoGenerated ? { ...shift, autoGenerated: false } : shift;
     if (editingShift) {
-      setShifts(prev => prev.map(s => s.code === editingShift.code ? shift : s));
+      setShifts(prev => prev.map(s => s.code === editingShift.code ? owned : s));
     } else {
-      setShifts(prev => [...prev, shift]);
+      setShifts(prev => [...prev, owned]);
     }
     setIsShiftModalOpen(false);
     setEditingShift(null);
   };
+
+  // v5.18.0 — auto-generator hooks. `handleApplyGeneratedShifts` appends
+  // the generator's output (each shift carries `autoGenerated: true`).
+  // De-duplicates against existing codes defensively even though the
+  // generator already avoids collisions. `handleClearAutoGeneratedShifts`
+  // drops every shift currently flagged auto-generated; user-curated
+  // records (where the flag was stripped on edit) survive.
+  const handleApplyGeneratedShifts = React.useCallback((generated: Shift[]) => {
+    setShifts(prev => {
+      const have = new Set(prev.map(s => s.code.toUpperCase()));
+      return [...prev, ...generated.filter(g => !have.has(g.code.toUpperCase()))];
+    });
+  }, [setShifts]);
+
+  const handleClearAutoGeneratedShifts = React.useCallback(() => {
+    setShifts(prev => prev.filter(s => !s.autoGenerated));
+  }, [setShifts]);
+
+  // v5.18.0 — Plan-Everything wizard. Bulk-applies hourly demand
+  // suggestions across multiple stations in one setStations pass so the
+  // Firestore sync and audit log see a single coherent edit instead of
+  // N micro-writes. Updates are { stationId, suggestion } pairs.
+  const handleApplyStationDemandBulk = React.useCallback((updates: Array<{ stationId: string; suggestion: import('./lib/demandHistory').DemandSuggestion }>) => {
+    if (updates.length === 0) return;
+    const byId = new Map(updates.map(u => [u.stationId, u.suggestion]));
+    setStations(prev => prev.map(s => {
+      const sug = byId.get(s.id);
+      if (!sug || sug.noData) return s;
+      return { ...s, normalHourlyDemand: sug.normal, peakHourlyDemand: sug.peak };
+    }));
+  }, [setStations]);
 
   const moveShift = (index: number, direction: 'up' | 'down') => {
     setShifts(prev => {
@@ -1959,6 +2064,24 @@ export default function App() {
     setIsStationModalOpen(false);
     setSelectedStation(null);
   };
+
+  // v5.18.0 — closure handed to StationModal so the user can derive an
+  // hourly demand profile from the past N months of `allSchedules`. The
+  // modal owns the UI; this owns access to the data. Returns null when
+  // the station id is unknown (modal is editing a fresh record that
+  // hasn't been saved yet — there's no history keyed off it).
+  const handleSuggestStationDemandFromHistory = React.useCallback((stationId: string) => {
+    if (!stationId) return null;
+    const target = stations.find(s => s.id === stationId) || selectedStation;
+    if (!target) return null;
+    return suggestHourlyDemandFromHistory({
+      station: target,
+      allSchedules,
+      shifts,
+      holidays,
+      config,
+    });
+  }, [stations, selectedStation, allSchedules, shifts, holidays, config]);
 
   // v5.3.0 — single-pass commit for the bulk-station modal. The modal has
   // already done collision detection against existingStations, but a defensive
@@ -3026,8 +3149,19 @@ export default function App() {
   };
 
   // Compute editability + cached values for the Schedule tab + modals.
-  const activeMonthStatus = effectiveStatus(activeMonthApproval);
-  const activeMonthCanEdit = availableActionsFor(activeMonthStatus, role).canEditCells;
+  // v5.18.0 — both memoized so every cell paint / modal open / unrelated
+  // state nudge doesn't re-call effectiveStatus + availableActionsFor.
+  // Read across ~12 props on the ScheduleTab render and several
+  // canRunAuto guards; cheap to compute, but stable identity matters
+  // for the downstream React.memo'd children.
+  const activeMonthStatus = useMemo(
+    () => effectiveStatus(activeMonthApproval),
+    [activeMonthApproval],
+  );
+  const activeMonthCanEdit = useMemo(
+    () => availableActionsFor(activeMonthStatus, role).canEditCells,
+    [activeMonthStatus, role],
+  );
 
   // v5.1.0 — re-approval diff view.
   // hasArchivedSnapshot is derived from the approval block (no extra
@@ -3783,6 +3917,7 @@ export default function App() {
                 onDismissPaintWarnings={() => setPaintWarnings(null)}
                 staleness={scheduleStaleness}
                 recentlyChangedCells={recentlyChangedCells}
+                violationCellKeys={violationCellKeys}
                 onExportSchedule={exportScheduleCSV}
                 simMode={simMode}
                 onEnterSimMode={enterSimMode}
@@ -3797,6 +3932,7 @@ export default function App() {
                 onReopenSchedule={() => setReopenModalOpen(true)}
                 onGoToRoster={() => setActiveTab('roster')}
                 onGoToLayout={() => setActiveTab('layout')}
+                onOpenPlanWizard={() => setIsPlanWizardOpen(true)}
                 // v5.16.0 — diff view + HRIS bundle props grouped into
                 // a single `archive` bundle. Reduces the ScheduleTab call
                 // site from ~30 props to ~22.
@@ -3886,6 +4022,10 @@ export default function App() {
             {activeTab === 'shifts' && (
               <ShiftsTab
                 shifts={shifts}
+                stations={stations}
+                config={config}
+                onApplyGenerated={handleApplyGeneratedShifts}
+                onClearAutoGenerated={handleClearAutoGeneratedShifts}
                 onAddNew={() => { setEditingShift(null); setIsShiftModalOpen(true); }}
                 onEdit={(s) => { setEditingShift(s); setIsShiftModalOpen(true); }}
                 onDelete={handleDeleteShift}
@@ -4029,6 +4169,28 @@ export default function App() {
         onSave={handleSaveStation}
         station={selectedStation}
         availableRoles={rosterRoles}
+        onSuggestFromHistory={handleSuggestStationDemandFromHistory}
+      />
+
+      {/* v5.18.0 — Plan-Everything wizard. Tied to the schedule toolbar's
+          "Plan everything" button via the activeTab='schedule' branch.
+          Mounted at App.tsx so it can call into the same setShifts /
+          setStations / handleRunAutoScheduler hooks the rest of the app
+          uses, keeping mutations on a single audited path. */}
+      <PlanEverythingWizard
+        isOpen={isPlanWizardOpen}
+        onClose={() => setIsPlanWizardOpen(false)}
+        employees={employees}
+        shifts={shifts}
+        stations={stations}
+        holidays={holidays}
+        config={config}
+        allSchedules={allSchedules}
+        schedule={schedule}
+        onApplyStationDemand={handleApplyStationDemandBulk}
+        onApplyShifts={handleApplyGeneratedShifts}
+        onRunAutoScheduler={() => handleRunAutoScheduler('preserve')}
+        isPeakDay={isPeakDay}
       />
 
       <BulkAddStationsModal

@@ -159,7 +159,7 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
             </div>
 
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mr-2">{t('leaves.modal.addNew')}</span>
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest me-2">{t('leaves.modal.addNew')}</span>
               {(['annual', 'sick', 'maternity'] as LeaveType[]).map(type => {
                 const meta = TYPE_META[type];
                 const Icon = meta.icon;

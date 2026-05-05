@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical, Save } from 'lucide-react';
 import { ScheduleApprovalBanner } from '../components/Schedule/ScheduleApprovalBanner';
+import { CoverageDiagnosticsPanel } from '../components/Schedule/CoverageDiagnosticsPanel';
 import { format } from 'date-fns';
 import { List, type RowComponentProps } from 'react-window';
 import { Employee, Shift, PublicHoliday, Config, Schedule, Station } from '../types';
@@ -96,6 +97,12 @@ interface ScheduleTabProps {
   // user sees what moved. Empty set = no recent changes; the cells render
   // normally.
   recentlyChangedCells?: Set<string>;
+  // v5.18.0 — `${empId}:${day}` keys flagged as hard-rule violations by
+  // the compliance engine. The grid paints a small red corner dot on each
+  // so the supervisor can spot violations during paint without leaving the
+  // tab. App.tsx derives the set from `violations` (excluding info-only
+  // findings) and memoizes it. Empty / undefined = no markers.
+  violationCellKeys?: Set<string>;
   // Last paint operation's compliance warnings, if any. Null means the most
   // recent paint was clean (or no paint has happened yet).
   paintWarnings: { empName: string; warnings: string[] } | null;
@@ -169,6 +176,9 @@ interface ScheduleTabProps {
   // the user to the missing setup. App.tsx owns the actual setActiveTab.
   onGoToRoster?: () => void;
   onGoToLayout?: () => void;
+  // v5.18.0 — opens the Plan-Everything wizard. Optional so existing
+  // callers compile unchanged; when omitted the button doesn't render.
+  onOpenPlanWizard?: () => void;
 }
 
 // Layout constants used by both the sticky header row and the virtualized
@@ -203,6 +213,7 @@ interface RowData {
   onCellMouseDown: (empId: string, day: number, e: React.MouseEvent) => void;
   onCellMouseEnter: (empId: string, day: number) => void;
   recentlyChangedCells?: Set<string>;
+  violationCellKeys?: Set<string>;
   statsByEmpId: Map<string, EmployeeRunningStats>;
   onToggleCollapse: (stationId: string) => void;
   groupingEnabled: boolean;
@@ -228,7 +239,7 @@ interface RowData {
 // (a flexbox + N divs). Virtualisation alone is the meaningful win.
 function ScheduleRow({
   index, style, rowPlan, days, schedule, onCellClick, onCellMouseDown, onCellMouseEnter,
-  recentlyChangedCells, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
+  recentlyChangedCells, violationCellKeys, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
   cellsReadOnly, diffMap, dayCellWidth,
 }: RowComponentProps<RowData>) {
   const item = rowPlan[index];
@@ -338,17 +349,26 @@ function ScheduleRow({
       {days.map(day => {
         const cellKey = emp ? `${emp.empId}:${day}` : '';
         const isRecent = !!emp && !!recentlyChangedCells?.has(cellKey);
+        const hasViolation = !!emp && !!violationCellKeys?.has(cellKey);
         const diffKind = emp && diffMap ? diffMap.get(cellKey) ?? null : null;
+        const code = emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : '';
+        const ariaLabel = emp
+          ? `${emp.name} · day ${day}${code ? ` · ${code}` : ''}${hasViolation ? ' · violation' : ''}`
+          : undefined;
         return (
           <div key={day} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
             <ScheduleCell
-              value={emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : ''}
+              value={code}
               onClick={(e) => emp && onCellClick(emp.empId, day, { shift: e.shiftKey })}
               onMouseDown={(e) => emp && onCellMouseDown(emp.empId, day, e)}
               onMouseEnter={() => emp && onCellMouseEnter(emp.empId, day)}
               isRecent={isRecent}
+              hasViolation={hasViolation}
               readOnly={cellsReadOnly}
               diff={diffKind}
+              empId={emp?.empId}
+              day={day}
+              ariaLabel={ariaLabel}
             />
           </div>
         );
@@ -367,7 +387,7 @@ export function ScheduleTab({
   scheduleUndoStack, prevMonth, nextMonth, setActiveMonth, onCellClick, onCellRangeFill,
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
   canRunAuto, runAutoDisabledReason,
-  paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells,
+  paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells, violationCellKeys,
   onExportSchedule, simMode, onEnterSimMode, onSaveDraft, saveState, lastSavedAt,
   carryForwardUnspentCompDays, onToggleCarryForward, pendingCarriedForwardCount,
   // v5.0 — approval workflow props
@@ -378,6 +398,8 @@ export function ScheduleTab({
   archive,
   // v5.16.0 — navigation shortcuts for empty-state CTA.
   onGoToRoster, onGoToLayout,
+  // v5.18.0 — Plan-Everything wizard opener.
+  onOpenPlanWizard,
 }: ScheduleTabProps) {
   // v5.16.0 — destructure archive bundle into local consts so the rest
   // of the function body keeps reading the same names. Defaults match
@@ -934,7 +956,7 @@ export function ScheduleTab({
 
         <div className="flex flex-wrap items-center gap-3">
           <div
-            className="flex items-center gap-1.5 mr-4 bg-slate-900 border border-slate-700 p-1 rounded-xl shadow-xl"
+            className="flex items-center gap-1.5 me-4 bg-slate-900 border border-slate-700 p-1 rounded-xl shadow-xl"
             title={`${t('schedule.kbdHelp.title')} — ${t('schedule.kbdHelp.numberKeys')} ${t('schedule.kbdHelp.escape')}`}
           >
             {shifts.map((s, idx) => {
@@ -974,7 +996,7 @@ export function ScheduleTab({
               <MousePointer2 className="w-3 h-3" />
             </button>
             <div
-              className="ml-1 mr-1 hidden md:flex items-center gap-1 text-[8px] text-slate-500 font-bold uppercase tracking-widest"
+              className="ms-1 me-1 hidden md:flex items-center gap-1 text-[8px] text-slate-500 font-bold uppercase tracking-widest"
               title={`${t('schedule.kbdHelp.numberKeys')} ${t('schedule.kbdHelp.escape')}`}
             >
               <Keyboard className="w-3 h-3" />
@@ -1068,6 +1090,23 @@ export function ScheduleTab({
             <Printer className="w-4 h-4" />
             {t('schedule.print')}
           </button>
+
+          {/* v5.18.0 — Plan-Everything wizard launcher. Surfaces only
+              when the parent wired the callback. Lives next to the
+              other one-shot toolbar actions; the violet gradient
+              matches the auto-shift-generator's CTA so the two
+              "let-the-app-do-it-for-you" surfaces feel like the same
+              family. */}
+          {onOpenPlanWizard && (
+            <button
+              onClick={onOpenPlanWizard}
+              title={t('schedule.planEverything.tooltip')}
+              className="apple-press flex items-center gap-2 bg-gradient-to-r from-violet-600 to-blue-600 text-white border border-transparent px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:from-violet-700 hover:to-blue-700 shadow-md"
+            >
+              <Wand2 className="w-4 h-4" />
+              {t('schedule.planEverything')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1246,6 +1285,7 @@ export function ScheduleTab({
                   onCellMouseDown: handleCellMouseDown,
                   onCellMouseEnter: handleCellMouseEnter,
                   recentlyChangedCells,
+                  violationCellKeys,
                   statsByEmpId,
                   onToggleCollapse: toggleCollapse,
                   groupingEnabled: scheduleGroupByStation,
@@ -1296,13 +1336,39 @@ export function ScheduleTab({
                 <span className="text-slate-400 dark:text-slate-500">{t('schedule.footer.onLeaveAny')}:</span>
                 <span className="font-black text-emerald-700 dark:text-emerald-300">{onLeaveAnyDay}</span>
               </div>
-              <div className="ml-auto text-slate-400 dark:text-slate-500 normal-case font-mono">
+              <div className="ms-auto text-slate-400 dark:text-slate-500 normal-case font-mono">
                 {filteredEmployees.length}/{employees.length} {t('schedule.footer.employees')}
               </div>
             </div>
           );
         })()}
       </div>
+
+      {/* v5.18.0 — coverage diagnostics. Inline isPeakDay predicate
+          mirrors App.tsx's logic — peakDays-of-week OR holiday date.
+          The panel is self-rendering: it counts gaps and hides itself
+          when the schedule is fully covered, so this block costs
+          ~nothing on healthy schedules. */}
+      {(() => {
+        const holidayDates = new Set(holidays.map(h => h.date));
+        const isPeak = (day: number) => {
+          const date = new Date(config.year, config.month - 1, day);
+          const dow = date.getDay() + 1;
+          const dateStr = format(date, 'yyyy-MM-dd');
+          return (config.peakDays || []).includes(dow) || holidayDates.has(dateStr);
+        };
+        return (
+          <CoverageDiagnosticsPanel
+            schedule={schedule}
+            employees={employees}
+            shifts={shifts}
+            stations={stations}
+            holidays={holidays}
+            config={config}
+            isPeakDay={isPeak}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -1460,13 +1526,13 @@ function AutoScheduleRangePicker({
           </div>
           {showPeriodHint && (
             <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 rounded-lg p-2.5 text-[10px] text-amber-800 dark:text-amber-200 leading-relaxed">
-              <AlertTriangle className="w-3 h-3 inline-block mr-1" />
+              <AlertTriangle className="w-3 h-3 inline-block me-1" />
               {t('schedule.runAuto.range.minHint')}
             </div>
           )}
           {crossesMonth && (
             <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/30 rounded-lg p-2.5 text-[10px] text-blue-800 dark:text-blue-200 leading-relaxed">
-              <Calendar className="w-3 h-3 inline-block mr-1" />
+              <Calendar className="w-3 h-3 inline-block me-1" />
               {t('schedule.runAuto.range.crossMonthNote')}
             </div>
           )}

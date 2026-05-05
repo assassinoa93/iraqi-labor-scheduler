@@ -35,7 +35,30 @@ export function getRequiredHC(
   station: Station,
   hour: number,
   isPeakDay: boolean,
+  // v5.18.0 — when true, the helper consults the holiday tier first
+  // (`holidayHourlyDemand` / `holidayMinHC`). Falls through to the
+  // peak/normal tier when the station has no holiday-tier override
+  // configured — preserving pre-v5.18 behaviour for callers that
+  // either (a) don't pass this arg or (b) pass it on a station whose
+  // supervisor hasn't carved out holiday-specific demand. Callers
+  // know whether the date is a holiday from
+  // `holidays.ts/expandHolidayDates()` or the same predicate the
+  // schedule grid uses.
+  isHoliday: boolean = false,
 ): number {
+  if (isHoliday) {
+    const holidaySlots = station.holidayHourlyDemand;
+    if (holidaySlots && holidaySlots.length > 0) {
+      for (const s of holidaySlots) {
+        if (hour >= s.startHour && hour < s.endHour) return Math.max(0, s.hc | 0);
+      }
+      return 0;
+    }
+    if (typeof station.holidayMinHC === 'number') {
+      return Math.max(0, station.holidayMinHC);
+    }
+    // No holiday-tier override → fall through to the standard path.
+  }
   const slots = isPeakDay ? station.peakHourlyDemand : station.normalHourlyDemand;
   if (slots && slots.length > 0) {
     for (const s of slots) {

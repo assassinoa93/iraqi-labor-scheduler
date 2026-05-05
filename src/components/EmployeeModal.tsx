@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { X, Plus, CalendarHeart } from 'lucide-react';
 import { format } from 'date-fns';
@@ -8,6 +8,7 @@ import { SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { useConfirm } from './ConfirmModal';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHoursDivisor } from '../lib/payroll';
 
 interface EmployeeModalProps {
@@ -64,26 +65,52 @@ const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
 
 export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config, onManageLeaves }: EmployeeModalProps) {
   const { t } = useI18n();
-  // useModalKeys handles Escape; initial focus is wired to the first
-  // input below (not the close button) so pressing Enter after open
-  // doesn't dismiss the modal. The hook still returns a ref but we
-  // park it on a no-op element since `cardRef` drives initial focus.
-  useModalKeys(isOpen, onClose);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<Employee>(() => empty(config));
+  // v5.18.0 — dirty tracking. `initialJson` is the JSON-serialised baseline
+  // captured every time the modal opens (or the underlying employee record
+  // changes). Comparing the current `formData` to it tells us whether the
+  // user has made unsaved edits — drives the "discard changes?" guard on
+  // Esc / Cancel / X. JSON-equality is fine here because Employee is a
+  // shallow record of primitives + simple arrays; deep-equal would be
+  // overkill and the form is small enough that the cost is irrelevant.
+  const [initialJson, setInitialJson] = useState<string>('');
+  const isDirty = JSON.stringify(formData) !== initialJson;
+  const { confirm, slot: confirmSlot } = useConfirm();
+
+  // Wraps `onClose` with the dirty-state guard. Every dismissal path
+  // (Esc via useModalKeys, the X button, the Cancel button, the surrounding
+  // backdrop if it ever becomes click-dismissable) routes through this so
+  // the user is asked before losing 10 minutes of form entry.
+  const requestClose = useCallback(async () => {
+    if (!isDirty) { onClose(); return; }
+    const ok = await confirm({
+      title: t('modal.unsavedChanges.title'),
+      message: t('modal.unsavedChanges.body'),
+    });
+    if (ok) onClose();
+  }, [isDirty, onClose, confirm, t]);
+
+  // Predicate handed to useModalKeys so Escape is silently absorbed when
+  // the form is dirty (the user is then expected to press Esc again, hit
+  // Cancel, or X — all of which route through requestClose's guard).
+  const canClose = useCallback(() => !isDirty, [isDirty]);
+  useModalKeys(isOpen, requestClose, canClose);
 
   useEffect(() => {
     if (isOpen) {
       // Backfill `category` for v1.1 records that don't carry it.
-      setFormData(employee ? { category: 'Standard', ...employee } : empty(config));
+      const seed = employee ? { category: 'Standard' as const, ...employee } : empty(config);
+      setFormData(seed);
+      setInitialJson(JSON.stringify(seed));
       // Defer focus past the mount tick so it lands on the first form
       // input rather than racing with the document focus.
-      const t = window.setTimeout(() => {
+      const tHandle = window.setTimeout(() => {
         const firstInput = cardRef.current?.querySelector<HTMLInputElement>('input[type="text"], input:not([type])');
         firstInput?.focus();
         firstInput?.select?.();
       }, 0);
-      return () => window.clearTimeout(t);
+      return () => window.clearTimeout(tHandle);
     }
   }, [employee, isOpen, config]);
 
@@ -196,6 +223,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
   // entry to one stray click is the wrong default. Esc + X + Cancel are the
   // only paths out.
   return (
+    <>
+    {confirmSlot}
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}>
       <motion.div
         ref={cardRef}
@@ -207,20 +236,20 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
             {employee ? t('modal.employee.title.edit') : t('modal.employee.title.new')}
           </h3>
-          <button onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <button onClick={requestClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-6">
-            <SettingField label={t('modal.employee.field.id')} value={formData.empId} onChange={v => setFormData({...formData, empId: v})} />
-            <SettingField label={t('modal.employee.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
-            <SettingField label={t('modal.employee.field.role')} value={formData.role} onChange={v => setFormData({...formData, role: v})} />
+            <SettingField required label={t('modal.employee.field.id')} value={formData.empId} onChange={v => setFormData({...formData, empId: v})} />
+            <SettingField required label={t('modal.employee.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
+            <SettingField required label={t('modal.employee.field.role')} value={formData.role} onChange={v => setFormData({...formData, role: v})} />
             <SettingField label={t('modal.employee.field.department')} value={formData.department} onChange={v => setFormData({...formData, department: v})} />
             <SettingField label={t('modal.employee.field.contract')} type="select" options={['Permanent', 'Fixed-Term', 'Contractor']} value={formData.contractType} onChange={v => setFormData({...formData, contractType: v})} />
-            <SettingField label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => {
-              const weekly = parseInt(v) || 0;
+            <SettingField required min={0} max={84} step={1} label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => {
+              const weekly = Math.max(0, Math.min(84, parseInt(v) || 0));
               setFormData(prev => ({
                 ...prev,
                 contractedWeeklyHrs: weekly,
@@ -230,11 +259,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             <SettingField label={t('modal.employee.field.phone')} value={formData.phone} onChange={v => setFormData({...formData, phone: v})} />
             <SettingField label={t('modal.employee.field.hireDate')} value={formData.hireDate} onChange={v => setFormData({...formData, hireDate: v})} />
             <SettingField
+              required
+              min={0}
+              step={10000}
               label={t('modal.employee.field.salary')}
               type="number"
               value={formData.baseMonthlySalary}
               onChange={v => {
-                const salary = parseInt(v) || 0;
+                const salary = Math.max(0, parseInt(v) || 0);
                 setFormData(prev => ({
                   ...prev,
                   baseMonthlySalary: salary,
@@ -249,8 +281,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                  <span className="text-[8px] bg-blue-100 dark:bg-blue-500/25 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
               </div>
             </div>
-            <SettingField label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: Math.max(0, parseInt(v) || 0)})} />
-            <SettingField label={t('modal.employee.field.annualLeave')} type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: Math.max(0, parseInt(v) || 0)})} />
+            <SettingField min={0} max={365} step={1} label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: Math.max(0, Math.min(365, parseInt(v) || 0))})} />
+            <SettingField min={0} max={365} step={1} label={t('modal.employee.field.annualLeave')} type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: Math.max(0, Math.min(365, parseInt(v) || 0))})} />
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
               <select
@@ -521,7 +553,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
         </div>
 
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
+          <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={() => onSave(formData)}
             className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
@@ -531,5 +563,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
         </div>
       </motion.div>
     </div>
+    </>
   );
 }

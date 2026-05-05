@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -7,6 +7,7 @@ import { SettingField } from './Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { useConfirm } from './ConfirmModal';
 
 interface HolidayModalProps {
   isOpen: boolean;
@@ -38,13 +39,29 @@ const empty = (): PublicHoliday => ({
 
 export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode = 'comp-day', compModeReadOnly = false }: HolidayModalProps) {
   const { t } = useI18n();
-  useModalKeys(isOpen, onClose);
   const [formData, setFormData] = useState<PublicHoliday>(holiday || empty());
+  const [initialJson, setInitialJson] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const isDirty = JSON.stringify(formData) !== initialJson;
+  const { confirm, slot: confirmSlot } = useConfirm();
+
+  const requestClose = useCallback(async () => {
+    if (!isDirty) { onClose(); return; }
+    const ok = await confirm({
+      title: t('modal.unsavedChanges.title'),
+      message: t('modal.unsavedChanges.body'),
+    });
+    if (ok) onClose();
+  }, [isDirty, onClose, confirm, t]);
+
+  const canClose = useCallback(() => !isDirty, [isDirty]);
+  useModalKeys(isOpen, requestClose, canClose);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(holiday || empty());
+      const seed = holiday || empty();
+      setFormData(seed);
+      setInitialJson(JSON.stringify(seed));
       setError(null);
     }
   }, [holiday, isOpen]);
@@ -64,6 +81,8 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
 
   // v5.3.1: sticky backdrop — Esc + X + Cancel are the only paths out.
   return (
+    <>
+    {confirmSlot}
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={holiday ? t('modal.holiday.title.edit') : t('modal.holiday.title.new')}>
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
@@ -74,7 +93,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
             {holiday ? t('modal.holiday.title.edit') : t('modal.holiday.title.new')}
           </h3>
-          <button onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <button onClick={requestClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
@@ -84,9 +103,9 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               value is always YYYY-MM-DD, matching the storage format,
               so callers don't need to reformat. The i18n hint stays for
               users who type the date instead of using the picker. */}
-          <SettingField label={t('modal.holiday.field.date')} type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
+          <SettingField required label={t('modal.holiday.field.date')} type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
           <p className="text-[10px] text-slate-400 dark:text-slate-500 -mt-2">{t('modal.holiday.field.date.hint')}</p>
-          <SettingField label={t('modal.holiday.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
+          <SettingField required label={t('modal.holiday.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
 
           {/* v2.5.0 — duration field. Eid Al-Fitr / Eid Al-Adha typically
               span 2-3 days; pre-2.5 the user added 3 separate records
@@ -196,7 +215,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
         </div>
 
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
+          <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
             onClick={handleSave}
             className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
@@ -206,5 +225,6 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
