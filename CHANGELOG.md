@@ -2,6 +2,41 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.16.0 — 2026-05-05
+
+**Beta-prep UX pass.** Static UX audit of the v5.15 build surfaced 14 distinct issues across RTL, dark mode, i18n coverage, empty states, and visual polish. This release lands fixes for all 14 in one pass — no behavioural regressions, no new tests required (every change is presentational or i18n).
+
+**P1 — bug fixes**
+
+- *RTL search-icon overlap.* [RosterTab.tsx:94](src/tabs/RosterTab.tsx#L94) and [PayrollTab.tsx:459](src/tabs/PayrollTab.tsx#L459) positioned the search magnifying-glass with `absolute left-3` while the input padding used logical `ps-9 pe-3`. In Arabic mode the icon overlapped typed text. Switched both to `absolute start-3` + matching `ps-10` / `pe-4` so the icon flows correctly in both directions. Also added `pointer-events-none` so the icon doesn't intercept input clicks.
+- *Dark-mode amber alert banners.* The stale-schedule warning ([ScheduleTab.tsx:989](src/tabs/ScheduleTab.tsx#L989)) and paint-warning banner ([ScheduleTab.tsx:1021](src/tabs/ScheduleTab.tsx#L1021)) used `bg-amber-50 border-amber-200` with no `dark:` variants — bright cream banners on dark slate. Added `dark:bg-amber-500/10`, `dark:border-amber-500/30`, `dark:text-amber-300/200/200/80` etc to match the rest of the app's two-tone alert pattern.
+- *i18n coverage on the auth/onboarding flow.* Pre-v5.16 every string a brand-new Arabic-speaking user saw before signing in was hardcoded English. Fully i18n'd: [ModePicker.tsx](src/components/ModePicker.tsx) (entire screen), [LoginScreen.tsx](src/components/LoginScreen.tsx) (form labels, password show/hide aria, switch-database CTAs, all five Firebase Auth error messages), [SuperAdminWizard.tsx](src/components/Onboarding/SuperAdminWizard.tsx) (every step title, body, button, helper, success and error states — HTML-rich step intros use `dangerouslySetInnerHTML` against translated strings since the source HTML lives in our dictionary, never user input), [UserManagementTab.tsx](src/tabs/UserManagementTab.tsx) (header, subtitle, denial). Added ~120 new keys to the `en` dictionary plus complete Arabic translations (~220 lines of net-new dictionary).
+- *ModePicker role list undercount.* [ModePicker.tsx:72](src/components/ModePicker.tsx#L72) advertised three roles (super-admin / admin / supervisor) but the app actually ships four (super_admin / admin / **manager** / supervisor). Updated to list all four so new users picking "Connect Online" don't get surprised when manager appears.
+
+**P2 — UX friction**
+
+- *LayoutTab empty-state CTAs.* When `stations.length === 0` the empty zone showed only an icon + hint, forcing the user to find the small toolbar buttons above. Added in-place `+ New Station` and `Bulk add` buttons mirroring the RosterTab pattern. Subtitle copy switched from `uppercase tracking-tighter` to sentence-case for readability.
+- *ScheduleTab "0 employees" empty state.* Pre-v5.16 the grid rendered empty rows with a busy toolbar and no breadcrumb. Added a dedicated `ScheduleEmptyState` block that early-returns with a "Go to Roster" / "Go to Stations" CTA (depending on what's missing) when either is empty. Wired `onGoToRoster` + `onGoToLayout` callbacks from [App.tsx:3795-3796](src/App.tsx#L3795).
+- *Auto-schedule button labels rewritten.* Pre-v5.16 the buttons read "Optimal (Keep Absences)" + "Auto-Schedule" — labels that lean on side-effects rather than describing intent. Real users in changelog comments kept asking "did this overwrite my leaves?". New labels:
+  - **"Re-fill (keep my edits)"** — primary emerald button, the safe path.
+  - **"Rebuild from scratch"** — now styled as a secondary outline button in rose tone so it visibly registers as "I will lose work" before click.
+  - Tooltips also rewritten to plainly state what each action does to existing edits.
+- *Sidebar tab number prefixes dropped.* The `01` / `02` / ... / `15` mono numerals on every TabButton ([Primitives.tsx:260](src/components/Primitives.tsx#L260)) implied a numbered setup order, but the actual setup path doesn't follow them (Roster is `03`, Layout is `08`, Schedule is `02`). Removed the numeral span. The `index` prop stays in the signature optional so existing call sites compile unchanged. Group labels (Operations / Analytics / Setup / System) carry the hierarchy.
+- *Login error codes translate.* The 5 Firebase Auth error mappings in [LoginScreen.tsx:46-57](src/components/LoginScreen.tsx#L46-L57) and the auto-scheduler disabled-reason strings hardcoded in [App.tsx:3768-3770](src/App.tsx#L3768) now flow through `t()` so they render in Arabic in Arabic mode.
+
+**P3 — polish**
+
+- *Softened uppercase tracking on long body text.* [SettingsTab.tsx:81](src/tabs/SettingsTab.tsx#L81), [SuperAdminTab.tsx:60](src/tabs/SuperAdminTab.tsx#L60), [LayoutTab.tsx:330](src/tabs/LayoutTab.tsx#L330) had subtitle paragraphs rendered as `uppercase tracking-widest font-mono` — functional but visually loud. Switched to sentence-case `font-medium`. Reserved uppercase + tracking for short labels and headers where it carries the design system's eyebrow rhythm.
+- *Cap-status badge: amber tier hover-only.* The orange "near-cap" badge ([ScheduleTab.tsx:280](src/tabs/ScheduleTab.tsx#L280)) competed for attention with the cap dot in cell tooltips and the row-hover stats. Now `opacity-0 group-hover:opacity-100` on the amber tier — the red 'over' tier (active rule breach) stays always-visible. Reduces visual noise on the schedule grid without losing the breach signal.
+- *Compact-cells toggle.* The schedule grid's day cells were a fixed 36px → on a 1366px laptop with the suggestion pane open (356px), a 31-day month forced horizontal scroll. New "Compact day cells" toggle in the schedule toolbar shrinks each cell to 28px (28×31 + 224 + 356 = 1456 — close enough to fit). Persists per-user in localStorage (`iraqi-scheduler-compact-day-cells`) so the choice carries across sessions.
+- *SettingsTab connection-code helper line.* Pre-v5.16 the "Generate connection code" button required a click to discover what it does. Added a one-line helper underneath: "Share with team members so they can connect to the same database without re-pasting Firebase config." Returning super-admins who haven't done this in 6 months no longer have to click to remember.
+- *ScheduleTab archive props grouped.* Diff-view + HRIS-bundle props (9 separate props) bundled into a single `archive: ScheduleArchiveProps` object on the [ScheduleTab interface](src/tabs/ScheduleTab.tsx). Reduces the [App.tsx call site](src/App.tsx#L3795) from ~30 props to ~22. Internal references inside ScheduleTab destructure the bundle into local consts so the rest of the function body reads identically — no semantic change. The full approval cluster + scheduler-control props stay flat for now; a useScheduleController hook is the right long-term move but out of scope for beta-prep.
+
+**Compatibility**
+- All 210 tests pass (no new tests — every change is presentational or i18n). `tsc --noEmit` clean. Vite production build clean. Secret-leak audit clean.
+- Dual-mode parity preserved: every change is UI-only.
+- No data layer changes, no migration needed, no Firestore rules touch needed.
+
 ## v5.15.0 — 2026-05-05
 
 **Bulk station creation now carries the v5.14 hourly-demand profile.** Closes the loop on the per-station hourly-demand feature: supervisors who add 10 cashier counters in a single bulk-create no longer have to open each one afterwards to set the same 11–15/15–19/19–23 profile by hand. The Defaults panel in [BulkAddStationsModal](src/components/BulkAddStationsModal.tsx) gets a collapsible "Hourly demand profile (optional)" section; every newly-added row inherits a deep copy of the slots; "Apply defaults to all rows" stamps both the flat fields AND the hourly profile across existing rows.

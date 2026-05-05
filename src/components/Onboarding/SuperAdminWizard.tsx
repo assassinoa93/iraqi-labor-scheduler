@@ -38,6 +38,13 @@
  * The wizard reads/writes the same `setStoredConfig()` localStorage entry
  * as OnlineSetup so once it completes, AppShell's reload boots Online
  * mode normally.
+ *
+ * v5.16.0 — fully i18n'd. Pre-v5.16 every wizard string was hardcoded
+ * English so an Arabic-locale super-admin saw English on every step
+ * (then Arabic returned the moment they signed in). HTML-rich step
+ * intros use dangerouslySetInnerHTML against translated strings — the
+ * source HTML lives in the dictionary under our control, never user
+ * input, so XSS isn't a risk.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -52,6 +59,7 @@ import * as adminApi from '../../lib/adminApi';
 import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { clearMode } from '../../lib/mode';
+import { useI18n } from '../../lib/i18n';
 
 function serviceAccountsConsoleUrl(): string {
   const projectId = getActiveConfig()?.projectId;
@@ -73,25 +81,26 @@ interface Props {
 type StepId = 'project' | 'config' | 'serviceAccount' | 'account' | 'done';
 interface StepDef {
   id: StepId;
-  title: string;
+  titleKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const STEPS_FRESH: StepDef[] = [
-  { id: 'project',        title: 'Create Firebase project',  icon: Database },
-  { id: 'config',         title: 'Connect to project',       icon: KeyRound },
-  { id: 'serviceAccount', title: 'Link service account',     icon: FilePlus2 },
-  { id: 'account',        title: 'Create your account',      icon: ShieldCheck },
-  { id: 'done',           title: 'All set',                  icon: CheckCircle2 },
+  { id: 'project',        titleKey: 'wizard.step.project',        icon: Database },
+  { id: 'config',         titleKey: 'wizard.step.config',         icon: KeyRound },
+  { id: 'serviceAccount', titleKey: 'wizard.step.serviceAccount', icon: FilePlus2 },
+  { id: 'account',        titleKey: 'wizard.step.account',        icon: ShieldCheck },
+  { id: 'done',           titleKey: 'wizard.step.done',           icon: CheckCircle2 },
 ];
 
 const STEPS_RECONNECT: StepDef[] = [
-  { id: 'config',         title: 'Connect to your project',  icon: KeyRound },
-  { id: 'serviceAccount', title: 'Link service account',     icon: FilePlus2 },
-  { id: 'done',           title: 'All set',                  icon: CheckCircle2 },
+  { id: 'config',         titleKey: 'wizard.step.configReconnect', icon: KeyRound },
+  { id: 'serviceAccount', titleKey: 'wizard.step.serviceAccount',  icon: FilePlus2 },
+  { id: 'done',           titleKey: 'wizard.step.done',            icon: CheckCircle2 },
 ];
 
 export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props) {
+  const { t } = useI18n();
   const STEPS = mode === 'reconnect' ? STEPS_RECONNECT : STEPS_FRESH;
   const [stepIdx, setStepIdx] = useState(0);
   const [config, setConfig] = useState<StoredFirebaseConfig | null>(null);
@@ -110,7 +119,7 @@ export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props
           className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
-          Cancel and go back
+          {t('wizard.cancel')}
         </button>
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
@@ -119,10 +128,10 @@ export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props
           <div className="p-8">
             <div className="mb-7">
               <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-                {currentStep.title}
+                {t(currentStep.titleKey)}
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                Step {stepIdx + 1} of {STEPS.length}
+                {t('wizard.stepCounter', { current: stepIdx + 1, total: STEPS.length })}
               </p>
             </div>
 
@@ -162,7 +171,7 @@ export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props
           onClick={() => { clearMode(); location.reload(); }}
           className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
         >
-          Switch to Offline Demo
+          {t('wizard.switchOffline')}
         </button>
       </div>
     </div>
@@ -170,6 +179,7 @@ export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props
 }
 
 function Stepper({ steps, currentIdx }: { steps: StepDef[]; currentIdx: number }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center px-8 py-5 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
       {steps.map((s, i) => {
@@ -191,7 +201,7 @@ function Stepper({ steps, currentIdx }: { steps: StepDef[]; currentIdx: number }
                 "text-[9px] font-bold uppercase tracking-widest text-center max-w-[80px] leading-tight",
                 active ? "text-blue-700 dark:text-blue-300" : "text-slate-400 dark:text-slate-500",
               )}>
-                {s.title}
+                {t(s.titleKey)}
               </span>
             </div>
             {i < steps.length - 1 && (
@@ -210,22 +220,17 @@ function Stepper({ steps, currentIdx }: { steps: StepDef[]; currentIdx: number }
 // ── Step 1: Create Firebase project ──────────────────────────────────────
 
 function StepProject({ onNext }: { onNext: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-        Open Firebase Console in your browser and follow these steps. This is the only Console-only piece — everything else happens in this wizard.
+        {t('wizard.project.intro')}
       </p>
 
       <ol className="space-y-3 text-[12px] text-slate-700 dark:text-slate-300">
-        <ListItem n={1}>
-          Click <strong>Add project</strong>. Pick any name (e.g. "iraqi-labor-scheduler"). Skip Google Analytics.
-        </ListItem>
-        <ListItem n={2}>
-          Sidebar → <strong>Build → Firestore Database → Create database</strong>. Pick the <strong>europe-west3</strong> region (Frankfurt — lowest latency from Iraq), then <strong>Production mode</strong>.
-        </ListItem>
-        <ListItem n={3}>
-          Sidebar → <strong>Build → Authentication → Get started → Email/Password → Enable → Save</strong>. Then in <strong>Settings</strong> tab, uncheck <strong>Enable create (sign-up)</strong> and Save (so only you can add users).
-        </ListItem>
+        <ListItem n={1}><span dangerouslySetInnerHTML={{ __html: t('wizard.project.step1.html') }} /></ListItem>
+        <ListItem n={2}><span dangerouslySetInnerHTML={{ __html: t('wizard.project.step2.html') }} /></ListItem>
+        <ListItem n={3}><span dangerouslySetInnerHTML={{ __html: t('wizard.project.step3.html') }} /></ListItem>
       </ol>
 
       <a
@@ -235,11 +240,11 @@ function StepProject({ onNext }: { onNext: () => void }) {
         className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-widest transition-colors"
       >
         <ExternalLink className="w-3.5 h-3.5" />
-        Open Firebase Console
+        {t('wizard.openConsole')}
       </a>
 
       <div className="flex justify-end pt-3">
-        <PrimaryNext onClick={onNext} label="I've finished — continue" />
+        <PrimaryNext onClick={onNext} label={t('wizard.action.continue')} />
       </div>
     </div>
   );
@@ -256,6 +261,7 @@ function StepConfig({ mode, initial, onSave, onBack }: {
   // still leave via the top-level "Cancel" button.
   onBack?: () => void;
 }) {
+  const { t } = useI18n();
   const [blob, setBlob] = useState('');
   const [parsed, setParsed] = useState<StoredFirebaseConfig | null>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -269,39 +275,14 @@ function StepConfig({ mode, initial, onSave, onBack }: {
 
   return (
     <div className="space-y-5">
-      {mode === 'reconnect' ? (
-        <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-          Two ways to bring your existing project's connection here. <strong>Recommended:</strong> on the PC where you set up the project, open <strong>Settings → Generate connection code</strong>, copy the <code className="font-mono">ils-connect:…</code> string, and paste it below — fields auto-fill. <strong>Otherwise:</strong> open{' '}
-          <a
-            href="https://console.firebase.google.com"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
-          >
-            Firebase Console
-            <ExternalLink className="w-3 h-3 self-center" />
-          </a>
-          {' '}(<strong>gear icon → Project settings → Your apps → your web app</strong>) and copy the <code className="font-mono">firebaseConfig</code> block.
-        </p>
-      ) : (
-        <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-          Open{' '}
-          <a
-            href="https://console.firebase.google.com"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
-          >
-            Firebase Console
-            <ExternalLink className="w-3 h-3 self-center" />
-          </a>
-          {' '}(<strong>gear icon → Project settings → Your apps → click the &lt;/&gt; Web icon → register</strong>). Firebase shows a code block with <code className="font-mono">const firebaseConfig = &#123;&#125;</code> — copy the whole block and paste below.
-        </p>
-      )}
+      <p
+        className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: t(mode === 'reconnect' ? 'wizard.config.reconnect.html' : 'wizard.config.fresh.html') }}
+      />
 
       <div className="space-y-2">
         <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-          firebaseConfig (or ils-connect: code)
+          {t('wizard.config.label')}
         </label>
         <textarea
           value={blob}
@@ -312,7 +293,9 @@ function StepConfig({ mode, initial, onSave, onBack }: {
         />
         {parsed && (
           <p className="text-[10px] text-emerald-600 dark:text-emerald-300 font-bold uppercase tracking-widest">
-            ✓ Recognized: {parsed.projectId}{isConnectionCode(blob) && ' (from connection code)'}
+            {isConnectionCode(blob)
+              ? t('wizard.config.recognized.code', { label: t('wizard.config.recognized', { projectId: parsed.projectId }) })
+              : t('wizard.config.recognized', { projectId: parsed.projectId })}
           </p>
         )}
         {error && <p className="text-[10px] text-rose-600 dark:text-rose-300">{error}</p>}
@@ -322,8 +305,8 @@ function StepConfig({ mode, initial, onSave, onBack }: {
         {onBack ? <SecondaryBack onClick={onBack} /> : <span />}
         <PrimaryNext
           disabled={!parsed}
-          onClick={() => parsed ? onSave(parsed) : setError('Paste a valid firebaseConfig first')}
-          label="Save and continue"
+          onClick={() => parsed ? onSave(parsed) : setError(t('wizard.config.invalid'))}
+          label={t('wizard.action.saveContinue')}
         />
       </div>
     </div>
@@ -335,6 +318,7 @@ function StepConfig({ mode, initial, onSave, onBack }: {
 function StepServiceAccount({ onNext, onBack, setError }: {
   onNext: () => void; onBack: () => void; setError: (m: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [linked, setLinked] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -352,7 +336,7 @@ function StepServiceAccount({ onNext, onBack, setError }: {
 
   const handleLink = async () => {
     if (!adminApi.isAvailable()) {
-      setError('Service-account linking requires the desktop app — not available in this build.');
+      setError(t('wizard.serviceAccount.error.notDesktop'));
       return;
     }
     setBusy(true);
@@ -362,7 +346,7 @@ function StepServiceAccount({ onNext, onBack, setError }: {
       await refresh();
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      if (err.code !== 'CANCELLED') setError(err.message ?? 'Link failed');
+      if (err.code !== 'CANCELLED') setError(err.message ?? t('wizard.serviceAccount.error.linkFailed'));
     } finally {
       setBusy(false);
     }
@@ -370,19 +354,10 @@ function StepServiceAccount({ onNext, onBack, setError }: {
 
   return (
     <div className="space-y-5">
-      <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-        Open the Service Accounts tab in{' '}
-        <a
-          href={serviceAccountsConsoleUrl()}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
-        >
-          Firebase Console
-          <ExternalLink className="w-3 h-3 self-center" />
-        </a>
-        {' '}(<strong>gear icon → Project settings → Service accounts → Generate new private key → Generate key</strong>). A JSON file downloads. Click below to link it — the file stays only on your machine and is stored under a folder named after this project, so multi-database super-admins keep their projects cleanly separated.
-      </p>
+      <p
+        className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: t('wizard.serviceAccount.intro.html', { url: serviceAccountsConsoleUrl() }) }}
+      />
 
       <div className={cn(
         "flex items-start gap-3 p-4 rounded-xl border",
@@ -395,8 +370,8 @@ function StepServiceAccount({ onNext, onBack, setError }: {
           : <FilePlus2 className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />}
         <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed">
           {linked
-            ? 'Service account linked for this project. You can re-pick the file if you generated a new one.'
-            : 'No service account linked yet for this project. Click below to pick the JSON file you just downloaded.'}
+            ? t('wizard.serviceAccount.linked')
+            : t('wizard.serviceAccount.notLinked')}
         </p>
       </div>
 
@@ -407,7 +382,7 @@ function StepServiceAccount({ onNext, onBack, setError }: {
           className="apple-press px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60 flex items-center gap-2"
         >
           <FilePlus2 className="w-3 h-3" />
-          {busy ? 'Linking…' : linked ? 'Re-link service account' : 'Link service account'}
+          {busy ? t('wizard.serviceAccount.linking') : linked ? t('wizard.serviceAccount.relink') : t('wizard.serviceAccount.link')}
         </button>
         <button
           onClick={refresh}
@@ -415,13 +390,13 @@ function StepServiceAccount({ onNext, onBack, setError }: {
           className="apple-press px-4 py-2 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw className="w-3 h-3" />
-          Re-check
+          {t('wizard.serviceAccount.recheck')}
         </button>
       </div>
 
       <div className="flex justify-between pt-3">
         <SecondaryBack onClick={onBack} />
-        <PrimaryNext disabled={!linked} onClick={onNext} label="Continue" />
+        <PrimaryNext disabled={!linked} onClick={onNext} label={t('wizard.action.continueShort')} />
       </div>
     </div>
   );
@@ -432,6 +407,7 @@ function StepServiceAccount({ onNext, onBack, setError }: {
 function StepAccount({ onComplete, onBack, setError }: {
   onComplete: () => void; onBack: () => void; setError: (m: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState(generateSuggestedPassword());
   const [displayName, setDisplayName] = useState('');
@@ -453,15 +429,15 @@ function StepAccount({ onComplete, onBack, setError }: {
 
   const handleCreate = async () => {
     if (!adminApi.isAvailable()) {
-      setError('This step requires the desktop app — not available in this build.');
+      setError(t('wizard.account.error.notDesktop'));
       return;
     }
     if (!email.trim() || !password.trim()) {
-      setError('Email and password are required.');
+      setError(t('wizard.account.error.required'));
       return;
     }
     if (password.length < 6) {
-      setError('Firebase requires passwords to be at least 6 characters.');
+      setError(t('wizard.account.error.tooShort'));
       return;
     }
     setBusy(true);
@@ -482,7 +458,7 @@ function StepAccount({ onComplete, onBack, setError }: {
       setDone(true);
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      setError(err.message ?? 'Account creation failed');
+      setError(err.message ?? t('wizard.account.error.failed'));
     } finally {
       setBusy(false);
     }
@@ -491,7 +467,7 @@ function StepAccount({ onComplete, onBack, setError }: {
   return (
     <div className="space-y-5">
       <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">
-        Create your super-admin account. The Admin SDK (using the service account you just linked) will create the Firebase Auth user AND grant the super_admin role in one step — no Console roundtrip required.
+        {t('wizard.account.intro')}
       </p>
 
       {done ? (
@@ -500,13 +476,13 @@ function StepAccount({ onComplete, onBack, setError }: {
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
             <div className="space-y-1">
               <p className="text-[11px] text-emerald-700 dark:text-emerald-200 font-bold">
-                Account created and super-admin role granted
+                {t('wizard.account.success.title')}
               </p>
               <p className="text-[10px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
-                Email: <span className="font-mono">{email}</span>
+                {t('wizard.account.success.email', { email })}
               </p>
               <p className="text-[10px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
-                Click <strong>Finish</strong> to sign in.
+                {t('wizard.account.success.next', { finish: t('wizard.action.finish') })}
               </p>
             </div>
           </div>
@@ -520,10 +496,10 @@ function StepAccount({ onComplete, onBack, setError }: {
               <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
               <div className="space-y-1 min-w-0">
                 <p className="text-[11px] text-blue-700 dark:text-blue-200 font-bold">
-                  Firestore security rules deployed
+                  {t('wizard.account.rules.success.title')}
                 </p>
                 <p className="text-[10px] text-blue-700 dark:text-blue-200/80 leading-relaxed">
-                  Ruleset <span className="font-mono">{rulesDeployStatus.name}</span> is now active on this project. Manager + supervisor + admin roles will work as expected on first sign-in.
+                  {t('wizard.account.rules.success.body', { name: rulesDeployStatus.name })}
                 </p>
               </div>
             </div>
@@ -533,13 +509,13 @@ function StepAccount({ onComplete, onBack, setError }: {
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300 mt-0.5 shrink-0" />
               <div className="space-y-1 min-w-0">
                 <p className="text-[11px] text-amber-800 dark:text-amber-200 font-bold">
-                  Account created — but rules deploy failed
+                  {t('wizard.account.rules.error.title')}
                 </p>
                 <p className="text-[10px] text-amber-700 dark:text-amber-200/80 leading-relaxed">
                   {rulesDeployStatus.error.message}
                 </p>
                 <p className="text-[10px] text-amber-700 dark:text-amber-200/80 leading-relaxed">
-                  After signing in, open <strong>Super Admin → Database → Sync rules</strong> to retry. Without the deploy, non-admin users won't be able to write to Firestore.
+                  {t('wizard.account.rules.error.body')}
                 </p>
               </div>
             </div>
@@ -547,7 +523,7 @@ function StepAccount({ onComplete, onBack, setError }: {
         </div>
       ) : (
         <div className="space-y-3">
-          <Field label="Email" required>
+          <Field label={t('wizard.account.field.email')} required>
             <input
               type="email"
               value={email}
@@ -556,7 +532,7 @@ function StepAccount({ onComplete, onBack, setError }: {
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             />
           </Field>
-          <Field label="Password" required helper="At least 6 characters. Save this somewhere safe — you'll use it to sign in.">
+          <Field label={t('wizard.account.field.password')} required helper={t('wizard.account.field.password.help')}>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -567,8 +543,8 @@ function StepAccount({ onComplete, onBack, setError }: {
               <button
                 type="button"
                 onClick={handleCopyPassword}
-                aria-label={copied ? 'Copied' : 'Copy password'}
-                title={copied ? 'Copied' : 'Copy password'}
+                aria-label={copied ? t('wizard.account.copied') : t('wizard.account.copy')}
+                title={copied ? t('wizard.account.copied') : t('wizard.account.copy')}
                 className={cn(
                   "apple-press px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5 transition-colors",
                   copied
@@ -576,11 +552,11 @@ function StepAccount({ onComplete, onBack, setError }: {
                     : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800",
                 )}
               >
-                {copied ? <><Check className="w-3 h-3" />Copied</> : <><Copy className="w-3 h-3" />Copy</>}
+                {copied ? <><Check className="w-3 h-3" />{t('wizard.account.copied')}</> : <><Copy className="w-3 h-3" />{t('wizard.account.copy')}</>}
               </button>
             </div>
           </Field>
-          <Field label="Display name (optional)">
+          <Field label={t('wizard.account.field.displayName')}>
             <input
               type="text"
               value={displayName}
@@ -594,14 +570,14 @@ function StepAccount({ onComplete, onBack, setError }: {
             className="apple-press px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60 flex items-center gap-2"
           >
             <ShieldCheck className="w-3 h-3" />
-            {busy ? 'Creating…' : 'Create account + grant super-admin'}
+            {busy ? t('wizard.account.creating') : t('wizard.account.create')}
           </button>
         </div>
       )}
 
       <div className="flex justify-between pt-3">
         <SecondaryBack onClick={onBack} />
-        <PrimaryNext disabled={!done} onClick={onComplete} label="Finish setup" />
+        <PrimaryNext disabled={!done} onClick={onComplete} label={t('wizard.action.finish')} />
       </div>
     </div>
   );
@@ -610,45 +586,39 @@ function StepAccount({ onComplete, onBack, setError }: {
 // ── Step 5: Done ─────────────────────────────────────────────────────────
 
 function StepDone({ mode, onSignIn }: { mode: WizardMode; onSignIn: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3 p-5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-xl">
         <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
         <div className="space-y-1.5">
-          <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">Setup complete</p>
-          {mode === 'reconnect' ? (
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
-              Firebase project reconnected, service account linked for this PC. Sign in with your existing email + password and you'll have full super-admin access from this device.
-            </p>
-          ) : (
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
-              Firebase project connected, super-admin account created, service account linked. From now on you'll manage everything (users, companies, audit log) directly from the User Management and Super Admin tabs — Firebase Console is no longer needed for routine work.
-            </p>
-          )}
+          <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{t('wizard.done.title')}</p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
+            {mode === 'reconnect' ? t('wizard.done.body.reconnect') : t('wizard.done.body.fresh')}
+          </p>
         </div>
       </div>
 
-      {mode === 'reconnect' ? (
-        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
-          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">What's next</p>
-          <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
-            <li>Sign in with your existing super-admin email + password.</li>
-            <li>User Management, Super Admin → Connection / Companies / Database, and audit-log retention will all work on this device immediately.</li>
-          </ul>
-        </div>
-      ) : (
-        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
-          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">What's next</p>
-          <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
-            <li>Sign in with the email + password you just created.</li>
-            <li>Open <strong>Settings → Generate connection code</strong> to share with your team.</li>
-            <li>Open <strong>User Management → New user</strong> to create accounts for admins and supervisors. Each can be granted granular per-tab permissions.</li>
-          </ul>
-        </div>
-      )}
+      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-2">
+        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">{t('wizard.done.next.title')}</p>
+        <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed list-disc list-inside">
+          {mode === 'reconnect' ? (
+            <>
+              <li>{t('wizard.done.next.reconnect.1')}</li>
+              <li>{t('wizard.done.next.reconnect.2')}</li>
+            </>
+          ) : (
+            <>
+              <li>{t('wizard.done.next.fresh.1')}</li>
+              <li dangerouslySetInnerHTML={{ __html: t('wizard.done.next.fresh.2.html') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('wizard.done.next.fresh.3.html') }} />
+            </>
+          )}
+        </ul>
+      </div>
 
       <div className="flex justify-end pt-3">
-        <PrimaryNext onClick={onSignIn} label="Sign in" />
+        <PrimaryNext onClick={onSignIn} label={t('wizard.action.signIn')} />
       </div>
     </div>
   );
@@ -696,13 +666,14 @@ function PrimaryNext({ onClick, label, disabled }: { onClick: () => void; label:
 }
 
 function SecondaryBack({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onClick}
       className="apple-press px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
     >
       <ArrowLeft className="w-3 h-3" />
-      Back
+      {t('wizard.action.back')}
     </button>
   );
 }

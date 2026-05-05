@@ -14,6 +14,7 @@ import { clearMode } from '../lib/mode';
 import { cn } from '../lib/utils';
 import { getActiveStoredEntry } from '../lib/firebaseConfigStorage';
 import { PasswordResetModal } from './PasswordResetModal';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   // Fired when the user wants to switch to a different Firebase project or
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function LoginScreen({ onSwitchDatabase }: Props) {
+  const { t } = useI18n();
   const { signIn } = useAuth();
   const activeEntry = getActiveStoredEntry();
   const [email, setEmail] = useState('');
@@ -45,16 +47,19 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
       await signIn(email.trim(), password);
     } catch (err: any) {
       const code = err?.code as string | undefined;
-      // Firebase Auth error codes are stable; map the common ones to readable text.
+      // Firebase Auth error codes are stable; map the common ones to
+      // localised strings via t(). v5.16.0 — pre-v5.16 these were
+      // hardcoded English literals so Arabic-locale users got English
+      // errors on every failed sign-in.
       const msg = code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'
-        ? 'Email or password is incorrect.'
+        ? t('login.error.invalidCredentials')
         : code === 'auth/user-disabled'
-          ? 'This account has been disabled. Contact your super-admin.'
+          ? t('login.error.userDisabled')
           : code === 'auth/too-many-requests'
-            ? 'Too many attempts — try again in a few minutes.'
+            ? t('login.error.tooManyRequests')
             : code === 'auth/network-request-failed'
-              ? 'No connection. Check internet and retry.'
-              : (err?.message ?? 'Sign-in failed.');
+              ? t('login.error.networkFailed')
+              : (err?.message ?? t('login.error.generic'));
       setError(msg);
     } finally {
       setBusy(false);
@@ -73,7 +78,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
           <div className="w-14 h-14 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mx-auto mb-5">
             <Cloud className="w-7 h-7 text-blue-600 dark:text-blue-300" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight mb-1">Sign in</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight mb-1">{t('login.title')}</h1>
           {activeEntry ? (
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-1.5">
               <Database className="w-3 h-3" />
@@ -81,14 +86,14 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
             </p>
           ) : (
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Iraqi Labor Scheduler · Online mode
+              {t('login.subtitle')}
             </p>
           )}
         </div>
 
         <form onSubmit={onSubmit} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-5 shadow-sm">
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Email</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('login.field.email')}</label>
             <input
               type="email"
               autoComplete="email"
@@ -100,7 +105,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Password</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('login.field.password')}</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -113,8 +118,8 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                title={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('login.password.hide') : t('login.password.show')}
+                title={showPassword ? t('login.password.hide') : t('login.password.show')}
                 className="absolute end-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -139,7 +144,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
                 : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
             )}
           >
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy ? t('login.submitting') : t('login.submit')}
           </button>
           {/* v5.9.0 — self-service "Forgot password" entry point. Routes
               through Firebase Auth's sendPasswordResetEmail; SA no longer
@@ -149,7 +154,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
             onClick={() => setResetOpen(true)}
             className="block mx-auto text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
           >
-            Forgot password?
+            {t('login.forgot')}
           </button>
         </form>
 
@@ -160,14 +165,14 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
               className="apple-press inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-mono"
             >
               <Database className="w-3 h-3" />
-              Switch / add database
+              {t('login.switchDatabase')}
             </button>
           )}
           <button
             onClick={switchToOffline}
             className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
-            Switch to Offline Demo
+            {t('login.switchOffline')}
           </button>
         </div>
       </div>

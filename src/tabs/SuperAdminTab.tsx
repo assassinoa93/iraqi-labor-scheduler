@@ -57,7 +57,7 @@ export function SuperAdminTab({ companies, onAddCompany, onRenameCompany, onDele
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight mb-1">
           Super Admin
         </h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
           Manage users, companies, and database — all from inside the app
         </p>
       </div>

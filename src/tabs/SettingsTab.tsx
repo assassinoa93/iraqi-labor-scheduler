@@ -78,7 +78,7 @@ export function SettingsTab({
     <div className="space-y-8 max-w-4xl">
       <div>
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight mb-1">{t('settings.title')}</h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">{t('settings.subtitle')}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t('settings.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -210,13 +210,20 @@ export function SettingsTab({
               </button>
             )}
             {isAuthenticated && getActiveConfig() && (
-              <button
-                onClick={handleGenerateConnectionCode}
-                className="apple-press px-6 py-2 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 dark:hover:bg-blue-500/25 font-mono flex items-center gap-2"
-              >
-                <Link2 className="w-3 h-3" />
-                Generate connection code
-              </button>
+              <div className="space-y-1">
+                <button
+                  onClick={handleGenerateConnectionCode}
+                  className="apple-press px-6 py-2 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 dark:hover:bg-blue-500/25 font-mono flex items-center gap-2"
+                >
+                  <Link2 className="w-3 h-3" />
+                  Generate connection code
+                </button>
+                {/* v5.16.0 — explainer line so returning super-admins
+                    don't have to click to discover what the button does. */}
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-md">
+                  {t('settings.connectionCode.helper')}
+                </p>
+              </div>
             )}
           </div>
           {isAuthenticated && (

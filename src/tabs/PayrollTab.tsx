@@ -456,7 +456,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           + Net Payable rollups when groupBy is active. */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <input
             type="text"
             placeholder={t('payroll.filter.searchPlaceholder')}

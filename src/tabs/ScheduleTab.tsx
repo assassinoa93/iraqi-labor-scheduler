@@ -12,6 +12,29 @@ import { summarizeDiffMap } from '../lib/firestoreSchedules';
 
 export type PaintMode = { shiftCode: string; stationId?: string } | null;
 
+// v5.16.0 — Archive ops bundle. Groups the diff-view + HRIS-bundle-
+// export props that all flow into the approval banner so App.tsx can
+// pre-build them once instead of inlining 9 separate fields.
+export interface ScheduleArchiveProps {
+  // True if at least one /snapshots doc exists for this month — gates
+  // the diff toggle's visibility.
+  hasArchivedSnapshot?: boolean;
+  // Diff map from the most recent archived snapshot. null when the diff
+  // view is off (most of the time).
+  diffMap?: import('../lib/firestoreSchedules').ScheduleDiffMap | null;
+  diffLoading?: boolean;
+  // e.g. "since 2026-04-12 14:08" — surfaces the snapshot the diff is
+  // measuring against.
+  diffSnapshotLabel?: string | null;
+  onToggleDiff?: (next: boolean) => void;
+  diffEnabled?: boolean;
+  // HRIS manual-bundle export. Banner-rendered button when the schedule
+  // is in 'saved' state.
+  onExportHrisBundle?: () => void;
+  hrisExportBusy?: boolean;
+  hrisLastExportedAt?: number | null;
+}
+
 interface ScheduleTabProps {
   employees: Employee[];
   filteredEmployees: Employee[];
@@ -105,23 +128,17 @@ interface ScheduleTabProps {
   onSendBackSchedule?: () => void;
   onSaveSchedule?: () => void;
   onReopenSchedule?: () => void;
-  // v5.1.0 — re-approval diff view.
-  // App.tsx owns the snapshot fetch (one-shot getDocs on toggle) and passes
-  // the resulting diff Map down. The toggle state itself lives here so the
-  // banner can drive it; App.tsx subscribes to the toggle via a callback.
-  hasArchivedSnapshot?: boolean;     // true if at least one /snapshots doc exists for this month
-  diffMap?: import('../lib/firestoreSchedules').ScheduleDiffMap | null;
-  diffLoading?: boolean;
-  diffSnapshotLabel?: string | null; // e.g. "since 2026-04-12 14:08"
-  onToggleDiff?: (next: boolean) => void;
-  diffEnabled?: boolean;
-
-  // v5.1.0 — HRIS manual-bundle export. Banner-rendered button when the
-  // schedule is in 'saved' state. App.tsx owns the assembly + download +
-  // Firestore stamp; this tab just wires the click + busy flag.
-  onExportHrisBundle?: () => void;
-  hrisExportBusy?: boolean;
-  hrisLastExportedAt?: number | null;
+  // v5.16.0 — re-approval diff view + HRIS bundle export grouped into
+  // a single `archive` prop. Both clusters are about the post-save
+  // archive lifecycle (snapshots, diffs, HRIS exports) and are read
+  // exclusively by the approval banner — packing them collapses ~9
+  // top-level props into one. Internal refs use `archive?.foo` so the
+  // change is local to this tab + App.tsx call site.
+  //
+  // App.tsx owns the snapshot fetch (one-shot getDocs on toggle) and
+  // the actual HRIS assembly + Firestore stamp; this tab just wires the
+  // banner clicks and busy flags through.
+  archive?: ScheduleArchiveProps;
 
   // v5.10.0 — explicit "Save draft" force-flush + status surfacing.
   // Only wired in Offline Demo mode (Online mode auto-syncs on every
@@ -145,16 +162,30 @@ interface ScheduleTabProps {
   carryForwardUnspentCompDays?: boolean;
   onToggleCarryForward?: (next: boolean) => void;
   pendingCarriedForwardCount?: { count: number; workers: number };
+
+  // v5.16.0 — navigation shortcuts for the empty-state CTA. When
+  // employees=0 or stations=0 the grid renders nothing useful, so we
+  // surface a "Go to Roster" / "Go to Stations" button that bridges
+  // the user to the missing setup. App.tsx owns the actual setActiveTab.
+  onGoToRoster?: () => void;
+  onGoToLayout?: () => void;
 }
 
 // Layout constants used by both the sticky header row and the virtualized
 // body rows. Keep them in sync — drift here = misaligned columns.
 const ROW_HEIGHT = 48;
 const GROUP_HEADER_HEIGHT = 38;
-const DAY_CELL_WIDTH = 36;
+// v5.16.0 — DAY_CELL_WIDTH is now per-render (read from the compact-cells
+// toggle below) rather than a constant. The two values are picked so a
+// 31-day month fits on a 1366px laptop with the suggestion pane open in
+// compact mode (28×31 + 224 + 356 = 1456 — close enough that the user
+// can scroll the small remainder, vs the 1696px-wide default mode).
+const DAY_CELL_WIDTH_DEFAULT = 36;
+const DAY_CELL_WIDTH_COMPACT = 28;
 const NAME_COL_WIDTH = 224;
 
 const GROUP_COLLAPSE_KEY = 'iraqi-scheduler-collapsed-station-groups';
+const COMPACT_CELLS_KEY = 'iraqi-scheduler-compact-day-cells';
 
 // Pivot row plan item. When `scheduleGroupByStation` is on, the row plan
 // interleaves station headers with employee rows; otherwise it's just
@@ -176,6 +207,11 @@ interface RowData {
   onToggleCollapse: (stationId: string) => void;
   groupingEnabled: boolean;
   totalGridWidth: number;
+  // v5.16.0 — current day-cell width (derived from the compact-cells
+  // toggle). Threaded into rows so the cell box can size to match the
+  // sticky day-header above. Constant 36px or 28px today, but read as
+  // a number so future granular tweaks land naturally.
+  dayCellWidth: number;
   // v5.0.2 — when false, every cell renders read-only (cursor-not-allowed
   // + faded bg). Driven by approval status (submitted/locked/saved).
   cellsReadOnly: boolean;
@@ -193,7 +229,7 @@ interface RowData {
 function ScheduleRow({
   index, style, rowPlan, days, schedule, onCellClick, onCellMouseDown, onCellMouseEnter,
   recentlyChangedCells, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
-  cellsReadOnly, diffMap,
+  cellsReadOnly, diffMap, dayCellWidth,
 }: RowComponentProps<RowData>) {
   const item = rowPlan[index];
   if (!item) return <div style={style} />;
@@ -274,13 +310,19 @@ function ScheduleRow({
       >
         <div className="flex items-center gap-1.5">
           <span className="font-bold text-slate-700 dark:text-slate-100 text-xs truncate uppercase tracking-tight flex-1 min-w-0">{emp?.name}</span>
+          {/* v5.16.0 — cap-status badge: red 'over' tier stays always-visible
+              (it signals an active rule breach, not just a hint). Amber 'near'
+              tier is now hover-only — it competes for attention with the cap
+              dot in the schedule cell tooltip and the row hover already
+              surfaces full stats. Reduces the visual noise on the grid
+              without losing the breach signal. */}
           {stats && tone !== 'ok' && (
             <span
               className={cn(
-                "shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black tracking-widest",
+                "shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black tracking-widest transition-opacity",
                 tone === 'over'
-                  ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200"
-                  : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+                  ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200 opacity-100"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200 opacity-0 group-hover:opacity-100",
               )}
               title={`${stats.weeklyHrsRolling.toFixed(1)} / ${stats.weeklyCap} h peak weekly`}
             >
@@ -298,7 +340,7 @@ function ScheduleRow({
         const isRecent = !!emp && !!recentlyChangedCells?.has(cellKey);
         const diffKind = emp && diffMap ? diffMap.get(cellKey) ?? null : null;
         return (
-          <div key={day} className="border-r schedule-grid-line flex-shrink-0" style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }}>
+          <div key={day} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
             <ScheduleCell
               value={emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : ''}
               onClick={(e) => emp && onCellClick(emp.empId, day, { shift: e.shiftKey })}
@@ -332,13 +374,40 @@ export function ScheduleTab({
   approval, monthLabel, role, canEditCells = true,
   onSubmitForApproval, onLockSchedule, onSendBackSchedule,
   onSaveSchedule, onReopenSchedule,
-  // v5.1.0 — diff view props (banner-driven).
-  hasArchivedSnapshot = false, diffMap = null, diffLoading = false,
-  diffSnapshotLabel = null, onToggleDiff, diffEnabled = false,
-  // v5.1.0 — HRIS bundle export (banner-driven, saved-only).
-  onExportHrisBundle, hrisExportBusy = false, hrisLastExportedAt = null,
+  // v5.16.0 — archive ops bundle (diff view + HRIS export).
+  archive,
+  // v5.16.0 — navigation shortcuts for empty-state CTA.
+  onGoToRoster, onGoToLayout,
 }: ScheduleTabProps) {
+  // v5.16.0 — destructure archive bundle into local consts so the rest
+  // of the function body keeps reading the same names. Defaults match
+  // the old per-prop defaults verbatim so behaviour is unchanged.
+  const {
+    hasArchivedSnapshot = false,
+    diffMap = null,
+    diffLoading = false,
+    diffSnapshotLabel = null,
+    onToggleDiff,
+    diffEnabled = false,
+    onExportHrisBundle,
+    hrisExportBusy = false,
+    hrisLastExportedAt = null,
+  } = archive ?? {};
   const { t } = useI18n();
+
+  // v5.16.0 — compact-cells toggle. Persists across sessions in localStorage
+  // so a 1366px-laptop supervisor doesn't have to re-enable it every visit.
+  // Default off — full 36px cells are easier to read at 1920px+; users on
+  // smaller displays opt in via the toolbar toggle.
+  const [compactCells, setCompactCells] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.localStorage.getItem(COMPACT_CELLS_KEY) === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem(COMPACT_CELLS_KEY, compactCells ? '1' : '0'); } catch {/* quota — non-critical */}
+  }, [compactCells]);
+  const dayCellWidth = compactCells ? DAY_CELL_WIDTH_COMPACT : DAY_CELL_WIDTH_DEFAULT;
 
   // v2.6 — collapsed station IDs persist across sessions so the supervisor's
   // pivot view doesn't reset between visits. Stored as an array (Set isn't
@@ -526,7 +595,7 @@ export function ScheduleTab({
     return m;
   }, [employees, schedule, shifts, holidays, config]);
 
-  const totalGridWidth = NAME_COL_WIDTH + days.length * DAY_CELL_WIDTH;
+  const totalGridWidth = NAME_COL_WIDTH + days.length * dayCellWidth;
 
   // v2.6 — primary station per employee. The "most-frequent stationId in the
   // visible month" wins; ties are broken by station-table order.
@@ -660,6 +729,23 @@ export function ScheduleTab({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [shifts, paintMode, setPaintMode, onUndoCell, cellUndoDepth]);
+
+  // v5.16.0 — empty-state guard. Pre-v5.16 a brand-new install showed
+  // the user an empty grid + busy toolbar with no breadcrumb of what to
+  // do next. Now we route them to the missing setup tab. The case where
+  // BOTH are missing (truly fresh install) sends to Roster first since
+  // employees usually feel more concrete to a new user than stations.
+  const noEmployees = employees.length === 0;
+  const noStations = stations.length === 0;
+  if (noEmployees || noStations) {
+    return (
+      <ScheduleEmptyState
+        kind={noEmployees && noStations ? 'both' : noEmployees ? 'noEmployees' : 'noStations'}
+        onGoToRoster={onGoToRoster}
+        onGoToLayout={onGoToLayout}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -822,6 +908,22 @@ export function ScheduleTab({
           >
             <Wrench className="w-3 h-3" />
             {t('schedule.filter.groupByStation')}
+          </button>
+          {/* v5.16.0 — compact-cells toggle. Shrinks each day cell from
+              36px to 28px so a 31-day month fits on a 1366px laptop with
+              the suggestion pane open. Persists in localStorage. */}
+          <button
+            onClick={() => setCompactCells(v => !v)}
+            aria-pressed={compactCells}
+            title={t('schedule.compactCells.tooltip')}
+            className={cn(
+              'px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 border',
+              compactCells
+                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800',
+            )}
+          >
+            {t('schedule.compactCells.label')}
           </button>
           {(scheduleFilter || scheduleRoleFilter !== 'all' || scheduleViolationsOnly || scheduleGroupByStation) && (
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
@@ -986,13 +1088,13 @@ export function ScheduleTab({
           quirks. Only the grid itself uses dir="ltr"; the toolbar and
           surrounding UI follow the document direction. */}
       {staleness?.isStale && (
-        <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-          <Wrench className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div role="alert" className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
+          <Wrench className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-amber-900 uppercase tracking-widest mb-1">
+            <p className="text-[11px] font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest mb-1">
               {t('schedule.stale.header')}
             </p>
-            <p className="text-[11px] text-amber-800">
+            <p className="text-[11px] text-amber-800 dark:text-amber-200/80">
               {t('schedule.stale.body', {
                 emps: staleness.orphanedEmpIds.length,
                 shifts: staleness.orphanedShiftCodes.length,
@@ -1018,21 +1120,21 @@ export function ScheduleTab({
           </div>
         )}
         {paintWarnings && paintWarnings.warnings.length > 0 && (
-          <div role="alert" className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div role="alert" className="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/30 px-4 py-3 flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold text-amber-900 uppercase tracking-widest mb-1">
+              <p className="text-[11px] font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest mb-1">
                 {t('schedule.warningHeader', { name: paintWarnings.empName })}
               </p>
-              <ul className="text-[11px] text-amber-800 space-y-0.5 list-disc pl-4">
+              <ul className="text-[11px] text-amber-800 dark:text-amber-200/80 space-y-0.5 list-disc ps-4">
                 {paintWarnings.warnings.map((w, i) => <li key={i}>{w}</li>)}
               </ul>
-              <p className="text-[10px] text-amber-700 italic mt-1">{t('schedule.warningFooter')}</p>
+              <p className="text-[10px] text-amber-700 dark:text-amber-200/70 italic mt-1">{t('schedule.warningFooter')}</p>
             </div>
             <button
               onClick={onDismissPaintWarnings}
               aria-label={t('action.cancel')}
-              className="p-1 hover:bg-amber-100 rounded text-amber-700 transition-colors flex-shrink-0"
+              className="p-1 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded text-amber-700 dark:text-amber-200 transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1096,10 +1198,10 @@ export function ScheduleTab({
                       isHoli && "bg-red-50/70 dark:bg-red-500/15",
                       isToday && "bg-blue-50/80 dark:bg-blue-500/20 ring-2 ring-blue-400 dark:ring-blue-300 ring-inset z-10",
                     )}
-                    style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }}
+                    style={{ width: dayCellWidth, minWidth: dayCellWidth }}
                   >
                     {isHoli && (
-                      <span className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Holiday" />
+                      <span className="absolute top-1 start-1 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Holiday" />
                     )}
                     {isToday && (
                       <span className="absolute -top-0.5 right-0.5 text-[7px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-tighter">●</span>
@@ -1150,6 +1252,7 @@ export function ScheduleTab({
                   totalGridWidth,
                   cellsReadOnly: !canEditCells,
                   diffMap: diffEnabled ? diffMap : null,
+                  dayCellWidth,
                 }}
               />
             )}
@@ -1276,24 +1379,31 @@ function AutoScheduleRangePicker({
 
   return (
     <div ref={wrapRef} className="relative inline-flex items-center gap-2">
+      {/* v5.16.0 — clearer labels + tone signaling. Pre-v5.16 the
+          two buttons read "Optimal (Keep Absences)" + "Auto-Schedule"
+          which leaned on side-effects; users repeatedly asked "did
+          this overwrite my leaves?". The safe path now reads as
+          "Re-fill (keep my edits)" in the primary emerald tone, and
+          the destructive rebuild path borrows the rose accent so it
+          visibly registers as "I will lose work" before click. */}
       <button
         onClick={() => onRunPreserve(buildRange())}
         disabled={disabled}
-        title={disabled ? (disabledReason || '') : t('action.runAutoSchedulePreserve.tooltip')}
+        title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.refill.tooltip')}
         className="apple-press flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-500/25 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:hover:bg-slate-300 dark:disabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:text-slate-500"
       >
         <Wand2 className="w-4 h-4" />
-        {t('action.runAutoSchedulePreserve')}
+        {t('action.runAutoSchedule.refill')}
       </button>
 
       <button
         onClick={() => onRunFresh(buildRange())}
         disabled={disabled}
-        title={disabled ? (disabledReason || '') : undefined}
-        className="apple-press flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-500/25 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:hover:bg-slate-300 dark:disabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:text-slate-500"
+        title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.rebuild.tooltip')}
+        className="apple-press flex items-center gap-2 bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-2 border-rose-300 dark:border-rose-500/40 px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:border-slate-200 dark:disabled:border-slate-700 disabled:cursor-not-allowed disabled:shadow-none"
       >
         <Sparkles className="w-4 h-4" />
-        {t('action.runAutoSchedule')}
+        {t('action.runAutoSchedule.rebuild')}
       </button>
 
       <button
@@ -1376,6 +1486,62 @@ function AutoScheduleRangePicker({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// v5.16.0 — empty-state shown when employees=0 OR stations=0. The grid
+// can't render anything useful in those states; pre-v5.16 the user just
+// saw an empty grid with a busy toolbar and no breadcrumb. This block
+// names exactly what's missing and provides a one-click jump to the
+// setup tab. Mirrors the DashboardTab empty-state pattern.
+function ScheduleEmptyState({
+  kind, onGoToRoster, onGoToLayout,
+}: {
+  kind: 'noEmployees' | 'noStations' | 'both';
+  onGoToRoster?: () => void;
+  onGoToLayout?: () => void;
+}) {
+  const { t } = useI18n();
+  const titleKey =
+    kind === 'noEmployees' ? 'schedule.empty.noEmployees.title'
+    : kind === 'noStations' ? 'schedule.empty.noStations.title'
+    : 'schedule.empty.both.title';
+  const bodyKey =
+    kind === 'noEmployees' ? 'schedule.empty.noEmployees.body'
+    : kind === 'noStations' ? 'schedule.empty.noStations.body'
+    : 'schedule.empty.both.body';
+  // For the 'both' case, show the Roster CTA (employees first, stations
+  // come after — that's the natural setup order).
+  const showRosterCta = (kind === 'noEmployees' || kind === 'both') && !!onGoToRoster;
+  const showLayoutCta = kind === 'noStations' && !!onGoToLayout;
+  return (
+    <div className="space-y-6">
+      <div className="p-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-inner">
+        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Calendar className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t(titleKey)}</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed mb-6">{t(bodyKey)}</p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {showRosterCta && (
+            <button
+              onClick={onGoToRoster}
+              className="apple-press flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
+            >
+              {t('schedule.empty.noEmployees.cta')}
+            </button>
+          )}
+          {showLayoutCta && (
+            <button
+              onClick={onGoToLayout}
+              className="apple-press flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
+            >
+              {t('schedule.empty.noStations.cta')}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

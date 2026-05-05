@@ -251,26 +251,29 @@ export const SidebarGroup = ({ label, children }: { label: string; children: Rea
 //   • A small pulsing blue dot sits at the inline-end edge of the active
 //     row, replacing the leading bar as the "you are here" cue.
 //   • Inactive tabs get a faint `slate-800/70` hover (Apple-quiet).
-//   • Index numerals are mono + tabular so two-digit IDs line up.
+//
+// v5.16.0 — dropped the leading "01"/"02"/.../"15" mono numeral. The
+// numbering implied a "first do this, then do that" order, but the
+// real setup path doesn't follow the visual numbers (Roster=03 →
+// Layout=08 → Schedule=02). Without it the tabs read cleaner and the
+// SidebarGroup labels (Operations / Analytics / Setup / System) carry
+// the hierarchy. The `index` prop stays in the signature so existing
+// call sites compile unchanged; it's just no longer rendered.
 //
 // The `dir="rtl"` flow is handled by the parent — `start-*` / `end-*`
 // classes auto-mirror so the dot lands on the visual end of the row in
 // either direction. Pre-2.6 the leading bar was force-placed via
 // `border-l-4` and needed a CSS override to mirror in RTL.
-export const TabButton = ({ active, label, index, onClick, badge }: { active: boolean; icon?: any; label: string; index: string; onClick: () => void; badge?: number }) => (
+export const TabButton = ({ active, label, onClick, badge }: { active: boolean; icon?: any; label: string; index?: string; onClick: () => void; badge?: number }) => (
   <button
     onClick={onClick}
     className={cn(
-      "w-full flex items-center gap-3 px-3 py-2.5 mx-2 rounded-xl text-sm transition-colors duration-150 relative",
+      "w-full flex items-center gap-3 px-4 py-2.5 mx-2 rounded-xl text-sm transition-colors duration-150 relative",
       active
         ? "bg-blue-500/[0.18] text-white font-semibold border border-blue-400/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100 border border-transparent",
     )}
   >
-    <span className={cn(
-      "font-mono text-[10px] font-bold transition-opacity tabular-nums w-3.5 shrink-0 text-center",
-      active ? "text-blue-300 opacity-100" : "text-slate-500 opacity-60",
-    )}>{index}</span>
     <span className="truncate flex-1 text-start">{label}</span>
     {/* v5.0 — pending-action badge. Surfaces the count of items waiting
         for the user's attention on this tab (currently used by Schedule

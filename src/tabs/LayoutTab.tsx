@@ -327,7 +327,7 @@ export function LayoutTab({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('layout.title')}</h3>
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-widest leading-none">{t('layout.subtitle')}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{t('layout.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -643,7 +643,28 @@ export function LayoutTab({
         <div className="p-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-inner">
           <Layout className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
           <h3 className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
-          <p className="text-[11px] text-slate-300 dark:text-slate-600 font-medium uppercase tracking-tighter mt-1">{t('layout.emptyHint')}</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-1 max-w-md mx-auto leading-relaxed">{t('layout.emptyHint')}</p>
+          {/* v5.16.0 — empty-state CTAs. Pre-v5.16 the empty zone showed
+              only a hint and forced the user to find the small toolbar
+              buttons above. Mirrors the RosterTab empty-state pattern. */}
+          <div className="flex flex-wrap gap-2 justify-center mt-6">
+            <button
+              onClick={onAddNew}
+              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t('layout.new')}
+            </button>
+            {onBulkAdd && (
+              <button
+                onClick={onBulkAdd}
+                className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-5 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all"
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />
+                {t('layout.bulkAdd')}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

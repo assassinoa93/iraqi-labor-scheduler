@@ -3764,10 +3764,13 @@ export default function App() {
                   // Pre-v5.1.1 admins (and any role on a submitted/locked
                   // schedule) could still kick off auto-schedule, which
                   // wrote `entries` and bypassed the workflow.
+                  // v5.16.0 — disabled-reason strings now flow through t()
+                  // so they translate in Arabic mode (pre-v5.16 they were
+                  // hardcoded English).
                   !activeMonthCanEdit
                     ? (role === 'admin'
-                        ? 'Admins are monitor-only on cells. Auto-schedule has to be run by a supervisor or manager.'
-                        : 'Cells are read-only in this state. Reopen / send back the schedule to edit.')
+                        ? t('schedule.runAuto.disabled.adminOnly')
+                        : t('schedule.runAuto.disabled.readOnly'))
                     : employees.length === 0 && stations.length === 0
                       ? t('schedule.runAuto.disabled.bothEmpty')
                       : employees.length === 0
@@ -3792,21 +3795,28 @@ export default function App() {
                 onSendBackSchedule={() => setSendBackModalOpen(true)}
                 onSaveSchedule={() => setSaveModalOpen(true)}
                 onReopenSchedule={() => setReopenModalOpen(true)}
-                hasArchivedSnapshot={hasArchivedSnapshot}
-                diffMap={diffMap}
-                diffEnabled={diffEnabled}
-                diffLoading={diffLoading}
-                diffSnapshotLabel={diffSnapshotLabel}
-                onToggleDiff={handleToggleDiff}
-                onExportHrisBundle={handleExportHrisBundle}
-                hrisExportBusy={hrisExportBusy}
-                hrisLastExportedAt={(() => {
-                  const t = activeMonthHrisSync?.lastExportedAt as { toMillis?: () => number; seconds?: number } | undefined;
-                  if (!t) return null;
-                  if (typeof t.toMillis === 'function') return t.toMillis();
-                  if (typeof t.seconds === 'number') return t.seconds * 1000;
-                  return null;
-                })()}
+                onGoToRoster={() => setActiveTab('roster')}
+                onGoToLayout={() => setActiveTab('layout')}
+                // v5.16.0 — diff view + HRIS bundle props grouped into
+                // a single `archive` bundle. Reduces the ScheduleTab call
+                // site from ~30 props to ~22.
+                archive={{
+                  hasArchivedSnapshot,
+                  diffMap,
+                  diffEnabled,
+                  diffLoading,
+                  diffSnapshotLabel,
+                  onToggleDiff: handleToggleDiff,
+                  onExportHrisBundle: handleExportHrisBundle,
+                  hrisExportBusy,
+                  hrisLastExportedAt: (() => {
+                    const ts = activeMonthHrisSync?.lastExportedAt as { toMillis?: () => number; seconds?: number } | undefined;
+                    if (!ts) return null;
+                    if (typeof ts.toMillis === 'function') return ts.toMillis();
+                    if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+                    return null;
+                  })(),
+                }}
                 // v5.10.0 — explicit "Save draft" force-flush. In Online
                 // mode the Firestore SDK already does this on cell paint;
                 // this button gives the supervisor a confirmable

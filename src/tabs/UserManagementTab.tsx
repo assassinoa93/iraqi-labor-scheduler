@@ -16,6 +16,7 @@
 import React from 'react';
 import { useAuth } from '../lib/auth';
 import { UsersPanel } from '../components/SuperAdmin/UsersPanel';
+import { useI18n } from '../lib/i18n';
 import type { Company } from '../types';
 
 interface Props {
@@ -23,12 +24,13 @@ interface Props {
 }
 
 export function UserManagementTab({ companies }: Props) {
+  const { t } = useI18n();
   const { role } = useAuth();
   if (role !== 'super_admin') {
     return (
       <div className="p-8">
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          You don't have permission to view this tab.
+          {t('userManagement.denied')}
         </p>
       </div>
     );
@@ -38,10 +40,10 @@ export function UserManagementTab({ companies }: Props) {
     <div className="space-y-8 max-w-6xl">
       <div>
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight mb-1">
-          User Management
+          {t('userManagement.title')}
         </h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
-          Create, edit, and remove users · grant per-tab permissions
+        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+          {t('userManagement.subtitle')}
         </p>
       </div>
 
