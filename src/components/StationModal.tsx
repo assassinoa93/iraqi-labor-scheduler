@@ -6,6 +6,7 @@ import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
 import { validateHourlyDemand } from '../lib/stationDemand';
 import { HourlyDemandEditor, nextSlotDefaults } from './HourlyDemandEditor';
+import { cn } from '../lib/utils';
 
 interface StationModalProps {
   isOpen: boolean;
@@ -113,14 +114,65 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
               <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Display Name" className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm font-bold text-slate-800 dark:text-slate-100" />
             </div>
           </div>
+          {/* v5.17.0 — when an hourly demand profile is configured for
+              either day type, the corresponding flat HC value is IGNORED
+              by getRequiredHC() (the override is total, not additive).
+              We dim the field, swap the label colour to amber, and
+              surface a small "Overridden by hourly profile" hint so the
+              supervisor doesn't think both apply. The field stays
+              editable so they can still adjust the legacy fallback for
+              future use, but the visual treatment makes it unambiguous
+              which one drives the auto-scheduler today. */}
           <div className="grid grid-cols-2 gap-4">
              <div>
-               <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.station.field.normalHC')}</label>
-               <input type="number" min={0} value={formData.normalMinHC} onChange={e => setFormData({...formData, normalMinHC: Math.max(0, parseInt(e.target.value) || 0)})} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm font-mono text-slate-800 dark:text-slate-100" />
+               <label className={cn(
+                 "text-[10px] font-black uppercase tracking-widest mb-1 block",
+                 (formData.normalHourlyDemand?.length ?? 0) > 0
+                   ? "text-amber-600 dark:text-amber-300"
+                   : "text-slate-400 dark:text-slate-500"
+               )}>
+                 {t('modal.station.field.normalHC')}
+                 {(formData.normalHourlyDemand?.length ?? 0) > 0 && (
+                   <span className="ms-1 normal-case font-medium tracking-normal">— {t('modal.station.flatHC.overridden')}</span>
+                 )}
+               </label>
+               <input
+                 type="number"
+                 min={0}
+                 value={formData.normalMinHC}
+                 onChange={e => setFormData({...formData, normalMinHC: Math.max(0, parseInt(e.target.value) || 0)})}
+                 className={cn(
+                   "w-full border rounded-lg py-2 px-3 text-sm font-mono",
+                   (formData.normalHourlyDemand?.length ?? 0) > 0
+                     ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                     : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100"
+                 )}
+               />
              </div>
              <div>
-               <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.station.field.peakHC')}</label>
-               <input type="number" min={0} value={formData.peakMinHC} onChange={e => setFormData({...formData, peakMinHC: Math.max(0, parseInt(e.target.value) || 0)})} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm font-mono text-slate-800 dark:text-slate-100" />
+               <label className={cn(
+                 "text-[10px] font-black uppercase tracking-widest mb-1 block",
+                 (formData.peakHourlyDemand?.length ?? 0) > 0
+                   ? "text-amber-600 dark:text-amber-300"
+                   : "text-slate-400 dark:text-slate-500"
+               )}>
+                 {t('modal.station.field.peakHC')}
+                 {(formData.peakHourlyDemand?.length ?? 0) > 0 && (
+                   <span className="ms-1 normal-case font-medium tracking-normal">— {t('modal.station.flatHC.overridden')}</span>
+                 )}
+               </label>
+               <input
+                 type="number"
+                 min={0}
+                 value={formData.peakMinHC}
+                 onChange={e => setFormData({...formData, peakMinHC: Math.max(0, parseInt(e.target.value) || 0)})}
+                 className={cn(
+                   "w-full border rounded-lg py-2 px-3 text-sm font-mono",
+                   (formData.peakHourlyDemand?.length ?? 0) > 0
+                     ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                     : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100"
+                 )}
+               />
              </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

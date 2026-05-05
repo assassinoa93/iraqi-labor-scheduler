@@ -2,6 +2,78 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.17.0 — 2026-05-05
+
+**Three-phase rework of the staffing advisor — unified recommendation, Iraqi Labor Law fines factored into Net Monthly Delta, and per-employee OT cap accuracy.** Resolves a real regression the user surfaced: the Dashboard's "Strategic Growth Path" said "Hire 14, save ≈0 IQD" while the StaffingAdvisoryCard below it offered +29 (eliminate-OT) or +3 (optimal coverage) — three different methodologies competing on the same screen, none of them counting the fines exposure of the violations they were supposed to prevent.
+
+### Phase 1 — Single source of truth for "how many to hire?"
+
+Pre-v5.17 the dashboard ran THREE independent OT-only calculations side-by-side (`potentialHires` aggregate ceiling at [DashboardTab.tsx:114](src/tabs/DashboardTab.tsx#L114), the StaffingAdvisoryCard's per-station ceiling, and the optimal-coverage gap math) and a fourth on top: `savings = max(0, totalOTPay - hireCost)` floored at zero, which masked negative ROI as "≈0 IQD savings". The user got told "Hire 14 people, save ~0 IQD" with no way to know the hire actually *cost* 18M more than the OT they'd absorb.
+
+- **Strategic Growth Path** card now sources its hire count, net delta, AND per-station breakdown from `advisory.bestOfBoth` (the conservative ceiling that satisfies whichever pressure dominates each station). Same numbers the StaffingAdvisoryCard shows below it. The 4 surfaces reconcile.
+- **`potentialHires`/`hireCost`/`savings` inline math deleted from DashboardTab** — they were the source of the conflict.
+- **"≈0 IQD savings" floor bug fixed**: the new "Net Monthly Delta" KPI shows the real delta (positive or negative). When negative, the body copy frames it honestly: *"costs ≈X IQD per month over the current OT premium — the trade-off: spend that delta to buy compliance + coverage"*.
+- **FTE Forecast KPI + Recruitment Plan body** also now read from `advisory.bestOfBoth`. The four numbers the user saw competing (Strategic Growth headline, FTE KPI, Recruitment Plan target, StaffingAdvisoryCard headline) all match.
+
+### Phase 2 — Iraqi Labor Law fines factored into Net Monthly Delta
+
+Compliance violations carry real penalties under Iraqi Labor Law 37/2015 (Art. 67/68/70/71/72/74/84/86/87/88). Pre-v5.17 the staffing advisor framed hiring purely as "OT cost saved vs new salaries", ignoring the fines exposure the violations carry. Now the advisor measures both.
+
+**Foundations** ([fines.ts](src/lib/fines.ts) NEW)
+- `RULE_KEYS` — stable machine keys for every rule the compliance engine emits, decoupled from human labels (so future i18n on rule names doesn't break the fine-rate lookup).
+- `DEFAULT_FINE_RATES` — placeholder midpoints aligned with the Iraqi Labor Law 37/2015 penalty framework (typically 250,000 – 1,000,000 IQD per violation):
+  - Daily/weekly cap breaches (Art. 67/68/70): **250,000 IQD**
+  - Min rest + consecutive days + weekly rest (Art. 71/72): **250,000 IQD**
+  - Continuous driving without break (Art. 88): **250,000 IQD**
+  - Worked during sick leave (Art. 84): **500,000 IQD**
+  - Worked during annual leave: **250,000 IQD**
+  - Worked during maternity leave (Art. 87): **1,000,000 IQD**
+  - Women's industrial night work (Art. 86): **1,000,000 IQD**
+- `estimateFines(violations, config)` — pure function; returns `{ total, byRule }` Pareto-sorted. Skips info-severity findings (PH worked, comp owed) since those are operational notes, not legal breaches. Multiplies each rule's `count` (the engine's grouped repeats) by the per-occurrence rate.
+- `RULE_LABEL_I18N_KEYS` + `RULE_ARTICLES` — bilingual labels and statute citations for every rule, surfaced in the advisory breakdown and Variables editor.
+
+**Type-system wiring**
+- `Config.fineRates?: Record<string, number>` — operator-set rates persisted across backups and synced between Online + Offline modes via [migration.ts](src/lib/migration.ts) pass-through that merges with `DEFAULT_CONFIG.fineRates` so legacy saves inherit defaults automatically.
+- `Violation.ruleKey?: string` — stable key wired into every emitter in [compliance.ts](src/lib/compliance.ts). Fine lookup uses ruleKey when present, falls back to the human `rule` string for rehydrated/legacy violations.
+
+**Staffing advisory updates** ([staffingAdvisory.ts](src/lib/staffingAdvisory.ts))
+- `StaffingMode.monthlyFinesAvoided` — IQD/month estimate of the fines this hiring strategy is expected to clear.
+- `netMonthlyDelta` formula revised: `(monthlyOTSaved + monthlyFinesAvoided) - monthlySalaryAdded`. Can be negative; sign tells the story.
+- Per-mode fines avoidance is sliced by rule-key category:
+  - **Eliminate OT + Best of Both** clear the `OT_DRIVEN_RULE_KEYS` set (cap breaches, missing rest, weekly rest day, consecutive days) — those mechanically fall when OT is absorbed.
+  - **Optimal Coverage** credits 0 for fines (peak-gap hires don't directly resolve overwork rules — conservative).
+  - Leave-day-work fines (Art. 84/87) and Art. 86 women's industrial night work fines stay in `currentPotentialFines` but are NOT credited as "avoided" by hiring — they're EDIT mistakes (paint on a leave day, wrong gender × industrial shift) that no headcount addition fixes.
+- `StaffingAdvisory.currentPotentialFines: FineEstimate` — surfaced standalone so the dashboard can show a "you are exposed to ≈X IQD/month in fines" headline alongside the per-mode deltas.
+- `simulateWithExtraHires` now runs `ComplianceEngine.check` on the simulated schedule and returns `remainingViolations + remainingFines` — the supervisor sees ACTUAL measured fine reduction after the phantom hires + auto-rerun, not just an estimate.
+
+**UI surfaces**
+- **StaffingAdvisoryCard** ([StaffingAdvisoryCard.tsx](src/components/StaffingAdvisoryCard.tsx))
+  - 4-column KPI grid: hires / OT saved / **fines avoided (NEW)** / salary added.
+  - Net Monthly Delta KPI carries the new `(OT saved + fines avoided) − new salaries` formula caption underneath.
+  - **Collapsible per-rule fines exposure breakdown** with article citations and per-rule occurrence × rate detail. Hidden when there are no fines on the table.
+  - SimulationReadout adds **Hard violations** + **Fine exposure** stats and a measured fine-reduction headline pill (e.g. *"Simulation reduces fine exposure by ≈3,750,000 IQD/mo (75% of current)"*).
+- **Strategic Growth card** (Dashboard) gains a rose-tinted "Potential Fines Exposure" headline that surfaces only when there's measurable risk. Body copy switches between `body.savesNet` / `body.costsNet` based on the sign of the delta — no more "≈0 IQD" lie.
+- **Variables tab** new "Fine Rates" section ([VariablesTab.tsx](src/components/VariablesTab.tsx)) with one editable input per rule, each labeled with its statute citation (Art. 67/68/70/71/72/84/86/87/88). Per-row "Overridden" badge + Reset link when the user has changed the seed. Prominent operator-set placeholders disclaimer at the top — these are mid-range estimates aligned with the law's framework, not authoritative amounts. Refine with labor counsel.
+
+### Phase 3.1 — OT attribution respects driver/hazardous/exempt caps
+
+`attributeOTToStations` previously used a single flat `monthlyHourCap(config)` (the standard 48h × 4 = 192h cap) for every employee. Drivers (Art. 88, weekly cap 56h × 4 = 224h monthly) were over-attributed for OT they hadn't actually accrued; hazardous workers (Art. 70, weekly cap 36h × 4 = 144h monthly) were under-attributed. New `monthlyCapFor(emp, config)` mirrors the compliance engine's cap selection: hour-exempt → ∞ (never accrues OT), driver category → driver weekly × 4, hazardous flag → hazardous weekly × 4, otherwise standard. The advisory's per-station hire counts now match the rule the engine actually fires.
+
+### Phase 3.2 — Hourly demand profile clarity
+
+When per-station hourly demand slots are configured, `getRequiredHC()` IGNORES the flat `normalMinHC`/`peakMinHC` values across the whole day (override is total, not additive). Pre-v5.17 the StationModal + BulkAddStationsModal kept both fields visually equal-weight, leading users to ask "which one applies?". Now, when slots exist for a day type:
+- The corresponding flat HC label switches to amber + adds an inline `— Overridden by hourly profile` hint.
+- The input dims (slate-100 background, slate-400 text) so it visually registers as not-driving-the-scheduler.
+- Field stays editable for the legacy fallback case (delete the slots → flat HC takes over again).
+
+### Compatibility
+
+- All **229 tests pass** (19 new): 11 in `fines.test.ts`, 8 in extended `staffingAdvisory.test.ts` covering fines avoidance per mode, severity filtering, leave-day-work / Art. 86 exclusion from OT-driven avoidance, and net-delta sign flips when fines are factored in.
+- `tsc --noEmit` clean. Vite production build clean. Secret-leak audit clean.
+- **Dual-mode parity preserved**: `Config.fineRates` is a single optional field that round-trips through both server.ts (Offline) and Firestore (Online) via the existing schemaless `match /{collection}/{docId}` rules — no schema migration, no Firestore rules change.
+- `Violation.ruleKey` is optional with a string-name fallback; pre-v5.17 cached violations work unchanged.
+- DEFAULT_CONFIG.fineRates seeded so brand-new installs ship with the placeholder defaults active out-of-box; the Variables tab is the touch point for refinement.
+
 ## v5.16.0 — 2026-05-05
 
 **Beta-prep UX pass.** Static UX audit of the v5.15 build surfaced 14 distinct issues across RTL, dark mode, i18n coverage, empty states, and visual polish. This release lands fixes for all 14 in one pass — no behavioural regressions, no new tests required (every change is presentational or i18n).

@@ -1,9 +1,10 @@
 import React from 'react';
-import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle, Moon, Users, Gift } from 'lucide-react';
+import { ShieldCheck, Truck, Flame, Calendar, Clock, AlertCircle, Moon, Users, Gift, Scale } from 'lucide-react';
 import { Config, DayOfWeek } from '../types';
 import { SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
+import { RULE_KEYS, DEFAULT_FINE_RATES, RULE_ARTICLES, RULE_LABEL_I18N_KEYS, getEffectiveFineRate } from '../lib/fines';
 
 const DOW_KEY: Record<DayOfWeek, string> = {
   1: 'common.day.sunday',
@@ -480,9 +481,132 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
         </div>
       </div>
 
+      {/* v5.17.0 — Fine rates per rule (IQD per occurrence). Drives the
+          staffing advisory's "fines avoided" / "current potential
+          fines" estimates. Defaults are mid-range placeholders aligned
+          with the Iraqi Labor Law 37/2015 penalty framework — supervisor
+          should refine with their labor counsel for the amounts that
+          apply to their establishment. Governance gate: same readOnly
+          treatment as the rest of the legal-variables section. */}
+      <FineRatesSection config={config} setConfig={setConfig} readOnly={readOnly} />
+
       <div className="border-t border-slate-100 pt-6 text-[11px] text-slate-400 leading-relaxed">
         <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 mb-2">{t('variables.references.title')}</p>
         <p>{t('variables.references.body')}</p>
+      </div>
+    </div>
+  );
+}
+
+// v5.17.0 — Fine rates section. Each row exposes one rule's IQD-per-
+// occurrence amount (read from Config.fineRates with fallback to the
+// DEFAULT_FINE_RATES seeds). Entire section gated by the same readOnly
+// flag as the cap settings — this is governance config, not operational.
+function FineRatesSection({ config, setConfig, readOnly }: {
+  config: Config;
+  setConfig: React.Dispatch<React.SetStateAction<Config>>;
+  readOnly?: boolean;
+}) {
+  const { t } = useI18n();
+  // Display order matches operational severity (overwork rules first,
+  // then leave-day work, then Art. 86 women's industrial night work).
+  const RULE_ORDER: string[] = [
+    RULE_KEYS.DAILY_HOURS_CAP,
+    RULE_KEYS.WEEKLY_HOURS_CAP,
+    RULE_KEYS.MIN_REST_BETWEEN_SHIFTS,
+    RULE_KEYS.CONSECUTIVE_WORK_DAYS,
+    RULE_KEYS.WEEKLY_REST_DAY,
+    RULE_KEYS.CONTINUOUS_DRIVING_NO_BREAK,
+    RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE,
+    RULE_KEYS.WORKED_DURING_SICK_LEAVE,
+    RULE_KEYS.WORKED_DURING_MATERNITY,
+    RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL,
+  ];
+  const updateRate = (ruleKey: string, value: number) => {
+    setConfig(prev => ({
+      ...prev,
+      fineRates: { ...(prev.fineRates ?? {}), [ruleKey]: Math.max(0, Math.round(value)) },
+    }));
+  };
+  const resetToDefault = (ruleKey: string) => {
+    setConfig(prev => {
+      const next = { ...(prev.fineRates ?? {}) };
+      delete next[ruleKey]; // delete the override → falls back to DEFAULT_FINE_RATES
+      return { ...prev, fineRates: next };
+    });
+  };
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="p-5 border-b border-slate-100 flex items-center gap-4">
+        <div className="w-10 h-10 bg-rose-50 text-rose-700 rounded-xl flex items-center justify-center">
+          <Scale className="w-5 h-5" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-slate-800 text-sm tracking-tight">{t('variables.fines.title')}</h3>
+          <p className="text-[10px] text-slate-500 font-medium">{t('variables.fines.subtitle')}</p>
+        </div>
+      </div>
+      <div className="p-4 bg-amber-50/60 border-b border-amber-100">
+        <p className="text-[11px] text-amber-900 leading-relaxed">
+          <span className="font-bold uppercase tracking-widest">{t('variables.fines.disclaimer.label')}</span>
+          {' — '}
+          {t('variables.fines.disclaimer.body')}
+        </p>
+      </div>
+      <div className="divide-y divide-slate-50">
+        {RULE_ORDER.map(ruleKey => {
+          const labelKey = RULE_LABEL_I18N_KEYS[ruleKey];
+          const article = RULE_ARTICLES[ruleKey] ?? '';
+          const seedDefault = DEFAULT_FINE_RATES[ruleKey] ?? 0;
+          const current = getEffectiveFineRate(ruleKey, config);
+          const isOverridden = typeof config.fineRates?.[ruleKey] === 'number'
+            && config.fineRates[ruleKey] !== seedDefault;
+          return (
+            <div key={ruleKey} className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className="md:col-span-2 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-bold text-slate-800 text-sm">{labelKey ? t(labelKey) : ruleKey}</p>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 font-mono">
+                    {article}
+                  </span>
+                  {isOverridden && (
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-widest border border-blue-200">
+                      {t('variables.fines.overridden')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  {t('variables.fines.row.help', { defaultAmount: seedDefault.toLocaleString() })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step={50000}
+                  min={0}
+                  value={current}
+                  disabled={readOnly}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    updateRate(ruleKey, Number.isFinite(v) ? v : seedDefault);
+                  }}
+                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
+                {isOverridden && !readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => resetToDefault(ruleKey)}
+                    title={t('variables.fines.reset.tooltip')}
+                    className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 underline"
+                  >
+                    {t('variables.fines.reset')}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

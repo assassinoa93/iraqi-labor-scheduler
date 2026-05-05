@@ -1493,6 +1493,58 @@ export const en: Dict = {
   // tooltip stayed English even with the UI in Arabic.
   'schedule.runAuto.disabled.adminOnly': 'Admins are monitor-only on cells. Auto-schedule has to be run by a supervisor or manager.',
   'schedule.runAuto.disabled.readOnly': 'Cells are read-only in this state. Reopen / send back the schedule to edit.',
+
+  // v5.17.0 — Phase 1 Strategic Growth card (Dashboard) wired to the
+  // unified advisory.bestOfBoth. Net delta replaces "savings" so both
+  // signs are honest (positive = saves, negative = costs).
+  'dashboard.optim.netDelta': 'Net Monthly Delta',
+  'dashboard.optim.netDeltaCaption': 'OT + fines saved − new salaries',
+  'dashboard.optim.body.savesNet': 'The current schedule relies on {hours} hours of overtime to maintain continuity. Hiring {hires} additional staff would stabilize coverage AND, after their salaries, save ≈{delta} IQD per month in OT premium and avoided fines.',
+  'dashboard.optim.body.costsNet': 'The current schedule relies on {hours} hours of overtime to maintain continuity. Hiring {hires} additional staff would stabilize coverage and eliminate the legal-risk fines exposure, but after their salaries it costs ≈{delta} IQD per month over the current OT premium. The trade-off: spend that delta to buy compliance + coverage.',
+  'dashboard.optim.finesExposure.title': 'Potential Fines Exposure',
+  'dashboard.optim.finesExposure.body': 'The current month\'s violations carry an estimated ≈{amount} IQD per month in potential Iraqi Labor Law fines. Adjust per-rule rates in Variables → Fine Rates to refine.',
+  'dashboard.optim.byStation.reason.both': 'OT pressure {ot}h + peak gap {gap}',
+  'dashboard.optim.byStation.reason.ot': 'OT pressure {ot}h',
+  'dashboard.optim.byStation.reason.gap': 'Peak shortfall {gap}',
+
+  // v5.17.0 — Staffing Advisory card additions
+  'advisory.kpi.finesAvoided': 'Fines avoided',
+  'advisory.kpi.netMonthly.formula': '(OT saved + fines avoided) − new salaries',
+  'advisory.fines.exposure.title': 'Current potential fines',
+  'advisory.fines.exposure.help': 'Per-rule fine exposure based on this month\'s violations × the configured fine rate. Eliminating the violation removes its line from this list.',
+  'advisory.fines.exposure.rowDetail': '{occ} occurrence(s) × {rate} IQD',
+  'advisory.fines.exposure.disclaimer': 'Estimates use placeholder rates aligned with the Iraqi Labor Law 37/2015 penalty framework. Refine per-rule amounts with your labor counsel in the Variables tab.',
+  'advisory.sim.remainingViolations': 'Hard violations',
+  'advisory.sim.remainingFines': 'Fine exposure',
+  'advisory.sim.finesReduced': 'Simulation reduces fine exposure by ≈{amount} IQD/mo ({pct}% of current).',
+  'advisory.sim.finesIncreased': 'Simulation increases fine exposure by ≈{amount} IQD/mo (a phantom hire likely landed on a leave day or industrial-night shift — adjust the per-station perStation list).',
+
+  // v5.17.0 — Variables tab "Fine Rates" section
+  'variables.fines.title': 'Fine Rates',
+  'variables.fines.subtitle': 'IQD per occurrence per rule — drives the staffing advisory\'s fines avoidance estimate',
+  'variables.fines.disclaimer.label': 'Operator-set placeholders',
+  'variables.fines.disclaimer.body': 'Defaults are mid-range placeholders aligned with the Iraqi Labor Law 37/2015 penalty framework (typically 250,000 – 1,000,000 IQD per violation). Actual amounts are set by the labor inspector and vary with severity and judicial discretion. Refine these with your labor counsel for the amounts that apply to your establishment.',
+  'variables.fines.row.help': 'Default: {defaultAmount} IQD per occurrence. Adjust to reflect the amount the labor inspector typically applies in your jurisdiction.',
+  'variables.fines.unit': 'IQD',
+  'variables.fines.overridden': 'Overridden',
+  'variables.fines.reset': 'Reset',
+  'variables.fines.reset.tooltip': 'Reset this rule\'s rate back to the default seed amount.',
+
+  // Per-rule labels used by the advisory breakdown + variables editor.
+  // Article citations are not translated (cross-language legal refs).
+  'fines.rule.dailyHoursCap': 'Daily hours cap',
+  'fines.rule.weeklyHoursCap': 'Weekly hours cap',
+  'fines.rule.minRestBetweenShifts': 'Min rest between shifts',
+  'fines.rule.consecutiveWorkDays': 'Consecutive work days',
+  'fines.rule.weeklyRestDay': 'Weekly rest day',
+  'fines.rule.continuousDrivingNoBreak': 'Continuous driving without break',
+  'fines.rule.workedDuringMaternity': 'Worked during maternity leave',
+  'fines.rule.workedDuringSickLeave': 'Worked during sick leave',
+  'fines.rule.workedDuringAnnualLeave': 'Worked during annual leave',
+  'fines.rule.womensNightWorkIndustrial': 'Women\'s night work in industrial undertakings',
+
+  // Phase 3.2 — flat HC overridden hint (StationModal + BulkAddStations)
+  'modal.station.flatHC.overridden': 'Overridden by hourly profile',
 };
 
 // Arabic translations of every key. Strings the app doesn't yet translate
@@ -2935,6 +2987,51 @@ export const ar: Dict = {
 
   'schedule.runAuto.disabled.adminOnly': 'المسؤولون مراقبون فقط على الخلايا. يجب تشغيل الجدولة التلقائية من قِبل مشرف أو مدير.',
   'schedule.runAuto.disabled.readOnly': 'الخلايا للقراءة فقط في هذه الحالة. أعد فتح / أعد إرسال الجدول للتعديل.',
+
+  // v5.17.0 — Arabic translations
+  'dashboard.optim.netDelta': 'الفرق الشهري الصافي',
+  'dashboard.optim.netDeltaCaption': 'الوقت الإضافي + الغرامات الموفرة − الرواتب الجديدة',
+  'dashboard.optim.body.savesNet': 'يعتمد الجدول الحالي على {hours} ساعة من العمل الإضافي للحفاظ على الاستمرارية. توظيف {hires} موظف إضافي سيُحقق الاستقرار في التغطية و — بعد رواتبهم — يوفر ≈{delta} د.ع شهريًا في علاوة الوقت الإضافي والغرامات المتجنَّبة.',
+  'dashboard.optim.body.costsNet': 'يعتمد الجدول الحالي على {hours} ساعة من العمل الإضافي للحفاظ على الاستمرارية. توظيف {hires} موظف إضافي سيُحقق الاستقرار في التغطية ويُزيل التعرض للغرامات القانونية، لكن بعد رواتبهم يكلف ≈{delta} د.ع شهريًا فوق علاوة الوقت الإضافي الحالية. المقايضة: تُنفق هذا الفرق لشراء الامتثال + التغطية.',
+  'dashboard.optim.finesExposure.title': 'التعرض للغرامات المحتملة',
+  'dashboard.optim.finesExposure.body': 'تحمل مخالفات الشهر الحالي تقديرًا ≈{amount} د.ع شهريًا في غرامات قانون العمل العراقي المحتملة. اضبط معدلات كل قاعدة في المتغيرات → معدلات الغرامات للتحسين.',
+  'dashboard.optim.byStation.reason.both': 'ضغط وقت إضافي {ot}س + نقص الذروة {gap}',
+  'dashboard.optim.byStation.reason.ot': 'ضغط وقت إضافي {ot}س',
+  'dashboard.optim.byStation.reason.gap': 'نقص الذروة {gap}',
+
+  'advisory.kpi.finesAvoided': 'الغرامات المتجنَّبة',
+  'advisory.kpi.netMonthly.formula': '(الوقت الإضافي الموفر + الغرامات المتجنبة) − الرواتب الجديدة',
+  'advisory.fines.exposure.title': 'الغرامات المحتملة الحالية',
+  'advisory.fines.exposure.help': 'التعرض لكل قاعدة بناءً على مخالفات هذا الشهر × معدل الغرامة المُكوَّن. يؤدي إزالة المخالفة إلى إزالة سطرها من هذه القائمة.',
+  'advisory.fines.exposure.rowDetail': '{occ} مرة × {rate} د.ع',
+  'advisory.fines.exposure.disclaimer': 'تستخدم التقديرات معدلات افتراضية متوافقة مع إطار عقوبات قانون العمل العراقي 37/2015. حسِّن مبالغ كل قاعدة مع مستشارك القانوني في علامة تبويب المتغيرات.',
+  'advisory.sim.remainingViolations': 'مخالفات صعبة',
+  'advisory.sim.remainingFines': 'تعرض للغرامات',
+  'advisory.sim.finesReduced': 'تُقلل المحاكاة التعرض للغرامات بـ ≈{amount} د.ع/شهر ({pct}% من الحالي).',
+  'advisory.sim.finesIncreased': 'تزيد المحاكاة التعرض للغرامات بـ ≈{amount} د.ع/شهر (من المحتمل أن موظفًا وهميًا وقع على يوم إجازة أو نوبة ليلية صناعية — اضبط قائمة perStation).',
+
+  'variables.fines.title': 'معدلات الغرامات',
+  'variables.fines.subtitle': 'دينار عراقي لكل مرة لكل قاعدة — يقود تقدير الغرامات المتجنَّبة في استشارة التوظيف',
+  'variables.fines.disclaimer.label': 'مبالغ افتراضية يحددها المشغّل',
+  'variables.fines.disclaimer.body': 'الافتراضيات هي مبالغ متوسطة متوافقة مع إطار عقوبات قانون العمل العراقي 37/2015 (عادةً 250,000 – 1,000,000 د.ع لكل مخالفة). المبالغ الفعلية يحددها مفتش العمل وتختلف بحسب الخطورة والسلطة التقديرية القضائية. حسِّن هذه المبالغ مع مستشارك القانوني للمبالغ التي تنطبق على منشأتك.',
+  'variables.fines.row.help': 'افتراضي: {defaultAmount} د.ع لكل مرة. اضبط ليعكس المبلغ الذي يطبقه مفتش العمل عادةً في نطاق اختصاصك.',
+  'variables.fines.unit': 'د.ع',
+  'variables.fines.overridden': 'مُتجاوَز',
+  'variables.fines.reset': 'إعادة',
+  'variables.fines.reset.tooltip': 'أعد معدل هذه القاعدة إلى المبلغ الافتراضي.',
+
+  'fines.rule.dailyHoursCap': 'حد الساعات اليومي',
+  'fines.rule.weeklyHoursCap': 'حد الساعات الأسبوعي',
+  'fines.rule.minRestBetweenShifts': 'الحد الأدنى للراحة بين النوبات',
+  'fines.rule.consecutiveWorkDays': 'أيام العمل المتتالية',
+  'fines.rule.weeklyRestDay': 'يوم الراحة الأسبوعي',
+  'fines.rule.continuousDrivingNoBreak': 'قيادة متواصلة بدون استراحة',
+  'fines.rule.workedDuringMaternity': 'العمل خلال إجازة الأمومة',
+  'fines.rule.workedDuringSickLeave': 'العمل خلال الإجازة المرضية',
+  'fines.rule.workedDuringAnnualLeave': 'العمل خلال الإجازة السنوية',
+  'fines.rule.womensNightWorkIndustrial': 'العمل الليلي للنساء في المنشآت الصناعية',
+
+  'modal.station.flatHC.overridden': 'متجاوَز بواسطة الملف الساعي',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ar };

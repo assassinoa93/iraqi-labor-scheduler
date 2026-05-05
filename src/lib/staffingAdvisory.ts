@@ -1,7 +1,9 @@
-import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
+import { Employee, Shift, Station, PublicHoliday, Config, Schedule, Violation } from '../types';
 import { monthlyHourCap, baseHourlyRate } from './payroll';
 import { runAutoScheduler } from './autoScheduler';
 import { peakDailyHC } from './stationDemand';
+import { ComplianceEngine } from './compliance';
+import { estimateFines, FineEstimate, RULE_KEYS } from './fines';
 import { format } from 'date-fns';
 
 // Three flavours of staffing recommendation surfaced on the dashboard:
@@ -35,9 +37,16 @@ export interface StaffingMode {
   hiresNeeded: number;
   /** Monthly OT cost saved (positive) by adding those hires. */
   monthlyOTSaved: number;
+  /** v5.17.0 — monthly fines avoided (positive) by eliminating the
+   *  violations this mode is expected to clear. Estimated from the
+   *  current violation set + Config.fineRates; the simulation can
+   *  measure actual remainingFines for ground truth. */
+  monthlyFinesAvoided: number;
   /** Monthly base-salary cost added (positive) by hiring those people. */
   monthlySalaryAdded: number;
-  /** Net monthly savings: monthlyOTSaved - monthlySalaryAdded. Can be negative. */
+  /** Net monthly delta: (monthlyOTSaved + monthlyFinesAvoided) - monthlySalaryAdded.
+   *  Can be negative — when negative, the recommendation is "spend X to
+   *  buy compliance + coverage" rather than "save X". */
   netMonthlyDelta: number;
   /** Coverage % the mode targets (1.0 = full coverage). */
   targetCoveragePct: number;
@@ -51,6 +60,11 @@ export interface StaffingAdvisory {
   bestOfBoth: StaffingMode;
   /** Average monthly salary used for the cost projection. */
   avgMonthlySalary: number;
+  /** v5.17.0 — current potential fines (today, before any hiring).
+   *  Surfaced separately so the dashboard can show it as a standalone
+   *  "you are exposed to ~X IQD/month in fines" headline alongside
+   *  the per-mode "fines avoided" deltas. */
+  currentPotentialFines: FineEstimate;
 }
 
 export interface StaffingArgs {
@@ -68,6 +82,33 @@ export interface StaffingArgs {
   /** Per-station peak-hour gap, already computed by the dashboard. Each unit
    *  is one missing FTE during peak hours at that station. */
   stationGaps: Array<{ stationId: string; stationName: string; gap: number }>;
+  /** v5.17.0 — current month's compliance violations. The advisory uses
+   *  these to estimate per-mode fines avoided (see StaffingMode.monthlyFinesAvoided).
+   *  Optional with `[]` default so legacy call sites still compile;
+   *  fines-avoided will be 0 when omitted. */
+  currentViolations?: Violation[];
+}
+
+// v5.17.0 — per-employee monthly cap. Drivers and hazardous workers have
+// different weekly caps under Iraqi Labor Law (Art. 88 / 70), so a single
+// flat cap from `monthlyHourCap(config)` would mis-attribute OT for those
+// categories. We mirror the compliance engine's cap selection so the
+// advisory's OT attribution matches the rule the engine actually fires.
+//
+//   - hourExempt: no cap → never accrues OT (treated as 0).
+//   - Driver category: weekly cap × 4 (default 56 × 4 = 224).
+//   - Hazardous flag: weekly cap × 4 (default 36 × 4 = 144).
+//   - Standard: standardWeeklyHrsCap × 4 (default 48 × 4 = 192).
+function monthlyCapFor(emp: Employee, config: Config): number {
+  if (emp.hourExempt) return Number.POSITIVE_INFINITY;
+  if (emp.category === 'Driver') {
+    const weekly = config.driverWeeklyHrsCap ?? 56;
+    return weekly * 4;
+  }
+  if (emp.isHazardous) {
+    return (config.hazardousWeeklyHrsCap ?? 36) * 4;
+  }
+  return monthlyHourCap(config);
 }
 
 // Distribute each employee's monthly OT across the stations they worked at,
@@ -77,14 +118,20 @@ export interface StaffingArgs {
 // "blame" for that OT lives with the stations that consumed their hours. If
 // 60% of A's hours were at ST-C1 and 40% at ST-C2, then 60% of A's OT comes
 // from ST-C1 — hiring at ST-C1 would relieve more pressure than at ST-C2.
+//
+// v5.17.0 — uses per-employee caps via monthlyCapFor() so driver and
+// hazardous categories are attributed correctly. Pre-v5.17 every employee
+// was measured against the standard 48h × 4 cap, which under-attributed
+// OT for hazardous workers (real cap = 144h, not 192h) and over-attributed
+// for drivers (real cap = 224h, not 192h).
 function attributeOTToStations(
   employees: Employee[], schedule: Schedule, shifts: Shift[], config: Config,
 ): Map<string, number> {
   const stationOT = new Map<string, number>();
-  const cap = monthlyHourCap(config);
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
 
   for (const emp of employees) {
+    const cap = monthlyCapFor(emp, config);
     const empSched = schedule[emp.empId] || {};
     const perStationHours = new Map<string, number>();
     let totalHrs = 0;
@@ -109,12 +156,60 @@ function attributeOTToStations(
   return stationOT;
 }
 
+// v5.17.0 — rule-key sets used to attribute fines-avoidance per mode.
+// These are the violations that ADDING HEADCOUNT can mechanically
+// eliminate. Other rule keys (Art. 86 women's industrial night work,
+// Art. 87 maternity, Art. 84 sick leave, Art. 88 continuous-driving
+// breaks) reflect EDIT mistakes — paint a leave day, paint a 12h
+// driver shift — and won't go away just because there are more people
+// available. Keeping them out of the fines-avoided estimate prevents
+// over-claiming compliance ROI from a hire.
+const OT_DRIVEN_RULE_KEYS = new Set<string>([
+  RULE_KEYS.DAILY_HOURS_CAP,
+  RULE_KEYS.WEEKLY_HOURS_CAP,
+  RULE_KEYS.MIN_REST_BETWEEN_SHIFTS,
+  RULE_KEYS.CONSECUTIVE_WORK_DAYS,
+  RULE_KEYS.WEEKLY_REST_DAY,
+]);
+
+// Sum the IQD subtotals from a FineEstimate that match a given rule-key
+// set. Used to slice the current potential fines into the portion each
+// mode is expected to clear.
+function sumFinesByRuleKeys(estimate: FineEstimate, ruleKeys: Set<string>): number {
+  let total = 0;
+  for (const entry of estimate.byRule) {
+    if (ruleKeys.has(entry.ruleKey)) total += entry.subtotal;
+  }
+  return total;
+}
+
 export function computeStaffingAdvisory({
   employees, shifts, stations, holidays, config, isPeakDay,
   schedule, totalOTHours, totalOTPay, stationGaps,
+  currentViolations = [],
 }: StaffingArgs): StaffingAdvisory {
   void shifts; void holidays; void isPeakDay; void baseHourlyRate;
   const cap = monthlyHourCap(config);
+
+  // v5.17.0 — fines avoidance is sliced from the current violation set
+  // by rule-key category. We compute the current potential fines once
+  // and reuse it for every mode's avoidance estimate. The total is
+  // surfaced on the StaffingAdvisory itself so the dashboard can show
+  // the standalone "you are exposed to X IQD/month in fines" number.
+  const currentPotentialFines = estimateFines(currentViolations, config);
+  // OT-driven violations (cap breaches, missing rest, missed weekly
+  // rest day, consecutive work days) all stem from over-scheduling
+  // existing staff. Adding headcount that absorbs those hours
+  // mechanically clears them. We use the FULL current fine total for
+  // these rules as the "avoided" estimate when the mode hires enough
+  // to eliminate the OT pool — partial reductions aren't modeled here
+  // because the simulation gives the supervisor the actual measured
+  // remainder via simulateWithExtraHires.
+  const otDrivenFinesAvoidable = sumFinesByRuleKeys(currentPotentialFines, OT_DRIVEN_RULE_KEYS);
+
+  // Average monthly salary across the existing roster — used as the cost
+  // proxy for marginal hires. Empty roster falls back to the 1.5M IQD default
+  // (the same anchor payroll.ts uses when seeding new employees).
   // Average monthly salary across the existing roster — used as the cost
   // proxy for marginal hires. Empty roster falls back to the 1.5M IQD default
   // (the same anchor payroll.ts uses when seeding new employees).
@@ -176,38 +271,53 @@ export function computeStaffingAdvisory({
   };
 
   // ── Mode 1: Eliminate OT ────────────────────────────────────────────────
+  // This mode hires enough to absorb the over-cap pool entirely → all
+  // OT-driven violations (cap breaches, missing rest, weekly rest day,
+  // consec days) clear → fines for those rules drop to zero.
   const otHires = Math.ceil(totalOTHours / Math.max(1, cap));
   const eliminateOTPerStation = buildPerStation(stId => otHiresByStation.get(stId) || 0);
   const eliminateOT: StaffingMode = {
     hiresNeeded: Math.max(otHires, eliminateOTPerStation.reduce((s, p) => s + p.hires, 0)),
     monthlyOTSaved: Math.round(totalOTPay),
+    monthlyFinesAvoided: otDrivenFinesAvoidable,
     monthlySalaryAdded: 0, // filled below
     netMonthlyDelta: 0,
     targetCoveragePct: 1.0,
     perStation: eliminateOTPerStation,
   };
   eliminateOT.monthlySalaryAdded = eliminateOT.hiresNeeded * avgMonthlySalary;
-  eliminateOT.netMonthlyDelta = eliminateOT.monthlyOTSaved - eliminateOT.monthlySalaryAdded;
+  eliminateOT.netMonthlyDelta =
+    eliminateOT.monthlyOTSaved + eliminateOT.monthlyFinesAvoided - eliminateOT.monthlySalaryAdded;
 
   // ── Mode 2: Optimal Coverage ────────────────────────────────────────────
+  // Coverage-gap hiring fills under-staffed peak windows. It does NOT
+  // mechanically absorb OT (those workers might still be under cap), so
+  // we don't claim OT savings here. Fines avoidance: zero by default
+  // because peak-gap hiring doesn't directly resolve overwork rules
+  // (it might reduce them indirectly, but conservative is right —
+  // simulation gives the actual measurement).
   const totalCoverageGap = stationGaps.reduce((s, g) => s + g.gap, 0);
   const coverageHiresAggregate = Math.max(0, Math.ceil(totalCoverageGap));
   const coveragePerStation = buildPerStation(stId => gapHiresByStation.get(stId) || 0);
   const optimalCoverage: StaffingMode = {
     hiresNeeded: Math.max(coverageHiresAggregate, coveragePerStation.reduce((s, p) => s + p.hires, 0)),
     monthlyOTSaved: 0,
+    monthlyFinesAvoided: 0,
     monthlySalaryAdded: 0,
     netMonthlyDelta: 0,
     targetCoveragePct: 1.0,
     perStation: coveragePerStation,
   };
   optimalCoverage.monthlySalaryAdded = optimalCoverage.hiresNeeded * avgMonthlySalary;
-  optimalCoverage.netMonthlyDelta = -optimalCoverage.monthlySalaryAdded;
+  optimalCoverage.netMonthlyDelta =
+    optimalCoverage.monthlyOTSaved + optimalCoverage.monthlyFinesAvoided - optimalCoverage.monthlySalaryAdded;
 
   // ── Mode 3: Best of Both ────────────────────────────────────────────────
   // Per station, take the larger of the two mode totals — one FTE can cover a
   // peak gap OR absorb OT but not necessarily both. This is the conservative
-  // ceiling that satisfies whichever pressure dominates each station.
+  // ceiling that satisfies whichever pressure dominates each station. Since
+  // it always covers at least the eliminateOT slots, OT-driven fines clear
+  // here too.
   const bestPerStation = buildPerStation(stId => Math.max(
     otHiresByStation.get(stId) || 0,
     gapHiresByStation.get(stId) || 0,
@@ -216,15 +326,17 @@ export function computeStaffingAdvisory({
   const bestOfBoth: StaffingMode = {
     hiresNeeded: Math.max(otHires, coverageHiresAggregate, bestTotal),
     monthlyOTSaved: Math.round(totalOTPay),
+    monthlyFinesAvoided: otDrivenFinesAvoidable,
     monthlySalaryAdded: 0,
     netMonthlyDelta: 0,
     targetCoveragePct: 1.0,
     perStation: bestPerStation,
   };
   bestOfBoth.monthlySalaryAdded = bestOfBoth.hiresNeeded * avgMonthlySalary;
-  bestOfBoth.netMonthlyDelta = bestOfBoth.monthlyOTSaved - bestOfBoth.monthlySalaryAdded;
+  bestOfBoth.netMonthlyDelta =
+    bestOfBoth.monthlyOTSaved + bestOfBoth.monthlyFinesAvoided - bestOfBoth.monthlySalaryAdded;
 
-  return { eliminateOT, optimalCoverage, bestOfBoth, avgMonthlySalary };
+  return { eliminateOT, optimalCoverage, bestOfBoth, avgMonthlySalary, currentPotentialFines };
 }
 
 // Validate a recommendation by actually running the auto-scheduler with
@@ -244,6 +356,15 @@ export interface SimulationResult {
   scheduledShifts: number;
   /** Number of phantom hires injected for this run. */
   phantomHires: number;
+  /** v5.17.0 — count of hard violations remaining in the simulated
+   *  schedule (severity='violation' only; info findings excluded). */
+  remainingViolations: number;
+  /** v5.17.0 — IQD/month estimate of fines exposure remaining after the
+   *  phantom hires + auto-rerun. Computed by running ComplianceEngine on
+   *  the simulated schedule and applying the same Config.fineRates the
+   *  current advisory uses. The supervisor compares this to the current
+   *  potential fines to see actual measured fine reduction. */
+  remainingFines: number;
 }
 
 export function simulateWithExtraHires(
@@ -252,7 +373,11 @@ export function simulateWithExtraHires(
 ): SimulationResult {
   const { employees, shifts, stations, holidays, config, isPeakDay } = args;
   if (shifts.length === 0 || stations.length === 0 || perStation.length === 0) {
-    return { remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
+    return {
+      remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0,
+      scheduledShifts: 0, phantomHires: 0,
+      remainingViolations: 0, remainingFines: 0,
+    };
   }
 
   // Build phantom employees, pinned to the station that drives each hire so
@@ -293,7 +418,11 @@ export function simulateWithExtraHires(
   }
 
   if (phantoms.length === 0) {
-    return { remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0, scheduledShifts: 0, phantomHires: 0 };
+    return {
+      remainingOTHours: 0, remainingHolidayHours: 0, remainingCoverageGapDays: 0,
+      scheduledShifts: 0, phantomHires: 0,
+      remainingViolations: 0, remainingFines: 0,
+    };
   }
 
   const augmented = [...employees, ...phantoms];
@@ -349,5 +478,25 @@ export function simulateWithExtraHires(
     }
   }
 
-  return { remainingOTHours, remainingHolidayHours, remainingCoverageGapDays, scheduledShifts, phantomHires: phantoms.length };
+  // v5.17.0 — run the compliance engine on the simulated schedule so the
+  // supervisor sees ACTUAL measured violation reduction, not just an
+  // estimate. Same engine, same config the live dashboard uses, so the
+  // numbers reconcile. We don't pass `allSchedules` (cross-month rolling
+  // context) because the simulation is single-month — neighbouring months
+  // would be from the live data, not the simulation, and would muddy the
+  // measurement.
+  const simViolations = ComplianceEngine.check(augmented, shifts, holidays, config, schedule);
+  const hardSimViolations = simViolations.filter(v => (v.severity ?? 'violation') === 'violation');
+  const remainingViolations = hardSimViolations.reduce((s, v) => s + (v.count ?? 1), 0);
+  const remainingFinesEstimate = estimateFines(simViolations, config);
+
+  return {
+    remainingOTHours,
+    remainingHolidayHours,
+    remainingCoverageGapDays,
+    scheduledShifts,
+    phantomHires: phantoms.length,
+    remainingViolations,
+    remainingFines: remainingFinesEstimate.total,
+  };
 }

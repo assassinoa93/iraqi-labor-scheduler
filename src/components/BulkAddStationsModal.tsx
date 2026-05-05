@@ -342,19 +342,39 @@ export function BulkAddStationsModal({
                 {t('bulkStation.applyDefaults')}
               </button>
             </div>
+            {/* v5.17.0 — flat HC defaults dim + amber-tag when the
+                hourly profile section below has slots configured. The
+                hourly arrays override the flat values in getRequiredHC,
+                so showing both as equal-weight inputs would mislead. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <DefaultsField label={t('modal.station.field.normalHC')}>
+              <DefaultsField
+                label={t('modal.station.field.normalHC')}
+                overridden={defaults.normalHourlyDemand.length > 0}
+              >
                 <input
                   type="number" min={0} value={defaults.normalMinHC}
                   onChange={e => setDefaults(d => ({ ...d, normalMinHC: Math.max(0, parseInt(e.target.value) || 0) }))}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-sm font-mono"
+                  className={cn(
+                    "w-full border rounded py-1.5 px-2 text-sm font-mono",
+                    defaults.normalHourlyDemand.length > 0
+                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                  )}
                 />
               </DefaultsField>
-              <DefaultsField label={t('modal.station.field.peakHC')}>
+              <DefaultsField
+                label={t('modal.station.field.peakHC')}
+                overridden={defaults.peakHourlyDemand.length > 0}
+              >
                 <input
                   type="number" min={0} value={defaults.peakMinHC}
                   onChange={e => setDefaults(d => ({ ...d, peakMinHC: Math.max(0, parseInt(e.target.value) || 0) }))}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-sm font-mono"
+                  className={cn(
+                    "w-full border rounded py-1.5 px-2 text-sm font-mono",
+                    defaults.peakHourlyDemand.length > 0
+                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                  )}
                 />
               </DefaultsField>
               <DefaultsField label={t('modal.station.field.openTime')}>
@@ -658,10 +678,19 @@ export function BulkAddStationsModal({
   );
 }
 
-function DefaultsField({ label, children }: { label: string; children: React.ReactNode }) {
+function DefaultsField({ label, children, overridden }: { label: string; children: React.ReactNode; overridden?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-1">
-      <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</label>
+      <label className={cn(
+        "text-[9px] font-bold uppercase tracking-widest",
+        overridden ? "text-amber-600 dark:text-amber-300" : "text-slate-400 dark:text-slate-500",
+      )}>
+        {label}
+        {overridden && (
+          <span className="ms-1 normal-case font-medium tracking-normal">— {t('modal.station.flatHC.overridden')}</span>
+        )}
+      </label>
       {children}
     </div>
   );

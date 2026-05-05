@@ -1,6 +1,7 @@
 import { getDaysInMonth } from 'date-fns';
 import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Company } from '../types';
 import { baseHourlyRate } from './payroll';
+import { DEFAULT_FINE_RATES } from './fines';
 
 // Default company id — kept stable across versions so legacy single-company
 // backups and on-disk migrations land in the same slot. Mirrored on the
@@ -253,4 +254,12 @@ export const DEFAULT_CONFIG: Config = {
   holidayCompMode: 'comp-day',
   holidayCompWindowDays: 30,
   holidayCompRecommendedDays: 7,
+  // v5.17.0 — Fine rates per rule (IQD per occurrence). Defaults are
+  // mid-range placeholders aligned with the Iraqi Labor Law 37/2015
+  // penalty framework (typically 250,000–1,000,000 IQD per violation
+  // depending on severity). The user refines these in the Variables
+  // tab to match their establishment's amounts. Spread the centralised
+  // map so adding new rule types in fines.ts auto-flows into the seed
+  // without a parallel edit here.
+  fineRates: { ...DEFAULT_FINE_RATES },
 };

@@ -10,7 +10,7 @@ import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station } 
 import { Card, KpiCard, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
-import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from '../lib/payroll';
+import { baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
 import { StaffingAdvisoryCard } from '../components/StaffingAdvisoryCard';
@@ -76,10 +76,10 @@ export function DashboardTab(props: DashboardTabProps) {
     ? '100%'
     : `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`;
 
-  // Optimization advisory: convert scheduled OT into a "you could hire N more
-  // people for the same money" projection. Treats one full-time slot as a
-  // monthly cap of hours and the default monthly salary as the marginal hire
-  // cost — both come from the same constants payroll.ts uses elsewhere.
+  // OT pool measurements — the raw inputs the advisory needs. We compute
+  // them here (rather than in the advisory) because the dashboard also
+  // surfaces them as standalone headlines (scheduled-OT hours, OT
+  // premium broken out by over-cap vs holiday).
   const cap = monthlyHourCap(config);
   const otRateDay = config.otRateDay ?? 1.5;
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
@@ -111,9 +111,6 @@ export function DashboardTab(props: DashboardTabProps) {
     totalHolidayPay += breakdown.premiumPay;
   }
   const totalOTPay = totalOverCapPay + totalHolidayPay;
-  const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));
-  const hireCost = potentialHires * DEFAULT_MONTHLY_SALARY_IQD;
-  const savings = Math.max(0, totalOTPay - hireCost);
   const totalHolidayBank = employees.reduce((s, e) => s + (e.holidayBank || 0), 0);
   const peopleWithBank = employees.filter(e => (e.holidayBank || 0) > 0).length;
 
@@ -125,14 +122,35 @@ export function DashboardTab(props: DashboardTabProps) {
   // (passed via props) so holidays count as peak — pre-2.1.2 a local
   // copy here only checked `config.peakDays` and the advisory disagreed
   // with the auto-scheduler on holiday-heavy months.
+  //
+  // v5.17.0 — `currentViolations` flows in here so the advisory can
+  // estimate fines avoided per mode, and the dashboard can show the
+  // standalone "current potential fines" exposure number.
   const stationGaps = staffingGapsByStation.map(g => ({
     stationId: g.stationId, stationName: g.stationName, gap: g.gap,
   }));
   const advisorySimArgs = {
     employees, schedule, shifts, stations, holidays, config, isPeakDay,
     totalOTHours, totalOTPay, stationGaps,
+    currentViolations: violations,
   };
   const advisory = computeStaffingAdvisory(advisorySimArgs);
+  // v5.17.0 — single source of truth for the dashboard's headline hire
+  // recommendation. Pre-v5.17 the Strategic Growth card, the FTE Forecast
+  // KPI, and the Recruitment Plan body each ran their own OT-only math
+  // and disagreed with the StaffingAdvisoryCard underneath them. Now
+  // every surface reads from advisory.bestOfBoth so the four numbers
+  // reconcile. The `bestOfBoth` mode is the conservative ceiling that
+  // satisfies whichever pressure (OT or coverage gap) dominates each
+  // station — the right default for the headline; the advisory card
+  // below offers the per-mode alternatives.
+  const recommended = advisory.bestOfBoth;
+  const recommendedHires = recommended.hiresNeeded;
+  // Real net delta from the unified advisory — can be negative when the
+  // hiring cost exceeds OT + fines saved. The Strategic Growth card
+  // tones itself based on the sign rather than masking via max(0, ...).
+  const netMonthlyDelta = recommended.netMonthlyDelta;
+  const currentPotentialFines = advisory.currentPotentialFines.total;
 
   // Gate the strategic-growth + advisory cards on setup-completeness. The
   // dashboard should not pretend to give actionable advice when the supervisor
@@ -314,55 +332,105 @@ export function DashboardTab(props: DashboardTabProps) {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.staffDeficit')}</p>
-                  <p className="text-xl font-black text-blue-400">+{potentialHires} {t('dashboard.optim.personnel')}</p>
+                  <p className="text-xl font-black text-blue-400">+{recommendedHires} {t('dashboard.optim.personnel')}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.savings')}</p>
-                  <p className="text-xl font-black text-emerald-400">≈{Math.round(savings).toLocaleString()} IQD</p>
+                  <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.netDelta')}</p>
+                  <p className={cn(
+                    "text-xl font-black",
+                    netMonthlyDelta > 0 ? "text-emerald-400" : netMonthlyDelta < 0 ? "text-amber-400" : "text-slate-200"
+                  )}>
+                    {netMonthlyDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(netMonthlyDelta)).toLocaleString()} IQD
+                  </p>
+                  <p className="text-[9px] text-white/40 font-mono leading-tight mt-0.5">
+                    {t('dashboard.optim.netDeltaCaption')}
+                  </p>
                 </div>
               </div>
+              {/* v5.17.0 — fines exposure headline. Surfaces standalone
+                  so the supervisor sees the legal-risk tax they're paying
+                  on the current schedule, separate from OT premium. Shows
+                  only when there's measurable exposure to avoid a "0 IQD"
+                  noise box on a clean schedule. */}
+              {currentPotentialFines > 0 && (
+                <div className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/30 flex items-start gap-4">
+                  <div className="w-10 h-10 bg-rose-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <ShieldAlert className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-300 mb-1">
+                      {t('dashboard.optim.finesExposure.title')}
+                    </p>
+                    <p className="text-sm text-rose-200">
+                      {t('dashboard.optim.finesExposure.body', {
+                        amount: Math.round(currentPotentialFines).toLocaleString(),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex items-start gap-4">
                 <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <AlertCircle className="w-5 h-5 text-blue-400" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-300">
-                    {t('dashboard.optim.body', {
-                      hours: totalOTHours.toFixed(0),
-                      hires: potentialHires,
-                      savings: Math.round(savings).toLocaleString(),
-                    })}
+                    {t(
+                      netMonthlyDelta >= 0
+                        ? 'dashboard.optim.body.savesNet'
+                        : 'dashboard.optim.body.costsNet',
+                      {
+                        hours: totalOTHours.toFixed(0),
+                        hires: recommendedHires,
+                        delta: Math.abs(Math.round(netMonthlyDelta)).toLocaleString(),
+                      }
+                    )}
                   </p>
                 </div>
               </div>
 
-              {/* Per-station gap breakdown — answers "where exactly?" so the
-                  aggregate hire count isn't a black box. Mirrors the Staffing
-                  Advisory but condensed for the strategic-growth context. */}
-              {staffingGapsByStation.length > 0 && (
+              {/* Per-station hire breakdown. v5.17.0 — pulls from
+                  `recommended.perStation` (the unified bestOfBoth advisory)
+                  so the per-station numbers add up to the headline +N
+                  recommendation above. Pre-v5.17 this used a separate
+                  peak-gap data source which displayed +1 per gap-station
+                  even when the OT-driven recommendation was higher,
+                  contributing to the "three different numbers" confusion
+                  the user reported. */}
+              {recommended.perStation.length > 0 && (
                 <div className="space-y-2 pt-1">
                   <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">{t('dashboard.optim.byStation')}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {staffingGapsByStation.slice(0, 6).map(g => (
-                      <div key={g.stationId} className="flex items-center justify-between gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-white truncate">{g.stationName}</p>
-                          <p className="text-[10px] font-mono text-blue-300 truncate">
-                            {g.roleHint
-                              ? t('dashboard.optim.byStation.role', { role: g.roleHint })
-                              : t('dashboard.optim.byStation.anyEligible')}
-                          </p>
+                    {recommended.perStation.slice(0, 6).map(p => {
+                      const gapHint = staffingGapsByStation.find(g => g.stationId === p.stationId)?.roleHint;
+                      return (
+                        <div key={p.stationId} className="flex items-center justify-between gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-white truncate">{p.stationName}</p>
+                            <p className="text-[10px] font-mono text-blue-300 truncate">
+                              {gapHint
+                                ? t('dashboard.optim.byStation.role', { role: gapHint })
+                                : t('dashboard.optim.byStation.anyEligible')}
+                            </p>
+                            <p className="text-[9px] font-mono text-white/50 truncate mt-0.5">
+                              {p.reason === 'both'
+                                ? t('dashboard.optim.byStation.reason.both', { ot: p.otHours.toFixed(1), gap: p.coverageGap })
+                                : p.reason === 'ot'
+                                  ? t('dashboard.optim.byStation.reason.ot', { ot: p.otHours.toFixed(1) })
+                                  : t('dashboard.optim.byStation.reason.gap', { gap: p.coverageGap })}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-lg font-black text-rose-300 leading-none">+{p.hires}</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">{t('dashboard.optim.byStation.toHire')}</p>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-lg font-black text-rose-300 leading-none">+{g.gap}</p>
-                          <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-0.5">{t('dashboard.optim.byStation.toHire')}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                  {staffingGapsByStation.length > 6 && (
+                  {recommended.perStation.length > 6 && (
                     <p className="text-[10px] text-white/40 italic">
-                      {t('dashboard.optim.byStation.moreFooter', { extra: staffingGapsByStation.length - 6 })}
+                      {t('dashboard.optim.byStation.moreFooter', { extra: recommended.perStation.length - 6 })}
                     </p>
                   )}
                 </div>
@@ -405,7 +473,7 @@ export function DashboardTab(props: DashboardTabProps) {
                 <h5 className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('dashboard.recruitment.title')}</h5>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-                {t('dashboard.recruitment.body', { current: employees.length, target: employees.length + potentialHires })}
+                {t('dashboard.recruitment.body', { current: employees.length, target: employees.length + recommendedHires })}
               </p>
               <button onClick={onGoToRoster} className="w-full py-2 bg-blue-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">{t('dashboard.recruitment.cta')}</button>
             </Card>
@@ -446,8 +514,8 @@ export function DashboardTab(props: DashboardTabProps) {
         <KpiCard label={t('dashboard.kpi.compliance')} value={compliancePct} trend="Health" />
         <KpiCard
           label={t('dashboard.kpi.fteForecast')}
-          value={potentialHires === 0 ? '—' : `+${potentialHires}`}
-          trend={potentialHires > 0 ? 'Critical' : undefined}
+          value={recommendedHires === 0 ? '—' : `+${recommendedHires}`}
+          trend={recommendedHires > 0 ? 'Critical' : undefined}
         />
       </div>
 

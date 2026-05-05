@@ -235,6 +235,22 @@ export function normalizeConfig(raw: Partial<Config> & Record<string, unknown>):
     }
     merged.operatingHoursByDayOfWeek = cleaned;
   }
+  // v5.17.0 — fineRates: filter to numeric values only, then merge with
+  // DEFAULT_CONFIG.fineRates so saves that predate v5.17 inherit the
+  // seeded defaults for every rule. This means the staffing advisory's
+  // fines-avoided estimate works on day one even on legacy data without
+  // requiring the user to visit the Variables tab first.
+  if (merged.fineRates && typeof merged.fineRates === 'object') {
+    const cleaned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(merged.fineRates)) {
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) cleaned[k] = v;
+    }
+    // Merge with seed: seed defaults for unset keys, user overrides win.
+    merged.fineRates = { ...(DEFAULT_CONFIG.fineRates ?? {}), ...cleaned };
+  } else {
+    // Pre-v5.17 saves don't carry fineRates → inherit the seed wholesale.
+    merged.fineRates = { ...(DEFAULT_CONFIG.fineRates ?? {}) };
+  }
   return merged;
 }
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { TrendingDown, ShieldCheck, Crown, ArrowRight, Info, MapPin, FlaskConical, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { TrendingDown, ShieldCheck, Crown, ArrowRight, Info, MapPin, FlaskConical, CheckCircle2, AlertTriangle, Loader2, Scale, ChevronDown, ChevronRight } from 'lucide-react';
 import { StaffingAdvisory, StaffingMode, StationHire, simulateWithExtraHires, StaffingArgs, SimulationResult } from '../lib/staffingAdvisory';
+import { RULE_LABEL_I18N_KEYS, RULE_ARTICLES } from '../lib/fines';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 
@@ -30,6 +31,9 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
   const [simResults, setSimResults] = useState<Record<ModeKey, SimulationResult | null>>({
     eliminateOT: null, optimalCoverage: null, bestOfBoth: null,
   });
+  // v5.17.0 — fines breakdown collapses by default to keep the card
+  // compact; supervisors who want the per-rule Pareto can expand it.
+  const [finesExpanded, setFinesExpanded] = useState(false);
 
   const modes: Array<{ key: ModeKey; icon: React.ComponentType<{ className?: string }>; tone: string; data: StaffingMode; titleKey: string; bodyKey: string }> = [
     { key: 'eliminateOT', icon: TrendingDown, tone: 'emerald', data: advisory.eliminateOT, titleKey: 'advisory.mode.eliminateOT.title', bodyKey: 'advisory.mode.eliminateOT.body' },
@@ -104,8 +108,10 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
           </div>
         </div>
 
-        {/* KPIs for the active mode */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {/* KPIs for the active mode. v5.17.0 — added Fines Avoided as a
+            second emerald savings card so the supervisor sees the
+            compliance-risk lever alongside OT savings. */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60 rounded-lg">
             <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
             <p className={cn(
@@ -122,6 +128,14 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
             <p className="text-base font-black text-emerald-700 dark:text-emerald-200 mt-1">{fmtIQD(active.data.monthlyOTSaved)}</p>
             <p className="text-[9px] text-emerald-600 dark:text-emerald-300 font-medium">IQD / mo</p>
           </div>
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-100 dark:border-emerald-500/30 rounded-lg">
+            <p className="text-[9px] font-black text-emerald-700 dark:text-emerald-200 uppercase tracking-widest flex items-center gap-1">
+              <Scale className="w-2.5 h-2.5" />
+              {t('advisory.kpi.finesAvoided')}
+            </p>
+            <p className="text-base font-black text-emerald-700 dark:text-emerald-200 mt-1">{fmtIQD(active.data.monthlyFinesAvoided)}</p>
+            <p className="text-[9px] text-emerald-600 dark:text-emerald-300 font-medium">IQD / mo</p>
+          </div>
           <div className="p-3 bg-rose-50 dark:bg-rose-500/15 border border-rose-100 dark:border-rose-500/30 rounded-lg">
             <p className="text-[9px] font-black text-rose-700 dark:text-rose-200 uppercase tracking-widest">{t('advisory.kpi.salaryAdded')}</p>
             <p className="text-base font-black text-rose-700 dark:text-rose-200 mt-1">{fmtIQD(active.data.monthlySalaryAdded)}</p>
@@ -129,7 +143,11 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
           </div>
         </div>
 
-        {/* Net delta */}
+        {/* Net delta — formula now (otSaved + finesAvoided) - salaryAdded.
+            Sign tells the story: positive = the hiring pays for itself
+            in OT + fines saved; negative = you pay net to gain compliance
+            and coverage. The card tones itself accordingly so a negative
+            delta isn't dressed up as a "savings". */}
         <div className={cn(
           "p-4 rounded-xl border flex items-center justify-between",
           active.data.netMonthlyDelta >= 0
@@ -144,12 +162,80 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
             )}>
               {active.data.netMonthlyDelta >= 0 ? '+' : '−'}{fmtIQD(active.data.netMonthlyDelta)} IQD
             </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono">
+              {t('advisory.kpi.netMonthly.formula')}
+            </p>
           </div>
           <ArrowRight className={cn(
             "w-6 h-6",
             active.data.netMonthlyDelta >= 0 ? "text-emerald-500 dark:text-emerald-300" : "text-amber-500 dark:text-amber-300",
           )} />
         </div>
+
+        {/* v5.17.0 — fines exposure breakdown. Collapsible to keep the
+            card compact. Pulls `currentPotentialFines` (today's fine
+            risk by rule) so the supervisor sees which rule classes are
+            generating the most legal-risk exposure. Hidden when there
+            are no fines on the table. */}
+        {advisory.currentPotentialFines.total > 0 && (
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setFinesExpanded(v => !v)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+            >
+              {finesExpanded ? <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />}
+              <Scale className="w-4 h-4 text-rose-600 dark:text-rose-300" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex-1 text-start">
+                {t('advisory.fines.exposure.title')}
+              </span>
+              <span className="text-xs font-black text-rose-700 dark:text-rose-200 font-mono">
+                {fmtIQD(advisory.currentPotentialFines.total)} IQD
+              </span>
+            </button>
+            {finesExpanded && (
+              <div className="p-4 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {t('advisory.fines.exposure.help')}
+                </p>
+                <div className="space-y-1.5">
+                  {advisory.currentPotentialFines.byRule.map(entry => {
+                    const labelKey = RULE_LABEL_I18N_KEYS[entry.ruleKey];
+                    const article = RULE_ARTICLES[entry.ruleKey] ?? '';
+                    return (
+                      <div key={entry.ruleKey} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/40 rounded">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                              {labelKey ? t(labelKey) : entry.ruleKey}
+                            </span>
+                            {article && (
+                              <span className="text-[8px] font-mono font-black text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">
+                                {article}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                            {t('advisory.fines.exposure.rowDetail', {
+                              occ: entry.occurrences,
+                              rate: entry.ratePerOccurrence.toLocaleString(),
+                            })}
+                          </p>
+                        </div>
+                        <span className="text-xs font-black text-rose-700 dark:text-rose-200 font-mono shrink-0">
+                          {fmtIQD(entry.subtotal)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed italic">
+                  {t('advisory.fines.exposure.disclaimer')}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Per-station breakdown — answers WHERE the hires land and WHY. */}
         {active.data.perStation.length > 0 ? (
@@ -185,7 +271,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                 }
               </button>
             </div>
-            {activeSim ? <SimulationReadout result={activeSim} /> : (
+            {activeSim ? <SimulationReadout result={activeSim} currentFines={advisory.currentPotentialFines.total} /> : (
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('advisory.sim.helper')}</p>
             )}
           </div>
@@ -259,14 +345,25 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
   );
 }
 
-function SimulationReadout({ result }: { result: SimulationResult }) {
+function SimulationReadout({ result, currentFines }: { result: SimulationResult; currentFines: number }) {
   const { t } = useI18n();
+  const fmtIQD = (n: number) => Math.abs(n).toLocaleString();
   // Hires can absorb over-cap OT and close coverage gaps; they CANNOT
   // eliminate holiday-premium hours (someone has to work each holiday). So
-  // "clean" means cap-respected + every station covered. Holiday hours are
-  // reported as their own line so the supervisor sees that the residual
-  // premium pay is structural, not a hiring problem.
-  const isClean = result.remainingOTHours < 1 && result.remainingCoverageGapDays === 0;
+  // "clean" means cap-respected + every station covered + zero remaining
+  // hard violations. Holiday hours are reported separately so the
+  // supervisor sees that the residual premium pay is structural, not a
+  // hiring problem.
+  const isClean =
+    result.remainingOTHours < 1 &&
+    result.remainingCoverageGapDays === 0 &&
+    result.remainingViolations === 0;
+  // v5.17.0 — measured fine reduction. Positive = the simulation reduced
+  // the legal-risk exposure; zero = no change; negative shouldn't happen
+  // (hiring more rarely INCREASES fines, but defensively handle the
+  // edge case where a phantom triggers a fresh violation we didn't have
+  // before).
+  const finesDelta = currentFines - result.remainingFines;
   return (
     <div className="space-y-2">
       <div className={cn(
@@ -280,12 +377,29 @@ function SimulationReadout({ result }: { result: SimulationResult }) {
             : t('advisory.sim.partial', { hires: result.phantomHires })}
         </p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         <SimStat label={t('advisory.sim.remainingOT')} value={`${result.remainingOTHours.toFixed(0)}h`} ok={result.remainingOTHours < 1} />
-        <SimStat label={t('advisory.sim.remainingHoliday')} value={`${result.remainingHolidayHours.toFixed(0)}h`} ok={false} hint />
         <SimStat label={t('advisory.sim.remainingGap')} value={result.remainingCoverageGapDays.toString()} ok={result.remainingCoverageGapDays === 0} />
+        <SimStat label={t('advisory.sim.remainingViolations')} value={result.remainingViolations.toString()} ok={result.remainingViolations === 0} />
+        <SimStat label={t('advisory.sim.remainingFines')} value={`${fmtIQD(result.remainingFines)} IQD`} ok={result.remainingFines === 0} />
+        <SimStat label={t('advisory.sim.remainingHoliday')} value={`${result.remainingHolidayHours.toFixed(0)}h`} ok={false} hint />
         <SimStat label={t('advisory.sim.scheduled')} value={result.scheduledShifts.toString()} ok />
       </div>
+      {/* v5.17.0 — measured fine-reduction headline. Surfaces only when
+          there's a non-trivial change so the panel doesn't add noise on
+          a clean baseline. */}
+      {currentFines > 0 && finesDelta !== 0 && (
+        <div className={cn(
+          "p-2.5 rounded-lg border text-[11px] font-bold leading-tight",
+          finesDelta > 0
+            ? "bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-200"
+            : "bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-500/40 text-amber-800 dark:text-amber-200",
+        )}>
+          {finesDelta > 0
+            ? t('advisory.sim.finesReduced', { amount: fmtIQD(finesDelta), pct: Math.round((finesDelta / currentFines) * 100) })
+            : t('advisory.sim.finesIncreased', { amount: fmtIQD(-finesDelta) })}
+        </div>
+      )}
       {result.remainingHolidayHours > 0 && (
         <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed pt-1">{t('advisory.sim.holidayCaveat')}</p>
       )}

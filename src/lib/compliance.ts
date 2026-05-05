@@ -2,6 +2,7 @@ import { Employee, Shift, PublicHoliday, Config, Violation, Schedule } from '../
 import { differenceInHours, parse, addDays, format } from 'date-fns';
 import { parseHour } from './time';
 import { getEmployeeLeaveOnDate } from './leaves';
+import { RULE_KEYS } from './fines';
 
 // Driver defaults — used when Config doesn't yet carry driver fields (older saves).
 const DRIVER_DEFAULTS = {
@@ -263,6 +264,7 @@ export class ComplianceEngine {
               empId: emp.empId,
               day,
               rule: "Worked during maternity leave",
+              ruleKey: RULE_KEYS.WORKED_DURING_MATERNITY,
               article: "(Art. 87)",
               message: "Employee is on maternity leave but has a work shift assigned.",
             });
@@ -273,6 +275,7 @@ export class ComplianceEngine {
               empId: emp.empId,
               day,
               rule: "Worked during sick leave",
+              ruleKey: RULE_KEYS.WORKED_DURING_SICK_LEAVE,
               article: "(Art. 84)",
               message: "Employee is on sick leave but has a work shift assigned.",
             });
@@ -283,6 +286,7 @@ export class ComplianceEngine {
               empId: emp.empId,
               day,
               rule: "Worked during annual leave",
+              ruleKey: RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE,
               article: "(Annual Leave)",
               message: "Employee is on approved annual leave but has a work shift assigned.",
             });
@@ -314,6 +318,7 @@ export class ComplianceEngine {
                 empId: emp.empId,
                 day,
                 rule: "Daily hours cap",
+                ruleKey: RULE_KEYS.DAILY_HOURS_CAP,
                 article,
                 message: `Worked ${shift.durationHrs}hrs. Cap is ${cap}hrs for ${category}.`
               });
@@ -325,6 +330,7 @@ export class ComplianceEngine {
                 empId: emp.empId,
                 day,
                 rule: "Continuous driving without break",
+                ruleKey: RULE_KEYS.CONTINUOUS_DRIVING_NO_BREAK,
                 article: "(Art. 88)",
                 message: `Driver shift of ${shift.durationHrs}hrs exceeds ${driverCfg.continuousDrivingHrsCap}hrs continuous-driving cap with break <30min.`
               });
@@ -337,6 +343,7 @@ export class ComplianceEngine {
                   empId: emp.empId,
                   day,
                   rule: "Women's night work in industrial undertakings",
+                  ruleKey: RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL,
                   article: "(Art. 86)",
                   message: `Industrial shift overlaps the protected ${art86NightStart}–${art86NightEnd} night window.`,
                 });
@@ -368,6 +375,7 @@ export class ComplianceEngine {
                 empId: emp.empId,
                 day: day + 1,
                 rule: "Min rest between shifts",
+                ruleKey: RULE_KEYS.MIN_REST_BETWEEN_SHIFTS,
                 article: restArticle,
                 message: `Rest period of ${gap}hrs is below the required ${minRest}hrs.`
               });
@@ -431,6 +439,7 @@ export class ComplianceEngine {
               empId: emp.empId,
               day: anchor.day,
               rule: "Weekly hours cap",
+              ruleKey: RULE_KEYS.WEEKLY_HOURS_CAP,
               article: weeklyArticle,
               message: `7-day rolling total of ${totalHrs}hrs exceeds ${weeklyCap}hrs limit.`
             });
@@ -446,6 +455,7 @@ export class ComplianceEngine {
                 empId: emp.empId,
                 day: last.day,
                 rule: "Weekly rest day",
+                ruleKey: RULE_KEYS.WEEKLY_REST_DAY,
                 article: "(Art. 72)",
                 message: "No rest day provided in a rolling 7-day period."
               });
@@ -470,6 +480,7 @@ export class ComplianceEngine {
             empId: emp.empId,
             day: d.day,
             rule: "Consecutive work days",
+            ruleKey: RULE_KEYS.CONSECUTIVE_WORK_DAYS,
             article: consecArticle,
             message: `Personnel worked ${consecutive} consecutive days. Max allowed is ${consecCap}.`
           });

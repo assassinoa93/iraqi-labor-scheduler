@@ -322,6 +322,14 @@ export interface Config {
   // (right call when closing the business or finalising a payroll
   // cycle where deferred comp can't be honoured).
   carryForwardUnspentCompDays?: boolean;
+  // v5.17.0 — per-rule fine rates (IQD per occurrence) for the staffing
+  // advisory's "fines avoided" calculation. Keys come from RULE_KEYS in
+  // src/lib/fines.ts; values are operator-set placeholder defaults
+  // aligned with the Iraqi Labor Law 37/2015 penalty framework.
+  // Optional + read with fallback so pre-v5.17 saves keep working.
+  // The user should refine these with their labor counsel for the
+  // jurisdiction-specific amounts that apply to their establishment.
+  fineRates?: Record<string, number>;
 }
 
 // Severity tiers for compliance findings:
@@ -342,6 +350,12 @@ export interface Violation {
   message: string;
   count?: number;
   severity?: ViolationSeverity;
+  // v5.17.0 — stable machine key for fine-rate lookup. Decoupled from
+  // `rule` (which is a human label that can drift / get translated).
+  // Optional so older Violation records (e.g. cached / rehydrated from
+  // disk) still work — fines.ts falls back to keying off `rule` when
+  // missing.
+  ruleKey?: string;
 }
 
 export interface ScheduleEntry {
