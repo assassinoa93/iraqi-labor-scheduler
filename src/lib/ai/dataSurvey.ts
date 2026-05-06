@@ -16,15 +16,54 @@
  * from anywhere in the renderer.
  */
 
-import type { CompanyData, Employee, LeaveRange } from '../../types';
+import type { CompanyData, Employee, LeaveRange, StationGroup } from '../../types';
+import type { StationProfile } from './profiles';
 
 export interface MonthKey {
   year: number;
   month: number; // 1..12
 }
 
+/**
+ * Compact station entry for the survey. Carries enough context for the AI
+ * to reason about staffing structure without calling getStations() —
+ * critically, includes the (often-Arabic) name + group + profiled flag
+ * so the model can group similar stations into one interview question
+ * instead of asking about each one individually.
+ */
+export interface SurveyStation {
+  id: string;
+  name: string;
+  groupId?: string;
+  groupName?: string;
+  /** True if a profile is on file with confidence >= 40. */
+  profiled: boolean;
+  normalMinHC: number;
+  peakMinHC: number;
+}
+
+export interface SurveyStationGroup {
+  groupId: string | null;
+  groupName: string;
+  count: number;
+  profiledCount: number;
+  /** Station ids in this group — lets the AI fire a single chip block
+   *  that covers an entire group instead of one per station. */
+  ids: string[];
+}
+
 export interface DataSurvey {
-  stations: { count: number; profiledCount: number };
+  stations: {
+    count: number;
+    profiledCount: number;
+    /** Per-station entries — the AI's primary handle on the workplace
+     *  structure. Names may be in Arabic; preserve verbatim. */
+    list: SurveyStation[];
+    /** Group rollups — sized 1..N depending on how the user has
+     *  organized their stations. Ungrouped stations land under
+     *  groupId=null / groupName='Ungrouped'. */
+    byGroup: SurveyStationGroup[];
+  };
   employees: { count: number; activeContractCount: number };
   shifts: { count: number; workShiftCount: number };
   schedules: {
@@ -114,16 +153,27 @@ function countEmployeeLeaveRanges(employees: Employee[]): {
   return { earliest, latest, totalRanges };
 }
 
+const PROFILE_CONFIDENCE_THRESHOLD = 40;
+
 /**
- * Survey the workspace. `profilesCount` is passed in rather than read
- * from inside this file because profiles live in their own (dual-mode)
- * store — keeping listAvailableData a pure function of CompanyData lets
- * the AI tool layer call it without an async storage hit.
+ * Survey the workspace. Pass the full profile map (not just a count) so
+ * the survey can produce a per-station `profiled` flag and group rollups
+ * the AI uses to batch interview questions across similar stations
+ * instead of asking about each one individually.
+ *
+ * Backward-compat: a number argument still works (treated as
+ * `profiledCount` for the aggregate field; per-station flags default to
+ * false). Internal callers should pass the full map.
  */
 export function listAvailableData(
   data: CompanyData,
-  profilesCount: number = 0,
+  profilesOrCount: Record<string, StationProfile> | number = {},
 ): DataSurvey {
+  const profiles: Record<string, StationProfile> = typeof profilesOrCount === 'object'
+    ? profilesOrCount
+    : {};
+  const fallbackProfiledCount = typeof profilesOrCount === 'number' ? profilesOrCount : null;
+
   // ── Stations / employees / shifts ───────────────────────────────────
   const stationCount = data.stations.length;
   const employeeCount = data.employees.length;
@@ -133,6 +183,54 @@ export function listAvailableData(
   const shiftCount = data.shifts.length;
   // `isWork` separates real work shifts from leave codes (OFF, AL, SL, ...).
   const workShiftCount = data.shifts.filter((s) => s.isWork).length;
+
+  // ── Per-station list + group rollup ────────────────────────────────
+  // Build a name lookup so SurveyStation.groupName can be filled from
+  // the station's groupId. Stations without a groupId fall under a
+  // synthetic "Ungrouped" bucket so the AI can talk about them.
+  const groupById = new Map<string, StationGroup>();
+  for (const g of data.stationGroups ?? []) groupById.set(g.id, g);
+
+  const stationList: SurveyStation[] = data.stations.map((s) => {
+    const profile = profiles[s.id];
+    return {
+      id: s.id,
+      name: s.name,
+      groupId: s.groupId,
+      groupName: s.groupId ? groupById.get(s.groupId)?.name : undefined,
+      profiled: !!(profile && profile.confidence >= PROFILE_CONFIDENCE_THRESHOLD),
+      normalMinHC: s.normalMinHC,
+      peakMinHC: s.peakMinHC,
+    };
+  });
+
+  const groupBuckets = new Map<string, SurveyStationGroup>();
+  const UNGROUPED_KEY = '__ungrouped__';
+  for (const st of stationList) {
+    const key = st.groupId ?? UNGROUPED_KEY;
+    let bucket = groupBuckets.get(key);
+    if (!bucket) {
+      bucket = {
+        groupId: st.groupId ?? null,
+        groupName: st.groupName ?? 'Ungrouped',
+        count: 0,
+        profiledCount: 0,
+        ids: [],
+      };
+      groupBuckets.set(key, bucket);
+    }
+    bucket.count++;
+    bucket.ids.push(st.id);
+    if (st.profiled) bucket.profiledCount++;
+  }
+  // Sort bigger groups first — the AI will mention these first.
+  const byGroup = Array.from(groupBuckets.values()).sort((a, b) => b.count - a.count);
+
+  // Use the per-station profiled flag when we have the full map; fall
+  // back to the legacy count argument when callers only pass a number.
+  const profiledStationCount = fallbackProfiledCount !== null
+    ? fallbackProfiledCount
+    : stationList.filter((s) => s.profiled).length;
 
   // ── Schedules ──────────────────────────────────────────────────────
   const scheduleKeys = Object.keys(data.allSchedules ?? {});
@@ -160,7 +258,12 @@ export function listAvailableData(
   const defaultYear = data.config.year ?? new Date().getFullYear();
 
   return {
-    stations: { count: stationCount, profiledCount: profilesCount },
+    stations: {
+      count: stationCount,
+      profiledCount: profiledStationCount,
+      list: stationList,
+      byGroup,
+    },
     employees: { count: employeeCount, activeContractCount },
     shifts: { count: shiftCount, workShiftCount },
     schedules: {

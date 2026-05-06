@@ -107,8 +107,11 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
     return countProfiled(stationIds, profiles, 40).profiled;
   }, [companyData.stations, profiles]);
   const survey = useMemo<DataSurvey>(
-    () => listAvailableData(companyData, profilesCount),
-    [companyData, profilesCount],
+    // v5.20.1 — pass the full profile map so the survey carries the
+    // station list + group rollup the chat panel relies on for
+    // batched Arabic-aware interviews.
+    () => listAvailableData(companyData, profiles),
+    [companyData, profiles],
   );
   const [scope, setScope] = useAiScope();
 

@@ -142,7 +142,10 @@ export function ChatPanel({
     if (!text.trim() || running || !session || !model) return;
     setError(null);
 
-    const survey: DataSurvey = listAvailableData(companyData, Object.keys(ctx.profiles).length);
+    // v5.20.1 — pass the full profile map so the survey + system prompt
+    // carry the per-station list and group rollup the model needs to
+    // batch interview questions instead of asking per station.
+    const survey: DataSurvey = listAvailableData(companyData, ctx.profiles);
     const hasSystem = session.messages.some((m) => m.role === 'system');
     const systemMsg: SessionMessage | null = hasSystem ? null : {
       id: nextMessageId(),

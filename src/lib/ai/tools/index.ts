@@ -125,8 +125,10 @@ export const TOOLS: Record<string, ToolDefinition> = {
     name: 'listAvailableData',
     schema: need('listAvailableData'),
     run: (_args, ctx) => {
-      const profilesCount = Object.keys(ctx.profiles).length;
-      return wrap(listAvailableData(ctx.companyData, profilesCount));
+      // Pass the full profile map so the survey can produce per-station
+      // `profiled` flags + group rollups — lets the AI batch interview
+      // questions across a group instead of one per station.
+      return wrap(listAvailableData(ctx.companyData, ctx.profiles));
     },
   },
 
