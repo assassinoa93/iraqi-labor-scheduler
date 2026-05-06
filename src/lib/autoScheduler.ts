@@ -113,6 +113,16 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
   const workShiftsSorted = [...workShifts]
     .map(s => ({ shift: s, bounds: shiftBounds.get(s.code)! }))
     .sort((a, b) => b.shift.durationHrs - a.shift.durationHrs);
+  // Hours-balance tie band for the candidate sort. Set to the longest
+  // configured work-shift duration so two employees within one shift's
+  // worth of hours are treated as tied — the consecutive-days and
+  // PH-debt tie-breakers then get to influence ordering, instead of
+  // being shadowed by a sub-shift hours delta. Pre-fix this was a
+  // hardcoded 4, which against 8h shifts meant every "1 shift behind"
+  // employee jumped to the front and station↔employee pairings
+  // effectively locked to the input order. Falls back to 8 if no work
+  // shifts are defined (defensive — caller already throws above).
+  const fairnessHourBand = workShiftsSorted[0]?.shift.durationHrs ?? 8;
 
   // Pre-compute the trailing-6 days of the previous month for each employee
   // so the level-1 rolling-7 check at the start of the month doesn't ignore
@@ -430,7 +440,7 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
         const sortedPool = [...employees].sort((a, b) => {
           const hA = totalHoursWorked.get(a.empId) || 0;
           const hB = totalHoursWorked.get(b.empId) || 0;
-          if (Math.abs(hA - hB) > 4) return hA - hB;
+          if (Math.abs(hA - hB) > fairnessHourBand) return hA - hB;
           // PH comp-day priority: someone with unpaid PH debt should rest
           // before being given another shift. Heavily weighted because comp
           // day timing is a compliance concern, not a soft preference.

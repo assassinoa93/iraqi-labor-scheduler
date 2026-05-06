@@ -1452,20 +1452,6 @@ export default function App() {
     });
   }, [setShifts, allSchedules, setConfirmState, t]);
 
-  // v5.18.0 — Plan-Everything wizard. Bulk-applies hourly demand
-  // suggestions across multiple stations in one setStations pass so the
-  // Firestore sync and audit log see a single coherent edit instead of
-  // N micro-writes. Updates are { stationId, suggestion } pairs.
-  const handleApplyStationDemandBulk = React.useCallback((updates: Array<{ stationId: string; suggestion: import('./lib/demandHistory').DemandSuggestion }>) => {
-    if (updates.length === 0) return;
-    const byId = new Map(updates.map(u => [u.stationId, u.suggestion]));
-    setStations(prev => prev.map(s => {
-      const sug = byId.get(s.id);
-      if (!sug || sug.noData) return s;
-      return { ...s, normalHourlyDemand: sug.normal, peakHourlyDemand: sug.peak };
-    }));
-  }, [setStations]);
-
   const moveShift = (index: number, direction: 'up' | 'down') => {
     setShifts(prev => {
       const next = [...prev];
@@ -4298,7 +4284,6 @@ export default function App() {
         config={config}
         allSchedules={allSchedules}
         schedule={schedule}
-        onApplyStationDemand={handleApplyStationDemandBulk}
         onApplyShifts={handleApplyGeneratedShifts}
         onRunAutoScheduler={() => handleRunAutoScheduler('preserve')}
         isPeakDay={isPeakDay}

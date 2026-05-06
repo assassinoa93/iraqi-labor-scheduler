@@ -2,41 +2,31 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * v5.18.0 — "Plan Everything" wizard.
+ * "Plan Everything" wizard.
  *
- * Chains the four planning surfaces into a single confirmable workflow so
- * the supervisor doesn't have to walk Stations → Shifts → Schedule →
+ * Chains the planning surfaces into a single confirmable workflow so the
+ * supervisor doesn't have to walk Stations → Shifts → Schedule →
  * Workforce by hand each month:
  *
- *   1. Demand tuning — for every station with no hourly demand profile
- *      yet (or where the supervisor wants to refresh from history),
- *      run suggestHourlyDemandFromHistory and surface the proposed
- *      profiles. Apply-all updates every station in one pass.
+ *   1. Demand check — verify every station has its required headcount
+ *      configured (flat or hourly). Stations are user-owned input;
+ *      this step does NOT propose changes — it simply blocks until the
+ *      user has set demand for any station that's still empty. To edit
+ *      demand, the user goes to the Stations tab.
  *
- *   2. Shift generation — feed the (possibly just-updated) station
- *      demand into generateOptimalShifts. Surface the proposed shift
- *      library additions; apply appends to the existing library
- *      (auto-generated flag stays on for visual differentiation).
+ *   2. Shift generation — feed station demand into generateOptimalShifts
+ *      and surface proposed shift library additions; apply appends to
+ *      the existing library.
  *
- *   3. Auto-schedule — kick off the existing autoScheduler.runAuto
- *      via the parent's onRunAuto callback. The actual schedule write
- *      lives in App.tsx; the wizard just triggers it and surfaces the
- *      "running" state.
+ *   3. Auto-schedule — kick off runAutoScheduler via onRunAutoScheduler.
  *
- *   4. Recap — coverage diagnostics + staffing-advisory summary so
- *      the supervisor sees the post-plan picture and knows whether
- *      they need to hire / cross-train / redistribute leave.
- *
- * Each step is skippable. The wizard treats the user's previous edits
- * as the new baseline at each step — applying step 1 immediately changes
- * what step 2 emits.
+ *   4. Recap — coverage diagnostics summary.
  */
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Wand2, BarChart3 } from 'lucide-react';
+import { X, Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Wand2, ListChecks, AlertTriangle } from 'lucide-react';
 import type { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
-import { suggestHourlyDemandFromHistory, type DemandSuggestion } from '../lib/demandHistory';
 import { generateOptimalShifts } from '../lib/shiftGenerator';
 import { diagnoseUnfilledCoverage, groupUnfilledByStationDay } from '../lib/coverageDiagnostics';
 import { useI18n } from '../lib/i18n';
@@ -56,8 +46,8 @@ interface Props {
   schedule: Schedule;
   // Mutation hooks. The wizard collects user intent and forwards each
   // confirmed step to the parent for the actual state mutation +
-  // persistence.
-  onApplyStationDemand: (updates: Array<{ stationId: string; suggestion: DemandSuggestion }>) => void;
+  // persistence. Step 1 (demand check) is read-only — station demand is
+  // user-owned input and is edited via the Stations tab, not here.
   onApplyShifts: (newShifts: Shift[]) => void;
   onRunAutoScheduler: () => void;
   // Predicate for peak-day classification. Mirrors App.tsx's isPeakDay
@@ -73,7 +63,7 @@ const STEPS: Step[] = ['demand', 'shifts', 'schedule', 'recap'];
 export function PlanEverythingWizard({
   isOpen, onClose,
   employees, shifts, stations, holidays, config, allSchedules, schedule,
-  onApplyStationDemand, onApplyShifts, onRunAutoScheduler, isPeakDay,
+  onApplyShifts, onRunAutoScheduler, isPeakDay,
 }: Props) {
   const { t } = useI18n();
   useModalKeys(isOpen, onClose);
@@ -87,18 +77,21 @@ export function PlanEverythingWizard({
 
   const step: Step = STEPS[stepIdx];
 
-  // Demand suggestions per station — recomputed every time the modal
-  // opens because the user may have run the schedule again between
-  // visits and the history-based suggestions would change.
-  const demandSuggestions = useMemo(() => {
+  // Stations whose required headcount has not been configured yet —
+  // neither flat (`normalMinHC` / `peakMinHC`) nor hourly profile carries
+  // any positive demand. Station HC is the user's input; the wizard only
+  // verifies it is set and blocks Continue until the user fills it in
+  // (via the Stations tab — the wizard does not propose changes).
+  const stationsMissingDemand = useMemo(() => {
     if (!isOpen) return [];
-    return stations.map(st => ({
-      station: st,
-      suggestion: suggestHourlyDemandFromHistory({
-        station: st, allSchedules, shifts, holidays, config,
-      }),
-    })).filter(x => !x.suggestion.noData);
-  }, [isOpen, stations, allSchedules, shifts, holidays, config]);
+    return stations.filter(st => {
+      const hasFlat = (st.normalMinHC ?? 0) > 0 || (st.peakMinHC ?? 0) > 0;
+      const hasHourly =
+        !!st.normalHourlyDemand?.some(s => (s.hc | 0) > 0) ||
+        !!st.peakHourlyDemand?.some(s => (s.hc | 0) > 0);
+      return !hasFlat && !hasHourly;
+    });
+  }, [isOpen, stations]);
 
   // Shift suggestions feed off the CURRENT station demand. Re-runs after
   // the user applies step 1 (because stations[] changes upstream and the
@@ -124,10 +117,10 @@ export function PlanEverythingWizard({
   const goNext = () => setStepIdx(i => Math.min(i + 1, STEPS.length - 1));
   const goBack = () => setStepIdx(i => Math.max(i - 1, 0));
 
-  const handleApplyDemand = () => {
-    onApplyStationDemand(
-      demandSuggestions.map(({ station, suggestion }) => ({ stationId: station.id, suggestion })),
-    );
+  const handleConfirmDemand = () => {
+    // No mutation — Step 1 is a validation gate. Mark as "checked" and
+    // advance. The button is disabled upstream when stations still need
+    // requirements, so by the time we get here we know the gate passes.
     setApplied(a => ({ ...a, demand: true }));
     goNext();
   };
@@ -158,37 +151,33 @@ export function PlanEverythingWizard({
       <p className="text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
         {t('planAll.demand.body')}
       </p>
-      {demandSuggestions.length === 0 ? (
-        <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-[11px] text-amber-700 dark:text-amber-200">
-          {t('planAll.demand.noData')}
+      {stationsMissingDemand.length === 0 ? (
+        <div className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 flex items-start gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-300 flex-shrink-0 mt-0.5" />
+          <div className="text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed">
+            {t('planAll.demand.allSet', { count: stations.length })}
+          </div>
         </div>
       ) : (
-        <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-          {demandSuggestions.map(({ station, suggestion }) => (
-            <div key={station.id} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100">{station.name}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                    {t('planAll.demand.basis', {
-                      months: suggestion.monthsAnalyzed,
-                      normal: suggestion.normalDayCount,
-                      peak: suggestion.peakDayCount,
-                    })}
-                  </p>
-                </div>
-                <div className="text-end">
-                  <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                    {t('planAll.demand.slots')}
-                  </p>
-                  <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200">
-                    {suggestion.normal.length} <span className="text-slate-300 dark:text-slate-600">/</span> {suggestion.peak.length}
-                  </p>
-                </div>
-              </div>
+        <>
+          <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5" />
+            <div className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed">
+              {t('planAll.demand.missing', { count: stationsMissingDemand.length })}
             </div>
-          ))}
-        </div>
+          </div>
+          <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+            {stationsMissingDemand.map(st => (
+              <div key={st.id} className="px-3 py-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">{st.name}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex-shrink-0">{st.id}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            {t('planAll.demand.missingHint')}
+          </p>
+        </>
       )}
     </div>
   );
@@ -290,7 +279,7 @@ export function PlanEverythingWizard({
     recap: renderRecapStep(),
   };
 
-  const StepIcon = step === 'demand' ? BarChart3
+  const StepIcon = step === 'demand' ? ListChecks
     : step === 'shifts' ? Sparkles
     : step === 'schedule' ? Wand2
     : ShieldCheck;
@@ -362,9 +351,11 @@ export function PlanEverythingWizard({
             )}
             {step === 'demand' && (
               <PrimaryAction
-                onClick={handleApplyDemand}
-                disabled={demandSuggestions.length === 0}
-                label={t('planAll.demand.apply', { count: demandSuggestions.length })}
+                onClick={handleConfirmDemand}
+                disabled={stationsMissingDemand.length > 0}
+                label={stationsMissingDemand.length > 0
+                  ? t('planAll.demand.blocked', { count: stationsMissingDemand.length })
+                  : t('planAll.demand.continue')}
               />
             )}
             {step === 'shifts' && (
