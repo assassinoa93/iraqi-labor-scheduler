@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Building2,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -155,6 +156,9 @@ const VariablesTab = lazy(() => import('./components/VariablesTab').then(m => ({
 const AuditLogTab = lazy(() => import('./components/AuditLogTab').then(m => ({ default: m.AuditLogTab })));
 const SuperAdminTab = lazy(() => import('./tabs/SuperAdminTab').then(m => ({ default: m.SuperAdminTab })));
 const UserManagementTab = lazy(() => import('./tabs/UserManagementTab').then(m => ({ default: m.UserManagementTab })));
+// v5.20.0 — BYOK OpenRouter assistant. Beta. Hidden for supervisors by
+// default; per-user encrypted key gate kicks in once the tab is open.
+const AIServicesTab = lazy(() => import('./tabs/AIServicesTab').then(m => ({ default: m.AIServicesTab })));
 
 // Empty placeholder used when a company has no per-domain data yet.
 const emptyCompanyData = (): CompanyData => ({
@@ -3606,6 +3610,21 @@ export default function App() {
             {tabAllowed('holidays', role, tabPerms) && <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="10" icon={Flag} onClick={() => setActiveTab('holidays')} />}
             {tabAllowed('variables', role, tabPerms) && <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="11" icon={Scale} onClick={() => setActiveTab('variables')} />}
           </SidebarGroup>
+          {/* v5.20.0 — AI Services (Beta). Sits in its own sidebar group so
+              the BETA pill is unambiguous. Visible to manager/admin/super_admin
+              by default; the per-user encrypted OpenRouter key is the second gate. */}
+          {tabAllowed('aiServices', role, tabPerms) && (
+            <SidebarGroup label={t('sidebar.group.assistant')}>
+              <TabButton
+                active={activeTab === 'aiServices'}
+                label={t('tab.aiServices')}
+                icon={Sparkles}
+                onClick={() => setActiveTab('aiServices')}
+                tag="BETA"
+                tagTitle="AI Services is in active testing — behaviour may change between releases"
+              />
+            </SidebarGroup>
+          )}
           <SidebarGroup label={t('sidebar.group.system')}>
             {tabAllowed('audit', role, tabPerms) && <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="12" icon={Database} onClick={() => setActiveTab('audit')} />}
             {tabAllowed('settings', role, tabPerms) && <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="13" icon={Settings} onClick={() => setActiveTab('settings')} />}
@@ -4208,6 +4227,13 @@ export default function App() {
 
             {activeTab === 'userManagement' && (
               <UserManagementTab companies={companies} />
+            )}
+
+            {activeTab === 'aiServices' && (
+              <AIServicesTab
+                companyData={data}
+                activeCompanyId={activeCompanyId}
+              />
             )}
             </Suspense>
           </motion.div>

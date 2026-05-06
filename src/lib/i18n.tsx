@@ -21,6 +21,9 @@ export const en: Dict = {
   'sidebar.group.analytics': 'Analytics',
   'sidebar.group.setup': 'Setup',
   'sidebar.group.system': 'System',
+  // v5.20.0 — AI Services lives in its own sidebar group so the BETA pill
+  // is unambiguous and doesn't clutter the System group.
+  'sidebar.group.assistant': 'Assistant',
   // v1.16 — station groups (kanban view in Stations tab)
   'layout.group.new': 'New group',
   'layout.group.namePlaceholder': 'Group name (e.g. Cashier Counters, Game Machines, Vehicles)',
@@ -49,6 +52,8 @@ export const en: Dict = {
   'tab.settings': 'System Settings',
   'tab.superAdmin': 'Super Admin',
   'tab.userManagement': 'User Management',
+  // v5.20.0 — AI Services tab. Beta-flagged in the sidebar.
+  'tab.aiServices': 'AI Services',
 
   // Common actions
   'action.save': 'Save',
@@ -1817,6 +1822,7 @@ export const ar: Dict = {
   'sidebar.group.analytics': 'التحليلات',
   'sidebar.group.setup': 'الإعداد',
   'sidebar.group.system': 'النظام',
+  'sidebar.group.assistant': 'المساعد',
   // مجموعات المحطات
   'layout.group.new': 'مجموعة جديدة',
   'layout.group.namePlaceholder': 'اسم المجموعة (مثل: نقاط البيع، آلات الألعاب، المركبات)',
@@ -1845,6 +1851,7 @@ export const ar: Dict = {
   'tab.settings': 'إعدادات النظام',
   'tab.superAdmin': 'المسؤول الأعلى',
   'tab.userManagement': 'إدارة المستخدمين',
+  'tab.aiServices': 'المساعد الذكي',
 
   // Common actions
   'action.save': 'حفظ',

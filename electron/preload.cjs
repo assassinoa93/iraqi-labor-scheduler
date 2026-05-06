@@ -47,3 +47,17 @@ contextBridge.exposeInMainWorld('adminApi', {
   deployFirestoreRules: (projectId, idToken) => call('admin:deployFirestoreRules', { projectId, idToken }),
   wipeLocalSecrets: () => call('admin:wipeLocalSecrets'),
 });
+
+// v5.20.0 — AI Services bridge. Per-user OpenRouter key storage backed
+// by Electron `safeStorage`. The renderer never sees the encrypted blob
+// directly — it just calls saveKey / getKey by user id and the bridge
+// handles the OS keychain dance. See electron/ai-bridge.cjs.
+contextBridge.exposeInMainWorld('aiApi', {
+  isAvailable: () => call('ai:isAvailable'),
+  hasKey: (userId) => call('ai:hasKey', { userId }),
+  saveKey: (userId, plaintextKey) => call('ai:saveKey', { userId, plaintextKey }),
+  getKey: (userId) => call('ai:getKey', { userId }),
+  deleteKey: (userId) => call('ai:deleteKey', { userId }),
+  getConsent: (userId) => call('ai:getConsent', { userId }),
+  setConsent: (userId, accepted) => call('ai:setConsent', { userId, accepted }),
+});

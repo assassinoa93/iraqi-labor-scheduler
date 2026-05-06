@@ -49,6 +49,10 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     coverageOT: 'full', workforce: 'full', reports: 'full',
     layout: 'full', shifts: 'full', holidays: 'full', variables: 'full',
     audit: 'full', settings: 'full',
+    // v5.20.0 — AI Services (BYOK OpenRouter). Visible to manager/admin/
+    // super_admin so anyone in the planning hierarchy can use it; the
+    // per-user encrypted key gate is the second filter.
+    aiServices: 'full',
     superAdmin: 'full', userManagement: 'full',
   },
   // v5.1.1 — Holidays + Variables are per-company governance config
@@ -65,6 +69,8 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     holidays: 'read',
     variables: 'read',
     audit: 'full', settings: 'full',
+    // v5.20.0 — admins manage their own AI key + use the assistant.
+    aiServices: 'full',
     // No Super Admin / User Management for plain admins.
   },
   // v5.0 — first-tier validator. Sees the schedule + dashboard + audit log
@@ -77,6 +83,9 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     reports: 'full', audit: 'full', settings: 'full',
     roster: 'read', holidays: 'read', shifts: 'read', layout: 'read',
     payroll: 'read', workforce: 'read', variables: 'read',
+    // v5.20.0 — managers are part of the planning loop the AI assists
+    // with, so they get full access to AI Services with their own key.
+    aiServices: 'full',
     // No Super Admin / User Management for managers.
   },
   supervisor: {
@@ -92,6 +101,10 @@ export const TAB_DEFAULTS_BY_ROLE: Record<Role, Record<string, TabAccess>> = {
     // window subsection has its own write-gate inside VariablesTab.
     variables: 'read',
     settings: 'full',
+    // v5.20.0 — supervisors are not in the planning hierarchy the AI
+    // assistant is designed for. Hidden by default; super-admin can
+    // grant per-user via tabPerms if a particular supervisor needs it.
+    aiServices: 'none',
     // Supervisors don't see payroll/workforce/reports/audit by default —
     // super-admin can grant per-user.
   },
@@ -144,4 +157,8 @@ export const GRANTABLE_TABS: Array<{ key: string; label: string; default: TabAcc
   { key: 'variables',  label: 'Legal Variables',    default: 'read' },
   { key: 'audit',      label: 'Audit Log',          default: 'none' },
   { key: 'settings',   label: 'System Settings',    default: 'full' },
+  // v5.20.0 — AI Services. Default 'none' for the supervisor row so the
+  // grant UI shows it as off-by-default for them but can be flipped on
+  // per user; manager/admin/super_admin already have it via role defaults.
+  { key: 'aiServices', label: 'AI Services (Beta)', default: 'none' },
 ];

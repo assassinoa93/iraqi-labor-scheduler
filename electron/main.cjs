@@ -5,6 +5,7 @@ const path = require('path');
 const http  = require('http');
 const fs    = require('fs');
 const { registerAdminIpc } = require('./admin-bridge.cjs');
+const { registerAiIpc } = require('./ai-bridge.cjs');
 
 // ─── Environment ─────────────────────────────────────────────────────────────
 const isDev = !app.isPackaged;
@@ -286,6 +287,13 @@ if (!gotTheLock) {
   // without a service-account JSON pay no cost (and emit no errors) until
   // the super-admin actually opens the Super Admin tab.
   registerAdminIpc();
+
+  // ─── AI Services IPC (v5.20.0) ───────────────────────────────────────────────
+  // Per-user OpenRouter key storage via Electron safeStorage. Keys are
+  // OS-keychain encrypted, stored under <userData>/ai/ keyed by a hash of
+  // the user id, and never synced to Firestore — same local-first posture
+  // as the admin service-account JSONs.
+  registerAiIpc();
 
   // ─── App lifecycle ────────────────────────────────────────────────────────────
   app.whenReady().then(createWindow);

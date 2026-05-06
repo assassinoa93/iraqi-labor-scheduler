@@ -264,7 +264,7 @@ export const SidebarGroup = ({ label, children }: { label: string; children: Rea
 // classes auto-mirror so the dot lands on the visual end of the row in
 // either direction. Pre-2.6 the leading bar was force-placed via
 // `border-l-4` and needed a CSS override to mirror in RTL.
-export const TabButton = ({ active, label, onClick, badge }: { active: boolean; icon?: any; label: string; index?: string; onClick: () => void; badge?: number }) => (
+export const TabButton = ({ active, label, onClick, badge, tag, tagTitle }: { active: boolean; icon?: any; label: string; index?: string; onClick: () => void; badge?: number; tag?: string; tagTitle?: string }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -275,10 +275,11 @@ export const TabButton = ({ active, label, onClick, badge }: { active: boolean; 
     )}
   >
     <span className="truncate flex-1 text-start">{label}</span>
-    {/* v5.0 — pending-action badge. Surfaces the count of items waiting
-        for the user's attention on this tab (currently used by Schedule
-        for the approval queue). Clamped at 99+ to keep the sidebar tidy. */}
-    {badge !== undefined && badge > 0 && (
+    {/* v5.20.0 — phase indicator pill. Used by the AI Services tab to
+        surface "BETA" so users know the feature is still in testing.
+        Coexists with `badge` and the active-state dot — only one of
+        the right-side affordances renders, in priority: badge > tag > dot. */}
+    {badge !== undefined && badge > 0 ? (
       <span
         className={cn(
           "shrink-0 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold tabular-nums flex items-center justify-center",
@@ -290,14 +291,25 @@ export const TabButton = ({ active, label, onClick, badge }: { active: boolean; 
       >
         {badge > 99 ? '99+' : badge}
       </span>
-    )}
-    {active && badge === undefined && (
+    ) : tag ? (
+      <span
+        className={cn(
+          "shrink-0 px-1.5 h-[16px] rounded-md text-[8px] font-black tracking-widest uppercase flex items-center justify-center",
+          active
+            ? "bg-amber-400/90 text-slate-900"
+            : "bg-amber-500/15 text-amber-300 border border-amber-400/30",
+        )}
+        title={tagTitle ?? tag}
+      >
+        {tag}
+      </span>
+    ) : active ? (
       <span
         aria-hidden
         className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"
         style={{ boxShadow: "0 0 0 3px rgba(96,165,250,0.18)" }}
       />
-    )}
+    ) : null}
   </button>
 );
 
