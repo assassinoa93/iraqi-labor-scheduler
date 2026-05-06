@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Sparkles, AlertTriangle, Trash2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, Sparkles, AlertTriangle, Trash2, ShieldCheck, CheckCircle2, Wand2, ArrowRight, Plus, Minus } from 'lucide-react';
 import { Shift, Station, Config } from '../types';
 import { generateOptimalShifts } from '../lib/shiftGenerator';
+import { buildOptimizationProposal } from '../lib/shiftOptimization';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -23,19 +24,37 @@ interface Props {
   // hopping back to the table.
   existingAutoCount: number;
   onClearExisting: () => void;
+  // v5.19.2 — replace-library action. Removes the supervisor's current
+  // work shifts (system shifts CP/OFF/AL/SL/MAT/PH preserved) and
+  // appends the proposal. App.tsx wraps this in a confirmation step
+  // because it's a wholesale library swap.
+  onReplaceLibrary?: (toDelete: Shift[], toAdd: Shift[]) => void;
 }
 
 export function AutoGenerateShiftsModal({
   isOpen, onClose, stations, config, existingShifts, onApply, existingAutoCount, onClearExisting,
+  onReplaceLibrary,
 }: Props) {
   const { t } = useI18n();
   useModalKeys(isOpen, onClose);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  // v5.19.2 — two-tab modal:
+  //   'gaps'     — fill missing coverage in the existing library (v5.19.0 behaviour)
+  //   'optimize' — propose an alternative library built from the demand
+  //                profile alone, with one-click adopt-and-replace.
+  const [tab, setTab] = useState<'gaps' | 'optimize'>('gaps');
 
   const result = useMemo(() => {
     if (!isOpen) return null;
     return generateOptimalShifts(stations, config, existingShifts);
   }, [isOpen, stations, config, existingShifts]);
+
+  // Lazy: only build the optimization proposal when the user switches
+  // to that tab. Avoids the second generator call on every modal open.
+  const proposal = useMemo(() => {
+    if (!isOpen || tab !== 'optimize') return null;
+    return buildOptimizationProposal(stations, config, existingShifts);
+  }, [isOpen, tab, stations, config, existingShifts]);
 
   if (!isOpen || !result) return null;
 
@@ -54,6 +73,22 @@ export function AutoGenerateShiftsModal({
     onApply(generated);
     onClose();
   };
+
+  const handleAdopt = () => {
+    if (!proposal || !onReplaceLibrary) {
+      onClose();
+      return;
+    }
+    onReplaceLibrary(
+      proposal.toDelete.map(d => d.shift),
+      proposal.toAdd.map(a => a.shift),
+    );
+    onClose();
+  };
+
+  const optimizeUnchanged = proposal
+    && proposal.toAdd.length === 0
+    && proposal.toDelete.length === 0;
 
   const handleClearAndClose = () => {
     onClearExisting();
@@ -82,6 +117,41 @@ export function AutoGenerateShiftsModal({
           </button>
         </div>
 
+        {/* v5.19.2 — tab nav. "Fill gaps" preserves the original
+            v5.19.0 behaviour. "Optimize library" is the new
+            prescriptive view that proposes an alternative library
+            with a one-click adopt-and-replace action. */}
+        {!hasNoDemand && (
+          <div className="px-6 pt-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setTab('gaps')}
+              className={cn(
+                'px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5',
+                tab === 'gaps'
+                  ? 'text-violet-700 dark:text-violet-200 border-b-2 border-violet-500'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent',
+              )}
+            >
+              <Sparkles className="w-3 h-3" />
+              {t('shifts.autoGen.tab.gaps')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('optimize')}
+              className={cn(
+                'px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5',
+                tab === 'optimize'
+                  ? 'text-emerald-700 dark:text-emerald-200 border-b-2 border-emerald-500'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent',
+              )}
+            >
+              <Wand2 className="w-3 h-3" />
+              {t('shifts.autoGen.tab.optimize')}
+            </button>
+          </div>
+        )}
+
         <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
           {hasNoDemand ? (
             <div className="p-5 rounded-lg border border-amber-200 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 flex items-start gap-3">
@@ -91,7 +161,7 @@ export function AutoGenerateShiftsModal({
                 <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{t('shifts.autoGen.noDemand.body')}</p>
               </div>
             </div>
-          ) : (
+          ) : tab === 'gaps' ? (
             <>
               {/* v5.19.0 — coverage verdict banner. Shown ABOVE the demand
                   chart so the supervisor sees the headline first
@@ -241,6 +311,14 @@ export function AutoGenerateShiftsModal({
                 </div>
               )}
             </>
+          ) : (
+            // v5.19.2 — Optimize tab: alternative library proposal +
+            // side-by-side diff. Surfaced when the supervisor wants
+            // the GENERATOR to propose what the library SHOULD look
+            // like, not just patch the gaps in what's there.
+            proposal && (
+              <OptimizeView proposal={proposal} unchanged={!!optimizeUnchanged} />
+            )
           )}
 
           {existingAutoCount > 0 && (
@@ -288,22 +366,257 @@ export function AutoGenerateShiftsModal({
           >
             {t('action.cancel')}
           </button>
-          <button
-            onClick={handleApply}
-            disabled={hasNoDemand || isAdequate}
-            className={cn(
-              'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
-              hasNoDemand || isAdequate
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700',
-            )}
-          >
-            {isAdequate
-              ? t('shifts.autoGen.applyAdequate')
-              : t('shifts.autoGen.apply', { count: generated.length })}
-          </button>
+          {tab === 'gaps' ? (
+            <button
+              onClick={handleApply}
+              disabled={hasNoDemand || isAdequate}
+              className={cn(
+                'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
+                hasNoDemand || isAdequate
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700',
+              )}
+            >
+              {isAdequate
+                ? t('shifts.autoGen.applyAdequate')
+                : t('shifts.autoGen.apply', { count: generated.length })}
+            </button>
+          ) : (
+            // v5.19.2 — Adopt-and-replace primary action. Disabled when
+            // there's nothing to change OR when the parent didn't
+            // pass an onReplaceLibrary handler. Confirmation lives in
+            // the parent (App.tsx wraps the call with the standard
+            // confirmation modal).
+            <button
+              onClick={handleAdopt}
+              disabled={hasNoDemand || optimizeUnchanged || !onReplaceLibrary}
+              className={cn(
+                'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
+                hasNoDemand || optimizeUnchanged || !onReplaceLibrary
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700',
+              )}
+            >
+              {optimizeUnchanged
+                ? t('shifts.autoGen.optimize.unchangedAction')
+                : t('shifts.autoGen.optimize.adopt', {
+                    add: proposal?.toAdd.length ?? 0,
+                    del: proposal?.toDelete.length ?? 0,
+                  })}
+            </button>
+          )}
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+// v5.19.2 — Optimize tab body. Renders the alternative-library
+// proposal: a green headline summarising the migration, a delta-tile
+// row, two side-by-side columns (Current → Proposed) with shifts
+// flagged add / keep / delete, and a fixed-issues block when the
+// proposal eliminates problems with the current library.
+function OptimizeView({
+  proposal,
+  unchanged,
+}: {
+  proposal: ReturnType<typeof buildOptimizationProposal>;
+  unchanged: boolean;
+}) {
+  const { t } = useI18n();
+  const fmtH = (n: number) => `${n.toFixed(1)}h`;
+
+  if (unchanged) {
+    return (
+      <div className="p-5 rounded-lg border border-emerald-200 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 flex items-start gap-3">
+        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">
+            {t('shifts.autoGen.optimize.unchanged.title')}
+          </p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+            {t('shifts.autoGen.optimize.unchanged.body')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Headline summary */}
+      <div className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 flex items-start gap-3">
+        <Wand2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-[11px] font-black text-emerald-700 dark:text-emerald-200 uppercase tracking-widest">
+            {t('shifts.autoGen.optimize.headline.title')}
+          </p>
+          <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed">
+            {proposal.summary}
+          </p>
+        </div>
+      </div>
+
+      {/* Delta tiles. Four key metrics: shift count change, fixed
+          over-cap count, fixed redundancy count, average shift
+          duration before → after. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <DeltaTile
+          label={t('shifts.autoGen.optimize.delta.shiftCount')}
+          before={proposal.currentWorkShifts.length}
+          after={proposal.proposedLibrary.length}
+        />
+        <DeltaTile
+          label={t('shifts.autoGen.optimize.delta.avgDuration')}
+          beforeText={fmtH(proposal.delta.currentAvgDuration)}
+          afterText={fmtH(proposal.delta.proposedAvgDuration)}
+        />
+        <DeltaTile
+          label={t('shifts.autoGen.optimize.delta.overCapFixed')}
+          before={proposal.delta.fixedOverCap}
+          after={0}
+          tone="rose-to-emerald"
+        />
+        <DeltaTile
+          label={t('shifts.autoGen.optimize.delta.redundantFixed')}
+          before={proposal.delta.fixedRedundant + proposal.delta.fixedSubsumed}
+          after={0}
+          tone="rose-to-emerald"
+        />
+      </div>
+
+      {/* Side-by-side: Current → Proposed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <ShiftListColumn
+          title={t('shifts.autoGen.optimize.current.title', { count: proposal.currentWorkShifts.length })}
+          subtitle={t('shifts.autoGen.optimize.current.subtitle')}
+          tone="slate"
+          entries={[
+            ...proposal.toDelete.map(d => ({ ...d, badge: 'delete' as const })),
+            ...proposal.toKeep.map(k => ({ ...k, badge: 'keep' as const })),
+          ]}
+        />
+        <ShiftListColumn
+          title={t('shifts.autoGen.optimize.proposed.title', { count: proposal.proposedLibrary.length })}
+          subtitle={t('shifts.autoGen.optimize.proposed.subtitle')}
+          tone="emerald"
+          entries={[
+            ...proposal.toKeep.map(k => ({ ...k, badge: 'keep' as const })),
+            ...proposal.toAdd.map(a => ({ ...a, badge: 'add' as const })),
+          ]}
+        />
+      </div>
+
+      {/* Fixed issues callout — what the migration eliminates */}
+      {proposal.fixedIssues.length > 0 && (
+        <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 space-y-1.5">
+          <p className="text-[10px] font-black text-blue-800 dark:text-blue-200 uppercase tracking-widest">
+            {t('shifts.autoGen.optimize.fixed.title', { count: proposal.fixedIssues.length })}
+          </p>
+          <ul className="space-y-1 text-[10px] text-blue-700 dark:text-blue-200">
+            {proposal.fixedIssues.map((iss, i) => (
+              <li key={i} className="leading-relaxed">
+                <span className="px-1.5 py-0.5 me-1 rounded font-mono font-black uppercase tracking-widest text-[8px] bg-blue-100 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/40">
+                  {t(`shifts.autoGen.issues.kind.${iss.kind}`)}
+                </span>
+                {iss.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Coverage equivalence sanity-check — should always be true. */}
+      {!proposal.delta.coverageEquivalent && (
+        <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 text-[10px] text-amber-800 dark:text-amber-200">
+          {t('shifts.autoGen.optimize.coverageWarning')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeltaTile({
+  label, before, after, beforeText, afterText, tone,
+}: {
+  label: string;
+  before?: number;
+  after?: number;
+  beforeText?: string;
+  afterText?: string;
+  tone?: 'rose-to-emerald';
+}) {
+  const beforeStr = beforeText ?? (before ?? 0).toString();
+  const afterStr = afterText ?? (after ?? 0).toString();
+  const isImprovement = tone === 'rose-to-emerald'
+    ? (before ?? 0) > (after ?? 0)
+    : false;
+  return (
+    <div className={cn(
+      'p-2.5 rounded-lg border',
+      isImprovement
+        ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-500/10'
+        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40',
+    )}>
+      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+      <p className="text-xs font-mono">
+        <span className="text-slate-500 dark:text-slate-400">{beforeStr}</span>
+        <ArrowRight className="inline w-3 h-3 mx-1 text-slate-400 dark:text-slate-500" />
+        <span className={cn('font-black', isImprovement ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100')}>{afterStr}</span>
+      </p>
+    </div>
+  );
+}
+
+function ShiftListColumn({
+  title, subtitle, tone, entries,
+}: {
+  title: string;
+  subtitle: string;
+  tone: 'slate' | 'emerald';
+  entries: Array<{ shift: Shift; reason: string; badge: 'add' | 'delete' | 'keep' }>;
+}) {
+  const { t } = useI18n();
+  const headerTone = tone === 'emerald'
+    ? 'bg-emerald-50/40 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700';
+  return (
+    <div className={cn('rounded-lg border overflow-hidden', headerTone)}>
+      <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-700/60">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{title}</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{subtitle}</p>
+      </div>
+      <div className="divide-y divide-slate-200 dark:divide-slate-700/60 max-h-[36vh] overflow-y-auto">
+        {entries.length === 0 ? (
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 italic p-3">—</p>
+        ) : (
+          entries.map((e, i) => {
+            const badgeTone =
+              e.badge === 'add' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-200 border-emerald-200 dark:border-emerald-500/40'
+              : e.badge === 'delete' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-200 border-rose-200 dark:border-rose-500/40'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+            const BadgeIcon = e.badge === 'add' ? Plus : e.badge === 'delete' ? Minus : CheckCircle2;
+            return (
+              <div key={`${e.shift.code}-${i}`} className="p-3 bg-white dark:bg-slate-900/30 flex items-start gap-2">
+                <span className={cn('shrink-0 px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest flex items-center gap-1', badgeTone)}>
+                  <BadgeIcon className="w-2.5 h-2.5" />
+                  {t(`shifts.autoGen.optimize.badge.${e.badge}`)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">
+                    <span className="font-mono text-violet-700 dark:text-violet-200 me-1.5">{e.shift.code}</span>
+                    {e.shift.name}
+                  </p>
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
+                    {e.shift.start}–{e.shift.end} · {e.shift.durationHrs}h
+                  </p>
+                  <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{e.reason}</p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
