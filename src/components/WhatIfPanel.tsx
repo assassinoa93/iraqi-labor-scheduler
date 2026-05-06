@@ -38,10 +38,17 @@ interface Props {
 
 export function WhatIfPanel(props: Props) {
   const { t } = useI18n();
-  const [collapsed, setCollapsed] = useState(true);
+  // v5.19.1 — default-EXPANDED so the controls are visible immediately.
+  // The original collapsed-by-default left users hunting for the panel.
+  const [collapsed, setCollapsed] = useState(false);
   const [staged, setStaged] = useState<WhatIfChange[]>([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<WhatIfResult | null>(null);
+  // v5.19.1 — which "Add change" form is currently open. Lifted out of
+  // ChangeBuilder so the form renders inline within the panel (not as
+  // an absolute-positioned dropdown that gets clipped by the Card's
+  // overflow-hidden).
+  const [activeKind, setActiveKind] = useState<'hire' | 'cross-train' | 'release' | null>(null);
 
   // Build the unique role list for the role-picker (hire / release).
   const roles = useMemo(() => {
@@ -84,10 +91,10 @@ export function WhatIfPanel(props: Props) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card>
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="w-full p-5 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3 hover:bg-slate-100/50 dark:hover:bg-slate-800 transition-colors text-start"
+        className="w-full p-5 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3 hover:bg-slate-100/50 dark:hover:bg-slate-800 transition-colors text-start rounded-t-xl"
       >
         <FlaskConical className="w-4 h-4 text-blue-600 dark:text-blue-300 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -104,9 +111,9 @@ export function WhatIfPanel(props: Props) {
       {!collapsed && (
         <div className="p-5 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <ChangeBuilder kind="hire" roles={roles} stationGroups={props.stationGroups} onAdd={addChange} />
-            <ChangeBuilder kind="cross-train" employees={props.employees} stationGroups={props.stationGroups} onAdd={addChange} />
-            <ChangeBuilder kind="release" roles={roles} onAdd={addChange} />
+            <ChangeKindButton kind="hire" active={activeKind === 'hire'} onClick={() => setActiveKind(k => k === 'hire' ? null : 'hire')} />
+            <ChangeKindButton kind="cross-train" active={activeKind === 'cross-train'} onClick={() => setActiveKind(k => k === 'cross-train' ? null : 'cross-train')} />
+            <ChangeKindButton kind="release" active={activeKind === 'release'} onClick={() => setActiveKind(k => k === 'release' ? null : 'release')} />
             {staged.length > 0 && (
               <button
                 type="button"
@@ -117,6 +124,21 @@ export function WhatIfPanel(props: Props) {
               </button>
             )}
           </div>
+
+          {/* Inline form — replaces the v5.19.0 absolute-positioned
+              dropdown that got clipped by the Card's overflow-hidden.
+              Renders below the trigger row, only one form active at
+              a time. Cancel and Add to staged buttons close the form. */}
+          {activeKind && (
+            <InlineChangeForm
+              kind={activeKind}
+              roles={roles}
+              employees={props.employees}
+              stationGroups={props.stationGroups}
+              onAdd={(c) => { addChange(c); setActiveKind(null); }}
+              onCancel={() => setActiveKind(null)}
+            />
+          )}
 
           {staged.length > 0 && (
             <div className="space-y-2">
@@ -190,19 +212,58 @@ export function WhatIfPanel(props: Props) {
   );
 }
 
-function ChangeBuilder({ kind, roles, employees, stationGroups, onAdd }: {
+// v5.19.1 — replaced ChangeBuilder. The original used an absolute-
+// positioned dropdown that got clipped by the WhatIfPanel Card's
+// overflow-hidden. Now split into two pieces: a trigger button that
+// just toggles a kind-selection state in the parent, and an inline
+// form (`InlineChangeForm`) that renders below the trigger row inside
+// the panel's normal flow.
+function ChangeKindButton({ kind, active, onClick }: {
   kind: 'hire' | 'cross-train' | 'release';
-  roles?: string[];
-  employees?: Employee[];
-  stationGroups?: StationGroup[];
-  onAdd: (c: WhatIfChange) => void;
+  active: boolean;
+  onClick: () => void;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const tone =
+    kind === 'hire' ? 'emerald'
+    : kind === 'release' ? 'rose'
+    : 'blue';
+  const Icon = kind === 'hire' ? Plus : kind === 'release' ? MinusCircle : ArrowRight;
+  const toneClasses =
+    tone === 'emerald' ? (active
+      ? 'bg-emerald-600 text-white border-emerald-600'
+      : 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25')
+    : tone === 'rose' ? (active
+      ? 'bg-rose-600 text-white border-rose-600'
+      : 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200 border-rose-200 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/25')
+    : (active
+      ? 'bg-blue-600 text-white border-blue-600'
+      : 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/25');
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn('px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors', toneClasses)}
+    >
+      <Icon className="w-3 h-3" />
+      {t(`workforce.whatIf.add.${kind}`)}
+    </button>
+  );
+}
+
+function InlineChangeForm({ kind, roles, employees, stationGroups, onAdd, onCancel }: {
+  kind: 'hire' | 'cross-train' | 'release';
+  roles: string[];
+  employees: Employee[];
+  stationGroups: StationGroup[];
+  onAdd: (c: WhatIfChange) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
   const [count, setCount] = useState(1);
-  const [role, setRole] = useState<string>(roles?.[0] || 'Standard');
-  const [empId, setEmpId] = useState<string>(employees?.[0]?.empId || '');
-  const [groupId, setGroupId] = useState<string>(stationGroups?.[0]?.id || '');
+  const [role, setRole] = useState<string>(roles[0] || 'Standard');
+  const [empId, setEmpId] = useState<string>(employees[0]?.empId || '');
+  const [groupId, setGroupId] = useState<string>(stationGroups[0]?.id || '');
 
   const handleAdd = () => {
     if (kind === 'hire') {
@@ -212,91 +273,90 @@ function ChangeBuilder({ kind, roles, employees, stationGroups, onAdd }: {
     } else if (kind === 'release') {
       onAdd({ kind, count, role });
     }
-    setOpen(false);
   };
 
   const tone =
     kind === 'hire' ? 'emerald'
     : kind === 'release' ? 'rose'
     : 'blue';
-  const Icon = kind === 'hire' ? Plus : kind === 'release' ? MinusCircle : ArrowRight;
-  const toneClasses =
-    tone === 'emerald' ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25'
-    : tone === 'rose' ? 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200 border-rose-200 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/25'
-    : 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/25';
+  const wrapperTone =
+    tone === 'emerald' ? 'border-emerald-200 dark:border-emerald-500/40 bg-emerald-50/40 dark:bg-emerald-500/5'
+    : tone === 'rose' ? 'border-rose-200 dark:border-rose-500/40 bg-rose-50/40 dark:bg-rose-500/5'
+    : 'border-blue-200 dark:border-blue-500/40 bg-blue-50/40 dark:bg-blue-500/5';
+  const confirmTone =
+    tone === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+    : tone === 'rose' ? 'bg-rose-600 hover:bg-rose-700 text-white'
+    : 'bg-blue-600 hover:bg-blue-700 text-white';
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={cn('px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors', toneClasses)}
-      >
-        <Icon className="w-3 h-3" />
-        {t(`workforce.whatIf.add.${kind}`)}
-      </button>
-      {open && (
-        <div className="absolute z-10 top-full mt-1 start-0 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl space-y-2 min-w-[260px]">
-          {(kind === 'hire' || kind === 'release') && (
-            <>
-              <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                {t('workforce.whatIf.field.count')}
-                <input
-                  type="number"
-                  min={1} max={20}
-                  value={count}
-                  onChange={(e) => setCount(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="mt-1 w-full px-2 py-1 text-xs font-mono border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-                />
-              </label>
-              <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                {t('workforce.whatIf.field.role')}
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-                >
-                  {roles?.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </label>
-            </>
-          )}
-          {kind === 'cross-train' && (
-            <>
-              <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                {t('workforce.whatIf.field.employee')}
-                <select
-                  value={empId}
-                  onChange={(e) => setEmpId(e.target.value)}
-                  className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-                >
-                  {employees?.map(e => <option key={e.empId} value={e.empId}>{e.name}</option>)}
-                </select>
-              </label>
-            </>
-          )}
-          {(kind === 'hire' || kind === 'cross-train') && (stationGroups?.length ?? 0) > 0 && (
-            <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              {t('workforce.whatIf.field.group')}
+    <div className={cn('p-4 rounded-lg border space-y-3', wrapperTone)}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {(kind === 'hire' || kind === 'release') && (
+          <>
+            <label className="block">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('workforce.whatIf.field.count')}</span>
+              <input
+                type="number"
+                min={1} max={20}
+                value={count}
+                onChange={(e) => setCount(Math.max(1, parseInt(e.target.value) || 1))}
+                className="mt-1 w-full px-2 py-1.5 text-xs font-mono border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('workforce.whatIf.field.role')}</span>
               <select
-                value={groupId}
-                onChange={(e) => setGroupId(e.target.value)}
-                className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="mt-1 w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
               >
-                <option value="">—</option>
-                {stationGroups?.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {roles.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </label>
-          )}
-          <button
-            type="button"
-            onClick={handleAdd}
-            className={cn('w-full px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest', toneClasses)}
-          >
-            {t('workforce.whatIf.field.confirm')}
-          </button>
-        </div>
-      )}
+          </>
+        )}
+        {kind === 'cross-train' && (
+          <label className="block sm:col-span-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('workforce.whatIf.field.employee')}</span>
+            <select
+              value={empId}
+              onChange={(e) => setEmpId(e.target.value)}
+              className="mt-1 w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+            >
+              {employees.map(e => <option key={e.empId} value={e.empId}>{e.name}</option>)}
+            </select>
+          </label>
+        )}
+        {(kind === 'hire' || kind === 'cross-train') && stationGroups.length > 0 && (
+          <label className={cn('block', kind === 'cross-train' && 'sm:col-span-2')}>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('workforce.whatIf.field.group')}</span>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="mt-1 w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+            >
+              <option value="">—</option>
+              {stationGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </label>
+        )}
+      </div>
+      <div className="flex items-center gap-2 justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          {t('action.cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={handleAdd}
+          className={cn('px-4 py-1.5 rounded text-[10px] font-black uppercase tracking-widest shadow-sm', confirmTone)}
+        >
+          {t('workforce.whatIf.field.confirm')}
+        </button>
+      </div>
     </div>
   );
 }

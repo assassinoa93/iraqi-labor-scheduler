@@ -39,11 +39,12 @@ export function AutoGenerateShiftsModal({
 
   if (!isOpen || !result) return null;
 
-  const { generated, suggestions, demandProfile, notes, verdict, existingCoverage, coveringShifts } = result;
+  const { generated, suggestions, demandProfile, notes, verdict, existingCoverage, coveringShifts, existingIssues } = result;
   const peakMax = Math.max(1, ...demandProfile.peakByHour);
   const hasNoDemand = verdict === 'no-demand';
   const isAdequate = verdict === 'adequate';
   const isPartial = verdict === 'partial';
+  const hasIssues = existingIssues.length > 0;
 
   const handleApply = () => {
     if (generated.length === 0) {
@@ -140,6 +141,38 @@ export function AutoGenerateShiftsModal({
                   </p>
                 </div>
               </div>
+
+              {/* v5.19.1 — quality issues on the existing library. Surfaced
+                  even when verdict is 'adequate' because covering every
+                  demand hour doesn't mean the library is efficient
+                  (e.g. a 12h shift over the daily cap, two shifts both
+                  spanning the same window). */}
+              {hasIssues && (
+                <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">
+                        {t('shifts.autoGen.issues.title', { count: existingIssues.length })}
+                      </p>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-200 leading-relaxed mt-0.5">
+                        {t('shifts.autoGen.issues.body')}
+                      </p>
+                    </div>
+                  </div>
+                  <ul className="space-y-1.5 ms-6">
+                    {existingIssues.map((iss, i) => (
+                      <li key={i} className="text-[10px] text-amber-800 dark:text-amber-100 leading-relaxed">
+                        <span className="px-1.5 py-0.5 me-1.5 rounded font-mono font-black uppercase tracking-widest text-[8px] bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-500/40">
+                          {t(`shifts.autoGen.issues.kind.${iss.kind}`)}
+                        </span>
+                        {iss.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">{t('shifts.autoGen.demand.title')}</p>
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">

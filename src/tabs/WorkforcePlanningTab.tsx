@@ -1776,6 +1776,21 @@ async function exportWorkforcePlanToPDF(args: {
   const autoTable = (autoTableMod as unknown as { default: AutoTableFn }).default;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+  // v5.19.1 — Arabic-text awareness. jsPDF's bundled Helvetica font
+  // doesn't carry Arabic glyphs; any Arabic station / role / name in
+  // the source data renders as mojibake. We detect that here and add
+  // a clear warning banner to the PDF so the recipient understands
+  // the symbols aren't a corruption — and direct them to the Excel
+  // export which renders Arabic correctly. v5.20+ will embed an
+  // Arabic-capable font; this is the patch-level mitigation.
+  const arabicRegex = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
+  const hasArabicData = (() => {
+    if (rollup.byStation.some(s => arabicRegex.test(s.stationName) || arabicRegex.test(s.roleHint || ''))) return true;
+    if (rollup.byGroup.some(g => arabicRegex.test(g.groupName))) return true;
+    if (scenarios?.some(s => arabicRegex.test(s.stationName))) return true;
+    return false;
+  })();
+
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
@@ -1786,10 +1801,29 @@ async function exportWorkforcePlanToPDF(args: {
   doc.text(`Mode: ${mode === 'conservative' ? 'Conservative (FTE-only, hire-to-peak)' : 'Optimal (FTE + part-time mix)'}`, 14, 30);
   doc.text(`Generated: ${new Date().toISOString().slice(0, 10)}`, 14, 35);
 
-  // Summary KPIs
+  // Arabic warning banner — only when Arabic data is detected.
+  if (hasArabicData) {
+    doc.setFillColor(254, 243, 199); // amber-100
+    doc.rect(14, 38, 182, 12, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(146, 64, 14); // amber-800
+    doc.setFont('helvetica', 'bold');
+    doc.text('Arabic text limitation:', 17, 43);
+    doc.setFont('helvetica', 'normal');
+    const warningLines = doc.splitTextToSize(
+      'Arabic station / group names render as placeholder symbols in this PDF (jsPDF font limitation). For a fully readable bilingual report, use the Excel export — it renders Arabic natively and includes the same data.',
+      178,
+    );
+    doc.text(warningLines, 17, 47);
+    doc.setTextColor(0);
+  }
+
+  // Summary KPIs — Y offset shifts when the Arabic warning banner ate
+  // the 38–50mm strip above.
+  const summaryYStart = hasArabicData ? 60 : 45;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('Annual Summary', 14, 45);
+  doc.text('Annual Summary', 14, summaryYStart);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const summaryLines = [
@@ -1803,7 +1837,7 @@ async function exportWorkforcePlanToPDF(args: {
       ? `Legal-safety premium vs optimal: ${fmtIQD(rollup.legalSafetyPremium)} IQD/yr (cost of carrying excess capacity through valleys to avoid releases)`
       : `Note: optimal mode assumes scaling up/down across the year — legally complex under Iraqi Labor Law.`,
   ];
-  let cursor = 50;
+  let cursor = summaryYStart + 5;
   summaryLines.forEach(line => { doc.text(line, 14, cursor); cursor += 5; });
 
   // Per-role rollup table

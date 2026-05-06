@@ -118,6 +118,35 @@ export interface GenerationResult {
   // shifts). Surfaced so the UI can name them when explaining the
   // adequate verdict.
   coveringShifts: CoverageProfile['coveringShifts'];
+  // v5.19.1 — shift-quality issues detected on the existing library. The
+  // gap-detection logic only checks "every demand hour has at least one
+  // shift on the floor", which can return adequate=true for a library
+  // that is technically covering but operationally bad — e.g. a single
+  // 12-hour shift that violates Art. 67's 8-hour daily cap, or two
+  // shifts both spanning the entire window where one obsoletes the
+  // other. These issues are surfaced in the preview banner so
+  // supervisors don't read "adequate" as "no action needed".
+  existingIssues: ExistingIssue[];
+}
+
+// v5.19.1 — quality issue detected on a shift currently in the library.
+//   'over-cap'  : duration > config.standardDailyHrsCap (Art. 67 risk).
+//                 The auto-scheduler will refuse to assign anyone to it
+//                 at level 1 / 2; only Level 3 (emergency) accepts.
+//   'redundant' : another work shift with identical hours + flags
+//                 already exists. The auto-scheduler picks one or the
+//                 other arbitrarily; supervisors should consolidate.
+//   'subsumed'  : a shorter shift is fully inside a longer one (same
+//                 flags). The longer shift covers the same span; the
+//                 shorter is obsolete unless deliberately kept for a
+//                 break-time / preference difference.
+export interface ExistingIssue {
+  kind: 'over-cap' | 'redundant' | 'subsumed';
+  shiftCode: string;
+  shiftName: string;
+  // For redundant / subsumed, the OTHER shift involved.
+  otherCode?: string;
+  message: string;
 }
 
 const SAFE_DAILY_CAP_FALLBACK = 8;
@@ -153,6 +182,10 @@ export function generateOptimalShifts(
 
   const totalPeakDemand = peakByHour.reduce((a, b) => a + b, 0);
   const profile = computeCoverageProfile(existingShifts);
+  // v5.19.1 — detect quality issues on existing shifts BEFORE the
+  // gap analysis. Surfaced regardless of verdict so adequate-coverage
+  // libraries that are nonetheless inefficient still get flagged.
+  const existingIssues = detectExistingIssues(existingShifts, dailyCap);
   if (totalPeakDemand === 0) {
     notes.push('no-demand');
     return {
@@ -164,6 +197,7 @@ export function generateOptimalShifts(
       existingCoverage: { totalDemandHours: 0, coveredHours: 0, uncoveredHours: 0, pctCovered: 100 },
       demandWindows: [],
       coveringShifts: profile.coveringShifts,
+      existingIssues,
     };
   }
 
@@ -275,8 +309,88 @@ export function generateOptimalShifts(
     existingCoverage,
     demandWindows: windows,
     coveringShifts: profile.coveringShifts,
+    existingIssues,
   };
 }
+
+// v5.19.1 — quality scan over the existing shift library. Catches three
+// classes of issue the gap-coverage check misses:
+//   1. Any work shift > daily cap.
+//   2. Two work shifts with identical (start, end, flags) — redundant.
+//   3. A shorter shift fully inside a longer one with same flags — subsumed.
+// Issues are reported even when the gap-coverage verdict is 'adequate'
+// because covering all hours doesn't mean the library is efficient.
+function detectExistingIssues(shifts: Shift[], dailyCap: number): ExistingIssue[] {
+  const out: ExistingIssue[] = [];
+  type Parsed = { shift: Shift; startHour: number; endHour: number; durationHrs: number };
+  const parsed: Parsed[] = [];
+  for (const sh of shifts) {
+    if (!sh.isWork) continue;
+    if (isSystemWork(sh.code)) continue;
+    const startHour = parseHourFloor(sh.start);
+    const endHour = parseHourCeil(sh.end);
+    if (!Number.isFinite(startHour) || !Number.isFinite(endHour)) continue;
+    if (endHour <= startHour) continue;
+    const durationHrs = endHour - startHour;
+    parsed.push({ shift: sh, startHour, endHour, durationHrs });
+    if (durationHrs > dailyCap) {
+      out.push({
+        kind: 'over-cap',
+        shiftCode: sh.code,
+        shiftName: sh.name,
+        message: `${sh.code} runs ${durationHrs}h (${sh.start}–${sh.end}) — exceeds the ${dailyCap}h daily cap. The auto-scheduler will skip it at strict levels and only assign at emergency level. Split into two staggered shifts.`,
+      });
+    }
+  }
+
+  // Pairwise redundant + subsumed checks — N² but N is typically <10.
+  // Sort longest first so a "subsumed by" relationship reports the shorter
+  // shift as the issue.
+  parsed.sort((a, b) => b.durationHrs - a.durationHrs);
+  const flagged = new Set<string>();
+  const pairKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
+  for (let i = 0; i < parsed.length; i++) {
+    for (let j = i + 1; j < parsed.length; j++) {
+      const a = parsed[i];
+      const b = parsed[j];
+      if (a.shift.isHazardous !== b.shift.isHazardous) continue;
+      if (a.shift.isIndustrial !== b.shift.isIndustrial) continue;
+      const k = pairKey(a.shift.code, b.shift.code);
+      if (flagged.has(k)) continue;
+
+      // Identical window → redundant. Flag the shorter shift name (or
+      // the second-encountered if equal length).
+      if (a.startHour === b.startHour && a.endHour === b.endHour) {
+        out.push({
+          kind: 'redundant',
+          shiftCode: b.shift.code,
+          shiftName: b.shift.name,
+          otherCode: a.shift.code,
+          message: `${b.shift.code} (${b.shift.start}–${b.shift.end}) has the same window and flags as ${a.shift.code}. The auto-scheduler treats them interchangeably; consolidate.`,
+        });
+        flagged.add(k);
+        continue;
+      }
+      // b fully inside a → subsumed.
+      if (b.startHour >= a.startHour && b.endHour <= a.endHour) {
+        out.push({
+          kind: 'subsumed',
+          shiftCode: b.shift.code,
+          shiftName: b.shift.name,
+          otherCode: a.shift.code,
+          message: `${b.shift.code} (${b.shift.start}–${b.shift.end}, ${b.durationHrs}h) is fully covered by the longer ${a.shift.code} (${a.shift.start}–${a.shift.end}, ${a.durationHrs}h). Keep only if the break or preference differs; otherwise the longer shift covers this window already.`,
+        });
+        flagged.add(k);
+      }
+    }
+  }
+  return out;
+}
+
+// Local copy of isSystemShift so this module doesn't grow a dependency on
+// systemShifts.ts (the helper is already inlined in shiftCoverage.ts).
+const SYSTEM_CODES = new Set(['OFF', 'AL', 'SL', 'MAT', 'PH', 'CP']);
+function isSystemWork(code: string): boolean { return SYSTEM_CODES.has(code); }
 
 function findOpenWindows(profile: number[]): Array<{ start: number; end: number }> {
   const windows: Array<{ start: number; end: number }> = [];
