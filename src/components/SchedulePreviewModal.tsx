@@ -19,6 +19,15 @@ interface PreviewStats {
   // supervisor knows the auto-scheduler is at capacity.
   compDayShortfallTotal: number;
   compDayShortfallEmployees: number;
+  // v5.19.0 — liability optimizer summary. Optional because the
+  // optimizer can be disabled via Config.liabilityAwarePass=false; when
+  // skipped the modal hides the savings card entirely.
+  liabilitySwaps?: {
+    swapCount: number;
+    overCapHoursSaved: number;
+    holidayHoursSaved: number;
+    compRotationsAdded: number;
+  };
 }
 
 export function buildPreviewStats(
@@ -30,6 +39,7 @@ export function buildPreviewStats(
   totalRequiredStationDays: number,
   filledStationDays: number,
   compDayShortfall: Array<{ empId: string; debtDays: number }> = [],
+  liabilitySwaps?: PreviewStats['liabilitySwaps'],
 ): PreviewStats {
   const shiftMap = new Map(shifts.map(s => [s.code, s]));
   let totalAssignments = 0;
@@ -74,6 +84,7 @@ export function buildPreviewStats(
     perRoleHours,
     compDayShortfallTotal: compDayShortfall.reduce((s, e) => s + e.debtDays, 0),
     compDayShortfallEmployees: compDayShortfall.length,
+    liabilitySwaps,
   };
 }
 
@@ -184,6 +195,31 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
               tone={violationLevel === 'clean' ? 'ok' : violationLevel === 'mild' ? 'warn' : 'bad'}
             />
           </div>
+
+          {/* v5.19.0 — liability-aware optimizer savings. Surfaced only
+              when the optimizer ran (Config.liabilityAwarePass !== false)
+              AND made at least one swap. Tells the supervisor "the
+              auto-scheduler did its first pass legally, then a second
+              pass moved N shifts to even out OT and reduce holiday
+              premium without breaking any cap." */}
+          {stats.liabilitySwaps && stats.liabilitySwaps.swapCount > 0 && (
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/40">
+              <Sparkles className="w-4 h-4 text-emerald-700 dark:text-emerald-200 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest">
+                  {t('modal.preview.optimizer.title')}
+                </p>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed mt-1">
+                  {t('modal.preview.optimizer.body', {
+                    swaps: stats.liabilitySwaps.swapCount,
+                    overCap: stats.liabilitySwaps.overCapHoursSaved,
+                    holiday: stats.liabilitySwaps.holidayHoursSaved,
+                    comp: stats.liabilitySwaps.compRotationsAdded,
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* v1.16 — comp-day shortfall warning. When the auto-scheduler can't
               place an OFF inside the 7-day comp window after a PH-work day,

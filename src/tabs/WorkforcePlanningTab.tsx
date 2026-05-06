@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule } from '../types';
 import { Card, ComparativeKpi } from '../components/Primitives';
+import { CoverageScenarioPanel } from '../components/CoverageScenarioPanel';
+import { WhatIfPanel } from '../components/WhatIfPanel';
 import { getGroupIcon } from '../lib/groupIcons';
 import { Switch } from '../components/ui/Switch';
 import { cn } from '../lib/utils';
@@ -25,6 +27,9 @@ interface Props {
   holidays: PublicHoliday[];
   config: Config;
   schedule: Schedule;
+  // v5.19.0 — passed through to the What-If simulator so it can re-run
+  // the auto-scheduler on a hypothetical roster modification.
+  allSchedules?: Record<string, Schedule>;
   isPeakDayFor: (config: Config) => (day: number) => boolean;
   onGoToRoster: () => void;
   onGoToLayout: () => void;
@@ -48,7 +53,7 @@ interface Props {
 // Export to PDF for sharing with HR Director / CEO.
 export function WorkforcePlanningTab(props: Props) {
   const {
-    employees, shifts, stations, stationGroups, holidays, config, isPeakDayFor,
+    employees, shifts, stations, stationGroups, holidays, config, schedule, allSchedules, isPeakDayFor,
     onGoToRoster, onGoToLayout,
   } = props;
   const { t } = useI18n();
@@ -158,9 +163,21 @@ export function WorkforcePlanningTab(props: Props) {
   const hasInputs = stations.length > 0;
   const hasDemand = annual.annualRequiredHours > 0;
 
-  const handleExportPDF = () => exportWorkforcePlanToPDF({
-    annual, rollup, roadmap, mode, idealOnly, fmtIQD,
-  });
+  const handleExportPDF = async () => {
+    // v5.19.0 — include the Coverage Scenario in the PDF so HR/CEO
+    // readers see the same per-station walkthrough the on-screen panel
+    // shows. Built lazily here so the import isn't pulled at module
+    // load (the function is only called on user click).
+    const { buildCoverageScenarios } = await import('../lib/coverageScenario');
+    const scenarios = buildCoverageScenarios({
+      stations, shifts, config: forecastConfig,
+      isPeakDay: true,
+      stationGroups,
+    });
+    return exportWorkforcePlanToPDF({
+      annual, rollup, roadmap, mode, idealOnly, fmtIQD, scenarios,
+    });
+  };
 
   // v2.3.0 — Excel export. Uses the same annual + rollup data, packaged
   // into a 7-sheet workbook (executive summary, hiring roadmap, group
@@ -168,14 +185,26 @@ export function WorkforcePlanningTab(props: Props) {
   // schedule). Async because exceljs is dynamically imported.
   const handleExportExcel = async () => {
     const { exportWorkforcePlanToExcel } = await import('../lib/workforcePlanExcel');
+    const { buildCoverageScenarios } = await import('../lib/coverageScenario');
+    const { auditShiftLibrary } = await import('../lib/shiftLibraryAudit');
     const cap = config.standardWeeklyHrsCap || 48;
     const fteCount = employees.filter(e => (e.contractedWeeklyHrs || cap) >= cap).length;
     const ptCount = employees.length - fteCount;
+    // v5.19.0 — bundle the new sections into the same workbook so the
+    // HR / CEO recipient sees the on-screen panels in spreadsheet form.
+    const scenarios = buildCoverageScenarios({
+      stations, shifts, config: forecastConfig,
+      isPeakDay: true,
+      stationGroups,
+    });
+    const audit = auditShiftLibrary({ shifts, schedule: props.schedule, allSchedules });
     await exportWorkforcePlanToExcel({
       annual, rollup, roadmap, mode,
       companyName: config.company,
       currentRosterFTECount: fteCount,
       currentRosterPartTimeCount: ptCount,
+      scenarios,
+      auditFindings: audit.findings,
     });
   };
 
@@ -483,6 +512,37 @@ export function WorkforcePlanningTab(props: Props) {
           {!idealOnly && (
             <HiringRoadmapSection roadmap={roadmap} mode={mode} fmtIQD={fmtIQD} />
           )}
+
+          {/* ── Coverage Scenario (v5.19.0) — narrative walkthrough of
+              how the existing shift library + station demand plays out
+              on a single day, with per-station roster-required math
+              (peak HC × days/week ÷ workdays + leave buffer). Bridges
+              the abstract "you need N FTE" headline to a concrete
+              "Cashier Counter 1 — shift M takes 11–19, shift C takes
+              15–23, peak overlap 15–19, you need 4 employees on this
+              station's roster" picture. */}
+          <CoverageScenarioPanel
+            stations={stations}
+            shifts={shifts}
+            stationGroups={stationGroups}
+            employees={employees}
+            config={forecastConfig}
+          />
+
+          {/* ── What-If Simulator (v5.19.0) — preview the OT / coverage /
+              payroll deltas of hypothetical hires, releases, or
+              cross-training without committing the change. */}
+          <WhatIfPanel
+            employees={employees}
+            shifts={shifts}
+            stations={stations}
+            stationGroups={stationGroups}
+            holidays={holidays}
+            config={config}
+            isPeakDay={isPeakDayFor(config)}
+            schedule={schedule}
+            allSchedules={allSchedules}
+          />
 
           {/* ── Implementation timing (only meaningful in comparative mode) ── */}
           {!idealOnly && (
@@ -1369,32 +1429,57 @@ function MonthDrilldownPanel({
           conservative — counts every leave day at face value (no
           weekend / off-day discount), which matches how the auto-
           scheduler treats leave (a leave day is unavailable regardless). */}
-      {month.plannedLeaveFTELoss > 0 && (
-        <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
-          <div className="flex items-start gap-2">
-            <span className="text-[9px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">
-              {t('workforce.drilldown.leaveImpact.title')}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-700 dark:text-slate-200 mt-1 leading-snug">
-            {t('workforce.drilldown.leaveImpact.body', {
-              fte: month.plannedLeaveFTELoss.toFixed(2),
-              affected: month.affectedEmployeeCount,
-            })}
-          </p>
-          {(month.plannedLeaveBreakdown.annual > 0
-            || month.plannedLeaveBreakdown.sick > 0
-            || month.plannedLeaveBreakdown.maternity > 0) && (
-            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              {month.plannedLeaveBreakdown.annual > 0 && (
-                <span>{t('payroll.leaveType.annual')}: <span className="font-bold">{month.plannedLeaveBreakdown.annual.toFixed(2)}</span></span>
+      {(month.plannedLeaveFTELoss > 0 || month.projectedLeaveFTELoss > 0) && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg space-y-2">
+          {month.plannedLeaveFTELoss > 0 && (
+            <>
+              <div className="flex items-start gap-2">
+                <span className="text-[9px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">
+                  {t('workforce.drilldown.leaveImpact.title')}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-snug">
+                {t('workforce.drilldown.leaveImpact.body', {
+                  fte: month.plannedLeaveFTELoss.toFixed(2),
+                  affected: month.affectedEmployeeCount,
+                })}
+              </p>
+              {(month.plannedLeaveBreakdown.annual > 0
+                || month.plannedLeaveBreakdown.sick > 0
+                || month.plannedLeaveBreakdown.maternity > 0) && (
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                  {month.plannedLeaveBreakdown.annual > 0 && (
+                    <span>{t('payroll.leaveType.annual')}: <span className="font-bold">{month.plannedLeaveBreakdown.annual.toFixed(2)}</span></span>
+                  )}
+                  {month.plannedLeaveBreakdown.sick > 0 && (
+                    <span>{t('payroll.leaveType.sick')}: <span className="font-bold">{month.plannedLeaveBreakdown.sick.toFixed(2)}</span></span>
+                  )}
+                  {month.plannedLeaveBreakdown.maternity > 0 && (
+                    <span>{t('payroll.leaveType.maternity')}: <span className="font-bold">{month.plannedLeaveBreakdown.maternity.toFixed(2)}</span></span>
+                  )}
+                </div>
               )}
-              {month.plannedLeaveBreakdown.sick > 0 && (
-                <span>{t('payroll.leaveType.sick')}: <span className="font-bold">{month.plannedLeaveBreakdown.sick.toFixed(2)}</span></span>
-              )}
-              {month.plannedLeaveBreakdown.maternity > 0 && (
-                <span>{t('payroll.leaveType.maternity')}: <span className="font-bold">{month.plannedLeaveBreakdown.maternity.toFixed(2)}</span></span>
-              )}
+            </>
+          )}
+
+          {/* v5.19.0 — projected unscheduled annual-leave loss. Distinct
+              from the explicit-leave block above: this number reflects
+              EACH employee's remaining leave balance distributed evenly
+              across the months left in the forecast year. The
+              supervisor reads it as "even before anyone schedules a
+              specific leave, you can expect this much FTE off the
+              floor" — useful for hiring decisions because it captures
+              the inevitability of the 21-day annual leave entitlement. */}
+          {month.projectedLeaveActive && month.projectedLeaveFTELoss > 0 && (
+            <div className="pt-1.5 border-t border-amber-200/60 dark:border-amber-500/20">
+              <p className="text-[9px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest mb-1">
+                {t('workforce.drilldown.projectedLeave.title')}
+              </p>
+              <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-snug">
+                {t('workforce.drilldown.projectedLeave.body', {
+                  fte: month.projectedLeaveFTELoss.toFixed(2),
+                })}
+              </p>
             </div>
           )}
         </div>
@@ -1656,6 +1741,15 @@ const MONTH_NAME_KEYS = [
 ];
 const MONTH_NAMES_PDF = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// v5.19.0 — small formatter for the Coverage Scenario PDF section.
+// Mirrors the on-screen `fmtHour` in CoverageScenarioPanel so the PDF
+// renders the same "11:00–23:00" style.
+function formatHourPDF(h: number): string {
+  if (h >= 24) return '24:00';
+  const hh = Math.max(0, Math.min(24, h | 0));
+  return `${String(hh).padStart(2, '0')}:00`;
+}
+
 // PDF export. Renders the current rollup + KPI strip into a portrait A4
 // document and triggers a download. Uses jspdf + jspdf-autotable (already
 // shipped for compliance reports).
@@ -1669,8 +1763,11 @@ async function exportWorkforcePlanToPDF(args: {
   mode: PlanMode;
   idealOnly: boolean;
   fmtIQD: (n: number) => string;
+  // v5.19.0 — Coverage Scenario data so the PDF reader sees per-station
+  // peak-day timeline + roster-required math the on-screen panel shows.
+  scenarios?: Array<import('../lib/coverageScenario').StationScenario>;
 }) {
-  const { annual, rollup, roadmap, mode, fmtIQD } = args;
+  const { annual, rollup, roadmap, mode, fmtIQD, scenarios } = args;
   const { jsPDF } = await import('jspdf');
   const autoTableMod = await import('jspdf-autotable');
   // jspdf-autotable v5 ships as `export default` from ESM; the bundler
@@ -1749,12 +1846,18 @@ async function exportWorkforcePlanToPDF(args: {
   cursor += 4;
   autoTable(doc, {
     startY: cursor,
-    head: [['Month', 'Required hrs', 'Rec. FTE', 'Rec. PT', 'Salary (IQD)']],
+    // v5.19.0 — added projected leave columns so PDF readers see the
+    // full labor-availability picture, not just demand-driven HC.
+    head: [['Month', 'Required hrs', 'Rec. FTE', 'Rec. PT', 'Planned leave FTE', 'Projected AL FTE', 'Salary (IQD)']],
     body: annual.byMonth.map(m => [
       m.monthName,
       Math.round(m.monthlyRequiredHours).toLocaleString(),
       m.recommendedFTE.toString(),
       m.recommendedPartTime.toString(),
+      m.plannedLeaveFTELoss > 0 ? `−${m.plannedLeaveFTELoss.toFixed(2)}` : '—',
+      m.projectedLeaveActive && m.projectedLeaveFTELoss > 0
+        ? `−${m.projectedLeaveFTELoss.toFixed(2)}`
+        : '—',
       Math.round(m.recommendedMonthlySalary).toLocaleString(),
     ]),
     headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
@@ -1816,6 +1919,47 @@ async function exportWorkforcePlanToPDF(args: {
         0: { cellWidth: 14 }, 1: { cellWidth: 12 }, 2: { cellWidth: 12 }, 3: { cellWidth: 12 },
         4: { cellWidth: 14 }, 5: { cellWidth: 14 }, 6: { cellWidth: 18 }, 7: { cellWidth: 22 },
         8: { cellWidth: 'auto' },
+      },
+      styles: { overflow: 'linebreak' },
+      margin: { left: 14, right: 14 },
+    });
+  }
+
+  // v5.19.0 — Coverage Scenario section. One page summarising the
+  // single peak-day walkthrough per station + the roster-required
+  // formula. Skipped when no scenarios were passed (legacy callers).
+  if (scenarios && scenarios.length > 0) {
+    doc.addPage();
+    cursor = 18;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Coverage Scenario (peak day)', 14, cursor);
+    cursor += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const scenarioIntro = 'Per-station peak-day walkthrough showing how existing shifts cover demand, plus the roster size required to keep coverage continuous through Art. 71 weekly rest and Art. 43 annual leave.';
+    const introLines = doc.splitTextToSize(scenarioIntro, 180);
+    doc.text(introLines, 14, cursor);
+    cursor += introLines.length * 4 + 4;
+
+    autoTable(doc, {
+      startY: cursor,
+      head: [['Station', 'Open', 'Shifts', 'Peak HC', 'Gap hrs', 'Roster req.', 'Why']],
+      body: scenarios.map(s => [
+        s.stationName,
+        `${formatHourPDF(s.openingHour)}–${formatHourPDF(s.closingHour)}`,
+        s.coveringShifts.map(c => c.code).join(' · ') || '—',
+        s.peakConcurrentHC.toString(),
+        s.uncoveredHours > 0 ? s.uncoveredHours.toString() : '—',
+        s.rosterRequired.bufferedRoster.toString(),
+        s.rosterRequired.explanation,
+      ]),
+      headStyles: { fillColor: [16, 185, 129], fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 28 }, 1: { cellWidth: 22 }, 2: { cellWidth: 28 },
+        3: { cellWidth: 14 }, 4: { cellWidth: 14 }, 5: { cellWidth: 18 },
+        6: { cellWidth: 'auto' },
       },
       styles: { overflow: 'linebreak' },
       margin: { left: 14, right: 14 },

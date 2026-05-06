@@ -428,6 +428,19 @@ export interface MonthlyPlanSummary {
   plannedLeaveBreakdown: { annual: number; sick: number; maternity: number };
   // Number of employees with at least one leave day in this month.
   affectedEmployeeCount: number;
+  // v5.19.0 — projected FTE loss from EACH employee's UNSCHEDULED annual
+  // leave balance, distributed across the remaining months of the
+  // forecast year. The total balance for the year is split evenly
+  // across `daysInMonth(remainingMonths)` so a 21-day balance with 6
+  // remaining months adds ≈ 0.117 FTE-equivalent to each remaining
+  // month (21 / 6 / 30 ≈ 0.117 per employee). Combined with the
+  // already-tracked `plannedLeaveFTELoss` the supervisor sees the FULL
+  // labor-availability picture, not just the explicit leave windows
+  // already entered into LeaveRanges.
+  projectedLeaveFTELoss: number;
+  // True iff this month is after `referenceDate` and the balance
+  // projection actually applies. Months in the past are zeroed.
+  projectedLeaveActive: boolean;
   // The complete monthly plan for drill-down. UI may keep just the summary
   // when rendering the at-a-glance row and lazy-load the full plan when the
   // supervisor expands a month.
@@ -472,6 +485,13 @@ export interface AnalyzeAnnualArgs {
   // the date math from scratch.
   isPeakDayFor: (config: Config) => (day: number) => boolean;
   mode?: PlanMode;
+  // v5.19.0 — reference date for the annualLeaveBalance projection.
+  // Months strictly BEFORE this date are excluded from the balance
+  // distribution (the balance can't apply to months that already
+  // happened). Defaults to "today" — pass a custom date for repeatable
+  // unit tests or to forecast from a hypothetical start date.
+  // Format: YYYY-MM-DD.
+  referenceDate?: string;
 }
 
 // Annual rollup — a single set of per-role recommendations for the year as
@@ -616,11 +636,39 @@ export interface AnnualRollup {
 }
 
 export function analyzeWorkforceAnnual({
-  employees, shifts, stations, holidays, baseConfig, isPeakDayFor, mode = 'conservative',
+  employees, shifts, stations, holidays, baseConfig, isPeakDayFor, mode = 'conservative', referenceDate,
 }: AnalyzeAnnualArgs): AnnualWorkforcePlan {
   const byMonth: MonthlyPlanSummary[] = [];
   let annualRequiredHours = 0;
   let annualRecommendedSalary = 0;
+
+  // v5.19.0 — annual-leave balance projection. Distributes each
+  // employee's CURRENT annualLeaveBalance evenly across the remaining
+  // months in the forecast year (relative to referenceDate). For a
+  // 21-day balance and 6 remaining months that's 3.5 days/employee/
+  // month of additional FTE loss on top of the already-scheduled
+  // LeaveRanges. The split is intentionally even — without specific
+  // dates from the supervisor we can't pretend to know if the balance
+  // will be taken in summer vs December — but the resulting headline
+  // ("you'll lose ≈ 0.5 FTE per remaining month to unscheduled annual
+  // leave") is still actionable for hiring decisions.
+  const ref = referenceDate ? new Date(referenceDate) : new Date();
+  // Count remaining months in the forecast year strictly >= ref month.
+  // If forecasting a future year (year > ref.year) all 12 months count;
+  // a past year contributes 0.
+  let remainingMonths = 0;
+  if (baseConfig.year > ref.getFullYear()) {
+    remainingMonths = 12;
+  } else if (baseConfig.year === ref.getFullYear()) {
+    remainingMonths = 12 - ref.getMonth();
+  }
+  const balanceDaysPerEmpPerMonth = remainingMonths > 0
+    ? employees.map(e => ({
+        empId: e.empId,
+        // Cap at 30 to avoid pathological inputs polluting the math.
+        daysPerMonth: Math.min(30, Math.max(0, (e.annualLeaveBalance || 0) / remainingMonths)),
+      }))
+    : [];
 
   for (let m = 1; m <= 12; m++) {
     const daysInMonth = new Date(baseConfig.year, m, 0).getDate();
@@ -655,6 +703,21 @@ export function analyzeWorkforceAnnual({
       if (a + s + mat > 0) affected.add(emp.empId);
     }
     const fteLossDecimal = (annualLeaveDays + sickLeaveDays + maternityLeaveDays) / daysInMonth;
+
+    // Project unscheduled annual leave from each employee's balance
+    // into this month. Active only when the month is in the future
+    // (or forecasting a future year — `remainingMonths` > 0 captures
+    // both cases).
+    const isMonthFutureOrCurrent = baseConfig.year > ref.getFullYear()
+      || (baseConfig.year === ref.getFullYear() && (m - 1) >= ref.getMonth());
+    let projectedLeaveDaysThisMonth = 0;
+    if (isMonthFutureOrCurrent && remainingMonths > 0) {
+      for (const b of balanceDaysPerEmpPerMonth) {
+        projectedLeaveDaysThisMonth += b.daysPerMonth;
+      }
+    }
+    const projectedLeaveFTELoss = projectedLeaveDaysThisMonth / daysInMonth;
+
     byMonth.push({
       monthIndex: m,
       monthName: MONTH_NAMES[m - 1],
@@ -669,6 +732,8 @@ export function analyzeWorkforceAnnual({
         maternity: Number((maternityLeaveDays / daysInMonth).toFixed(2)),
       },
       affectedEmployeeCount: affected.size,
+      projectedLeaveFTELoss: Number(projectedLeaveFTELoss.toFixed(2)),
+      projectedLeaveActive: isMonthFutureOrCurrent && remainingMonths > 0,
       plan,
     });
   }

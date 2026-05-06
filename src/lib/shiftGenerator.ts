@@ -56,6 +56,7 @@
 
 import type { Shift, Station, Config } from '../types';
 import { getRequiredHC } from './stationDemand';
+import { computeCoverageProfile, findCoverageGaps, summarizeCoverage, type CoverageProfile } from './shiftCoverage';
 
 export interface ShiftSuggestion {
   shift: Shift;
@@ -66,6 +67,18 @@ export interface ShiftSuggestion {
   // even though the same span is encoded in `shift.start` / `shift.end`.
   spanHours: number;
 }
+
+// v5.19.0 — verdict the generator emits about the existing shift library:
+//   'adequate'   — every demand hour is already covered by an existing
+//                  work shift; the generator emits 0 new shifts.
+//   'partial'    — some demand hours are covered, others are gaps; the
+//                  generator only emits shifts to fill the gap windows.
+//   'no-coverage'— no existing work shift covers ANY demand hour; the
+//                  generator runs in its v5.18 unrestricted mode and
+//                  emits a full set sized to the whole demand profile.
+//   'no-demand'  — there's no demand profile at all (caller hasn't set
+//                  station HC); 0 generated.
+export type CoverageVerdict = 'adequate' | 'partial' | 'no-coverage' | 'no-demand';
 
 export interface GenerationResult {
   // Newly-generated Shift records, ready to merge into the company's shift
@@ -85,6 +98,26 @@ export interface GenerationResult {
   // (e.g. "no demand detected", "windows merged"). Surfaced in the
   // preview modal as a bullet list.
   notes: string[];
+  // v5.19.0 — coverage telemetry. The verdict is the headline; the
+  // numbers below let the UI phrase it precisely ("12 of 14 demand
+  // hours covered, 2 gaps remaining"). `existingCoverage` reflects
+  // the state BEFORE the generator's output is applied — supervisors
+  // see what their current shift library does on its own.
+  verdict: CoverageVerdict;
+  existingCoverage: {
+    totalDemandHours: number;
+    coveredHours: number;
+    uncoveredHours: number;
+    pctCovered: number;
+  };
+  // Demand windows the generator detected (peak HC > 0 contiguous runs).
+  // The UI uses these to show "your venue's busy windows are 11–15 and
+  // 17–23" alongside the gap analysis.
+  demandWindows: Array<{ start: number; end: number }>;
+  // The covering work shifts already in the library (excluding system
+  // shifts). Surfaced so the UI can name them when explaining the
+  // adequate verdict.
+  coveringShifts: CoverageProfile['coveringShifts'];
 }
 
 const SAFE_DAILY_CAP_FALLBACK = 8;
@@ -119,6 +152,7 @@ export function generateOptimalShifts(
   }
 
   const totalPeakDemand = peakByHour.reduce((a, b) => a + b, 0);
+  const profile = computeCoverageProfile(existingShifts);
   if (totalPeakDemand === 0) {
     notes.push('no-demand');
     return {
@@ -126,11 +160,23 @@ export function generateOptimalShifts(
       suggestions: [],
       demandProfile: { normalByHour, peakByHour },
       notes,
+      verdict: 'no-demand',
+      existingCoverage: { totalDemandHours: 0, coveredHours: 0, uncoveredHours: 0, pctCovered: 100 },
+      demandWindows: [],
+      coveringShifts: profile.coveringShifts,
     };
   }
 
   const windows = findOpenWindows(peakByHour);
+  const existingCoverage = summarizeCoverage(windows, profile);
 
+  // v5.19.0 — gap-aware proposal building. Walk each demand window,
+  // detect the SUB-windows not yet covered by existing work shifts,
+  // and only build shifts for those gaps. If a window is fully
+  // covered the inner loop emits 0 proposals; if a window is fully
+  // uncovered we get the v5.18 behaviour (one-shift / open+close /
+  // open+mid+close depending on length). Mid-window partial coverage
+  // produces multiple smaller proposals — one per gap.
   const generated: Shift[] = [];
   const suggestions: ShiftSuggestion[] = [];
   const usedCodes = new Set(existingShifts.map(s => s.code.toUpperCase()));
@@ -145,58 +191,79 @@ export function generateOptimalShifts(
   };
 
   for (const win of windows) {
-    const span = win.end - win.start;
-    const proposals: Array<{ start: number; end: number; label: 'open' | 'anchor' | 'mid' | 'close' }> = [];
-
-    if (span <= dailyCap) {
-      proposals.push({ start: win.start, end: win.end, label: 'anchor' });
-    } else if (span <= dailyCap * 2) {
-      proposals.push({ start: win.start, end: win.start + dailyCap, label: 'open' });
-      proposals.push({ start: win.end - dailyCap, end: win.end, label: 'close' });
-    } else {
-      const openerEnd = win.start + dailyCap;
-      const closerStart = win.end - dailyCap;
-      const midCentre = Math.round((win.start + win.end) / 2);
-      const midStart = clampInt(midCentre - Math.floor(dailyCap / 2), openerEnd - 1, closerStart + 1);
-      const midEnd = clampInt(midStart + dailyCap, midStart + 1, win.end);
-      proposals.push({ start: win.start, end: openerEnd, label: 'open' });
-      proposals.push({ start: midStart, end: midEnd, label: 'mid' });
-      proposals.push({ start: closerStart, end: win.end, label: 'close' });
-      notes.push('long-window');
+    const gaps = findCoverageGaps(win.start, win.end, profile);
+    if (gaps.length === 0) {
+      // Window is fully covered by existing shifts — skip.
+      continue;
     }
 
-    for (const p of proposals) {
-      const peakHC = maxInRange(peakByHour, p.start, p.end);
-      const normalHC = maxInRange(normalByHour, p.start, p.end);
-      const startTime = formatHour(p.start);
-      const endTime = formatHour(p.end);
-      const duration = p.end - p.start;
-      const code = nextCode();
-      const shift: Shift = {
-        code,
-        name: `Auto · ${labelFor(p.label)} ${startTime}–${endTime}`,
-        start: startTime,
-        end: endTime,
-        durationHrs: duration,
-        breakMin: duration >= 6 ? 60 : 0,
-        isIndustrial: false,
-        isHazardous: false,
-        isWork: true,
-        description: `Auto-generated to cover ${normalHC} PAX (normal) / ${peakHC} PAX (peak) between ${startTime} and ${endTime}. Edit to refine — saving converts it to a regular shift.`,
-        autoGenerated: true,
-      };
-      generated.push(shift);
-      suggestions.push({
-        shift,
-        recommendedNormalHC: normalHC,
-        recommendedPeakHC: peakHC,
-        spanHours: duration,
-      });
+    for (const gap of gaps) {
+      const span = gap.end - gap.start;
+      if (span <= 0) continue;
+
+      const proposals: Array<{ start: number; end: number; label: 'open' | 'anchor' | 'mid' | 'close' }> = [];
+      if (span <= dailyCap) {
+        proposals.push({ start: gap.start, end: gap.end, label: 'anchor' });
+      } else if (span <= dailyCap * 2) {
+        proposals.push({ start: gap.start, end: gap.start + dailyCap, label: 'open' });
+        proposals.push({ start: gap.end - dailyCap, end: gap.end, label: 'close' });
+      } else {
+        const openerEnd = gap.start + dailyCap;
+        const closerStart = gap.end - dailyCap;
+        const midCentre = Math.round((gap.start + gap.end) / 2);
+        const midStart = clampInt(midCentre - Math.floor(dailyCap / 2), openerEnd - 1, closerStart + 1);
+        const midEnd = clampInt(midStart + dailyCap, midStart + 1, gap.end);
+        proposals.push({ start: gap.start, end: openerEnd, label: 'open' });
+        proposals.push({ start: midStart, end: midEnd, label: 'mid' });
+        proposals.push({ start: closerStart, end: gap.end, label: 'close' });
+        notes.push('long-window');
+      }
+
+      for (const p of proposals) {
+        const peakHC = maxInRange(peakByHour, p.start, p.end);
+        const normalHC = maxInRange(normalByHour, p.start, p.end);
+        const startTime = formatHour(p.start);
+        const endTime = formatHour(p.end);
+        const duration = p.end - p.start;
+        const code = nextCode();
+        const shift: Shift = {
+          code,
+          name: `Auto · ${labelFor(p.label)} ${startTime}–${endTime}`,
+          start: startTime,
+          end: endTime,
+          durationHrs: duration,
+          breakMin: duration >= 6 ? 60 : 0,
+          isIndustrial: false,
+          isHazardous: false,
+          isWork: true,
+          description: `Auto-generated to cover ${normalHC} PAX (normal) / ${peakHC} PAX (peak) between ${startTime} and ${endTime}. Edit to refine — saving converts it to a regular shift.`,
+          autoGenerated: true,
+        };
+        generated.push(shift);
+        suggestions.push({
+          shift,
+          recommendedNormalHC: normalHC,
+          recommendedPeakHC: peakHC,
+          spanHours: duration,
+        });
+      }
     }
   }
 
-  if (generated.length === 0) {
-    notes.push('no-demand');
+  // Verdict — the reason the generator emitted what it did. Drives the
+  // preview UI's headline ("Existing setup is adequate" vs "Adding 2
+  // shifts to fill the 19:00–23:00 gap").
+  let verdict: CoverageVerdict;
+  if (existingCoverage.totalDemandHours === 0) {
+    verdict = 'no-demand';
+  } else if (existingCoverage.uncoveredHours === 0) {
+    verdict = 'adequate';
+    notes.push('adequate-coverage');
+  } else if (existingCoverage.coveredHours === 0) {
+    verdict = 'no-coverage';
+  } else {
+    verdict = 'partial';
+    notes.push('partial-coverage');
   }
 
   return {
@@ -204,6 +271,10 @@ export function generateOptimalShifts(
     suggestions,
     demandProfile: { normalByHour, peakByHour },
     notes,
+    verdict,
+    existingCoverage,
+    demandWindows: windows,
+    coveringShifts: profile.coveringShifts,
   };
 }
 

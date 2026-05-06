@@ -95,6 +95,11 @@ interface ExportArgs {
   // rollup carries it per-row, not aggregated).
   currentRosterFTECount: number;
   currentRosterPartTimeCount: number;
+  // v5.19.0 — coverage scenarios + library audit findings. Optional so
+  // legacy callers still compile. When provided, two extra sheets are
+  // emitted ("Coverage Scenario" + "Shift Library Audit").
+  scenarios?: import('./coverageScenario').StationScenario[];
+  auditFindings?: import('./shiftLibraryAudit').AuditFinding[];
 }
 
 export async function exportWorkforcePlanToExcel(args: ExportArgs): Promise<void> {
@@ -120,6 +125,15 @@ export async function exportWorkforcePlanToExcel(args: ExportArgs): Promise<void
   buildMonthlyDemand(wb, annual);
   buildBudgetImpact(wb, annual, rollup, mode, roadmap);
   buildImplementationSchedule(wb, annual);
+  // v5.19.0 — coverage scenario + library audit. Each only renders if
+  // the caller passed the relevant data; legacy callers still get the
+  // 7-sheet workbook unchanged.
+  if (args.scenarios && args.scenarios.length > 0) {
+    buildCoverageScenario(wb, args.scenarios);
+  }
+  if (args.auditFindings && args.auditFindings.length > 0) {
+    buildShiftAudit(wb, args.auditFindings);
+  }
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -423,7 +437,14 @@ function buildMonthlyDemand(wb: ExcelWorkbook, annual: AnnualWorkforcePlan) {
   ws.columns = [
     { width: 12 }, { width: 18 }, { width: 14 }, { width: 14 }, { width: 18 }, { width: 14 },
   ];
-  ws.addRow(['Month', 'Required hours', 'Rec FT', 'Rec PT', 'Monthly salary (IQD)', '% of peak']);
+  // v5.19.0 — added Planned-leave + Projected-AL columns so the Excel
+  // reader sees the full labor-availability picture, not just demand-
+  // driven HC.
+  ws.columns = [
+    { width: 12 }, { width: 18 }, { width: 14 }, { width: 14 },
+    { width: 18 }, { width: 18 }, { width: 18 }, { width: 14 },
+  ];
+  ws.addRow(['Month', 'Required hours', 'Rec FT', 'Rec PT', 'Planned leave FTE', 'Projected AL FTE', 'Monthly salary (IQD)', '% of peak']);
   styleHeaderRow(ws.getRow(1));
   const peakHrs = annual.byMonth[annual.peakMonthIndex - 1].monthlyRequiredHours;
   for (const m of annual.byMonth) {
@@ -433,25 +454,30 @@ function buildMonthlyDemand(wb: ExcelWorkbook, annual: AnnualWorkforcePlan) {
       Math.round(m.monthlyRequiredHours),
       m.recommendedFTE,
       m.recommendedPartTime,
+      m.plannedLeaveFTELoss > 0 ? -m.plannedLeaveFTELoss : 0,
+      m.projectedLeaveActive && m.projectedLeaveFTELoss > 0 ? -m.projectedLeaveFTELoss : 0,
       Math.round(m.recommendedMonthlySalary),
       `${pct}%`,
     ]);
     row.eachCell(c => { c.border = thinBorder(); });
     row.getCell(2).numFmt = HOURS_FORMAT;
-    row.getCell(5).numFmt = IQD_FORMAT;
+    row.getCell(5).numFmt = '0.00';
+    row.getCell(6).numFmt = '0.00';
+    row.getCell(7).numFmt = IQD_FORMAT;
     if (m.monthIndex === annual.peakMonthIndex) {
       row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; });
     } else if (m.monthIndex === annual.valleyMonthIndex) {
       row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; });
     }
   }
-  // Totals row.
+  // Totals row. Column count grew from 6 → 8 in v5.19.0 — totals only
+  // pull on the columns that aggregate cleanly across the year.
   const totalHours = annual.byMonth.reduce((s, m) => s + m.monthlyRequiredHours, 0);
   const totalSalary = annual.byMonth.reduce((s, m) => s + m.recommendedMonthlySalary, 0);
-  const tot = ws.addRow(['Year', Math.round(totalHours), '', '', Math.round(totalSalary), '']);
+  const tot = ws.addRow(['Year', Math.round(totalHours), '', '', '', '', Math.round(totalSalary), '']);
   tot.eachCell(c => { c.fill = TOTAL_FILL; c.font = TOTAL_FONT; c.border = thinBorder(); });
   tot.getCell(2).numFmt = HOURS_FORMAT;
-  tot.getCell(5).numFmt = IQD_FORMAT;
+  tot.getCell(7).numFmt = IQD_FORMAT;
 }
 
 // ── Sheet 6: Budget Impact ──────────────────────────────────────────
@@ -578,4 +604,69 @@ function suggestStartMonth(rolePeak: number, delta: number): string {
   let target = rolePeak - 2;
   if (target < 1) target += 12;
   return MONTH_NAMES[target - 1];
+}
+
+// ── Sheet 8 (v5.19.0): Coverage Scenario ──────────────────────────────
+function buildCoverageScenario(
+  wb: ExcelWorkbook,
+  scenarios: import('./coverageScenario').StationScenario[],
+) {
+  const ws = wb.addWorksheet('Coverage Scenario', { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = [
+    { width: 28 }, { width: 12 }, { width: 28 }, { width: 12 }, { width: 12 }, { width: 14 }, { width: 60 },
+  ];
+  styleHeaderRow(ws.addRow([
+    'Station', 'Open–Close', 'Covering shifts', 'Peak HC', 'Gap hrs', 'Roster req.', 'Why',
+  ]));
+
+  for (const s of scenarios) {
+    const fmtH = (h: number) => `${String(Math.max(0, Math.min(24, h | 0))).padStart(2, '0')}:00`;
+    const row = ws.addRow([
+      s.stationName,
+      `${fmtH(s.openingHour)}–${fmtH(s.closingHour)}`,
+      s.coveringShifts.map(c => c.code).join(' · ') || '—',
+      s.peakConcurrentHC,
+      s.uncoveredHours,
+      s.rosterRequired.bufferedRoster,
+      s.rosterRequired.explanation,
+    ]);
+    row.eachCell(c => {
+      c.border = thinBorder();
+      c.alignment = { vertical: 'top', wrapText: true };
+    });
+    if (s.uncoveredHours > 0) {
+      row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; });
+    }
+  }
+}
+
+// ── Sheet 9 (v5.19.0): Shift Library Audit ────────────────────────────
+function buildShiftAudit(
+  wb: ExcelWorkbook,
+  findings: import('./shiftLibraryAudit').AuditFinding[],
+) {
+  const ws = wb.addWorksheet('Shift Library Audit', { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = [
+    { width: 14 }, { width: 14 }, { width: 28 }, { width: 28 }, { width: 14 }, { width: 18 }, { width: 60 },
+  ];
+  styleHeaderRow(ws.addRow([
+    'Kind', 'Code', 'Name', 'Other shift', 'Usage', 'Recommendation', 'Reason',
+  ]));
+  for (const f of findings) {
+    const row = ws.addRow([
+      f.kind.toUpperCase(),
+      f.shiftCode,
+      f.shiftName,
+      f.otherCode ? `${f.otherCode} (${f.otherName ?? '—'})` : '—',
+      f.usageCount,
+      f.recommendation.toUpperCase(),
+      f.reason,
+    ]);
+    row.eachCell(c => {
+      c.border = thinBorder();
+      c.alignment = { vertical: 'top', wrapText: true };
+    });
+    const fill = f.kind === 'unused' ? 'FFFEE2E2' : f.kind === 'redundant' ? 'FFFEF3C7' : 'FFDBEAFE';
+    row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; });
+  }
 }

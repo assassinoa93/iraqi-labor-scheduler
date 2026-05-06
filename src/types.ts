@@ -357,6 +357,12 @@ export interface Config {
   // The user should refine these with their labor counsel for the
   // jurisdiction-specific amounts that apply to their establishment.
   fineRates?: Record<string, number>;
+  // v5.19.0 — when true, the auto-scheduler runs a second post-pass
+  // (lib/liabilityOptimizer.ts) that swaps work assignments where doing
+  // so would reduce over-cap OT, even out holiday-premium spread, or
+  // close comp-day rotation gaps. Default true. Toggle off in the
+  // Settings tab if you want the raw greedy-fill output for inspection.
+  liabilityAwarePass?: boolean;
 }
 
 // Severity tiers for compliance findings:

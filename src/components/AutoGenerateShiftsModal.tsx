@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
+import { X, Sparkles, AlertTriangle, Trash2, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Shift, Station, Config } from '../types';
 import { generateOptimalShifts } from '../lib/shiftGenerator';
 import { useI18n } from '../lib/i18n';
@@ -39,9 +39,11 @@ export function AutoGenerateShiftsModal({
 
   if (!isOpen || !result) return null;
 
-  const { generated, suggestions, demandProfile, notes } = result;
+  const { generated, suggestions, demandProfile, notes, verdict, existingCoverage, coveringShifts } = result;
   const peakMax = Math.max(1, ...demandProfile.peakByHour);
-  const hasNoDemand = generated.length === 0;
+  const hasNoDemand = verdict === 'no-demand';
+  const isAdequate = verdict === 'adequate';
+  const isPartial = verdict === 'partial';
 
   const handleApply = () => {
     if (generated.length === 0) {
@@ -90,6 +92,54 @@ export function AutoGenerateShiftsModal({
             </div>
           ) : (
             <>
+              {/* v5.19.0 — coverage verdict banner. Shown ABOVE the demand
+                  chart so the supervisor sees the headline first
+                  ("Existing setup is adequate" / "Adding 2 shifts to fill
+                  gaps" / "No existing coverage — full plan below"). */}
+              <div className={cn(
+                'p-4 rounded-lg border flex items-start gap-3',
+                isAdequate
+                  ? 'border-emerald-200 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10'
+                  : isPartial
+                    ? 'border-blue-200 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-500/10'
+                    : 'border-violet-200 dark:border-violet-500/40 bg-violet-50 dark:bg-violet-500/10',
+              )}>
+                {isAdequate ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
+                ) : isPartial ? (
+                  <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
+                ) : (
+                  <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-300 shrink-0 mt-0.5" />
+                )}
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <p className={cn(
+                    'text-[11px] font-black uppercase tracking-widest',
+                    isAdequate ? 'text-emerald-700 dark:text-emerald-200'
+                    : isPartial ? 'text-blue-700 dark:text-blue-200'
+                    : 'text-violet-700 dark:text-violet-200',
+                  )}>
+                    {isAdequate ? t('shifts.autoGen.verdict.adequate.title')
+                    : isPartial ? t('shifts.autoGen.verdict.partial.title', { count: generated.length })
+                    : t('shifts.autoGen.verdict.noCoverage.title', { count: generated.length })}
+                  </p>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                    {isAdequate
+                      ? t('shifts.autoGen.verdict.adequate.body', {
+                          coverage: existingCoverage.pctCovered,
+                          shifts: coveringShifts.map(s => s.code).join(', ') || '—',
+                        })
+                      : isPartial
+                        ? t('shifts.autoGen.verdict.partial.body', {
+                            coverage: existingCoverage.pctCovered,
+                            uncovered: existingCoverage.uncoveredHours,
+                            existing: coveringShifts.map(s => s.code).join(', ') || '—',
+                          })
+                        : t('shifts.autoGen.verdict.noCoverage.body', {
+                            uncovered: existingCoverage.uncoveredHours,
+                          })}
+                  </p>
+                </div>
+              </div>
               <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">{t('shifts.autoGen.demand.title')}</p>
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
@@ -122,6 +172,7 @@ export function AutoGenerateShiftsModal({
                 </div>
               </div>
 
+              {suggestions.length > 0 && (
               <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">
                   {t('shifts.autoGen.proposed.title', { count: suggestions.length })}
@@ -149,6 +200,7 @@ export function AutoGenerateShiftsModal({
                   ))}
                 </div>
               </div>
+              )}
 
               {notes.includes('long-window') && (
                 <div className="p-3 rounded-lg border border-blue-100 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-[10px] text-blue-700 dark:text-blue-200 leading-relaxed">
@@ -205,15 +257,17 @@ export function AutoGenerateShiftsModal({
           </button>
           <button
             onClick={handleApply}
-            disabled={hasNoDemand}
+            disabled={hasNoDemand || isAdequate}
             className={cn(
               'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
-              hasNoDemand
+              hasNoDemand || isAdequate
                 ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700',
             )}
           >
-            {t('shifts.autoGen.apply', { count: generated.length })}
+            {isAdequate
+              ? t('shifts.autoGen.applyAdequate')
+              : t('shifts.autoGen.apply', { count: generated.length })}
           </button>
         </div>
       </motion.div>

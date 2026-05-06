@@ -198,7 +198,18 @@ export function PlanEverythingWizard({
       <p className="text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
         {t('planAll.shifts.body')}
       </p>
-      {!shiftResult || shiftResult.generated.length === 0 ? (
+      {/* v5.19.0 — surface the coverage verdict before the suggestions
+          list. When the existing library already covers every demand
+          hour, the wizard says so explicitly instead of dropping into
+          the "0 shifts proposed" empty state which read as a bug. */}
+      {shiftResult && shiftResult.verdict === 'adequate' ? (
+        <div className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed">
+          {t('planAll.shifts.adequate', {
+            existing: shiftResult.coveringShifts.map(s => s.code).join(', ') || '—',
+            coverage: shiftResult.existingCoverage.pctCovered,
+          })}
+        </div>
+      ) : !shiftResult || shiftResult.generated.length === 0 ? (
         <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-[11px] text-amber-700 dark:text-amber-200">
           {t('planAll.shifts.empty')}
         </div>
@@ -359,8 +370,10 @@ export function PlanEverythingWizard({
             {step === 'shifts' && (
               <PrimaryAction
                 onClick={handleApplyShifts}
-                disabled={!shiftResult || shiftResult.generated.length === 0}
-                label={t('planAll.shifts.apply', { count: shiftResult?.generated.length ?? 0 })}
+                disabled={!shiftResult || (shiftResult.generated.length === 0 && shiftResult.verdict !== 'adequate')}
+                label={shiftResult?.verdict === 'adequate'
+                  ? t('planAll.shifts.adequateContinue')
+                  : t('planAll.shifts.apply', { count: shiftResult?.generated.length ?? 0 })}
               />
             )}
             {step === 'schedule' && (
