@@ -217,6 +217,121 @@ describe('buildAnnualRollup', () => {
   });
 });
 
+// v5.21.0 — realistic coverage model.
+describe('analyzeWorkforce — realistic coverage (v5.21.0)', () => {
+  // 7-day-op cashier station that needs 1 PAX every hour 11–23.
+  // Bare math: 31 days × 12h = 372h / 192h cap = ceil(1.94) = 2 FTE.
+  // Realistic adds ≈ 17–28% buffer from downtime+rest-day-gap → 3 FTE.
+  const sevenDayStation: Station = {
+    id: 'ST-7D', name: 'Counter', normalMinHC: 1, peakMinHC: 1,
+    openingTime: '11:00', closingTime: '23:00',
+  };
+  const realisticConfig: Config = {
+    ...config,
+    coverageMode: 'realistic',
+    downtimeAssumptions: {
+      annualLeaveRate: 21 / 365,
+      sickRate: 11 / 365,
+      publicHolidayRate: 13 / 365,
+      restDayGapRate: 1 / 7,
+      operatesOnHolidays: true,
+    },
+    peakSafetyFactor: 1.0,
+  };
+
+  it('simple mode: bufferedFTE === recommendedFTE (legacy behaviour)', () => {
+    const plan = analyzeWorkforce({
+      employees: [], shifts: [], stations: [sevenDayStation], holidays: [], config, isPeakDay,
+    });
+    const role = plan.byRole.find(r => r.role === 'Standard');
+    expect(role).toBeDefined();
+    expect(role?.bufferedFTE).toBe(role?.recommendedFTE);
+    expect(role?.floaterPoolNeeded).toBe(0);
+    expect(role?.downtimeRate).toBe(0);
+    expect(plan.coverageMode).toBe('simple');
+  });
+
+  it('realistic mode: 7-day station gets ~17–28% downtime buffer + 1 floater', () => {
+    const plan = analyzeWorkforce({
+      employees: [], shifts: [], stations: [sevenDayStation], holidays: [],
+      config: realisticConfig, isPeakDay,
+    });
+    const role = plan.byRole.find(r => r.role === 'Standard');
+    expect(role).toBeDefined();
+    expect(role?.recommendedFTE).toBe(2);             // bare-coverage answer
+    expect(role?.bufferedFTE).toBe(3);                // 2 × 1.255 ≈ 2.51 → ceil = 3
+    expect(role?.floaterPoolNeeded).toBe(1);          // surplus = 1 floater
+    expect(role?.servesSevenDayStation).toBe(true);
+    expect(role?.downtimeRate).toBeGreaterThan(0.20); // ≈ 0.255
+    expect(plan.coverageMode).toBe('realistic');
+    expect(plan.totalBufferedFTE).toBe(3);
+    expect(plan.totalFloaterPoolNeeded).toBe(1);
+  });
+
+  it('realistic mode: 5-day station does NOT add the rest-day-gap term', () => {
+    // Station only operates Mon–Thu (peak days are excluded). Setting
+    // peakDays to weekdays only and station HC to 0 on peak days = it
+    // never operates 7 days a week.
+    const fiveDayStation: Station = {
+      id: 'ST-5D', name: 'Office', normalMinHC: 1, peakMinHC: 0,
+      openingTime: '09:00', closingTime: '17:00',
+    };
+    // Peak days = Fri/Sat where station won't run (peakMinHC=0).
+    // Non-peak = the rest of the week → station runs but not 7/7.
+    // Force peakDays to cover ALL days so station NEVER runs (peakMinHC=0).
+    const cfg: Config = { ...realisticConfig, peakDays: [1, 2, 3, 4, 5, 6, 7] };
+    const isPeakAll = () => true;
+    const plan = analyzeWorkforce({
+      employees: [], shifts: [], stations: [fiveDayStation], holidays: [],
+      config: cfg, isPeakDay: isPeakAll,
+    });
+    // No demand at all because peakMinHC=0 every day → no role row.
+    expect(plan.byRole.length).toBe(0);
+  });
+
+  it('realistic mode: peakSafetyFactor amplifies the buffer for safety-critical stations', () => {
+    const plan = analyzeWorkforce({
+      employees: [], shifts: [], stations: [sevenDayStation], holidays: [],
+      config: { ...realisticConfig, peakSafetyFactor: 1.2 }, isPeakDay,
+    });
+    const role = plan.byRole.find(r => r.role === 'Standard');
+    // 2 × 1.255 × 1.2 ≈ 3.01 → ceil = 4
+    expect(role?.bufferedFTE).toBe(4);
+    expect(role?.floaterPoolNeeded).toBe(2);
+    expect(role?.peakSafetyFactor).toBe(1.2);
+  });
+
+  it('realistic mode: turning OFF operatesOnHolidays drops the PH term', () => {
+    const plan = analyzeWorkforce({
+      employees: [], shifts: [], stations: [sevenDayStation], holidays: [],
+      config: {
+        ...realisticConfig,
+        downtimeAssumptions: {
+          ...realisticConfig.downtimeAssumptions!,
+          operatesOnHolidays: false,
+        },
+      },
+      isPeakDay,
+    });
+    const role = plan.byRole.find(r => r.role === 'Standard');
+    // Downtime drops by publicHolidayRate (≈ 0.036) so total ≈ 0.219
+    // 2 × 1.219 ≈ 2.44 → ceil = 3 (still 1 floater).
+    expect(role?.downtimeRate).toBeLessThan(0.235);
+    expect(role?.bufferedFTE).toBe(3);
+  });
+
+  it('realistic mode: delta uses bufferedFTE so HR sees the honest hire gap', () => {
+    // 1 employee on a 7-day station that needs 3 buffered FTE → delta = 2.
+    const plan = analyzeWorkforce({
+      employees: [mkEmp('A')], shifts: [], stations: [sevenDayStation], holidays: [],
+      config: realisticConfig, isPeakDay,
+    });
+    const role = plan.byRole.find(r => r.role === 'Standard');
+    expect(role?.delta).toBe(2); // 3 buffered − 1 current
+    expect(role?.action).toBe('hire');
+  });
+});
+
 describe('analyzeWorkforce — driver caps follow Art. 88', () => {
   const driverStation: Station = {
     id: 'ST-V1', name: 'Van', normalMinHC: 1, peakMinHC: 1,

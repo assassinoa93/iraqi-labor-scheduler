@@ -2356,7 +2356,7 @@ export default function App() {
       effectivePreserve = filtered;
     }
 
-    const { schedule: rawSchedule, updatedEmployees, compDayShortfall } = runAutoScheduler({
+    const { schedule: rawSchedule, updatedEmployees, compDayShortfall, peakCoverageShortfall } = runAutoScheduler({
       employees, shifts, stations, holidays, config, isPeakDay,
       allSchedules,
       preserveExisting: effectivePreserve,
@@ -2414,6 +2414,7 @@ export default function App() {
         holidayHoursSaved: liabilityResult.totalHolidayHoursSaved,
         compRotationsAdded: liabilityResult.compRotationsAdded,
       } : undefined,
+      peakCoverageShortfall,
     );
 
     setPendingScheduleResult({ schedule: newSchedule, employees: updatedEmployees, stats, runId: Date.now() });

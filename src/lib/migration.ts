@@ -251,6 +251,41 @@ export function normalizeConfig(raw: Partial<Config> & Record<string, unknown>):
     // Pre-v5.17 saves don't carry fineRates → inherit the seed wholesale.
     merged.fineRates = { ...(DEFAULT_CONFIG.fineRates ?? {}) };
   }
+  // v5.21.0 — coverage realism. Pre-v5.21 saves had no concept of downtime
+  // or buffered FTE, so we backfill with `'simple'` to preserve their
+  // current plan numbers exactly. Saves that already carry the field keep
+  // their choice; new installs land on 'realistic' via DEFAULT_CONFIG.
+  // The `raw` ref is the user's actual on-disk shape — if the property
+  // was never set we know we're migrating an old save and pick 'simple'.
+  if (merged.coverageMode !== 'simple' && merged.coverageMode !== 'realistic') {
+    merged.coverageMode = (raw as Partial<Config>).coverageMode === undefined ? 'simple' : 'realistic';
+  }
+  // Downtime assumptions: clamp each rate to [0, 0.5] (anything ≥ 50% means
+  // the role is more off than on — almost certainly a data-entry mistake).
+  // Missing fields fall back to DEFAULT_CONFIG values so old saves get the
+  // sane seed without surprising changes.
+  const seedDt = DEFAULT_CONFIG.downtimeAssumptions!;
+  const rawDt = (merged.downtimeAssumptions ?? {}) as Partial<NonNullable<Config['downtimeAssumptions']>>;
+  const clampRate = (v: unknown, fallback: number): number => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
+    return Math.max(0, Math.min(0.5, v));
+  };
+  merged.downtimeAssumptions = {
+    annualLeaveRate: clampRate(rawDt.annualLeaveRate, seedDt.annualLeaveRate),
+    sickRate: clampRate(rawDt.sickRate, seedDt.sickRate),
+    publicHolidayRate: clampRate(rawDt.publicHolidayRate, seedDt.publicHolidayRate),
+    restDayGapRate: clampRate(rawDt.restDayGapRate, seedDt.restDayGapRate),
+    operatesOnHolidays: typeof rawDt.operatesOnHolidays === 'boolean'
+      ? rawDt.operatesOnHolidays
+      : seedDt.operatesOnHolidays,
+  };
+  // Peak safety factor: clamp to [1.0, 2.0]. Below 1 would under-staff;
+  // above 2 is almost certainly a data-entry mistake.
+  if (typeof merged.peakSafetyFactor !== 'number' || !Number.isFinite(merged.peakSafetyFactor)) {
+    merged.peakSafetyFactor = DEFAULT_CONFIG.peakSafetyFactor ?? 1.0;
+  } else {
+    merged.peakSafetyFactor = Math.max(1.0, Math.min(2.0, merged.peakSafetyFactor));
+  }
   return merged;
 }
 

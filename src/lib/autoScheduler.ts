@@ -44,6 +44,31 @@ export interface RunResult {
   // following the holiday. Consumers (preview modal, workforce planner)
   // surface this as a compliance + capacity signal.
   compDayShortfall: Array<{ empId: string; debtDays: number }>;
+  // v5.21.0 — per-station per-day peak coverage shortfall. The greedy
+  // fill loop already gracefully degrades to "schedule to whatever HC
+  // can be placed legally" — it never breaks rest days or caps to chase
+  // peak. This array surfaces every (date × station) slot where the
+  // scheduler couldn't reach the required HC even at strictness 3
+  // (emergency level), so the supervisor sees exactly which days the
+  // current roster can't cover peak demand. It's INFO-level (not a
+  // violation): the scheduler did the right thing, the structural
+  // answer is "hire more" or "lower demand on those days".
+  //
+  // Each entry collapses contiguous low-coverage hours within a single
+  // (day, station) into one row whose `requiredHC` is the WORST hour's
+  // requirement and `achievedHC` is the achieved coverage at that hour.
+  // Hour-level granularity is preserved in `worstHour` for the UI.
+  peakCoverageShortfall: Array<{
+    day: number;            // 1..daysInMonth
+    dateStr: string;        // YYYY-MM-DD
+    stationId: string;
+    stationName: string;
+    worstHour: number;      // 0..23
+    requiredHC: number;     // peakMinHC / peakHourlyDemand at worstHour
+    achievedHC: number;     // actual HC the scheduler managed to place
+    isPeakDay: boolean;
+    isHoliday: boolean;
+  }>;
 }
 
 const ART86_DEFAULT_NIGHT_START = '22:00';
@@ -159,6 +184,14 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
   const consecutiveWork = new Map<string, number>();
   const totalHoursWorked = new Map<string, number>();
   const usedHolidayBankThisMonth = new Map<string, number>();
+  // v5.21.0 — accumulator for per-(day, station) peak coverage shortfalls.
+  // Each entry is the WORST hour within that day where the scheduler
+  // could not place the required HC even at strictness 3. We surface the
+  // worst hour because (a) the supervisor only needs one actionable
+  // pointer per day-station, and (b) a single station-day with a 5-hour
+  // gap window typically reflects the same root cause (no eligible
+  // employees left after rest-day / cap constraints).
+  const peakCoverageShortfall: RunResult['peakCoverageShortfall'] = [];
   // Tracks unmet comp-day debt per employee: incremented on each PH-work
   // assignment and decremented when the employee gets an OFF/leave within
   // the next 7 days. Used by the candidate sort to push PH-debtors DOWN in
@@ -387,6 +420,13 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
     const isHoliday = holidayDates.has(dateStr);
     const peak = isPeakDay(day);
     const dayOfWeek = date.getDay() + 1;
+    // v5.21.0 — per-day worst-hour shortfall tracker. Keyed by stationId,
+    // each entry holds the WORST gap (largest required−achieved delta) we
+    // saw inside this day's hour loop. Flushed into peakCoverageShortfall
+    // at end-of-day. We track worst-by-gap rather than worst-by-required
+    // so a single station with one really under-covered hour stands out
+    // over a station with many small gaps.
+    const dayWorstGap = new Map<string, { hour: number; required: number; achieved: number; gap: number }>();
 
     // Bring preserved work-shift entries into today's headcount index so the
     // main fill loop sees them as already covering their station — otherwise
@@ -513,7 +553,31 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
           }
           if (!assigned) break; // Could not fill station
         }
+        // v5.21.0 — if we fell out of the while loop with an unfilled
+        // requirement, record the gap. Track the worst hour per station
+        // so a single (day, station) row in the output captures the
+        // peak-coverage failure point. This is INFO not violation: the
+        // scheduler refused to break rest days / caps to chase peak,
+        // and the structural answer is "hire more or lower demand".
+        if (currentHC < requiredHC) {
+          const gap = requiredHC - currentHC;
+          const prev = dayWorstGap.get(st.id);
+          if (!prev || gap > prev.gap) {
+            dayWorstGap.set(st.id, { hour, required: requiredHC, achieved: currentHC, gap });
+          }
+        }
       }
+    }
+    // Flush this day's worst-gap-per-station rows into the run-level
+    // accumulator so the consumer (preview modal, AI advisory, future
+    // dashboard tile) can render them as a structural-risk list.
+    for (const [stationId, w] of dayWorstGap) {
+      const stationName = stations.find(s => s.id === stationId)?.name ?? stationId;
+      peakCoverageShortfall.push({
+        day, dateStr, stationId, stationName,
+        worstHour: w.hour, requiredHC: w.required, achievedHC: w.achieved,
+        isPeakDay: peak, isHoliday,
+      });
     }
 
     // After-day pass: fill OFF (or MAT/SL/AL for protected-leave dates) and
@@ -575,5 +639,5 @@ export function runAutoScheduler({ employees, shifts, stations, holidays: rawHol
     if (debt > 0) compDayShortfall.push({ empId, debtDays: debt });
   }
 
-  return { schedule: newSchedule, updatedEmployees, compDayShortfall };
+  return { schedule: newSchedule, updatedEmployees, compDayShortfall, peakCoverageShortfall };
 }

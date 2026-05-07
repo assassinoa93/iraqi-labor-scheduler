@@ -232,6 +232,9 @@ export const en: Dict = {
   'modal.preview.applyAnyway': 'Apply Anyway',
   'modal.preview.compShortfall.title': 'Insufficient HC for full comp-day rotation',
   'modal.preview.compShortfall.body': '{days} comp day(s) across {emps} employee(s) could not be placed inside the 7-day window after the holiday they\'re owed for. This usually means the current roster is too thin to spare workers for OFF on the busy days following holidays. Hiring is the real fix — see the Workforce Planning tab for the FTE shortfall.',
+  // v5.21.0 — peak coverage shortfall
+  'modal.preview.peakShortfall.title': 'Peak coverage uncoverable on some days',
+  'modal.preview.peakShortfall.body': '{rows} (date × station) slot(s) across {stations} station(s) couldn\'t reach the required HC even at strictness 3 — no eligible employees were left after rest days and weekly caps. The scheduler did NOT break any rule to chase peak; it scheduled to the achievable minimum and surfaced the gap here. The real fix is hiring more, lowering peak demand on those days, or accepting reduced peak coverage.',
   // v5.19.0 — liability optimizer summary
   'modal.preview.optimizer.title': 'Liability optimizer applied',
   'modal.preview.optimizer.body': 'After the legal-feasibility pass, the optimizer made {swaps} HC-neutral swap(s) — saving {overCap}h of over-cap OT, {holiday}h of holiday-premium spread, and adding {comp} comp-day rotation(s) the greedy pass couldn\'t land. Coverage is unchanged; only WHO works WHICH shift was rebalanced.',
@@ -1291,6 +1294,9 @@ export const en: Dict = {
   'workforce.rollup.title': 'Annual rollup — per-role recommendation',
   'workforce.rollup.subtitle': 'A single year-round recommendation per role. Conservative = peak-month FTE need (carried through valleys). Optimal = average across the year.',
   'workforce.rollup.recommendedFTE': 'FTE',
+  // v5.21.0 — realistic coverage callout
+  'workforce.coverage.realistic.title': 'Realistic coverage applied',
+  'workforce.coverage.realistic.body': 'Bare-coverage math says {bare} FTE; with annual leave + sick + public-holiday absences and the 7-day-operation rest-day gap accounted for, the honest hire-to target is {buffered} FTE — the +{floaters} floater(s) rotate across stations to keep coverage intact when someone is on leave. Switch to "simple" coverage in Variables to see the bare number alone.',
   'workforce.rollup.rosterComparative': 'Roster (current / recommended)',
   'workforce.rollup.breakdown.fte': '{fte} FTE',
   'workforce.rollup.breakdown.ftePt': '{fte} FTE + {pt} PT',
@@ -2032,6 +2038,8 @@ export const ar: Dict = {
   'modal.preview.optimizer.body': 'بعد المرور الأول للتأكد من المشروعية، أجرى المُحسِّن {swaps} مبادلة محايدة للتغطية — وفّر {overCap} ساعة إضافي و{holiday} ساعة علاوة عطل وأضاف {comp} تدوير أيام تعويض. التغطية لم تتغير؛ فقط أُعيد توزيع مَن يعمل أي مناوبة.',
   'modal.preview.compShortfall.title': 'الموظفون غير كافين لتدوير أيام التعويض كاملة',
   'modal.preview.compShortfall.body': '{days} يوم تعويضي عبر {emps} موظف لم يتمكن من تخصيصه ضمن نافذة 7 أيام بعد العطلة المستحقة. عادةً يعني أن الكادر الحالي ضيق جدًا لتوفير راحة لأحدهم في الأيام المزدحمة بعد العطل. التوظيف هو الحل الفعلي — انظر تبويب تخطيط القوى العاملة للنقص.',
+  'modal.preview.peakShortfall.title': 'تغطية الذروة غير قابلة للتحقيق في بعض الأيام',
+  'modal.preview.peakShortfall.body': '{rows} فتحة (تاريخ × محطة) عبر {stations} محطة لم تتمكن من الوصول إلى عدد الموظفين المطلوب حتى بمستوى الصرامة 3 — لم يتبقَّ موظفون مؤهلون بعد أيام الراحة والسقوف الأسبوعية. لم يخرق المُجدوِل أي قاعدة لمطاردة الذروة؛ بل جدوَل وفق الحد الأدنى الممكن وأظهر الفجوة هنا. الحل الفعلي هو زيادة التوظيف، أو تخفيض طلب الذروة في تلك الأيام، أو قبول تغطية ذروة مخفّضة.',
 
   // Settings
   'settings.title': 'الإعداد العام',
@@ -3041,6 +3049,8 @@ export const ar: Dict = {
   'workforce.headcount.rationale.pt.optimal': 'الدوام الجزئي يتوسّع لأشهر الذروة وينحسر في الأشهر الهادئة. استخدم العقود محدّدة المدة (المادة 25 من قانون العمل العراقي) كي لا تتحوّل تجديداتها تلقائيًا إلى عقود دائمة مفتوحة.',
   'workforce.rollup.subtitle': 'توصية واحدة سنوية لكل دور. محافظ = حاجة شهر الذروة (محمولة طوال السنة). مثالي = متوسط عبر السنة.',
   'workforce.rollup.recommendedFTE': 'دائم',
+  'workforce.coverage.realistic.title': 'تم تطبيق التغطية الواقعية',
+  'workforce.coverage.realistic.body': 'الرياضيات الأساسية تقول {bare} موظف دائم؛ بعد احتساب الإجازة السنوية والمرضية والعطل الرسمية وفجوة يوم الراحة في التشغيل لمدة 7 أيام، الهدف الحقيقي للتوظيف هو {buffered} موظف دائم — الـ+{floaters} موظف(ون) عائم(ون) يتناوبون عبر المحطات للحفاظ على التغطية عندما يكون أحدهم في إجازة. بدّل إلى تغطية "بسيطة" في تبويب المتغيرات لرؤية الرقم الأساسي فقط.',
   'workforce.rollup.rosterComparative': 'الطاقم (الحالي / الموصى)',
   'workforce.rollup.breakdown.fte': '{fte} دائم',
   'workforce.rollup.breakdown.ftePt': '{fte} دائم + {pt} جزئي',

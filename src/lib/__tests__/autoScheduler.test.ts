@@ -45,6 +45,64 @@ const mkEmp = (id: string): Employee => ({
   overtimeHours: 0, category: 'Standard',
 });
 
+// v5.21.0 — peak coverage shortfall surfacing.
+describe('runAutoScheduler — peak coverage shortfall (v5.21.0)', () => {
+  it('returns an empty array when the roster is enough to cover every hour', () => {
+    const employees = [mkEmp('A'), mkEmp('B'), mkEmp('C')];
+    const { peakCoverageShortfall } = runAutoScheduler({
+      employees, shifts: [FS, OFF], stations: [STATION], holidays: [], config,
+      isPeakDay: () => false,
+    });
+    expect(peakCoverageShortfall).toEqual([]);
+  });
+
+  it('records a shortfall row when a station needs more HC than the roster can supply', () => {
+    // Station needs 3 PAX but only 1 employee exists → one row per day with
+    // achievedHC=1, requiredHC=3. The scheduler does NOT break rest days to
+    // chase the gap; it gracefully degrades and surfaces the failure here.
+    const surgeStation: Station = {
+      id: 'ST-S', name: 'Surge', normalMinHC: 3, peakMinHC: 3,
+      openingTime: '09:00', closingTime: '17:00',
+    };
+    const employees = [mkEmp('A')];
+    employees[0].eligibleStations = ['ST-S'];
+    const { peakCoverageShortfall } = runAutoScheduler({
+      employees, shifts: [FS, OFF], stations: [surgeStation], holidays: [], config,
+      isPeakDay: () => false,
+    });
+    expect(peakCoverageShortfall.length).toBeGreaterThan(0);
+    // Every row points at the surge station with required=3 and achieved≤1.
+    for (const row of peakCoverageShortfall) {
+      expect(row.stationId).toBe('ST-S');
+      expect(row.requiredHC).toBe(3);
+      expect(row.achievedHC).toBeLessThanOrEqual(1);
+      expect(row.dateStr).toMatch(/^2026-01-\d{2}$/);
+    }
+  });
+
+  it('marks holiday and peak rows so the UI can label them', () => {
+    const surgeStation: Station = {
+      id: 'ST-S', name: 'Surge', normalMinHC: 1, peakMinHC: 3,
+      openingTime: '09:00', closingTime: '17:00',
+    };
+    const holiday: PublicHoliday = { date: '2026-01-02', name: 'X', type: 'National', legalReference: 'Art. 74' };
+    const peakCfg = { ...config, peakDays: [5, 6, 7] }; // Thu/Fri/Sat 1=Sun
+    const employees = [mkEmp('A')];
+    employees[0].eligibleStations = ['ST-S'];
+    const isPeak = (day: number) => {
+      const dow = new Date(2026, 0, day).getDay() + 1;
+      return [5, 6, 7].includes(dow);
+    };
+    const { peakCoverageShortfall } = runAutoScheduler({
+      employees, shifts: [FS, OFF], stations: [surgeStation], holidays: [holiday],
+      config: peakCfg, isPeakDay: isPeak,
+    });
+    // At least one peak row and one holiday row should be flagged.
+    expect(peakCoverageShortfall.some(r => r.isPeakDay)).toBe(true);
+    expect(peakCoverageShortfall.some(r => r.isHoliday)).toBe(true);
+  });
+});
+
 describe('runAutoScheduler — PH comp-day debt tracking', () => {
   it('assigns a worker to a holiday day when the station requires coverage', () => {
     // peakMinHC=1 means even on a holiday the station needs one body. The

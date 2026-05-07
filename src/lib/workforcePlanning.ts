@@ -33,6 +33,32 @@ export const PART_TIME_MONTHLY_HOURS = 96; // 24h/week × 4 — common Iraqi PT 
 export const PART_TIME_MONTHLY_SALARY_IQD_RATIO = 0.5; // PT salary roughly 50% of FTE
 export const PEAK_LIFT_THRESHOLD = 1.25; // peak ÷ non-peak ratio above which PT mix kicks in
 
+// v5.21.0 — Stations that operate every day of the week create an
+// unavoidable rest-day gap: 2 FTEs each working 6 days leave a 1-day
+// hole. The third (floater) FTE plugs that hole AND backfills annual
+// leave, sick, and PH absences. This helper resolves the effective
+// downtime rate for a role given the active config — combining the
+// rest-day-gap term (only applied when the role serves at least one
+// 7-day station) with the leave/sick/PH terms.
+function resolveDowntimeRate(
+  config: Config,
+  role: WorkforceRole,
+  servesSevenDayStation: boolean,
+): number {
+  const dt = config.downtimeAssumptions;
+  if (!dt) return 0;
+  // The PH term only contributes when the venue actually operates on
+  // public holidays (otherwise PHs are paid time off the BUSINESS, not
+  // the labor pool — no replacement coverage owed).
+  const phTerm = dt.operatesOnHolidays ? dt.publicHolidayRate : 0;
+  const restGap = servesSevenDayStation ? dt.restDayGapRate : 0;
+  // Drivers' annual leave is the same — Art. 88 doesn't change leave
+  // entitlement. The role discriminator is here for future per-role
+  // tuning if needed.
+  void role;
+  return Math.max(0, dt.annualLeaveRate + dt.sickRate + phTerm + restGap);
+}
+
 // Recommendation modes (v1.14):
 //   - 'optimal'      : cost-minimising mix (FTE baseline + PT for peak surge).
 //                      Theoretically cheapest but requires releasing surplus
@@ -76,6 +102,23 @@ export interface RoleDemand {
   idealFTE: number;          // ceil(monthly / cap) — the "all FTE" answer
   recommendedFTE: number;    // FTE component of the suggested mix
   recommendedPartTime: number; // PT component of the suggested mix
+  // v5.21.0 — realistic-coverage layer. `bufferedFTE` is the headcount the
+  // supervisor should ACTUALLY hire to keep coverage intact through annual
+  // leave, sick days, public-holiday absences, and the 7-day-operation
+  // rest-day gap. `floaterPoolNeeded` is the surplus over `recommendedFTE`
+  // — i.e. how many of the buffered total are pure floaters that rotate
+  // across stations to plug absence holes. `downtimeRate` is the combined
+  // rate used for the buffer (e.g. 0.235 ≈ 23.5%); `peakSafetyFactor` is
+  // the multiplier applied AFTER the downtime layer (default 1.0). The
+  // `servesSevenDayStation` flag tells the UI when the rest-day-gap term
+  // contributed (and therefore why a single-station 7-day-op role needs
+  // ~3 FTEs instead of ~2). All four are 0/1.0/false in 'simple' mode so
+  // the legacy plan numbers are preserved exactly.
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
+  downtimeRate: number;
+  peakSafetyFactor: number;
+  servesSevenDayStation: boolean;
   // Short text explaining why this mix was chosen.
   reasoning: string;
   // Current roster comparison (filled in after merge).
@@ -90,6 +133,17 @@ export interface WorkforcePlan {
   totalRecommendedFTE: number;
   totalRecommendedPartTime: number;
   totalCurrentEmployees: number;
+  // v5.21.0 — totals for the realistic-coverage layer.
+  // `totalBufferedFTE` is the company-wide hire-to target with downtime +
+  // rest-day-gap baked in; `totalFloaterPoolNeeded` is the surplus over the
+  // base recommendation that should rotate across stations as floaters.
+  // In 'simple' mode both equal `totalRecommendedFTE` and `0` respectively
+  // so legacy numbers don't change.
+  totalBufferedFTE: number;
+  totalFloaterPoolNeeded: number;
+  // Coverage mode used for this plan. Echoed so consumers can label the
+  // numbers honestly ('hire 8' vs 'hire 8 with realistic coverage').
+  coverageMode: 'simple' | 'realistic';
   // Estimated monthly payroll for the recommended mix vs the current roster.
   recommendedMonthlySalary: number;
   currentMonthlySalary: number;
@@ -208,6 +262,39 @@ function rollupByRole(stations: Station[], demand: Map<string, StationDemand>): 
   return out;
 }
 
+// v5.21.0 — Output shape for `recommendMix`. The buffered-FTE layer is
+// returned alongside the legacy fields so callers can choose what to
+// surface. In 'simple' coverage mode `bufferedFTE === recommendedFTE`
+// and `floaterPoolNeeded === 0` so consumers that only read the legacy
+// fields keep working unchanged.
+interface MixResult {
+  recommendedFTE: number;
+  recommendedPartTime: number;
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
+  downtimeRate: number;
+  peakSafetyFactor: number;
+  reasoning: string;
+}
+
+// Apply the realistic-coverage buffer to a base FTE recommendation.
+// Returns the integer hire-to target and the fractional surplus that
+// becomes the floater pool. In 'simple' mode this is a no-op pass-through.
+function applyCoverageBuffer(
+  baseFTE: number,
+  coverageMode: 'simple' | 'realistic',
+  downtimeRate: number,
+  peakSafetyFactor: number,
+): { bufferedFTE: number; floaterPoolNeeded: number } {
+  if (coverageMode !== 'realistic' || baseFTE <= 0) {
+    return { bufferedFTE: baseFTE, floaterPoolNeeded: 0 };
+  }
+  const raw = baseFTE * (1 + downtimeRate) * peakSafetyFactor;
+  const bufferedFTE = Math.ceil(raw);
+  const floaterPoolNeeded = Math.max(0, bufferedFTE - baseFTE);
+  return { bufferedFTE, floaterPoolNeeded };
+}
+
 // Decide FTE/PT mix for a role. Behaviour depends on the requested
 // recommendation mode:
 //   - 'conservative' : pure FTE math. ceil(monthlyRequiredHours / cap).
@@ -221,62 +308,101 @@ function rollupByRole(stations: Station[], demand: Map<string, StationDemand>): 
 //                      the surge to part-timers (paid pro-rata) and
 //                      size FTEs to the non-peak baseline. Otherwise
 //                      fill everything with FTEs since the load is flat.
-function recommendMix(monthlyRequiredHours: number, peakHrs: number, nonPeakHrs: number, cap: number, mode: PlanMode): {
-  recommendedFTE: number;
-  recommendedPartTime: number;
-  reasoning: string;
-} {
+//
+// v5.21.0 — when `coverage.mode === 'realistic'`, the function ALSO
+// computes a `bufferedFTE` (= ceil(recommendedFTE × (1 + downtimeRate)
+// × peakSafetyFactor)) and a `floaterPoolNeeded` surplus. The buffered
+// number is the hire-to target the supervisor should actually use; the
+// legacy `recommendedFTE` keeps representing the bare-coverage baseline
+// so downstream code that hasn't migrated to the new field still works.
+function recommendMix(
+  monthlyRequiredHours: number,
+  peakHrs: number,
+  nonPeakHrs: number,
+  cap: number,
+  mode: PlanMode,
+  coverage: { mode: 'simple' | 'realistic'; downtimeRate: number; peakSafetyFactor: number },
+): MixResult {
   if (monthlyRequiredHours <= 0) {
-    return { recommendedFTE: 0, recommendedPartTime: 0, reasoning: '' };
+    return {
+      recommendedFTE: 0, recommendedPartTime: 0,
+      bufferedFTE: 0, floaterPoolNeeded: 0,
+      downtimeRate: coverage.downtimeRate, peakSafetyFactor: coverage.peakSafetyFactor,
+      reasoning: '',
+    };
   }
 
   const idealFTE = Math.ceil(monthlyRequiredHours / cap);
 
-  // Conservative mode: always pure FTE, hire-to-demand. Never PT.
+  // Step 1 — base FTE/PT mix (legacy logic, unchanged).
+  let base: { recommendedFTE: number; recommendedPartTime: number; reasoning: string };
   if (mode === 'conservative') {
-    return {
+    base = {
       recommendedFTE: idealFTE,
       recommendedPartTime: 0,
       reasoning: 'Conservative mode — pure FTE roster (Iraqi labor law makes releases hard, so we size for peak and carry through valleys).',
     };
-  }
-
-  // Optimal mode below.
-  if (peakHrs === 0) {
-    return {
+  } else if (peakHrs === 0) {
+    base = {
       recommendedFTE: idealFTE,
       recommendedPartTime: 0,
       reasoning: 'Flat demand — pure FTE coverage.',
     };
-  }
-  if (nonPeakHrs === 0) {
+  } else if (nonPeakHrs === 0) {
     const ptCount = Math.ceil(peakHrs / PART_TIME_MONTHLY_HOURS);
-    return {
+    base = {
       recommendedFTE: 0,
       recommendedPartTime: ptCount,
       reasoning: 'Demand only on peak days — part-time covers the surge without paying for idle time.',
     };
+  } else {
+    const lift = peakHrs / nonPeakHrs;
+    if (lift < PEAK_LIFT_THRESHOLD) {
+      base = {
+        recommendedFTE: idealFTE,
+        recommendedPartTime: 0,
+        reasoning: `Peak only ${(lift * 100).toFixed(0)}% of non-peak demand — FTE-only is efficient.`,
+      };
+    } else {
+      const fteCount = Math.ceil(nonPeakHrs / cap);
+      const ftePeakCoverage = fteCount * cap;
+      const fteHoursAvailableForPeak = Math.max(0, ftePeakCoverage - nonPeakHrs);
+      const peakUncovered = Math.max(0, peakHrs - fteHoursAvailableForPeak);
+      const ptCount = Math.ceil(peakUncovered / PART_TIME_MONTHLY_HOURS);
+      base = {
+        recommendedFTE: fteCount,
+        recommendedPartTime: ptCount,
+        reasoning: `Peak demand is ${(lift * 100).toFixed(0)}% of non-peak — ${fteCount} FTE for the baseline + ${ptCount} part-timer(s) for the surge is cheaper than scaling FTE.`,
+      };
+    }
   }
 
-  const lift = peakHrs / nonPeakHrs;
-  if (lift < PEAK_LIFT_THRESHOLD) {
-    return {
-      recommendedFTE: idealFTE,
-      recommendedPartTime: 0,
-      reasoning: `Peak only ${(lift * 100).toFixed(0)}% of non-peak demand — FTE-only is efficient.`,
-    };
-  }
+  // Step 2 — apply the realistic-coverage buffer to the FTE component
+  // only. PT recommendations are surge-only and don't need the buffer
+  // (their absences are absorbed by trading shifts inside the PT pool).
+  const { bufferedFTE, floaterPoolNeeded } = applyCoverageBuffer(
+    base.recommendedFTE, coverage.mode, coverage.downtimeRate, coverage.peakSafetyFactor,
+  );
 
-  const fteCount = Math.ceil(nonPeakHrs / cap);
-  const ftePeakCoverage = fteCount * cap;
-  const fteHoursAvailableForPeak = Math.max(0, ftePeakCoverage - nonPeakHrs);
-  const peakUncovered = Math.max(0, peakHrs - fteHoursAvailableForPeak);
-  const ptCount = Math.ceil(peakUncovered / PART_TIME_MONTHLY_HOURS);
+  // Extend reasoning when the buffer kicked in so the supervisor sees
+  // why the hire-to number is bigger than the bare coverage baseline.
+  let reasoning = base.reasoning;
+  if (coverage.mode === 'realistic' && floaterPoolNeeded > 0) {
+    const dtPct = (coverage.downtimeRate * 100).toFixed(0);
+    const sfPct = coverage.peakSafetyFactor > 1.0
+      ? ` × ${coverage.peakSafetyFactor.toFixed(2)} peak safety factor`
+      : '';
+    reasoning += ` Realistic coverage adds +${floaterPoolNeeded} floater(s) (${dtPct}% downtime${sfPct}) so the roster stays covered through annual leave, sick, PH absences, and the rest-day gap — hire-to target ${bufferedFTE}.`;
+  }
 
   return {
-    recommendedFTE: fteCount,
-    recommendedPartTime: ptCount,
-    reasoning: `Peak demand is ${(lift * 100).toFixed(0)}% of non-peak — ${fteCount} FTE for the baseline + ${ptCount} part-timer(s) for the surge is cheaper than scaling FTE.`,
+    recommendedFTE: base.recommendedFTE,
+    recommendedPartTime: base.recommendedPartTime,
+    bufferedFTE,
+    floaterPoolNeeded,
+    downtimeRate: coverage.downtimeRate,
+    peakSafetyFactor: coverage.peakSafetyFactor,
+    reasoning,
   };
 }
 
@@ -296,14 +422,56 @@ function currentByRole(employees: Employee[]): Map<string, number> {
   return out;
 }
 
+// v5.21.0 — A station "operates 7 days a week" if its required HC is
+// non-zero on every day of the week across the month. We detect this
+// per-station by walking the active month and checking each station's
+// peak/normal HC for at least one hour of the day. The role-level
+// flag (`servesSevenDayStation`) is true if ANY station the role
+// covers is 7-day; this drives whether the rest-day-gap term applies
+// in the downtime rate.
+function isStationSevenDayOperation(
+  st: Station,
+  config: Config,
+  isPeakDay: (day: number) => boolean,
+): boolean {
+  const daysInMonth = getDaysInMonth(new Date(config.year, config.month - 1, 1));
+  const open = Math.floor(parseHour(st.openingTime));
+  const close = Math.ceil(parseHour(st.closingTime));
+  const seenDow = new Set<number>();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dow = new Date(config.year, config.month - 1, day).getDay() + 1;
+    if (seenDow.has(dow)) continue;
+    const peak = isPeakDay(day);
+    const dailyHrs = totalDailyHeadcountHours(st, peak, open, close);
+    if (dailyHrs > 0) seenDow.add(dow);
+    if (seenDow.size === 7) return true;
+  }
+  return false;
+}
+
 export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
-  const { employees, stations, config, mode = 'conservative' } = args;
+  const { employees, stations, config, isPeakDay, mode = 'conservative' } = args;
   const stdCap = monthlyHourCap(config);
   const driverCap = (config.driverWeeklyHrsCap ?? DRIVER_WEEKLY_CAP_DEFAULT) * 4;
+  // Fallback is 'simple' so callers that build a raw Config (tests, ad-hoc
+  // analyses) get the legacy bare-coverage math by default. Production
+  // loads come through `normalizeConfig` which sets the field explicitly:
+  // pre-v5.21 saves to 'simple' (preserve plan), new installs via
+  // DEFAULT_CONFIG to 'realistic' (the supervisor-friendly default).
+  const coverageMode: 'simple' | 'realistic' = config.coverageMode ?? 'simple';
+  const peakSafetyFactor = config.peakSafetyFactor ?? 1.0;
 
   const demand = stationDemand(args);
   const grouped = rollupByRole(stations, demand);
   const current = currentByRole(employees);
+
+  // v5.21.0 — pre-compute the 7-day-op flag per station so we can answer
+  // "does this role serve a 7-day station?" in O(1) per role. Detection
+  // walks the month once per station via `isStationSevenDayOperation`.
+  const sevenDayByStationId = new Map<string, boolean>();
+  for (const st of stations) {
+    sevenDayByStationId.set(st.id, isStationSevenDayOperation(st, config, isPeakDay));
+  }
 
   // Average IQD/mo — used to estimate the savings/cost of the recommended
   // mix vs the current roster.
@@ -323,9 +491,22 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
     const nonPeakRequiredHours = stationsForRole.reduce((s, x) => s + x.nonPeakHours, 0);
     const cap = role === 'Driver' ? driverCap : stdCap;
     const idealFTE = Math.ceil(monthlyRequiredHours / cap);
-    const mix = recommendMix(monthlyRequiredHours, peakRequiredHours, nonPeakRequiredHours, cap, mode);
+    // v5.21.0 — does any station this role serves operate 7 days a week?
+    // Drives whether the rest-day-gap term contributes to the downtime
+    // rate for this role.
+    const servesSevenDayStation = stationsForRole.some(s => sevenDayByStationId.get(s.stationId) === true);
+    const downtimeRate = resolveDowntimeRate(config, role, servesSevenDayStation);
+    const mix = recommendMix(
+      monthlyRequiredHours, peakRequiredHours, nonPeakRequiredHours, cap, mode,
+      { mode: coverageMode, downtimeRate, peakSafetyFactor },
+    );
     const currentCount = current.get(role) || 0;
-    const recommendedTotal = mix.recommendedFTE + mix.recommendedPartTime;
+    // v5.21.0 — delta is computed against the BUFFERED FTE (the realistic
+    // hire-to target) plus PT, not the bare-coverage `recommendedFTE`. In
+    // simple mode bufferedFTE === recommendedFTE so the legacy delta is
+    // unchanged; in realistic mode the supervisor sees the true gap that
+    // would leave them under-covered the moment someone takes leave.
+    const recommendedTotal = mix.bufferedFTE + mix.recommendedPartTime;
     const delta = recommendedTotal - currentCount;
     // Iraqi Labor Law (Art. 36, 40 — fixed-term renewals become open-ended;
     // releases require Minister of Labor approval). When current exceeds
@@ -342,6 +523,11 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
       idealFTE,
       recommendedFTE: mix.recommendedFTE,
       recommendedPartTime: mix.recommendedPartTime,
+      bufferedFTE: mix.bufferedFTE,
+      floaterPoolNeeded: mix.floaterPoolNeeded,
+      downtimeRate: mix.downtimeRate,
+      peakSafetyFactor: mix.peakSafetyFactor,
+      servesSevenDayStation,
       reasoning: mix.reasoning,
       currentCount, delta, action,
     });
@@ -358,6 +544,9 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
       byStation: [],
       idealFTE: 0,
       recommendedFTE: 0, recommendedPartTime: 0,
+      bufferedFTE: 0, floaterPoolNeeded: 0,
+      downtimeRate: 0, peakSafetyFactor,
+      servesSevenDayStation: false,
       reasoning: 'No station demand for this role this month — consider reassigning. Releasing is legally complex (Minister of Labor approval required).',
       currentCount: count, delta: -count, action: 'hold',
     });
@@ -369,8 +558,15 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
   const totalIdealFTE = byRole.reduce((s, r) => s + r.idealFTE, 0);
   const totalRecommendedFTE = byRole.reduce((s, r) => s + r.recommendedFTE, 0);
   const totalRecommendedPartTime = byRole.reduce((s, r) => s + r.recommendedPartTime, 0);
+  const totalBufferedFTE = byRole.reduce((s, r) => s + r.bufferedFTE, 0);
+  const totalFloaterPoolNeeded = byRole.reduce((s, r) => s + r.floaterPoolNeeded, 0);
   const totalCurrentEmployees = employees.length;
-  const recommendedMonthlySalary = totalRecommendedFTE * avgFTESalary + totalRecommendedPartTime * avgPartTimeSalary;
+  // v5.21.0 — payroll math uses the BUFFERED FTE total in realistic mode
+  // (since that's what the supervisor actually pays for) but the legacy
+  // recommended-FTE total in simple mode. Same answer when no buffer was
+  // applied; honest answer when it was.
+  const payrollFTECount = coverageMode === 'realistic' ? totalBufferedFTE : totalRecommendedFTE;
+  const recommendedMonthlySalary = payrollFTECount * avgFTESalary + totalRecommendedPartTime * avgPartTimeSalary;
   const currentMonthlySalary = employees.reduce((s, e) => s + (e.baseMonthlySalary || 0), 0);
   const monthlyDelta = recommendedMonthlySalary - currentMonthlySalary;
 
@@ -379,6 +575,9 @@ export function analyzeWorkforce(args: AnalyzeArgs): WorkforcePlan {
     totalIdealFTE,
     totalRecommendedFTE,
     totalRecommendedPartTime,
+    totalBufferedFTE,
+    totalFloaterPoolNeeded,
+    coverageMode,
     totalCurrentEmployees,
     recommendedMonthlySalary,
     currentMonthlySalary,
@@ -415,6 +614,12 @@ export interface MonthlyPlanSummary {
   monthlyRequiredHours: number;
   recommendedFTE: number;
   recommendedPartTime: number;
+  // v5.21.0 — realistic-coverage hire-to target (= recommendedFTE in
+  // 'simple' mode; recommendedFTE + floater pool in 'realistic' mode).
+  // The UI shows this as the headline figure when coverageMode is
+  // 'realistic' so the supervisor sees the honest hiring number.
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
   recommendedMonthlySalary: number;
   // v5.18.0 — effective FTE lost to planned leave. Sum of
   // (leaveDaysInMonth / daysInMonth) across every employee who has a
@@ -515,6 +720,11 @@ export interface AnnualRollupRole {
   // Year-round recommendation (= max for conservative, avg-rounded for optimal)
   recommendedFTE: number;
   recommendedPartTime: number;
+  // v5.21.0 — buffered hire-to target with downtime + rest-day-gap
+  // accounted for. Equal to recommendedFTE in simple mode. UI prefers
+  // this over recommendedFTE when coverageMode is 'realistic'.
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
   reasoning: string;
   currentCount: number;
   delta: number;
@@ -540,6 +750,9 @@ export interface AnnualRollupStation {
   peakMonthFTE: number;            // FTE need at the busiest month
   recommendedFTE: number;          // year-round recommendation
   recommendedPartTime: number;
+  // v5.21.0 — buffered hire-to target (= recommendedFTE in simple mode).
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
   reasoning: string;
   // v2.6.0 — per-month FTE/PT need for the year. Length 12, index 0 = Jan.
   // Lets the UI compute the same 5-number summary (avg / median / peak /
@@ -594,6 +807,9 @@ export interface AnnualRollupGroup {
   peakMonthFTE: number;
   recommendedFTE: number;
   recommendedPartTime: number;
+  // v5.21.0 — buffered hire-to target (= recommendedFTE in simple mode).
+  bufferedFTE: number;
+  floaterPoolNeeded: number;
   reasoning: string;
   // v2.6.0 — per-month FTE/PT need across the year (length 12, idx 0 = Jan).
   // Same purpose as AnnualRollupStation.monthlyFTE — drives the per-group
@@ -623,6 +839,12 @@ export interface AnnualRollup {
   // Year-level totals.
   totalRecommendedFTE: number;
   totalRecommendedPartTime: number;
+  // v5.21.0 — buffered totals across the year (= totalRecommendedFTE
+  // in simple mode). UI uses this as the headline hire-to count when
+  // coverageMode is 'realistic'.
+  totalBufferedFTE: number;
+  totalFloaterPoolNeeded: number;
+  coverageMode: 'simple' | 'realistic';
   totalCurrentEmployees: number;
   // Pure ideal cost: sum of all months' recommended salaries (per-month
   // optimal mix). Used as the baseline against which the conservative
@@ -724,6 +946,8 @@ export function analyzeWorkforceAnnual({
       monthlyRequiredHours: monthRequired,
       recommendedFTE: plan.totalRecommendedFTE,
       recommendedPartTime: plan.totalRecommendedPartTime,
+      bufferedFTE: plan.totalBufferedFTE,
+      floaterPoolNeeded: plan.totalFloaterPoolNeeded,
       recommendedMonthlySalary: plan.recommendedMonthlySalary,
       plannedLeaveFTELoss: Number(fteLossDecimal.toFixed(2)),
       plannedLeaveBreakdown: {
@@ -808,11 +1032,33 @@ export function buildAnnualRollup(
   // and the helper falls back to 48h (Art. 70 standard).
   config?: Pick<Config, 'standardWeeklyHrsCap'>,
 ): AnnualRollup {
+  // v5.21.0 — pull coverage mode + per-role downtime from the per-month
+  // plan so the rollup's buffered/floater fields stay consistent with the
+  // monthly numbers. We snapshot from the first month that has data;
+  // coverageMode + downtime are config-derived and stable across months.
+  const firstMonth = annual.byMonth.find(m => m.plan.byRole.length > 0);
+  const coverageMode: 'simple' | 'realistic' = firstMonth?.plan.coverageMode ?? 'simple';
+  const peakSafetyFactor = firstMonth?.plan.byRole[0]?.peakSafetyFactor ?? 1.0;
+  // Cache downtime-rate by role so the per-station/group recommendMix
+  // calls use the same buffer the per-role calc applied in the monthly
+  // analyzer.
+  const downtimeByRole = new Map<string, number>();
+  if (firstMonth) {
+    for (const r of firstMonth.plan.byRole) {
+      downtimeByRole.set(r.role, r.downtimeRate);
+    }
+  }
+  const coverageFor = (role: string) => ({
+    mode: coverageMode,
+    downtimeRate: downtimeByRole.get(role) ?? 0,
+    peakSafetyFactor,
+  });
+
   // Walk each role across all 12 months, picking up the per-role demand.
   type RolePerMonth = {
     role: string;
     cap: number;
-    perMonth: Array<{ idx: number; fte: number; pt: number; required: number }>;
+    perMonth: Array<{ idx: number; fte: number; pt: number; buffered: number; floater: number; required: number }>;
     annualRequired: number;
   };
   const byRoleAcc = new Map<string, RolePerMonth>();
@@ -827,6 +1073,8 @@ export function buildAnnualRollup(
         idx: m.monthIndex,
         fte: r.recommendedFTE,
         pt: r.recommendedPartTime,
+        buffered: r.bufferedFTE,
+        floater: r.floaterPoolNeeded,
         required: r.monthlyRequiredHours,
       });
       acc.annualRequired += r.monthlyRequiredHours;
@@ -853,6 +1101,8 @@ export function buildAnnualRollup(
   const byRole: AnnualRollupRole[] = [];
   let totalRecommendedFTE = 0;
   let totalRecommendedPartTime = 0;
+  let totalBufferedFTE = 0;
+  let totalFloaterPoolNeeded = 0;
 
   for (const [role, acc] of byRoleAcc) {
     if (acc.perMonth.length === 0) continue;
@@ -860,11 +1110,13 @@ export function buildAnnualRollup(
     let peakIdx = acc.perMonth[0].idx;
     let peakFTE = acc.perMonth[0].fte;
     let peakPT = acc.perMonth[0].pt;
+    let peakBuffered = acc.perMonth[0].buffered;
     for (const p of acc.perMonth) {
       if (p.fte + p.pt > peakFTE + peakPT) {
         peakIdx = p.idx;
         peakFTE = p.fte;
         peakPT = p.pt;
+        peakBuffered = p.buffered;
       }
     }
     const recommendedFTE = mode === 'conservative'
@@ -873,8 +1125,18 @@ export function buildAnnualRollup(
     const recommendedPartTime = mode === 'conservative'
       ? 0  // conservative never uses PT
       : Math.round(acc.perMonth.reduce((s, p) => s + p.pt, 0) / acc.perMonth.length);
+    // v5.21.0 — buffered hire-to target follows the same conservative/
+    // optimal aggregation. In simple coverage mode buffered === FTE so
+    // these collapse to the same number.
+    const bufferedFTE = mode === 'conservative'
+      ? peakBuffered
+      : Math.round(acc.perMonth.reduce((s, p) => s + p.buffered, 0) / acc.perMonth.length);
+    const floaterPoolNeeded = Math.max(0, bufferedFTE - recommendedFTE);
     const currentCount = current.get(role) || 0;
-    const delta = (recommendedFTE + recommendedPartTime) - currentCount;
+    // v5.21.0 — delta uses the buffered total in realistic mode so HR
+    // sees the honest hiring gap. Simple mode behaviour is unchanged.
+    const hireToFTE = coverageMode === 'realistic' ? bufferedFTE : recommendedFTE;
+    const delta = (hireToFTE + recommendedPartTime) - currentCount;
     // v2.5.0 — optimal mode surfaces 'release' for surplus roles so
     // the supervisor sees the true cost-minimising answer. Conservative
     // continues to mask surplus as 'hold' (carry through valleys, no
@@ -896,6 +1158,8 @@ export function buildAnnualRollup(
       peakMonthFTE: peakFTE,
       recommendedFTE,
       recommendedPartTime,
+      bufferedFTE,
+      floaterPoolNeeded,
       reasoning,
       currentCount,
       delta,
@@ -903,6 +1167,8 @@ export function buildAnnualRollup(
     });
     totalRecommendedFTE += recommendedFTE;
     totalRecommendedPartTime += recommendedPartTime;
+    totalBufferedFTE += bufferedFTE;
+    totalFloaterPoolNeeded += floaterPoolNeeded;
   }
   // Roles in the roster but with no demand this year — surface as hold.
   for (const [role, count] of current) {
@@ -914,6 +1180,8 @@ export function buildAnnualRollup(
       peakMonthFTE: 0,
       recommendedFTE: 0,
       recommendedPartTime: 0,
+      bufferedFTE: 0,
+      floaterPoolNeeded: 0,
       reasoning: 'No station demand for this role anywhere in the year — consider reassignment. Releasing requires Minister of Labor approval under Iraqi Labor Law.',
       currentCount: count,
       delta: -count,
@@ -935,7 +1203,8 @@ export function buildAnnualRollup(
   for (const m of annual.byMonth) {
     for (const r of m.plan.byRole) {
       const optimalMix = recommendMix(
-        r.monthlyRequiredHours, r.peakRequiredHours, r.nonPeakRequiredHours, r.cap, 'optimal');
+        r.monthlyRequiredHours, r.peakRequiredHours, r.nonPeakRequiredHours, r.cap, 'optimal',
+        coverageFor(r.role));
       annualOptimalSalary += optimalMix.recommendedFTE * avgFTESalary
         + optimalMix.recommendedPartTime * avgPartTimeSalary;
     }
@@ -947,19 +1216,24 @@ export function buildAnnualRollup(
   // change names; stations are stable physical assets). For each station,
   // walk the year's monthly demand and compute the year-round FTE need
   // following the same conservative/optimal logic.
-  const stationDemandPerMonth = new Map<string, Array<{ idx: number; fte: number; pt: number; required: number }>>();
+  const stationDemandPerMonth = new Map<string, Array<{ idx: number; fte: number; pt: number; buffered: number; floater: number; required: number }>>();
   for (const m of annual.byMonth) {
     for (const r of m.plan.byRole) {
       for (const st of r.byStation) {
         let arr = stationDemandPerMonth.get(st.stationId);
         if (!arr) { arr = []; stationDemandPerMonth.set(st.stationId, arr); }
-        // Per-station per-month FTE = ceil(stationMonthlyHours / cap)
+        // Per-station per-month FTE = ceil(stationMonthlyHours / cap),
+        // with the role's downtime rate carried through so per-station
+        // bufferedFTE is consistent with the role-level number.
         const mix = recommendMix(
-          st.monthlyHours, st.peakHours, st.nonPeakHours, r.cap, mode);
+          st.monthlyHours, st.peakHours, st.nonPeakHours, r.cap, mode,
+          coverageFor(r.role));
         arr.push({
           idx: m.monthIndex,
           fte: mix.recommendedFTE,
           pt: mix.recommendedPartTime,
+          buffered: mix.bufferedFTE,
+          floater: mix.floaterPoolNeeded,
           required: st.monthlyHours,
         });
       }
@@ -1030,11 +1304,13 @@ export function buildAnnualRollup(
     let peakIdx = months[0].idx;
     let peakFTE = months[0].fte;
     let peakPT = months[0].pt;
+    let peakBuffered = months[0].buffered;
     for (const p of months) {
       if (p.fte + p.pt > peakFTE + peakPT) {
         peakIdx = p.idx;
         peakFTE = p.fte;
         peakPT = p.pt;
+        peakBuffered = p.buffered;
       }
     }
     const recommendedFTE = mode === 'conservative'
@@ -1043,6 +1319,12 @@ export function buildAnnualRollup(
     const recommendedPartTime = mode === 'conservative'
       ? 0
       : Math.round(months.reduce((s, p) => s + p.pt, 0) / months.length);
+    // v5.21.0 — buffered hire-to target per station, same conservative/
+    // optimal aggregation as the bare-coverage figure.
+    const stationBufferedFTE = mode === 'conservative'
+      ? peakBuffered
+      : Math.round(months.reduce((s, p) => s + p.buffered, 0) / months.length);
+    const stationFloaterPool = Math.max(0, stationBufferedFTE - recommendedFTE);
     // v2.6.0 — dense 12-element arrays so the UI can compute its own
     // 5-number summary (avg / median / peak / valley) per contract type.
     // Months that didn't appear in stationDemandPerMonth (no demand)
@@ -1087,6 +1369,8 @@ export function buildAnnualRollup(
       peakMonthFTE: peakFTE,
       recommendedFTE,
       recommendedPartTime,
+      bufferedFTE: stationBufferedFTE,
+      floaterPoolNeeded: stationFloaterPool,
       reasoning,
       monthlyFTE: monthlyFTEArr,
       monthlyPartTime: monthlyPartTimeArr,
@@ -1142,7 +1426,13 @@ export function buildAnnualRollup(
       if (p.required > peakReq) { peakReq = p.required; peakIdx = p.idx; }
     }
     const peakMonth = groupDemandPerMonth.find(p => p.idx === peakIdx)!;
-    const peakMix = recommendMix(peakMonth.required, peakMonth.peakHrs, peakMonth.nonPeakHrs, peakMonth.cap, mode);
+    // Resolve the role hint for this group so the buffer math matches
+    // the role-level downtime. Driver-only groups → 'Driver'; otherwise
+    // fall back to 'Standard' which carries the default downtime rate.
+    const groupRoleHint = memberStations.some(s => s.requiredRoles?.includes('Driver'))
+      ? 'Driver'
+      : (memberStations.flatMap(s => s.requiredRoles || []).find(r => r && r !== 'Standard') || 'Standard');
+    const peakMix = recommendMix(peakMonth.required, peakMonth.peakHrs, peakMonth.nonPeakHrs, peakMonth.cap, mode, coverageFor(groupRoleHint));
     const peakMonthFTE = peakMix.recommendedFTE + peakMix.recommendedPartTime;
 
     // v2.6.0 — dense per-month FTE/PT for the group. Computed in the
@@ -1151,27 +1441,34 @@ export function buildAnnualRollup(
     // the UI always has the curve to render.
     const monthlyFTEArr = Array(12).fill(0);
     const monthlyPartTimeArr = Array(12).fill(0);
+    const monthlyBufferedArr = Array(12).fill(0);
     for (const p of groupDemandPerMonth) {
-      const mix = recommendMix(p.required, p.peakHrs, p.nonPeakHrs, p.cap, mode);
+      const mix = recommendMix(p.required, p.peakHrs, p.nonPeakHrs, p.cap, mode, coverageFor(groupRoleHint));
       if (p.idx >= 1 && p.idx <= 12) {
         monthlyFTEArr[p.idx - 1] = mix.recommendedFTE;
         monthlyPartTimeArr[p.idx - 1] = mix.recommendedPartTime;
+        monthlyBufferedArr[p.idx - 1] = mix.bufferedFTE;
       }
     }
 
     let recommendedFTE: number;
     let recommendedPartTime: number;
+    let groupBufferedFTE: number;
     if (mode === 'conservative') {
       recommendedFTE = peakMix.recommendedFTE;
       recommendedPartTime = 0;
+      groupBufferedFTE = peakMix.bufferedFTE;
     } else {
       // Optimal: average across months. Reuse the per-month curve we
       // already built above instead of recomputing.
       const ftes = groupDemandPerMonth.map(p => monthlyFTEArr[p.idx - 1]);
       const pts = groupDemandPerMonth.map(p => monthlyPartTimeArr[p.idx - 1]);
+      const bufs = groupDemandPerMonth.map(p => monthlyBufferedArr[p.idx - 1]);
       recommendedFTE = Math.round(ftes.reduce((s, x) => s + x, 0) / ftes.length);
       recommendedPartTime = Math.round(pts.reduce((s, x) => s + x, 0) / pts.length);
+      groupBufferedFTE = Math.round(bufs.reduce((s, x) => s + x, 0) / bufs.length);
     }
+    const groupFloaterPool = Math.max(0, groupBufferedFTE - recommendedFTE);
 
     // Eligible employees for this group: employees with the group in
     // eligibleGroups OR with any member station in eligibleStations.
@@ -1209,6 +1506,8 @@ export function buildAnnualRollup(
       peakMonthFTE,
       recommendedFTE,
       recommendedPartTime,
+      bufferedFTE: groupBufferedFTE,
+      floaterPoolNeeded: groupFloaterPool,
       reasoning,
       monthlyFTE: monthlyFTEArr,
       monthlyPartTime: monthlyPartTimeArr,
@@ -1227,6 +1526,9 @@ export function buildAnnualRollup(
     byGroup,
     totalRecommendedFTE,
     totalRecommendedPartTime,
+    totalBufferedFTE,
+    totalFloaterPoolNeeded,
+    coverageMode,
     totalCurrentEmployees: employees.length,
     annualOptimalSalary: Math.round(annualOptimalSalary),
     annualConservativeSalary: Math.round(annualConservativeSalary),

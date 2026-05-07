@@ -262,4 +262,18 @@ export const DEFAULT_CONFIG: Config = {
   // map so adding new rule types in fines.ts auto-flows into the seed
   // without a parallel edit here.
   fineRates: { ...DEFAULT_FINE_RATES },
+  // v5.21.0 — realistic coverage model is the default for new installs.
+  // It accounts for annual leave, sick days, public holidays, and the
+  // 7-day-operation rest-day gap so the recommended FTE matches what
+  // the supervisor actually needs to hire. Migration of pre-v5.21 saves
+  // sets 'simple' to preserve legacy plans until the user opts in.
+  coverageMode: 'realistic',
+  downtimeAssumptions: {
+    annualLeaveRate: 21 / 365,    // ≈ 0.0575 (full Art. 71 entitlement)
+    sickRate: 11 / 365,           // ≈ 0.0301 (typical utilisation)
+    publicHolidayRate: 13 / 365,  // ≈ 0.0356 (Iraq PH calendar)
+    restDayGapRate: 1 / 7,        // ≈ 0.1429 (7-day-op gap)
+    operatesOnHolidays: true,
+  },
+  peakSafetyFactor: 1.0,
 };

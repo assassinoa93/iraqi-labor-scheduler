@@ -132,7 +132,15 @@ export function WorkforcePlanningTab(props: Props) {
   // Excel export and the rest of the app (`contractedWeeklyHrs >=
   // standardWeeklyHrsCap` ⇒ FTE).
   const headcountStats = useMemo(() => {
-    const fteSeries = annual.byMonth.map(m => m.recommendedFTE);
+    // v5.21.0 — when realistic coverage is active the headline FTE that
+    // HR reads should be the buffered hire-to target (= bare coverage +
+    // floater pool). The series powering peak/valley/median stays as
+    // the bare-coverage curve since that's what shifts month-to-month;
+    // the buffer is a flat % on top.
+    const isRealistic = rollup.coverageMode === 'realistic';
+    const fteSeries = isRealistic
+      ? annual.byMonth.map(m => m.bufferedFTE)
+      : annual.byMonth.map(m => m.recommendedFTE);
     const ptSeries = annual.byMonth.map(m => m.recommendedPartTime);
     const cap = forecastConfig.standardWeeklyHrsCap || 48;
     const currentFTE = employees.filter(e => (e.contractedWeeklyHrs || cap) >= cap).length;
@@ -140,14 +148,15 @@ export function WorkforcePlanningTab(props: Props) {
     const fteStats = fiveNumberSummary(fteSeries);
     const ptStats = fiveNumberSummary(ptSeries);
     const monthName = (i: number) => annual.byMonth[i - 1]?.monthName ?? '';
+    const recommendedFTEHeadline = isRealistic ? rollup.totalBufferedFTE : rollup.totalRecommendedFTE;
     return {
       fte: {
         ...fteStats,
         peakMonth: monthName(fteStats.peakMonthIndex),
         valleyMonth: monthName(fteStats.valleyMonthIndex),
         current: currentFTE,
-        recommended: rollup.totalRecommendedFTE,
-        delta: rollup.totalRecommendedFTE - currentFTE,
+        recommended: recommendedFTEHeadline,
+        delta: recommendedFTEHeadline - currentFTE,
       },
       pt: {
         ...ptStats,
@@ -157,6 +166,9 @@ export function WorkforcePlanningTab(props: Props) {
         recommended: rollup.totalRecommendedPartTime,
         delta: rollup.totalRecommendedPartTime - currentPT,
       },
+      coverageMode: rollup.coverageMode,
+      bareRecommendedFTE: rollup.totalRecommendedFTE,
+      floaterPool: rollup.totalFloaterPoolNeeded,
     };
   }, [annual, employees, rollup, forecastConfig.standardWeeklyHrsCap]);
 
@@ -422,6 +434,33 @@ export function WorkforcePlanningTab(props: Props) {
             mode={mode}
             idealOnly={idealOnly}
           />
+
+          {/* v5.21.0 — realistic coverage breakdown. Surfaces only when
+              the venue is in 'realistic' mode AND the buffer added at
+              least one floater. Tells the supervisor exactly why the
+              hire-to total is bigger than the bare-coverage answer:
+              annual leave + sick + PH + rest-day-gap multiplier ON TOP
+              of the cap math. Hidden in 'simple' mode so legacy plans
+              read identically to pre-v5.21. */}
+          {headcountStats.coverageMode === 'realistic' && headcountStats.floaterPool > 0 && (
+            <Card className="p-4 bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-500/10 dark:to-blue-500/10 border-emerald-200 dark:border-emerald-500/40">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-200 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest">
+                    {t('workforce.coverage.realistic.title')}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed mt-1">
+                    {t('workforce.coverage.realistic.body', {
+                      bare: headcountStats.bareRecommendedFTE,
+                      buffered: headcountStats.fte.recommended,
+                      floaters: headcountStats.floaterPool,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* ── Annual rollup table (v1.16: prefers GROUP rollup when
               groups exist, falls back to per-station). Groups give the

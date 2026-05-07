@@ -2,6 +2,34 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.21.0 — 2026-05-07
+
+**Realistic coverage model + peak-coverage shortfall surfacing.** The Workforce Planner can now answer "how many people do I actually need to hire?" instead of just "how many do I need to cover the bare hour count?". The auto-scheduler explicitly reports every (date × station) slot where it couldn't reach the required HC at strictness 3 — distinct from the existing comp-day shortfall (which is about Art. 74 rotation), this is about being structurally short of HC on peak demand days. The scheduler still NEVER breaks rest days or weekly caps to chase peak: it gracefully degrades to whatever HC can be placed legally and surfaces the gap as info.
+
+### New: realistic coverage layer for the Workforce Planner
+
+[lib/workforcePlanning.ts](src/lib/workforcePlanning.ts) — `recommendMix` now carries a coverage layer that adds a downtime + rest-day-gap multiplier on top of the bare `ceil(hours / cap)` math. Two modes:
+
+- **`coverageMode: 'simple'`** — pre-v5.21 behaviour. `bufferedFTE === recommendedFTE`. Pre-v5.21 saves migrate to this so existing plan numbers don't shift under users without consent.
+- **`coverageMode: 'realistic'`** (default for new installs) — `bufferedFTE = ceil(recommendedFTE × (1 + downtimeRate) × peakSafetyFactor)`. The downtime rate sums annual-leave + sick + public-holiday absences and adds a rest-day-gap term for stations that operate 7 days a week (one of the two FTEs is on rest each day, so a third FTE is needed to keep coverage). The supervisor sees both numbers: the bare-coverage answer and the buffered hire-to target. The surplus is the "floater pool" — staff who rotate across stations to plug absence holes.
+
+For the canonical 12h × 7d × 1-HC station the planner used to recommend 2 FTE; in realistic mode it now recommends 3 FTE = 2 base + 1 floater. Configuration knobs in `config.downtimeAssumptions`: `annualLeaveRate` (default 21/365), `sickRate` (default 11/365 — typical utilisation, not the 30-day legal cap), `publicHolidayRate` (default 13/365), `restDayGapRate` (default 1/7), `operatesOnHolidays` (default `true`). Plus `config.peakSafetyFactor` (default 1.0; dial up to 1.10–1.20 for safety-critical stations).
+
+- **Type changes**: `Config.coverageMode`, `Config.downtimeAssumptions`, `Config.peakSafetyFactor`. New parallel fields on `RoleDemand` / `MonthlyPlanSummary` / `AnnualRollupRole|Station|Group`: `bufferedFTE`, `floaterPoolNeeded`. `WorkforcePlan.totalBufferedFTE` + `totalFloaterPoolNeeded` + `coverageMode`. All optional / backward-compat — pre-v5.21 saves backfill to `'simple'` via the migration normalizer.
+- **WorkforcePlanningTab** surfaces a green "realistic coverage applied" callout above the rollup when buffered > bare, explaining exactly why the hire-to total is bigger than the bare-coverage answer.
+- **Tests**: 6 new in [workforcePlanning.test.ts](src/lib/__tests__/workforcePlanning.test.ts) — simple-mode parity, 7-day-station buffer, rest-day-gap term off for non-7-day stations, peak safety factor, `operatesOnHolidays` toggle, and HR delta uses buffered.
+
+### New: peak coverage shortfall in the auto-scheduler
+
+[lib/autoScheduler.ts](src/lib/autoScheduler.ts) — `RunResult.peakCoverageShortfall` is a new array of `{ day, dateStr, stationId, stationName, worstHour, requiredHC, achievedHC, isPeakDay, isHoliday }` rows, one per (day × station) where the greedy fill loop couldn't reach the required HC even at strictness 3. The fill loop tracks the worst-gap hour per station per day so a single station-day with multiple low-coverage hours collapses to one actionable row.
+
+- **SchedulePreviewModal** renders an amber warning panel listing the top-5 worst gaps with date / station / `achieved/required` / peak-or-holiday badge so the supervisor sees exactly which slots fell short before applying.
+- **Tests**: 3 new in [autoScheduler.test.ts](src/lib/__tests__/autoScheduler.test.ts) — empty when fully covered, populated when station needs > supply, peak/holiday flags propagated.
+
+### Migration
+
+`normalizeConfig` backfills new fields on every load. Pre-v5.21 saves get `coverageMode: 'simple'` so plan numbers don't change. New installs via `DEFAULT_CONFIG` get `'realistic'`. Downtime rates clamped to [0, 0.5]; peak safety factor clamped to [1.0, 2.0].
+
 ## v5.18.0 — 2026-05-05
 
 **Workflow integration release: a one-button "Plan everything" wizard, an Auto-Generate Shifts tool, and six workforce-planning upgrades that make the planner self-tune from past schedules.** Three previously-disconnected surfaces (station hourly demand, the shift library, the auto-scheduler) now feed each other, and the planner finally subtracts planned leave from effective HC. Plus a UX hardening pass: modal dirty-state guards, required-field indicators, numeric input constraints, RTL class sweep, schedule-cell violation markers, keyboard navigation, and Online-mode save indicator.

@@ -363,6 +363,55 @@ export interface Config {
   // close comp-day rotation gaps. Default true. Toggle off in the
   // Settings tab if you want the raw greedy-fill output for inspection.
   liabilityAwarePass?: boolean;
+  // v5.21.0 — coverage realism model. Two modes:
+  //   • 'simple'    : pure FTE math (legacy). Recommended FTE = ceil(hours / cap).
+  //                   Ignores annual leave / sick / public-holiday absence and
+  //                   the rest-day gap that a 7-day-operation station creates.
+  //                   This is the pre-v5.21 behaviour.
+  //   • 'realistic' : adds a downtime multiplier so the recommendation is the
+  //                   real headcount the supervisor needs to keep coverage
+  //                   intact during planned annual leave, expected sick days,
+  //                   public holidays, and the unavoidable rest-day gap on
+  //                   stations that operate 7 days a week. The "buffered FTE"
+  //                   the planner reports is the number you should actually
+  //                   hire — the floater pool size = bufferedFTE − idealFTE.
+  //                   Default for new installs.
+  // Pre-v5.21 saves: migration sets `'simple'` so existing plans don't shift
+  // under users without consent; users opt in to realistic via Variables.
+  coverageMode?: 'simple' | 'realistic';
+  // v5.21.0 — downtime breakdown for the realistic coverage model. Each rate
+  // is a fraction in [0, 1] representing the share of paid-but-unavailable
+  // days an FTE is expected to take across a year. Defaults reflect the
+  // *real-world utilisation* of each entitlement, not the maximum legal
+  // entitlement (which would over-hire). The supervisor can dial these up
+  // for high-stakes stations or down for slack ones.
+  //
+  // Defaults:
+  //   annualLeaveRate     = 21 / 365   ≈ 0.0575  (full Art. 71 entitlement)
+  //   sickRate            = 11 / 365   ≈ 0.0301  (typical utilisation, not the
+  //                                               30-day legal cap — that's
+  //                                               worst-case and over-hires)
+  //   publicHolidayRate   = 13 / 365   ≈ 0.0356  (Iraq's official PH calendar)
+  //   restDayGapRate      = 1 / 7      ≈ 0.1429  (unavoidable 7-day-op gap)
+  //   operatesOnHolidays  = true                 (most Iraqi venues operate)
+  //
+  // Combined ≈ 17–28% buffer depending on whether the venue operates on PHs
+  // and whether the station runs 7 days. The planner exposes the breakdown
+  // so the supervisor sees WHY the buffered number exceeds idealFTE.
+  downtimeAssumptions?: {
+    annualLeaveRate: number;
+    sickRate: number;
+    publicHolidayRate: number;
+    restDayGapRate: number;
+    operatesOnHolidays: boolean;
+  };
+  // v5.21.0 — peak safety factor. Multiplies the buffered FTE to add headroom
+  // for stochastic peak coverage (the average-vs-P95 problem: with small
+  // pools the probability of ≥k simultaneous absences is non-trivial).
+  // Default 1.0 = size for the average. Dial up to 1.10–1.20 to size for
+  // P95 service level on safety-critical stations. Applied AFTER the
+  // downtime multiplier so the math stays composable.
+  peakSafetyFactor?: number;
 }
 
 // Severity tiers for compliance findings:

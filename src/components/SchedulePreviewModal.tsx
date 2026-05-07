@@ -19,6 +19,22 @@ interface PreviewStats {
   // supervisor knows the auto-scheduler is at capacity.
   compDayShortfallTotal: number;
   compDayShortfallEmployees: number;
+  // v5.21.0 — peak coverage shortfall: per-(date × station) rows where
+  // the scheduler couldn't reach the required HC even at strictness 3.
+  // Distinct from compDayShortfall — that's about Art. 74 comp-day
+  // rotation; this is about being structurally short of HC on peak
+  // demand days. Both surface "you need to hire more" but for different
+  // reasons.
+  peakCoverageShortfallTotal: number;        // total rows
+  peakCoverageShortfallStations: number;     // unique stations with at least 1 row
+  peakCoverageShortfallTopRows: Array<{
+    dateStr: string;
+    stationName: string;
+    requiredHC: number;
+    achievedHC: number;
+    isPeakDay: boolean;
+    isHoliday: boolean;
+  }>;
   // v5.19.0 — liability optimizer summary. Optional because the
   // optimizer can be disabled via Config.liabilityAwarePass=false; when
   // skipped the modal hides the savings card entirely.
@@ -40,6 +56,10 @@ export function buildPreviewStats(
   filledStationDays: number,
   compDayShortfall: Array<{ empId: string; debtDays: number }> = [],
   liabilitySwaps?: PreviewStats['liabilitySwaps'],
+  peakCoverageShortfall: Array<{
+    dateStr: string; stationId: string; stationName: string;
+    requiredHC: number; achievedHC: number; isPeakDay: boolean; isHoliday: boolean;
+  }> = [],
 ): PreviewStats {
   const shiftMap = new Map(shifts.map(s => [s.code, s]));
   let totalAssignments = 0;
@@ -75,6 +95,20 @@ export function buildPreviewStats(
     .sort((a, b) => (b.count || 1) - (a.count || 1))
     .slice(0, 6);
 
+  // v5.21.0 — derive peak coverage shortfall summary. Top rows = the 5
+  // worst gaps so the supervisor sees the most under-covered slots
+  // without scrolling. Sorted by gap size (required − achieved) so
+  // a station missing 2/3 HC outranks one missing 1/2.
+  const peakCoverageShortfallStations = new Set(peakCoverageShortfall.map(r => r.stationId)).size;
+  const peakCoverageShortfallTopRows = [...peakCoverageShortfall]
+    .sort((a, b) => (b.requiredHC - b.achievedHC) - (a.requiredHC - a.achievedHC))
+    .slice(0, 5)
+    .map(r => ({
+      dateStr: r.dateStr, stationName: r.stationName,
+      requiredHC: r.requiredHC, achievedHC: r.achievedHC,
+      isPeakDay: r.isPeakDay, isHoliday: r.isHoliday,
+    }));
+
   return {
     totalAssignments,
     totalHours,
@@ -84,6 +118,9 @@ export function buildPreviewStats(
     perRoleHours,
     compDayShortfallTotal: compDayShortfall.reduce((s, e) => s + e.debtDays, 0),
     compDayShortfallEmployees: compDayShortfall.length,
+    peakCoverageShortfallTotal: peakCoverageShortfall.length,
+    peakCoverageShortfallStations,
+    peakCoverageShortfallTopRows,
     liabilitySwaps,
   };
 }
@@ -237,6 +274,40 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
                     emps: stats.compDayShortfallEmployees,
                   })}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* v5.21.0 — peak coverage shortfall warning. Distinct from
+              the comp-day case above: this is "the scheduler couldn't
+              even reach min/peak HC at strictness 3 because there
+              weren't enough eligible employees left after rest days /
+              caps consumed them." Top 5 rows show exactly which
+              (date × station) slots fell short and by how much. The
+              scheduler did NOT break any rules to chase peak — the
+              structural answer is hire more, lower demand on those
+              days, or relax peak-HC requirements. */}
+          {stats.peakCoverageShortfallTotal > 0 && (
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
+              <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">{t('modal.preview.peakShortfall.title')}</p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed mt-1">
+                  {t('modal.preview.peakShortfall.body', {
+                    rows: stats.peakCoverageShortfallTotal,
+                    stations: stats.peakCoverageShortfallStations,
+                  })}
+                </p>
+                {stats.peakCoverageShortfallTopRows.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-[11px] text-amber-700 dark:text-amber-200">
+                    {stats.peakCoverageShortfallTopRows.map((r, i) => (
+                      <li key={`${r.dateStr}-${r.stationName}-${i}`} className="font-mono">
+                        {r.dateStr} · {r.stationName} — {r.achievedHC}/{r.requiredHC}
+                        {r.isHoliday ? ' · PH' : r.isPeakDay ? ' · peak' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}
