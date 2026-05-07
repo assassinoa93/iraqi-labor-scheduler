@@ -2,6 +2,67 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.22.0 — 2026-05-07
+
+**End-to-end UX overhaul: presets over toggles, smart defaults, progressive disclosure, and a first-run wizard.** Configuration surface area added across v5.17–v5.21 had grown to 42 controls in the Variables tab; v5.22 collapses that to a manageable progressive-disclosure structure without removing any capability. Power users can still dive into raw rates; everyone else gets opinionated defaults and inline guidance at the moment of need.
+
+### New: first-run Venue Profile wizard
+
+[components/VenueProfileWizard.tsx](src/components/VenueProfileWizard.tsx) — a 5-question setup wizard that fires on app open when `config.venueProfileCompleted === false` AND the company has no stations or employees yet. Pre-fills:
+
+1. Operating window (default open / close hours)
+2. Peak days (multiselect of weekdays)
+3. Operates on public holidays? (yes/no — feeds `downtimeAssumptions.operatesOnHolidays`)
+4. Coverage strategy preset (Bare hours / Realistic / Safety-critical)
+5. Holiday compensation policy (Comp day / Cash 2× / Both)
+
+Skip is allowed at every step; skipping marks the wizard "completed" with whatever defaults DEFAULT_CONFIG provided. Migration sets `venueProfileCompleted: true` for legacy saves so existing users aren't re-onboarded.
+
+### Variables tab restructure
+
+[components/VariablesTab.tsx](src/components/VariablesTab.tsx) — split into two pill-toggle views:
+
+- **Operational** (default landing): operating window → coverage realism → Art. 74 holiday comp → Ramadan → Art. 86 night work → hiring lead time. Each section is a `CollapsibleCard` that auto-collapses when not relevant — Ramadan when no dates set, Art. 86 when toggle off — with a status badge ("Off") so the user understands at a glance.
+- **Statutory**: Standard caps → Hazardous → Driver → Pay rates → Fine rates. Driver Caps auto-collapses when no employee has `category: 'Driver'`; Hazardous auto-collapses when nobody has `isHazardous: true`. Reduces the manager's visible surface from 42 controls to ~10 in the typical case.
+
+### New: Coverage Realism preset picker
+
+[lib/coveragePresets.ts](src/lib/coveragePresets.ts) + `CoverageRealismSection` in [VariablesTab.tsx](src/components/VariablesTab.tsx) — replaces the raw v5.21.0 surface (`coverageMode` + 5 `downtimeAssumptions` rates + `peakSafetyFactor`) with three named presets:
+
+- **Bare hours** — pre-v5.21 behaviour. No buffer.
+- **Realistic** — annual-leave + sick + PH + rest-day-gap multipliers (recommended).
+- **Safety-critical** — Realistic + 1.20 peak safety factor for stations where stochastic absence matters.
+
+A "Customize underlying rates" disclosure exposes the raw percentages for power users / labor-counsel reviews. `detectCoveragePreset` reverse-resolves which preset best matches the current state so the picker tile is accurately highlighted; `isCoverageCustomized` surfaces a "Customized" badge when the rates have been hand-edited.
+
+### Fine Rates collapsed by default
+
+The 10-row IQD-per-occurrence table now ships as a `CollapsibleCard` with a default-collapsed state and a one-line summary ("Default fine amounts from Iraqi Labor Law 37/2015. Customize if your case history has set different precedents."). When the user has overrides, the card surfaces a "{n} customized" badge so they know their tweaks are still in effect.
+
+### WorkforcePlanningTab toolbar cleanup
+
+[tabs/WorkforcePlanningTab.tsx](src/tabs/WorkforcePlanningTab.tsx):
+
+- Mode toggle renamed: **"Conservative" / "Optimal"** → **"Hire-to-peak (Iraqi-law-safe)" / "Hire-to-average (cost-optimised, harder to release)"**. Eliminates the trap of "Optimal sounds best" when it's actually the legally riskier path.
+- Forecast year stepper folded behind a small "Forecast different year" affordance — only renders when the user is actually forecasting a non-current year. Saves visual real estate for the 95% of users planning the current year.
+
+### Schedule preview modal: consolidated Issues panel + inline coverage nudge
+
+[components/SchedulePreviewModal.tsx](src/components/SchedulePreviewModal.tsx) — the three stacked amber/info cards (optimizer summary, comp-day shortfall, peak coverage shortfall) collapse into one **"Coverage & operational notes (N)"** `<details>` block. Inside the peak coverage shortfall row, when the venue is on `coverageMode: 'simple'`, a one-click **"Switch to Realistic coverage"** button flips the config and closes the modal so the user re-runs the schedule under the new sizing.
+
+### "What's new" inline banner for legacy simple-mode users
+
+[tabs/WorkforcePlanningTab.tsx](src/tabs/WorkforcePlanningTab.tsx) — a small green banner at the top of the WFP tab announces realistic coverage to users who upgraded from v5.20 (and migrated to `coverageMode: 'simple'`) but haven't tried the new feature. Two buttons: "Try Realistic" (one-click adopt) or "Maybe later" (dismiss). Dismissals persist via the new `Config.dismissedTips` array — adding future announcements just requires a new tip ID; legacy users see the new banner without seeing all prior ones.
+
+### New `Config` fields
+
+- `Config.venueProfileCompleted: boolean` — first-run wizard gate. Migration backfills `true` for pre-v5.22 saves.
+- `Config.dismissedTips: string[]` — list of "What's new" tip IDs the user has dismissed. Backfills empty so legacy users see the realistic-coverage announcement.
+
+### Migration safety
+
+`normalizeConfig` adds clamping + backfill for both new fields. Legacy saves' behaviour is preserved exactly: `venueProfileCompleted: true` (no wizard re-fire), `dismissedTips: []` (banner shows once until dismissed), and the previously-shipped v5.21.0 fields keep their existing migration paths. No data migration required.
+
 ## v5.21.0 — 2026-05-07
 
 **Realistic coverage model + peak-coverage shortfall surfacing.** The Workforce Planner can now answer "how many people do I actually need to hire?" instead of just "how many do I need to cover the bare hour count?". The auto-scheduler explicitly reports every (date × station) slot where it couldn't reach the required HC at strictness 3 — distinct from the existing comp-day shortfall (which is about Art. 74 rotation), this is about being structurally short of HC on peak demand days. The scheduler still NEVER breaks rest days or weekly caps to chase peak: it gracefully degrades to whatever HC can be placed legally and surfaces the gap as info.

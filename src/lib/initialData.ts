@@ -276,4 +276,8 @@ export const DEFAULT_CONFIG: Config = {
     operatesOnHolidays: true,
   },
   peakSafetyFactor: 1.0,
+  // v5.22.0 — fresh installs start at `false` so the Venue Profile wizard
+  // fires on first launch. Existing saves get `true` via the migration
+  // normalizer so legacy users aren't re-onboarded.
+  venueProfileCompleted: false,
 };

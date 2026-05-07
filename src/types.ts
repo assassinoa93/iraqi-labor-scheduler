@@ -412,6 +412,21 @@ export interface Config {
   // P95 service level on safety-critical stations. Applied AFTER the
   // downtime multiplier so the math stays composable.
   peakSafetyFactor?: number;
+  // v5.22.0 — first-run venue profile completion flag. The Venue Profile
+  // wizard fires on app open when this is `false` AND the company has no
+  // stations or employees yet — a 5-question setup that pre-fills
+  // `shopOpeningTime`, `peakDays`, `operatesOnHolidays`, `coverageMode`,
+  // `holidayCompMode` so the supervisor doesn't have to walk Variables
+  // before getting their first schedule. Skipping the wizard sets this
+  // to `true` so it doesn't re-fire. Migration sets `true` for legacy
+  // saves that already have data (they don't need re-onboarding).
+  venueProfileCompleted?: boolean;
+  // v5.22.0 — list of "What's new" tip IDs the user has dismissed. Each
+  // post-update announcement has a stable string id (e.g.
+  // 'realistic-coverage-v5.21') and shows once until dismissed. Adding
+  // a new announcement just adds a new id to the surface; legacy users
+  // with no entry here see the new banner without seeing all prior ones.
+  dismissedTips?: string[];
 }
 
 // Severity tiers for compliance findings:

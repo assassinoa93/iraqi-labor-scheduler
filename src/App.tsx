@@ -62,6 +62,7 @@ import { ShiftModal } from './components/ShiftModal';
 import { HolidayModal } from './components/HolidayModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { SchedulePreviewModal, buildPreviewStats } from './components/SchedulePreviewModal';
+import { VenueProfileWizard } from './components/VenueProfileWizard';
 import { LocaleSwitcher } from './components/LocaleSwitcher';
 import { CompanySwitcher } from './components/CompanySwitcher';
 import { SimulationDeltaPanel, SimDeltaMetric } from './components/SimulationDeltaPanel';
@@ -3842,6 +3843,7 @@ export default function App() {
                 isPeakDayFor={isPeakDayFor}
                 onGoToRoster={() => setActiveTab('roster')}
                 onGoToLayout={() => setActiveTab('layout')}
+                setConfig={setConfig}
               />
             )}
 
@@ -4168,6 +4170,7 @@ export default function App() {
               <VariablesTab
                 config={config}
                 setConfig={setConfig}
+                employees={employees}
                 readOnly={!tabWritable('variables', role, tabPerms)}
                 // v5.1.3 — operating window (default open/close + per-day
                 // overrides) is OPERATIONAL config that manager + supervisor
@@ -4453,6 +4456,29 @@ export default function App() {
         monthLabel={format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy')}
         onClose={() => setPendingScheduleResult(null)}
         onApply={applyPendingSchedule}
+        // v5.22.0 — inline coverage nudge: when the venue is on
+        // 'simple' coverage and the preview surfaces a peak coverage
+        // shortfall, offer one-click adoption of realistic coverage so
+        // the user doesn't have to navigate to Variables → Coverage.
+        // The nudge closes the modal so the user re-runs the schedule
+        // under the new sizing.
+        currentCoverageMode={config.coverageMode ?? 'simple'}
+        onAdoptRealisticCoverage={() => {
+          setConfig(prev => ({ ...prev, coverageMode: 'realistic' }));
+        }}
+      />
+
+      {/* v5.22.0 — Venue Profile Wizard. Fires on first launch when the
+          venueProfileCompleted flag is false AND the company has no
+          stations or employees yet. Pre-fills the most commonly-edited
+          config fields (operating hours, peak days, holidays-on, coverage
+          strategy, holiday compensation) so the supervisor doesn't have
+          to walk Variables before getting their first schedule. */}
+      <VenueProfileWizard
+        isOpen={!config.venueProfileCompleted && stations.length === 0 && employees.length === 0}
+        config={config}
+        onComplete={(patch) => setConfig(prev => ({ ...prev, ...patch }))}
+        onSkip={() => setConfig(prev => ({ ...prev, venueProfileCompleted: true }))}
       />
 
       <SimulationDeltaPanel

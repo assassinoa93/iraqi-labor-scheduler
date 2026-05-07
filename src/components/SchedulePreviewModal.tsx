@@ -131,9 +131,17 @@ interface Props {
   onApply: () => void;
   stats: PreviewStats | null;
   monthLabel: string;
+  // v5.22.0 — context for the inline "switch to realistic coverage" nudge.
+  // When the peak-coverage shortfall card surfaces AND the venue is on
+  // 'simple' coverage, we offer a one-click flip so the user doesn't have
+  // to navigate to Variables → Coverage realism. Both fields are optional;
+  // when omitted the nudge stays hidden (callers that don't carry the
+  // mode + callback get the legacy info-only behaviour).
+  currentCoverageMode?: 'simple' | 'realistic';
+  onAdoptRealisticCoverage?: () => void;
 }
 
-export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLabel }: Props) {
+export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLabel, currentCoverageMode, onAdoptRealisticCoverage }: Props) {
   const { t } = useI18n();
   const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   // Direct conditional render — no AnimatePresence wrapper. The previous
@@ -233,84 +241,109 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
             />
           </div>
 
-          {/* v5.19.0 — liability-aware optimizer savings. Surfaced only
-              when the optimizer ran (Config.liabilityAwarePass !== false)
-              AND made at least one swap. Tells the supervisor "the
-              auto-scheduler did its first pass legally, then a second
-              pass moved N shifts to even out OT and reduce holiday
-              premium without breaking any cap." */}
-          {stats.liabilitySwaps && stats.liabilitySwaps.swapCount > 0 && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/40">
-              <Sparkles className="w-4 h-4 text-emerald-700 dark:text-emerald-200 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest">
-                  {t('modal.preview.optimizer.title')}
-                </p>
-                <p className="text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed mt-1">
-                  {t('modal.preview.optimizer.body', {
-                    swaps: stats.liabilitySwaps.swapCount,
-                    overCap: stats.liabilitySwaps.overCapHoursSaved,
-                    holiday: stats.liabilitySwaps.holidayHoursSaved,
-                    comp: stats.liabilitySwaps.compRotationsAdded,
-                  })}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* v1.16 — comp-day shortfall warning. When the auto-scheduler can't
-              place an OFF inside the 7-day comp window after a PH-work day,
-              it accumulates as residual debt. The most common cause is HC
-              being too thin to spare anyone for OFF — this row tells the
-              supervisor that hiring is the real fix, not re-running. */}
-          {stats.compDayShortfallTotal > 0 && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
-              <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">{t('modal.preview.compShortfall.title')}</p>
-                <p className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed mt-1">
-                  {t('modal.preview.compShortfall.body', {
-                    days: stats.compDayShortfallTotal,
-                    emps: stats.compDayShortfallEmployees,
-                  })}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* v5.21.0 — peak coverage shortfall warning. Distinct from
-              the comp-day case above: this is "the scheduler couldn't
-              even reach min/peak HC at strictness 3 because there
-              weren't enough eligible employees left after rest days /
-              caps consumed them." Top 5 rows show exactly which
-              (date × station) slots fell short and by how much. The
-              scheduler did NOT break any rules to chase peak — the
-              structural answer is hire more, lower demand on those
-              days, or relax peak-HC requirements. */}
-          {stats.peakCoverageShortfallTotal > 0 && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
-              <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">{t('modal.preview.peakShortfall.title')}</p>
-                <p className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed mt-1">
-                  {t('modal.preview.peakShortfall.body', {
-                    rows: stats.peakCoverageShortfallTotal,
-                    stations: stats.peakCoverageShortfallStations,
-                  })}
-                </p>
-                {stats.peakCoverageShortfallTopRows.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-[11px] text-amber-700 dark:text-amber-200">
-                    {stats.peakCoverageShortfallTopRows.map((r, i) => (
-                      <li key={`${r.dateStr}-${r.stationName}-${i}`} className="font-mono">
-                        {r.dateStr} · {r.stationName} — {r.achievedHC}/{r.requiredHC}
-                        {r.isHoliday ? ' · PH' : r.isPeakDay ? ' · peak' : ''}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
+          {/* v5.22.0 — single consolidated "Coverage & operational notes"
+              section. Replaces three stacked amber/info cards (optimizer
+              swaps, comp-day shortfall, peak coverage shortfall) with one
+              collapsible block. Issues are listed inline; only renders
+              when there's at least one item. Default-open so the
+              supervisor sees them on first paint, but collapsible so
+              repeat-runs aren't dominated by the same notes. */}
+          {(() => {
+            const hasOptimizer = !!(stats.liabilitySwaps && stats.liabilitySwaps.swapCount > 0);
+            const hasCompShortfall = stats.compDayShortfallTotal > 0;
+            const hasPeakShortfall = stats.peakCoverageShortfallTotal > 0;
+            const issueCount = (hasOptimizer ? 1 : 0) + (hasCompShortfall ? 1 : 0) + (hasPeakShortfall ? 1 : 0);
+            if (issueCount === 0) return null;
+            return (
+              <details open className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 overflow-hidden">
+                <summary className="cursor-pointer p-3 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors list-none">
+                  <Info className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest flex-1">
+                    {t('modal.preview.notes.title', { count: issueCount })}
+                  </span>
+                </summary>
+                <div className="p-3 pt-0 space-y-2">
+                  {hasOptimizer && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/40">
+                      <Sparkles className="w-4 h-4 text-emerald-700 dark:text-emerald-200 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest">
+                          {t('modal.preview.optimizer.title')}
+                        </p>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-200 leading-relaxed mt-1">
+                          {t('modal.preview.optimizer.body', {
+                            swaps: stats.liabilitySwaps!.swapCount,
+                            overCap: stats.liabilitySwaps!.overCapHoursSaved,
+                            holiday: stats.liabilitySwaps!.holidayHoursSaved,
+                            comp: stats.liabilitySwaps!.compRotationsAdded,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {hasCompShortfall && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
+                      <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">{t('modal.preview.compShortfall.title')}</p>
+                        <p className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed mt-1">
+                          {t('modal.preview.compShortfall.body', {
+                            days: stats.compDayShortfallTotal,
+                            emps: stats.compDayShortfallEmployees,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {hasPeakShortfall && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/40">
+                      <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-200 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black text-amber-800 dark:text-amber-200 uppercase tracking-widest">{t('modal.preview.peakShortfall.title')}</p>
+                        <p className="text-[11px] text-amber-700 dark:text-amber-200 leading-relaxed mt-1">
+                          {t('modal.preview.peakShortfall.body', {
+                            rows: stats.peakCoverageShortfallTotal,
+                            stations: stats.peakCoverageShortfallStations,
+                          })}
+                        </p>
+                        {stats.peakCoverageShortfallTopRows.length > 0 && (
+                          <ul className="mt-2 space-y-1 text-[11px] text-amber-700 dark:text-amber-200">
+                            {stats.peakCoverageShortfallTopRows.map((r, i) => (
+                              <li key={`${r.dateStr}-${r.stationName}-${i}`} className="font-mono">
+                                {r.dateStr} · {r.stationName} — {r.achievedHC}/{r.requiredHC}
+                                {r.isHoliday ? ' · PH' : r.isPeakDay ? ' · peak' : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {/* v5.22.0 — inline coverage nudge. Only renders when
+                            the venue is on 'simple' coverage (no buffer)
+                            AND a callback is wired. Switches the venue
+                            to realistic coverage and closes the modal so
+                            the user re-runs the schedule under the new
+                            sizing. */}
+                        {currentCoverageMode === 'simple' && onAdoptRealisticCoverage && (
+                          <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-500/30">
+                            <p className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed mb-2">
+                              {t('modal.preview.peakShortfall.coverageNudge.body')}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => { onAdoptRealisticCoverage(); onClose(); }}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              {t('modal.preview.peakShortfall.coverageNudge.button')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+            );
+          })()}
 
           {/* Hours-by-role visual bar chart */}
           {roleEntries.length > 0 && (

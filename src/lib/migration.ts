@@ -286,6 +286,23 @@ export function normalizeConfig(raw: Partial<Config> & Record<string, unknown>):
   } else {
     merged.peakSafetyFactor = Math.max(1.0, Math.min(2.0, merged.peakSafetyFactor));
   }
+  // v5.22.0 — venue profile completion. If the field is missing and the
+  // raw input was a pre-v5.22 save, default to `true` so the wizard
+  // doesn't fire for established users. New installs spread DEFAULT_CONFIG
+  // first so they keep their `false` and the wizard correctly fires on
+  // first launch.
+  if (typeof merged.venueProfileCompleted !== 'boolean') {
+    merged.venueProfileCompleted = (raw as Partial<Config>).venueProfileCompleted === undefined
+      ? true   // pre-v5.22 save → never auto-onboard
+      : false; // explicitly set to non-boolean → reset
+  }
+  // v5.22.0 — dismissedTips defaults to empty so legacy users see the
+  // new "What's new" banner. Coercion keeps any existing array as-is.
+  if (!Array.isArray(merged.dismissedTips)) {
+    merged.dismissedTips = [];
+  } else {
+    merged.dismissedTips = merged.dismissedTips.filter(t => typeof t === 'string');
+  }
   return merged;
 }
 
