@@ -23,6 +23,15 @@ jobs:
   release:
     runs-on: windows-latest
 
+    # v5.22.1 — the `secrets` context cannot be referenced from a
+    # step-level `if:` expression. The canonical workaround is to bind
+    # the presence check to a job-level env var, then compare against
+    # the stringified boolean in the step's `if:`. This is how the
+    # "Deploy Firestore rules" step below gates on whether the
+    # FIREBASE_SERVICE_ACCOUNT_KEY secret has been provisioned.
+    env:
+      HAS_FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
+
     steps:
       - name: Checkout
         # v5 ships with a Node 24 bundle. Pre-v5 (v4) was a Node 20 bundle
@@ -185,7 +194,7 @@ jobs:
         # needed to opt in. The fallback exit-0 keeps the release flowing
         # if the script itself errors — rules drift is recoverable, but a
         # broken release artifact upload isn't.
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
+        if: env.HAS_FIREBASE_KEY == 'true'
         shell: pwsh
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
