@@ -4,6 +4,14 @@ import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation, Station } from '../types';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './payroll';
 
+// v5.22.1 — jspdf-autotable mutates the jsPDF document with a `lastAutoTable`
+// property after every table render, but the type defs don't expose it. The
+// `unknown` step lets us narrow without an open `any` escape, which used to
+// silently allow any property access on `doc`. Pulled out as a tiny helper so
+// the unsafe shape is declared exactly once.
+const getLastTableY = (doc: jsPDF): number =>
+  (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
 // jsPDF cannot render right-to-left Arabic glyphs without a custom font, so the
 // PDF is always generated in English (matching the convention used by Iraqi
 // regulators who accept English-language submissions). The `t` translator is
@@ -98,7 +106,7 @@ export const generatePDFReport = (
   });
 
   // --- Employee Performance & Credits ---
-  const auditY = (doc as any).lastAutoTable.finalY + 15;
+  const auditY = getLastTableY(doc) + 15;
   doc.setFontSize(16);
   doc.setTextColor(30, 41, 59);
   doc.text(t('pdf.section.performance'), 15, auditY);
@@ -163,7 +171,7 @@ export const generatePDFReport = (
   });
 
   // --- Operational Statistics ---
-  const statsY = (doc as any).lastAutoTable.finalY + 15;
+  const statsY = getLastTableY(doc) + 15;
   doc.setFontSize(14);
   doc.text(t('pdf.section.allocation'), 15, statsY);
   

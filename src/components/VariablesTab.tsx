@@ -108,33 +108,33 @@ interface CollapsibleCardProps {
 function CollapsibleCard({ title, subtitle, icon: Icon, iconBg, iconText, defaultOpen = true, badge, badgeTone = 'slate', children }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const badgeClass = ({
-    slate: 'bg-slate-100 text-slate-600 border-slate-200',
-    amber: 'bg-amber-100 text-amber-700 border-amber-200',
-    emerald: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    blue: 'bg-blue-100 text-blue-700 border-blue-200',
+    slate: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/60 dark:text-slate-300 dark:border-slate-600',
+    amber: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30',
+    emerald: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-500/30',
+    blue: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:border-blue-500/30',
   } as const)[badgeTone];
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-xl overflow-hidden shadow-sm">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full p-5 border-b border-slate-100 flex items-center gap-4 hover:bg-slate-50/50 transition-colors text-start"
+        className="w-full p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/60 transition-colors text-start"
       >
         <div className={`w-10 h-10 ${iconBg} ${iconText} rounded-xl flex items-center justify-center shrink-0`}>
           <Icon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-slate-800 text-sm tracking-tight">{title}</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight">{title}</h3>
             {badge && (
               <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${badgeClass}`}>
                 {badge}
               </span>
             )}
           </div>
-          {subtitle && <p className="text-[10px] text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{subtitle}</p>}
         </div>
-        {open ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+        {open ? <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />}
       </button>
       {open && children}
     </div>
@@ -173,19 +173,19 @@ function Section({ title, subtitle, icon, iconBg, iconText, caps, config, setCon
       badge={badge}
       badgeTone={badgeTone}
     >
-      <div className="divide-y divide-slate-50">
+      <div className="divide-y divide-slate-50 dark:divide-slate-800">
         {caps.map(cap => {
           const current = (config[cap.key] as number | undefined) ?? cap.defaultValue;
           return (
             <div key={String(cap.key)} className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <div className="md:col-span-2 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-slate-800 text-sm">{t(cap.labelKey)}</p>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 font-mono">
+                  <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{t(cap.labelKey)}</p>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-600 font-mono">
                     {cap.article}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">{t(cap.descKey)}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t(cap.descKey)}</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -197,9 +197,9 @@ function Section({ title, subtitle, icon, iconBg, iconText, caps, config, setCon
                     const v = parseFloat(e.target.value);
                     setConfig(prev => ({ ...prev, [cap.key]: Number.isFinite(v) ? v : cap.defaultValue }));
                   }}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-end focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
               </div>
             </div>
           );
@@ -245,8 +245,8 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
-        <p className="text-xs text-slate-400 font-medium uppercase tracking-widest font-mono">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
+        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
           {t('variables.subtitle')}
         </p>
       </div>
@@ -261,7 +261,9 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
           type="button"
           onClick={() => setShowStatutory(false)}
           className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-            !showStatutory ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'
+            !showStatutory
+              ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-800 dark:text-slate-100'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
           <Settings2 className="w-3.5 h-3.5" />
@@ -271,7 +273,9 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
           type="button"
           onClick={() => setShowStatutory(true)}
           className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-            showStatutory ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'
+            showStatutory
+              ? 'bg-white dark:bg-slate-900 shadow-sm text-slate-800 dark:text-slate-100'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
           <Lock className="w-3.5 h-3.5" />
@@ -280,11 +284,11 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
       </div>
 
       {readOnly && (
-        <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+        <div className="p-4 bg-amber-50/60 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-300 mt-0.5 shrink-0" />
           <div>
-            <p className="text-xs font-bold text-amber-900 uppercase tracking-widest">{t('variables.governance.readOnly.title')}</p>
-            <p className="text-[11px] text-amber-800 leading-relaxed mt-1">
+            <p className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest">{t('variables.governance.readOnly.title')}</p>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed mt-1">
               {opsReadOnly
                 ? t('variables.governance.readOnly.bothLocked')
                 : t('variables.governance.readOnly.statutoryLocked')}
@@ -295,11 +299,11 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
 
       {showStatutory ? (
         <>
-          <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl flex items-start gap-3">
-            <ShieldAlert className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+          <div className="p-4 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 rounded-xl flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-blue-800">{t('variables.statutory.banner.title')}</p>
-              <p className="text-[11px] text-blue-700 leading-relaxed mt-1">{t('variables.statutory.banner.body')}</p>
+              <p className="text-xs font-bold text-blue-800 dark:text-blue-200">{t('variables.statutory.banner.title')}</p>
+              <p className="text-[11px] text-blue-700 dark:text-blue-300/90 leading-relaxed mt-1">{t('variables.statutory.banner.body')}</p>
             </div>
           </div>
 
@@ -365,18 +369,18 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
               summary. */}
           <FineRatesSection config={config} setConfig={setConfig} readOnly={readOnly} />
 
-          <div className="border-t border-slate-100 pt-6 text-[11px] text-slate-400 leading-relaxed">
-            <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 mb-2">{t('variables.references.title')}</p>
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-6 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+            <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 dark:text-slate-400 mb-2">{t('variables.references.title')}</p>
             <p>{t('variables.references.body')}</p>
           </div>
         </>
       ) : (
         <>
-          <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+          <div className="p-4 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-blue-800">{t('variables.editingNote.title')}</p>
-              <p className="text-[11px] text-blue-700 leading-relaxed mt-1">
+              <p className="text-xs font-bold text-blue-800 dark:text-blue-200">{t('variables.editingNote.title')}</p>
+              <p className="text-[11px] text-blue-700 dark:text-blue-300/90 leading-relaxed mt-1">
                 {t('variables.editingNote.body')}
               </p>
             </div>
@@ -410,8 +414,8 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
             />
           </div>
           <div className="p-5 pt-0 space-y-2">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('variables.operatingWindow.perDayHeader')}</p>
-            <p className="text-[11px] text-slate-500 leading-relaxed">{t('variables.operatingWindow.perDayNote')}</p>
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('variables.operatingWindow.perDayHeader')}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('variables.operatingWindow.perDayNote')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               {([1,2,3,4,5,6,7] as DayOfWeek[]).map(dow => {
                 const override = config.operatingHoursByDayOfWeek?.[dow];
@@ -427,7 +431,14 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                   });
                 };
                 return (
-                  <div key={dow} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${enabled ? 'border-purple-200 bg-purple-50/40' : 'border-slate-200 bg-white'}`}>
+                  <div
+                    key={dow}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                      enabled
+                        ? 'border-purple-200 bg-purple-50/40 dark:border-purple-500/40 dark:bg-purple-500/10'
+                        : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60'
+                    }`}
+                  >
                     <Switch
                       checked={enabled}
                       onChange={v => {
@@ -439,21 +450,21 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                       disabled={opsReadOnly}
                       aria-label={`Override hours for ${t(DOW_KEY[dow])}`}
                     />
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-widest min-w-[80px]">{t(DOW_KEY[dow])}</span>
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest min-w-[80px]">{t(DOW_KEY[dow])}</span>
                     <input
                       type="time"
                       value={open}
                       disabled={!enabled || opsReadOnly}
                       onChange={e => setOverride({ open: e.target.value, close })}
-                      className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono disabled:opacity-40"
+                      className="flex-1 px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100 disabled:opacity-40"
                     />
-                    <span className="text-[10px] text-slate-400 font-bold">→</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">→</span>
                     <input
                       type="time"
                       value={close}
                       disabled={!enabled || opsReadOnly}
                       onChange={e => setOverride({ open, close: e.target.value })}
-                      className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono disabled:opacity-40"
+                      className="flex-1 px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100 disabled:opacity-40"
                     />
                   </div>
                 );
@@ -485,12 +496,12 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'comp-day' }))}
                 className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   (config.holidayCompMode ?? 'comp-day') === 'comp-day'
-                    ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 shadow-sm'
+                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600'
                 }`}
               >
-                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-800">{t('variables.art74.compDay.title')}</p>
-                <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.compDay.body')}</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">{t('variables.art74.compDay.title')}</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{t('variables.art74.compDay.body')}</p>
               </button>
               <button
                 type="button"
@@ -498,12 +509,12 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'cash-ot' }))}
                 className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   config.holidayCompMode === 'cash-ot'
-                    ? 'border-amber-500 bg-amber-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10 shadow-sm'
+                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600'
                 }`}
               >
-                <p className="text-[11px] font-black uppercase tracking-widest text-amber-800">{t('variables.art74.cashOt.title')}</p>
-                <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.cashOt.body')}</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300">{t('variables.art74.cashOt.title')}</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{t('variables.art74.cashOt.body')}</p>
               </button>
               <button
                 type="button"
@@ -511,12 +522,12 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 onClick={() => compModeReadOnly ? null : rawSetConfig(prev => ({ ...prev, holidayCompMode: 'both' }))}
                 className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   config.holidayCompMode === 'both'
-                    ? 'border-purple-500 bg-purple-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10 shadow-sm'
+                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600'
                 }`}
               >
-                <p className="text-[11px] font-black uppercase tracking-widest text-purple-800">{t('variables.art74.both.title')}</p>
-                <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t('variables.art74.both.body')}</p>
+                <p className="text-[11px] font-black uppercase tracking-widest text-purple-800 dark:text-purple-300">{t('variables.art74.both.title')}</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{t('variables.art74.both.body')}</p>
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -541,7 +552,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 disabled={readOnly}
               />
             </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">{t('variables.art74.note')}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('variables.art74.note')}</p>
           </div>
         </CollapsibleCard>
 
@@ -582,7 +593,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
               disabled={readOnly}
             />
           </div>
-          <div className="p-5 pt-0 text-[11px] text-slate-500 leading-relaxed">
+          <div className="p-5 pt-0 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             {t('variables.ramadan.note')}
           </div>
         </CollapsibleCard>
@@ -611,7 +622,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 disabled={readOnly}
                 aria-labelledby="enforce-art86-label"
               />
-              <label htmlFor="enforce-art86" id="enforce-art86-label" className="text-[11px] font-bold text-slate-700 uppercase tracking-widest cursor-pointer">{t('variables.art86.enable')}</label>
+              <label htmlFor="enforce-art86" id="enforce-art86-label" className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest cursor-pointer">{t('variables.art86.enable')}</label>
             </div>
             {art86Enabled && (
               <div className="grid grid-cols-2 gap-4">
@@ -631,7 +642,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                 />
               </div>
             )}
-            <p className="text-[11px] text-slate-500 leading-relaxed">{t('variables.art86.note')}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('variables.art86.note')}</p>
           </div>
         </CollapsibleCard>
 
@@ -726,14 +737,14 @@ function FineRatesSection({ config, setConfig, readOnly }: {
       badge={overrideCount > 0 ? t('variables.fines.badge.customized', { count: overrideCount }) : undefined}
       badgeTone="blue"
     >
-      <div className="p-4 bg-amber-50/60 border-b border-amber-100">
-        <p className="text-[11px] text-amber-900 leading-relaxed">
+      <div className="p-4 bg-amber-50/60 dark:bg-amber-500/10 border-b border-amber-100 dark:border-amber-500/30">
+        <p className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
           <span className="font-bold uppercase tracking-widest">{t('variables.fines.disclaimer.label')}</span>
           {' — '}
           {t('variables.fines.disclaimer.body')}
         </p>
       </div>
-      <div className="divide-y divide-slate-50">
+      <div className="divide-y divide-slate-50 dark:divide-slate-800">
         {RULE_ORDER.map(ruleKey => {
           const labelKey = RULE_LABEL_I18N_KEYS[ruleKey];
           const article = RULE_ARTICLES[ruleKey] ?? '';
@@ -745,17 +756,17 @@ function FineRatesSection({ config, setConfig, readOnly }: {
             <div key={ruleKey} className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <div className="md:col-span-2 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-bold text-slate-800 text-sm">{labelKey ? t(labelKey) : ruleKey}</p>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 font-mono">
+                  <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{labelKey ? t(labelKey) : ruleKey}</p>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-600 font-mono">
                     {article}
                   </span>
                   {isOverridden && (
-                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-widest border border-blue-200">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 text-[9px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-500/30">
                       {t('variables.fines.overridden')}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   {t('variables.fines.row.help', { defaultAmount: seedDefault.toLocaleString() })}
                 </p>
               </div>
@@ -770,15 +781,15 @@ function FineRatesSection({ config, setConfig, readOnly }: {
                     const v = parseFloat(e.target.value);
                     updateRate(ruleKey, Number.isFinite(v) ? v : seedDefault);
                   }}
-                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-mono text-end focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
                 {isOverridden && !readOnly && (
                   <button
                     type="button"
                     onClick={() => resetToDefault(ruleKey)}
                     title={t('variables.fines.reset.tooltip')}
-                    className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 underline"
+                    className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline"
                   >
                     {t('variables.fines.reset')}
                   </button>
@@ -838,9 +849,9 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
           {COVERAGE_PRESETS.map(p => {
             const active = activePreset === p.id;
             const tone = ({
-              slate: { border: 'border-slate-500', bg: 'bg-slate-50', text: 'text-slate-800' },
-              emerald: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-800' },
-              purple: { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-800' },
+              slate: { border: 'border-slate-500 dark:border-slate-400', bg: 'bg-slate-50 dark:bg-slate-800/80', text: 'text-slate-800 dark:text-slate-200' },
+              emerald: { border: 'border-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-800 dark:text-emerald-300' },
+              purple: { border: 'border-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-800 dark:text-purple-300' },
             } as const)[p.tone];
             return (
               <button
@@ -849,11 +860,13 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
                 disabled={readOnly}
                 onClick={() => setPreset(p.id)}
                 className={`p-4 rounded-xl border-2 text-start transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                  active ? `${tone.border} ${tone.bg} shadow-sm` : 'border-slate-200 bg-white hover:border-slate-300'
+                  active
+                    ? `${tone.border} ${tone.bg} shadow-sm`
+                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-600'
                 }`}
               >
                 <p className={`text-[11px] font-black uppercase tracking-widest ${tone.text}`}>{t(p.titleKey)}</p>
-                <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">{t(p.descKey)}</p>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{t(p.descKey)}</p>
               </button>
             );
           })}
@@ -864,18 +877,18 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
             disclosure is only meaningful in 'realistic' or 'safety-
             critical' modes; in 'bare' the rates aren't applied. */}
         {activePreset !== 'bare' && (
-          <div className="border-t border-slate-100 pt-4">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
             <button
               type="button"
               onClick={() => setShowCustomize(s => !s)}
-              className="text-[11px] font-bold text-slate-600 hover:text-slate-900 uppercase tracking-widest flex items-center gap-1"
+              className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 uppercase tracking-widest flex items-center gap-1"
             >
               {showCustomize ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               {showCustomize ? t('variables.coverage.customize.hide') : t('variables.coverage.customize.show')}
             </button>
             {showCustomize && (
               <div className="mt-4 space-y-3">
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   {t('variables.coverage.customize.note')}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -892,7 +905,7 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
                     const pct = ((dt[field.key] as number) * 100).toFixed(1);
                     return (
                       <div key={field.key} className="flex items-center gap-2">
-                        <label className="text-[11px] text-slate-700 flex-1">{t(field.labelKey)}</label>
+                        <label className="text-[11px] text-slate-700 dark:text-slate-200 flex-1">{t(field.labelKey)}</label>
                         <input
                           type="number"
                           step={0.1}
@@ -911,9 +924,9 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
                               },
                             }));
                           }}
-                          className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-mono text-end focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+                          className="w-20 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60"
                         />
-                        <span className="text-[10px] font-bold text-slate-400">%</span>
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">%</span>
                       </div>
                     );
                   })}
@@ -937,7 +950,7 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
                     disabled={readOnly}
                     aria-labelledby="coverage-operates-on-holidays-label"
                   />
-                  <label htmlFor="coverage-operates-on-holidays" id="coverage-operates-on-holidays-label" className="text-[11px] text-slate-700 cursor-pointer">
+                  <label htmlFor="coverage-operates-on-holidays" id="coverage-operates-on-holidays-label" className="text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
                     {t('variables.coverage.dt.operatesOnHolidays')}
                   </label>
                 </div>

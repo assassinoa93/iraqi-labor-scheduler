@@ -2,6 +2,32 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.22.1 — 2026-05-21
+
+**Maintenance pass: dark-mode coverage, type-safety cleanup, CI hardening, and compliance integration tests.** No new product surfaces — this rollup closes out polish items from the v5.22.0 review.
+
+### Dark-mode polish
+- [components/VenueProfileWizard.tsx](src/components/VenueProfileWizard.tsx) — coverage preset cards, Art. 74 holiday-comp option cards, and open/close time inputs now carry `dark:` companions on inactive state.
+- [components/VariablesTab.tsx](src/components/VariablesTab.tsx) — `CollapsibleCard` shell + badge tones (slate / amber / emerald / blue), Operational/Statutory view-switcher pills, day-of-week override pills, Art. 74 three-way mode buttons, fine-rates rows + disclaimer banner, Ramadan / Art. 86 surrounds, and Coverage Realism preset cards all get full dark-mode coverage. Inputs gain `dark:focus:ring-blue-400` so the focus ring is visible on dark backgrounds.
+
+### Type safety
+- [lib/pdfReport.ts](src/lib/pdfReport.ts) — `(doc as any).lastAutoTable.finalY` replaced with a typed `getLastTableY(doc)` helper using the same `as unknown as { lastAutoTable: { finalY: number } }` narrowing already in use by [lib/ai/aiPdfReport.ts](src/lib/ai/aiPdfReport.ts).
+- [components/Primitives.tsx](src/components/Primitives.tsx) — `ScheduleCell.onClick` signature widened to `React.MouseEvent | React.KeyboardEvent`, eliminating the `e as unknown as React.MouseEvent` cast in the Enter / Space keyboard activation path. Call sites read only `e.shiftKey`, which exists on both.
+- [App.tsx](src/App.tsx), [components/AI/ChatPanel.tsx](src/components/AI/ChatPanel.tsx), [components/SuperAdmin/QuotaPanel.tsx](src/components/SuperAdmin/QuotaPanel.tsx) — every `eslint-disable-next-line react-hooks/exhaustive-deps` now has an explanatory comment naming *why* the dep is intentionally omitted.
+
+### AI Services tab
+- [tabs/AIServicesTab.tsx](src/tabs/AIServicesTab.tsx) — `FuturePhaseNotice` placeholder removed (the chat panel shipped in v5.20.0; the "coming next" note is stale). `ReadoutTile` now truncates long labels / values and exposes the full text on `title=`, preventing layout breakage when custom OpenRouter key labels run long.
+
+### Compliance tests
+- [lib/__tests__/compliance.integration.test.ts](src/lib/__tests__/compliance.integration.test.ts) — new 9-scenario integration suite pinning rule interactions the unit tests don't cover: rolling weekly cap spanning month boundaries (with and without prior-month visibility), consecutive-day streak crossing months, annual-leave + weekly-cap interaction, driver-specific cap stacking (daily + consecutive-day, weekly cap at the edge, driver-vs-standard max-consec override), and late-month comp-day windows spilling into the next month. 313/313 tests pass.
+
+### CI / release hardening
+- [.github/workflows/release.yml](.github/workflows/release.yml) — adds a **Secret-leak scan** step (Google API key, AWS key, PEM private-key blocks, service-account JSON, OpenAI/Anthropic/OpenRouter `sk-...` shape) right after checkout, aborting the release if any tracked source file matches a secret-shaped pattern. Defence-in-depth on top of the manual four-step audit.
+- [.github/workflows/release.yml](.github/workflows/release.yml) — adds a **Deploy Firestore rules** step that runs only when `secrets.FIREBASE_SERVICE_ACCOUNT_KEY` is configured. Until the secret is provisioned the step is silently skipped; once added, every tagged release keeps `firestore.rules` in sync with prod with no manual `npm run deploy-rules` invocation. Failures inside the script log a warning and exit 0 so a Firebase blip can't break the installer upload.
+
+### Migration / docs
+- [lib/migration.ts](src/lib/migration.ts) — explanatory comment on `CURRENT_DATA_VERSION` documenting that every v5.x change has been purely additive (no schema rename or breaking removal), so legacy v2 backups still load without a v3 migration. The next bump is reserved for a structural rewrite.
+
 ## v5.22.0 — 2026-05-07
 
 **End-to-end UX overhaul: presets over toggles, smart defaults, progressive disclosure, and a first-run wizard.** Configuration surface area added across v5.17–v5.21 had grown to 42 controls in the Variables tab; v5.22 collapses that to a manageable progressive-disclosure structure without removing any capability. Power users can still dive into raw rates; everyone else gets opinionated defaults and inline guidance at the moment of need.

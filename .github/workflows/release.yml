@@ -29,6 +29,46 @@ jobs:
         # and showed up in the deprecation annotation.
         uses: actions/checkout@v5
 
+      - name: Secret-leak scan
+        # v5.22.1 — defence-in-depth check on top of the manual four-step
+        # audit. Fails the release if a tagged commit contains a Google API
+        # key, AWS key, PEM private key block, or service-account JSON.
+        # Scoped to tracked source files (vendored fonts and lockfiles
+        # are excluded by `git ls-files`). Cheap belt for catching a
+        # paste-mistake before electron-builder uploads the installer.
+        shell: pwsh
+        run: |
+          $patterns = @(
+            'AIza[0-9A-Za-z_\-]{35}',           # Google API key
+            'AKIA[0-9A-Z]{16}',                  # AWS access key
+            '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----',
+            '"type"\s*:\s*"service_account"',    # Firebase / GCP service-account JSON
+            'sk-[a-zA-Z0-9]{32,}'                # OpenAI / Anthropic / OpenRouter shape
+          )
+          $tracked = git ls-files | Where-Object {
+            $_ -notmatch '\.(png|jpg|jpeg|gif|ico|woff2?|ttf|otf|pdf|lock)$' -and
+            $_ -ne 'package-lock.json' -and
+            $_ -notmatch '^\.github/workflows/'
+          }
+          $found = $false
+          foreach ($file in $tracked) {
+            if (-not (Test-Path -LiteralPath $file)) { continue }
+            $content = Get-Content -LiteralPath $file -Raw -ErrorAction SilentlyContinue
+            if (-not $content) { continue }
+            foreach ($pat in $patterns) {
+              if ($content -match $pat) {
+                Write-Error "Secret-shaped match in ${file}: pattern /${pat}/"
+                $found = $true
+              }
+            }
+          }
+          if ($found) {
+            Write-Error "Secret-leak scan failed. Aborting release."
+            exit 1
+          } else {
+            Write-Host "Secret-leak scan: clean."
+          }
+
       - name: Install Node.js
         # v5 ships with a Node 24 bundle (action runtime). Same Node 20
         # deprecation reason as checkout above.
@@ -136,6 +176,31 @@ jobs:
           # repository secrets and electron-builder will sign
           # automatically. Until then the installer ships unsigned and
           # Windows SmartScreen will display a warning.
+
+      - name: Deploy Firestore rules
+        # v5.22.1 — keeps tracked `firestore.rules` in sync with prod on
+        # every tagged release. Skipped when the FIREBASE_SERVICE_ACCOUNT_KEY
+        # secret isn't configured (e.g. early Firebase-migration stages or
+        # forks without prod access), so adding the secret is the only step
+        # needed to opt in. The fallback exit-0 keeps the release flowing
+        # if the script itself errors — rules drift is recoverable, but a
+        # broken release artifact upload isn't.
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
+        shell: pwsh
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          try {
+            $tmp = New-TemporaryFile
+            $env:FIREBASE_SERVICE_ACCOUNT_KEY | Out-File -FilePath $tmp -Encoding utf8 -NoNewline
+            $env:GOOGLE_APPLICATION_CREDENTIALS = $tmp.FullName
+            node scripts/deploy-firestore-rules.cjs
+          } catch {
+            Write-Warning "Firestore rules deploy failed: $($_.Exception.Message). Release continues."
+            exit 0
+          } finally {
+            if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+          }
 
       - name: Publish SHA-256 hashes
         shell: pwsh

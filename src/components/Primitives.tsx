@@ -355,7 +355,11 @@ export function ScheduleCell({
   hasViolation, empId, day, ariaLabel,
 }: {
   value: string;
-  onClick: (e: React.MouseEvent) => void;
+  // v5.22.1 — keyboard activation (Enter / Space) reuses the click handler;
+  // both event types expose `shiftKey` and `target`, which is all the call
+  // sites read. Widening the signature here replaces a runtime cast with a
+  // type-system-level guarantee.
+  onClick: (e: React.MouseEvent | React.KeyboardEvent) => void;
   isRecent?: boolean;
   onMouseDown?: (e: React.MouseEvent) => void;
   onMouseEnter?: (e: React.MouseEvent) => void;
@@ -400,7 +404,7 @@ export function ScheduleCell({
     if (readOnly) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      onClick(e as unknown as React.MouseEvent);
+      onClick(e);
       return;
     }
     if (!empId || day === undefined) return;

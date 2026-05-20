@@ -705,6 +705,9 @@ export default function App() {
       cancelled = true;
       unsubs.forEach((u) => u());
     };
+    // setCompanyData is a stable React setState — omitting it from the
+    // deps list keeps the effect from re-subscribing whenever the parent
+    // closure re-renders. Same posture as the auth effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, activeCompanyId]);
 

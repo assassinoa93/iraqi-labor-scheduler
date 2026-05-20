@@ -97,6 +97,10 @@ export function ChatPanel({
     } else if (model) {
       setSession(newSession(scope, model));
     }
+    // `scope` and `model` are intentionally NOT deps — the locked design
+    // is that scope is captured ONCE at session start (per-session scope).
+    // Re-running this on every scope toggle would silently discard the
+    // user's conversation. Mid-session model swaps are handled elsewhere.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiUserId]);
 

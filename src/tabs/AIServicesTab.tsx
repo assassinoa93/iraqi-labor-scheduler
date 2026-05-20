@@ -376,8 +376,6 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
         </>
       )}
 
-      <FuturePhaseNotice />
-
       {confirmSlot}
 
       {/* First-use consent dialog */}
@@ -772,21 +770,13 @@ function ConfiguredKeyState({
 
 function ReadoutTile({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 border border-emerald-200/60 dark:border-emerald-500/20 rounded-lg p-3">
-      <p className="text-[9px] font-black text-emerald-700/70 dark:text-emerald-300/70 uppercase tracking-widest">{label}</p>
-      <p className={`text-sm font-bold text-slate-800 dark:text-slate-100 mt-0.5 ${mono ? 'font-mono text-xs' : ''}`}>
+    <div className="bg-white/80 dark:bg-slate-900/40 border border-emerald-200/60 dark:border-emerald-500/20 rounded-lg p-3 min-w-0">
+      <p className="text-[9px] font-black text-emerald-700/70 dark:text-emerald-300/70 uppercase tracking-widest truncate" title={label}>{label}</p>
+      <p
+        className={`text-sm font-bold text-slate-800 dark:text-slate-100 mt-0.5 truncate ${mono ? 'font-mono text-xs' : ''}`}
+        title={value}
+      >
         {value}
-      </p>
-    </div>
-  );
-}
-
-function FuturePhaseNotice() {
-  return (
-    <div className="p-4 bg-blue-50/40 dark:bg-blue-500/[0.07] border border-blue-200 dark:border-blue-500/30 rounded-xl">
-      <p className="text-[11px] text-blue-800 dark:text-blue-200 font-bold uppercase tracking-widest mb-1">Coming next</p>
-      <p className="text-xs text-blue-700 dark:text-blue-300/90 leading-relaxed">
-        The chat panel — interview + advisory flow over your stations, schedules, payroll, and workforce plans — lands in the next phase. Scope is already wired (above); the conversation surface will read from it directly when it ships.
       </p>
     </div>
   );

@@ -109,6 +109,10 @@ export function QuotaPanel() {
     void refresh();
     const id = window.setInterval(() => { void refresh(); }, POLL_MS);
     return () => window.clearInterval(id);
+    // Mount-only quota poller. `refresh` closes over admin API state but
+    // re-runs would tear down and re-create the interval on every render
+    // (the function identity isn't memoised), which would reset the
+    // polling cadence and double-fetch on parent re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

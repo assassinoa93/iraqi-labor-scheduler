@@ -158,7 +158,7 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                     type="time"
                     value={openTime}
                     onChange={e => setOpenTime(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono"
+                    className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100"
                   />
                 </label>
                 <label className="block">
@@ -167,7 +167,7 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                     type="time"
                     value={closeTime}
                     onChange={e => setCloseTime(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono"
+                    className="mt-1 w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100"
                   />
                 </label>
               </div>
@@ -236,9 +236,9 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                 {(['bare', 'realistic', 'safety-critical'] as CoveragePresetId[]).map(id => {
                   const active = coveragePreset === id;
                   const tone = ({
-                    'bare': 'border-slate-500 bg-slate-50 text-slate-800',
-                    'realistic': 'border-emerald-500 bg-emerald-50 text-emerald-800',
-                    'safety-critical': 'border-purple-500 bg-purple-50 text-purple-800',
+                    'bare': 'border-slate-500 bg-slate-50 text-slate-800 dark:border-slate-400 dark:bg-slate-800/80 dark:text-slate-200',
+                    'realistic': 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-300',
+                    'safety-critical': 'border-purple-500 bg-purple-50 text-purple-800 dark:border-purple-500 dark:bg-purple-500/10 dark:text-purple-300',
                   } as const)[id];
                   return (
                     <button
@@ -246,13 +246,15 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                       type="button"
                       onClick={() => setCoveragePreset(id)}
                       className={`p-4 rounded-xl border-2 text-start transition-all ${
-                        active ? tone + ' shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                        active
+                          ? tone + ' shadow-sm'
+                          : 'border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600/80'
                       }`}
                     >
                       <p className="text-[12px] font-black uppercase tracking-widest">
                         {t(`variables.coverage.preset.${id === 'safety-critical' ? 'safetyCritical' : id}.title`)}
                       </p>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      <p className={`text-[11px] mt-1 leading-relaxed ${active ? 'opacity-85' : 'text-slate-600 dark:text-slate-400'}`}>
                         {t(`variables.coverage.preset.${id === 'safety-critical' ? 'safetyCritical' : id}.desc`)}
                       </p>
                     </button>
@@ -271,9 +273,9 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
               <p className="text-[12px] text-slate-600 dark:text-slate-400 leading-relaxed">{t('wizard.venueProfile.q5.body')}</p>
               <div className="grid grid-cols-1 gap-3">
                 {([
-                  { id: 'comp-day' as const, tone: 'border-emerald-500 bg-emerald-50 text-emerald-800' },
-                  { id: 'cash-ot' as const, tone: 'border-amber-500 bg-amber-50 text-amber-800' },
-                  { id: 'both' as const, tone: 'border-purple-500 bg-purple-50 text-purple-800' },
+                  { id: 'comp-day' as const, tone: 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-300' },
+                  { id: 'cash-ot' as const, tone: 'border-amber-500 bg-amber-50 text-amber-800 dark:border-amber-500 dark:bg-amber-500/10 dark:text-amber-300' },
+                  { id: 'both' as const, tone: 'border-purple-500 bg-purple-50 text-purple-800 dark:border-purple-500 dark:bg-purple-500/10 dark:text-purple-300' },
                 ]).map(opt => {
                   const active = holidayCompMode === opt.id;
                   return (
@@ -282,13 +284,15 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                       type="button"
                       onClick={() => setHolidayCompMode(opt.id)}
                       className={`p-4 rounded-xl border-2 text-start transition-all ${
-                        active ? opt.tone + ' shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                        active
+                          ? opt.tone + ' shadow-sm'
+                          : 'border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600/80'
                       }`}
                     >
                       <p className="text-[12px] font-black uppercase tracking-widest">
                         {t(`variables.art74.${opt.id === 'comp-day' ? 'compDay' : opt.id === 'cash-ot' ? 'cashOt' : 'both'}.title`)}
                       </p>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      <p className={`text-[11px] mt-1 leading-relaxed ${active ? 'opacity-85' : 'text-slate-600 dark:text-slate-400'}`}>
                         {t(`variables.art74.${opt.id === 'comp-day' ? 'compDay' : opt.id === 'cash-ot' ? 'cashOt' : 'both'}.body`)}
                       </p>
                     </button>

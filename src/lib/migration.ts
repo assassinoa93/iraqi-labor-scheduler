@@ -26,6 +26,14 @@ import { DEFAULT_CONFIG } from './initialData';
 // Bump this when introducing a structural migration. Stored in
 // `companies.json` alongside the companies list so future versions can
 // detect what level of migration the on-disk data has already received.
+//
+// v5.x note (v5.0 through v5.22.1): all schema changes since v2 have been
+// purely additive — new optional fields on Employee / Shift / Station /
+// Config (e.g. `category`, `holidayCompMode`, `downtimeAssumptions`,
+// `operatingHoursByDayOfWeek`, `fineRates`). Backfilled to defaults by
+// the per-domain normalisers below, so legacy v2 backups load unchanged
+// without needing a v3 migration. The next bump should be reserved for
+// a structural rewrite (field rename, shape change, or breaking removal).
 export const CURRENT_DATA_VERSION = 2;
 
 // ─── Employee ────────────────────────────────────────────────────────────────
