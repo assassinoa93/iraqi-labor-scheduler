@@ -72,6 +72,7 @@ import { BulkAssignModal } from './components/BulkAssignModal';
 import { BulkEditEmployeesModal, BulkEditPatch } from './components/BulkEditEmployeesModal';
 import { PrintScheduleView } from './components/PrintScheduleView';
 import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion } from './lib/coverageHints';
+import { useCoverageHints, type PendingHint } from './lib/useCoverageHints';
 import { suggestHourlyDemandFromHistory } from './lib/demandHistory';
 import { PlanEverythingWizard } from './components/PlanEverythingWizard';
 import { getEmployeeLeaveOnDate } from './lib/leaves';
@@ -994,69 +995,21 @@ export default function App() {
   const [scheduleRoleFilter, setScheduleRoleFilter] = useState<string>('all');
   const [paintWarnings, setPaintWarnings] = useState<{ empName: string; warnings: string[] } | null>(null);
   const paintWarningTimerRef = React.useRef<number | null>(null);
-  // Coverage-gap suggestion queue (v1.12). Pre-1.12 we only kept the most
-  // recent gap, which meant that painting absences for two employees in
-  // sequence dropped the first suggestion the moment the second paint fired.
-  // The queue preserves all open gaps; the SuggestionPane shows the head
-  // entry as the "active" suggestion, with a count + drill-down for the
-  // rest. The live-refresh effect prunes entries when a gap is genuinely
-  // closed (reassigned, or another worker filled the slot at peak headcount).
-  type PendingHint = {
-    id: string; // `${vacatedEmpId}:${day}:${stationId}` — uniquely identifies the gap
-    gap: CoverageGap;
-    suggestions: CoverageSuggestion[];
-    ts: number; // creation time, used for mass-change detection + ordering
-  };
-  const [coverageHints, setCoverageHints] = useState<PendingHint[]>([]);
-  const activeCoverageHint = coverageHints[0] || null;
-  const hintIdFor = (gap: CoverageGap) => `${gap.vacatedEmpId}:${gap.day}:${gap.station.id}`;
-  // Queue helpers — keep call sites ergonomic by hiding the dedupe rules
-  // here. `pushHint` drops duplicates (same vacatedEmp + day + station)
-  // because rapid drag-paint can fire the same gap multiple times for the
-  // same cell, and we don't want phantom queue inflation.
-  const pushHint = React.useCallback((gap: CoverageGap, suggestions: CoverageSuggestion[]) => {
-    const id = hintIdFor(gap);
-    setCoverageHints(prev => {
-      if (prev.some(h => h.id === id)) {
-        // Refresh the suggestions list on the existing entry rather than
-        // pushing a duplicate; otherwise rapid sweep-paint over the same
-        // cell would stack the hint over and over.
-        return prev.map(h => h.id === id ? { ...h, suggestions } : h);
-      }
-      return [...prev, { id, gap, suggestions, ts: Date.now() }];
-    });
-  }, []);
-  const dismissHintById = React.useCallback((id: string) => {
-    setCoverageHints(prev => prev.filter(h => h.id !== id));
-  }, []);
-  // Mass-change detection. When ≥3 distinct gaps open within 8 s, surface a
-  // single "bulk operation detected" banner above the active hint that
-  // offers to re-run the auto-scheduler in preserve-absences mode. The
-  // detector reads only from `coverageHints[].ts` so it's automatic — no
-  // extra event tracking required.
-  const MASS_CHANGE_THRESHOLD = 3;
-  const MASS_CHANGE_WINDOW_MS = 8000;
-  const massChangeDetected = useMemo(() => {
-    if (coverageHints.length < MASS_CHANGE_THRESHOLD) return false;
-    const cutoff = Date.now() - MASS_CHANGE_WINDOW_MS;
-    return coverageHints.filter(h => h.ts >= cutoff).length >= MASS_CHANGE_THRESHOLD;
-  }, [coverageHints]);
-  // Cells the user just edited via the toast's swap action. Rendered with a
-  // pulsing highlight in the schedule grid for ~5 seconds so the user can
-  // see exactly which rows moved when the rebalance completes. Stored as
-  // `${empId}:${day}` keys.
-  const [recentlyChangedCells, setRecentlyChangedCells] = useState<Set<string>>(new Set());
-  const recentlyChangedTimerRef = React.useRef<number | null>(null);
-  const flashRecentlyChanged = React.useCallback((keys: string[]) => {
-    if (keys.length === 0) return;
-    setRecentlyChangedCells(prev => {
-      const next = new Set(prev);
-      keys.forEach(k => next.add(k));
-      return next;
-    });
-    if (recentlyChangedTimerRef.current) window.clearTimeout(recentlyChangedTimerRef.current);
-    recentlyChangedTimerRef.current = window.setTimeout(() => setRecentlyChangedCells(new Set()), 5000);
-  }, []);
+  // Coverage-gap suggestion queue (v1.12, extracted to useCoverageHints in
+  // v5.23). The hook owns the FIFO queue (pushHint dedupes by gap id),
+  // mass-change detection (≥3 distinct gaps inside 8 s), and the recently-
+  // changed-cells pulse used after toast-driven swaps. The live-refresh
+  // effect below still drives queue pruning via `setCoverageHints`.
+  const {
+    coverageHints,
+    activeCoverageHint,
+    pushHint,
+    dismissHintById,
+    setCoverageHints,
+    massChangeDetected,
+    recentlyChangedCells,
+    flashRecentlyChanged,
+  } = useCoverageHints();
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
