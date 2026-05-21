@@ -13,6 +13,7 @@ import { useI18n } from '../lib/i18n';
 import { baseHourlyRate, monthlyHourCap } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
+import { SetupChecklist } from '../components/SetupChecklist';
 import { StaffingAdvisoryCard } from '../components/StaffingAdvisoryCard';
 import { computeStaffingAdvisory } from '../lib/staffingAdvisory';
 import { computeHolidayPay } from '../lib/holidayCompPay';
@@ -42,6 +43,12 @@ interface DashboardTabProps {
   nextMonth: () => void;
   setActiveMonth: (year: number, month: number) => void;
   onGoToRoster: () => void;
+  // v5.24.0 — extra deep-link callbacks for the SetupChecklist on the
+  // Dashboard. Required while the checklist renders (stations / shifts
+  // / schedule empty); ignored otherwise.
+  onGoToLayout: () => void;
+  onGoToShifts: () => void;
+  onGoToSchedule: () => void;
   onLoadSample: () => void;
   // Identifies which company we're recording the compliance trend for. The
   // trend card persists per-company snapshots in localStorage so switching
@@ -62,6 +69,7 @@ export function DashboardTab(props: DashboardTabProps) {
     peakStabilityPercent, overallCoveragePercent,
     isStatsModalOpen, setIsStatsModalOpen,
     prevMonth, nextMonth, setActiveMonth, onGoToRoster, onLoadSample,
+    onGoToLayout, onGoToShifts, onGoToSchedule,
     activeCompanyId, isPeakDay,
   } = props;
   const { t } = useI18n();
@@ -201,6 +209,19 @@ export function DashboardTab(props: DashboardTabProps) {
           </button>
         </div>
       </div>
+
+      {/* v5.24.0 — Setup checklist for new users. Self-hides once the
+          workspace has stations, employees, and shifts; also dismissible
+          per-device via the X. */}
+      <SetupChecklist
+        stationsCount={stations.length}
+        employeesCount={employees.length}
+        shiftsCount={shifts.filter(s => s.isWork).length}
+        onGoToLayout={onGoToLayout}
+        onGoToRoster={onGoToRoster}
+        onGoToShifts={onGoToShifts}
+        onGoToSchedule={onGoToSchedule}
+      />
 
       <AnimatePresence>
         {isStatsModalOpen && (

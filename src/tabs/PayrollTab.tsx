@@ -8,6 +8,7 @@ import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWork
 import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange, projectHolidayBank } from '../lib/leaves';
 import { format } from 'date-fns';
 import { computeHolidayPay, HolidayPayBreakdown } from '../lib/holidayCompPay';
+import { computeCompanyGratuity } from '../lib/gratuity';
 
 type PayrollSortKey =
   | 'name' | 'totalHours' | 'holidayBank' | 'annualLeave'
@@ -67,7 +68,7 @@ const parseCSVLine = (line: string): string[] => {
 };
 
 export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth, setActiveMonth, onOpenLeaveManager }: PayrollTabProps) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const importInputRef = useRef<HTMLInputElement>(null);
   const balanceImportInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -504,6 +505,62 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           </span>
         )}
       </div>
+
+      {/* v5.24.0 — End-of-Service Gratuity card (Iraqi Labor Law Art. 137).
+          Shows the company's total accrued liability as of the active
+          month's end, with the top-five exposed employees. Pure
+          read-only — the app reports the number, it doesn't disburse. */}
+      {(() => {
+        const asOfDate = `${config.year}-${String(config.month).padStart(2, '0')}-${String(config.daysInMonth).padStart(2, '0')}`;
+        const gratuity = computeCompanyGratuity(employees, asOfDate);
+        if (gratuity.contributors === 0) return null;
+        return (
+          <Card className="p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.eyebrow')}</p>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mt-0.5">{t('payroll.gratuity.title')}</h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed max-w-xl">{t('payroll.gratuity.subtitle')}</p>
+              </div>
+              <div className="text-end">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.totalLiability')}</p>
+                <p className="text-3xl font-black text-purple-700 dark:text-purple-200 tabular-nums">
+                  {fmt.num(Math.round(gratuity.totalLiability))}
+                </p>
+                <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">IQD</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.contributors')}</p>
+                <p className="text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{fmt.num(gratuity.contributors)}</p>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.avg')}</p>
+                <p className="text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{fmt.num(Math.round(gratuity.avgPerEmployee))}</p>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.asOf')}</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">{fmt.date(new Date(config.year, config.month - 1, config.daysInMonth), 'yyyy-MM-dd')}</p>
+              </div>
+            </div>
+            {gratuity.topFive.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">{t('payroll.gratuity.topFive')}</p>
+                <ul className="space-y-1">
+                  {gratuity.topFive.map(r => (
+                    <li key={r.empId} className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-100 dark:border-slate-700/60">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{r.name}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{fmt.num(Number(r.yearsServed.toFixed(1)))}y</span>
+                      <span className="font-mono font-black text-purple-700 dark:text-purple-200 tabular-nums">{fmt.num(Math.round(r.amount))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Card>
+        );
+      })()}
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">

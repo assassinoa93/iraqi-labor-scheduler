@@ -178,10 +178,31 @@ export function ScheduleApprovalBanner({
           </div>
         )}
 
+        {/* v5.24.0 — Blocked-action reasons. Surfaces *why* the user can't
+            see a button they might expect at this point in the workflow.
+            Filtered to role-relevant actions so a supervisor doesn't see
+            "Save & finalize is blocked" (admin-only, not their action).
+            Pre-v5.24 these reasons were computed but discarded. */}
+        {(() => {
+          const reasons: string[] = [];
+          if ((role === 'supervisor' || role === 'super_admin') && actions.submitReason) reasons.push(actions.submitReason);
+          if ((role === 'manager' || role === 'super_admin') && actions.lockReason) reasons.push(actions.lockReason);
+          if ((role === 'admin' || role === 'super_admin') && actions.saveReason) reasons.push(actions.saveReason);
+          if ((role === 'manager' || role === 'admin' || role === 'super_admin') && actions.sendBackReason) reasons.push(actions.sendBackReason);
+          if ((role === 'admin' || role === 'super_admin') && actions.reopenReason) reasons.push(actions.reopenReason);
+          if (reasons.length === 0) return null;
+          return (
+            <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 italic leading-relaxed">
+              {reasons[0]}
+            </p>
+          );
+        })()}
+
         <div className="flex flex-wrap gap-2 pt-1">
           {actions.canSubmit && canWriteSchedule && onSubmit && (
             <button
               onClick={onSubmit}
+              title={status === 'rejected' ? 'Re-submit this schedule for manager approval after addressing the rejection notes.' : 'Submit this draft to the manager for validation.'}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               {status === 'rejected' ? <Undo2 className="w-3 h-3" /> : <Send className="w-3 h-3" />}
@@ -192,6 +213,7 @@ export function ScheduleApprovalBanner({
           {actions.canLock && onLock && (
             <button
               onClick={onLock}
+              title="Lock the submitted schedule for admin finalization. Supervisors can no longer edit cells after this."
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <ShieldCheck className="w-3 h-3" />
@@ -202,6 +224,7 @@ export function ScheduleApprovalBanner({
           {actions.canSave && onSave && (
             <button
               onClick={onSave}
+              title="Finalize this locked schedule as the official archive. Once saved, only Reopen can re-enable editing."
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <LockIcon className="w-3 h-3" />
@@ -212,6 +235,9 @@ export function ScheduleApprovalBanner({
           {actions.canSendBack && onSendBack && (
             <button
               onClick={onSendBack}
+              title={status === 'submitted'
+                ? 'Reject this submission and send it back to the supervisor with notes explaining what needs fixing.'
+                : 'Send this locked schedule back to the manager for re-validation.'}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <ArrowLeft className="w-3 h-3" />
@@ -221,6 +247,7 @@ export function ScheduleApprovalBanner({
           {actions.canReopen && onReopen && (
             <button
               onClick={onReopen}
+              title="Reopen this saved schedule for editing. The current archive is preserved as a snapshot; the schedule returns to draft so supervisors can amend."
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <Pencil className="w-3 h-3" />

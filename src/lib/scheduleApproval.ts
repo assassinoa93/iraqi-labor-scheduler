@@ -198,6 +198,15 @@ export interface AvailableActions {
   canSendBack: boolean;
   canReopen: boolean;
   canEditCells: boolean;        // grid is editable only in draft (or rejected, which auto-clears)
+  // v5.24.0 — per-action reason when the action is blocked. Populated
+  // from `isValidTransition().reason`. Surfaced via `title=` tooltips so
+  // a disabled or hidden button always tells the user *why* it can't
+  // fire (role mismatch, wrong workflow state, etc.).
+  submitReason?: string;
+  lockReason?: string;
+  saveReason?: string;
+  sendBackReason?: string;
+  reopenReason?: string;
 }
 
 export function availableActionsFor(
@@ -219,13 +228,23 @@ export function availableActionsFor(
   const stateAllowsEdit = status === 'draft' || status === 'rejected';
   const roleAllowsEdit = role !== 'admin';
   const canEditCells = stateAllowsEdit && roleAllowsEdit;
+  const submit = isValidTransition({ from: status, action: 'submit', role });
+  const lock = isValidTransition({ from: status, action: 'lock', role });
+  const save = isValidTransition({ from: status, action: 'save', role });
+  const sendBack = isValidTransition({ from: status, action: 'send-back', role });
+  const reopen = isValidTransition({ from: status, action: 'reopen', role });
   return {
-    canSubmit:   isValidTransition({ from: status, action: 'submit', role }).ok,
-    canLock:     isValidTransition({ from: status, action: 'lock', role }).ok,
-    canSave:     isValidTransition({ from: status, action: 'save', role }).ok,
-    canSendBack: isValidTransition({ from: status, action: 'send-back', role }).ok,
-    canReopen:   isValidTransition({ from: status, action: 'reopen', role }).ok,
+    canSubmit: submit.ok,
+    canLock: lock.ok,
+    canSave: save.ok,
+    canSendBack: sendBack.ok,
+    canReopen: reopen.ok,
     canEditCells,
+    submitReason: submit.ok ? undefined : submit.reason,
+    lockReason: lock.ok ? undefined : lock.reason,
+    saveReason: save.ok ? undefined : save.reason,
+    sendBackReason: sendBack.ok ? undefined : sendBack.reason,
+    reopenReason: reopen.ok ? undefined : reopen.reason,
   };
 }
 

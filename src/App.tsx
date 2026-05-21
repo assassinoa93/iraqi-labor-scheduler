@@ -37,6 +37,8 @@ import {
   StationGroup,
   Company,
   CompanyData,
+  LeaveRequest,
+  LeaveType,
 } from './types';
 import { ComplianceEngine, previewAssignmentWarnings } from './lib/compliance';
 import { format, getDaysInMonth, addMonths, subMonths } from 'date-fns';
@@ -75,6 +77,12 @@ import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion 
 import { useCoverageHints, type PendingHint } from './lib/useCoverageHints';
 import { suggestHourlyDemandFromHistory } from './lib/demandHistory';
 import { PlanEverythingWizard } from './components/PlanEverythingWizard';
+import {
+  submitLeaveRequest as submitLeaveRequestFn,
+  approveLeaveRequest as approveLeaveRequestFn,
+  rejectLeaveRequest as rejectLeaveRequestFn,
+  applyApprovedRequestToEmployees,
+} from './lib/leaveRequests';
 import { getEmployeeLeaveOnDate } from './lib/leaves';
 import {
   normalizeEmployees, normalizeShifts, normalizeStations, normalizeHolidays,
@@ -467,6 +475,44 @@ export default function App() {
   const setHolidays = React.useCallback((u: Updater<PublicHoliday[]>) => updateActive('holidays', u), [updateActive]);
   const setConfig = React.useCallback((u: Updater<Config>) => updateActive('config', u), [updateActive]);
   const setAllSchedules = React.useCallback((u: Updater<Record<string, Schedule>>) => updateActive('allSchedules', u), [updateActive]);
+  // v5.24.0 — Leave-request queue mutator. Dual-mode parity: piggybacks
+  // on the existing CompanyData sync pipeline, no new persistence layer.
+  const setLeaveRequests = React.useCallback((u: Updater<LeaveRequest[] | undefined>) => updateActive('leaveRequests', u), [updateActive]);
+
+  // v5.24.0 — Leave request workflow handlers. Submission appends to the
+  // queue. Approval flips the status AND stamps a LeaveRange on the
+  // employee via the canonical leaves.ts shape (so the schedule and
+  // balance projector pick the leave up automatically). Rejection only
+  // records the decision — no employee mutation.
+  const handleSubmitLeaveRequest = React.useCallback((args: {
+    empId: string; type: LeaveType; start: string; end: string; reason: string;
+  }) => {
+    const submitter = user?.uid ?? user?.email ?? 'offline';
+    setLeaveRequests(prev => {
+      const { next } = submitLeaveRequestFn(prev, { ...args, createdBy: submitter });
+      return next;
+    });
+  }, [setLeaveRequests, user]);
+
+  const handleApproveLeaveRequest = React.useCallback((id: string) => {
+    const decider = user?.uid ?? user?.email ?? 'offline';
+    setLeaveRequests(prev => {
+      const { next, request } = approveLeaveRequestFn(prev, id, decider);
+      // Stamp the leave onto the employee's record so the schedule picks
+      // it up. Done as a separate setEmployees call to keep the mutators
+      // single-purpose; updateActive dedupes the two-way sync per domain.
+      setEmployees(emps => applyApprovedRequestToEmployees(emps, request));
+      return next;
+    });
+  }, [setLeaveRequests, setEmployees, user]);
+
+  const handleRejectLeaveRequest = React.useCallback((id: string, reason: string) => {
+    const decider = user?.uid ?? user?.email ?? 'offline';
+    setLeaveRequests(prev => {
+      const { next } = rejectLeaveRequestFn(prev, id, decider, reason);
+      return next;
+    });
+  }, [setLeaveRequests, user]);
 
   type ScheduleUpdater = Schedule | ((prev: Schedule) => Schedule);
   const setSchedule = React.useCallback((updater: ScheduleUpdater) => {
@@ -3763,6 +3809,9 @@ export default function App() {
                   nextMonth={nextMonth}
                   setActiveMonth={setActiveMonth}
                   onGoToRoster={() => setActiveTab('roster')}
+                  onGoToLayout={() => setActiveTab('layout')}
+                  onGoToShifts={() => setActiveTab('shifts')}
+                  onGoToSchedule={() => setActiveTab('schedule')}
                   onLoadSample={loadSampleData}
                   activeCompanyId={activeCompanyId}
                 />
@@ -3853,6 +3902,12 @@ export default function App() {
                 onBulkEdit={() => setIsBulkEditOpen(true)}
                 onMassImport={() => fileInputRef.current?.click()}
                 onDownloadTemplate={downloadRosterTemplate}
+                leaveRequests={data.leaveRequests ?? []}
+                canSubmitLeaveRequest={true}
+                canDecideLeaveRequest={role === null || role === 'manager' || role === 'admin' || role === 'super_admin'}
+                onSubmitLeaveRequest={handleSubmitLeaveRequest}
+                onApproveLeaveRequest={handleApproveLeaveRequest}
+                onRejectLeaveRequest={handleRejectLeaveRequest}
               />
             )}
 
@@ -4247,6 +4302,9 @@ export default function App() {
         onApplyShifts={handleApplyGeneratedShifts}
         onRunAutoScheduler={() => handleRunAutoScheduler('preserve')}
         isPeakDay={isPeakDay}
+        onGoToLayout={() => setActiveTab('layout')}
+        onGoToRoster={() => setActiveTab('roster')}
+        onGoToShifts={() => setActiveTab('shifts')}
       />
 
       <BulkAddStationsModal

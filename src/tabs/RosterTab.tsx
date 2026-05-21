@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit } from 'lucide-react';
-import { Employee, Station, StationGroup } from '../types';
+import { Employee, LeaveRequest, LeaveType, Station, StationGroup } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { SortableHeader, SortDir } from '../components/Primitives';
+import { LeaveRequestPanel } from '../components/Leave/LeaveRequestPanel';
 
 interface RosterTabProps {
   employees: Employee[];
@@ -34,6 +35,15 @@ interface RosterTabProps {
   // helpers); `onDownloadTemplate` saves a CSV template to disk.
   onMassImport?: () => void;
   onDownloadTemplate?: () => void;
+  // v5.24.0 — Leave request workflow surfaces in the Roster tab so the
+  // queue lives with the roster it operates on. All props optional so
+  // the tab still renders cleanly in test fixtures without the workflow.
+  leaveRequests?: LeaveRequest[];
+  canSubmitLeaveRequest?: boolean;
+  canDecideLeaveRequest?: boolean;
+  onSubmitLeaveRequest?: (args: { empId: string; type: LeaveType; start: string; end: string; reason: string }) => void;
+  onApproveLeaveRequest?: (id: string) => void;
+  onRejectLeaveRequest?: (id: string, reason: string) => void;
 }
 
 type SortKey = 'empId' | 'name' | 'role';
@@ -43,6 +53,8 @@ export function RosterTab({
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
   onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift, onBulkEdit,
   onMassImport, onDownloadTemplate,
+  leaveRequests, canSubmitLeaveRequest, canDecideLeaveRequest,
+  onSubmitLeaveRequest, onApproveLeaveRequest, onRejectLeaveRequest,
 }: RosterTabProps) {
   const { t } = useI18n();
 
@@ -88,6 +100,21 @@ export function RosterTab({
 
   return (
     <div className="space-y-6">
+      {/* v5.24.0 — Leave request panel. Renders when the workflow is
+          wired (handlers + at least one role permission). Hidden if the
+          tab is rendered outside the v5.24 host (test fixtures, etc.). */}
+      {onSubmitLeaveRequest && onApproveLeaveRequest && onRejectLeaveRequest && leaveRequests !== undefined && (
+        <LeaveRequestPanel
+          employees={employees}
+          requests={leaveRequests}
+          canSubmit={!!canSubmitLeaveRequest}
+          canDecide={!!canDecideLeaveRequest}
+          onSubmit={onSubmitLeaveRequest}
+          onApprove={onApproveLeaveRequest}
+          onReject={onRejectLeaveRequest}
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative w-72">

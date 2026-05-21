@@ -297,6 +297,34 @@ describe('availableActionsFor', () => {
     expect(a.canEditCells).toBe(true);
     expect(a.canSubmit).toBe(false);  // no auth = no workflow
   });
+
+  // v5.24.0 — reasons surface "why is this disabled" for the UI banner.
+  it('returns a human-readable reason on every blocked action', () => {
+    const a = availableActionsFor('draft', 'supervisor');
+    // canSubmit is true → no reason; the other four should explain.
+    expect(a.submitReason).toBeUndefined();
+    expect(a.lockReason).toBeTruthy();
+    expect(a.saveReason).toBeTruthy();
+    expect(a.sendBackReason).toBeTruthy();
+    expect(a.reopenReason).toBeTruthy();
+  });
+
+  it('omits the reason field when the action is actually allowed', () => {
+    const a = availableActionsFor('submitted', 'manager');
+    expect(a.lockReason).toBeUndefined();
+    expect(a.sendBackReason).toBeUndefined();
+    expect(a.saveReason).toBeTruthy();    // wrong state
+    expect(a.submitReason).toBeTruthy();  // wrong role
+  });
+
+  it('offline mode does not expose reasons (no workflow visible)', () => {
+    const a = availableActionsFor('draft', null);
+    expect(a.submitReason).toBeUndefined();
+    expect(a.lockReason).toBeUndefined();
+    expect(a.saveReason).toBeUndefined();
+    expect(a.sendBackReason).toBeUndefined();
+    expect(a.reopenReason).toBeUndefined();
+  });
 });
 
 describe('effectiveStatus', () => {

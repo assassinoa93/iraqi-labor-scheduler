@@ -71,34 +71,38 @@ export function ComparativeKpi({
   deltaHint?: string;
   tone?: 'emerald' | 'blue' | 'rose' | 'neutral';
 }) {
+  const { fmt } = useI18n();
   const recClass =
     tone === 'emerald' ? 'text-emerald-700 dark:text-emerald-300'
     : tone === 'blue' ? 'text-blue-700 dark:text-blue-300'
     : tone === 'rose' ? 'text-rose-700 dark:text-rose-300'
     : 'text-slate-800 dark:text-slate-100';
+  // v5.24 — digit-map any incoming value so Arabic-Indic mode applies
+  // even when the caller hands us a pre-formatted string.
+  const render = (v: number | string) => typeof v === 'number' ? fmt.num(v) : fmt.digits(v);
   return (
     <div>
       <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{label}</p>
       <p className="text-2xl font-black tabular-nums">
-        <span className="text-slate-500 dark:text-slate-400">{current}</span>
+        <span className="text-slate-500 dark:text-slate-400">{render(current)}</span>
         <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
-        <span className={recClass}>{recommended}</span>
+        <span className={recClass}>{render(recommended)}</span>
       </p>
       {currentBreakdown && breakdown ? (
         <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight tabular-nums">
-          <span className="text-slate-500 dark:text-slate-400">{currentBreakdown}</span>
+          <span className="text-slate-500 dark:text-slate-400">{fmt.digits(currentBreakdown)}</span>
           <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
-          <span className={recClass}>{breakdown}</span>
+          <span className={recClass}>{fmt.digits(breakdown)}</span>
         </p>
       ) : (breakdown || deltaHint) && (
         <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">
-          {breakdown}
+          {breakdown && fmt.digits(breakdown)}
           {breakdown && deltaHint ? ' · ' : ''}
-          {deltaHint}
+          {deltaHint && fmt.digits(deltaHint)}
         </p>
       )}
       {currentBreakdown && deltaHint && (
-        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{deltaHint}</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{fmt.digits(deltaHint)}</p>
       )}
     </div>
   );
@@ -124,7 +128,7 @@ export function MonthYearPicker({
   onPrev: () => void;
   onNext: () => void;
 }) {
-  const { t, dir } = useI18n();
+  const { t, dir, fmt } = useI18n();
   const [open, setOpen] = useState(false);
   const [draftYear, setDraftYear] = useState(year);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -171,7 +175,7 @@ export function MonthYearPicker({
         title={t('common.monthPicker.tooltip')}
         className="text-center px-4 w-40 font-mono hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl py-1 transition-colors cursor-pointer"
       >
-        <p className="text-[10px] font-black text-blue-500 dark:text-blue-300 uppercase tracking-[0.2em]">{year}</p>
+        <p className="text-[10px] font-black text-blue-500 dark:text-blue-300 uppercase tracking-[0.2em]">{fmt.num(year, { useGrouping: false })}</p>
         <p className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tighter uppercase whitespace-nowrap">{monthName}</p>
       </button>
       <button
@@ -192,7 +196,7 @@ export function MonthYearPicker({
             >
               {dir === 'rtl' ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
-            <p className="text-sm font-black text-slate-800 dark:text-slate-100 font-mono tracking-tight">{draftYear}</p>
+            <p className="text-sm font-black text-slate-800 dark:text-slate-100 font-mono tracking-tight">{fmt.num(draftYear, { useGrouping: false })}</p>
             <button
               onClick={() => setDraftYear(y => y + 1)}
               aria-label={t('common.monthPicker.nextYear')}
@@ -320,7 +324,15 @@ export const TabButton = ({ active, label, onClick, badge, tag, tagTitle }: { ac
 // OK tone. v2.1.2 dropped the always-empty inner span artifact and
 // routed status labels through i18n.
 export function KpiCard({ label, value, trend, unit }: { label: string; value: any; trend?: string; unit?: string }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
+  // v5.24 — auto-map ASCII digits inside KPI values when Arabic-Indic
+  // mode is on. Callers usually pre-format (e.g., "78%" or "1,234") so
+  // we keep their formatting and only remap the digits glyph.
+  const displayValue = typeof value === 'number'
+    ? fmt.num(value)
+    : typeof value === 'string'
+      ? fmt.digits(value)
+      : value;
   return (
     <Card className="p-5 group">
       <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2">{label}</p>
@@ -329,7 +341,7 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
           "text-3xl font-light tracking-tight",
           trend === 'Critical' ? "text-red-600 dark:text-red-300" : "text-slate-900 dark:text-slate-50"
         )}>
-          {value}
+          {displayValue}
         </span>
         {!trend && unit && (
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">{unit}</span>

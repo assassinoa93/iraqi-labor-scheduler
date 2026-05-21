@@ -54,6 +54,15 @@ interface Props {
   // closure — needed for the recap step's coverage diagnostics so the
   // wizard's "after" picture matches what the schedule grid displays.
   isPeakDay: (day: number) => boolean;
+  // v5.24.0 — click-through targets for the blockers preview. When a
+  // blocker is surfaced (e.g. "3 stations have no headcount"), the user
+  // can jump straight to the tab that owns the fix. Closing the wizard
+  // is implied — the callback receivers (App.tsx) close it as part of
+  // their setActiveTab handler. Optional: when omitted the blockers
+  // preview still renders, just without the jump buttons.
+  onGoToLayout?: () => void;
+  onGoToRoster?: () => void;
+  onGoToShifts?: () => void;
 }
 
 type Step = 'demand' | 'shifts' | 'schedule' | 'recap';
@@ -64,6 +73,7 @@ export function PlanEverythingWizard({
   isOpen, onClose,
   employees, shifts, stations, holidays, config, allSchedules, schedule,
   onApplyShifts, onRunAutoScheduler, isPeakDay,
+  onGoToLayout, onGoToRoster, onGoToShifts,
 }: Props) {
   const { t } = useI18n();
   useModalKeys(isOpen, onClose);
@@ -100,6 +110,51 @@ export function PlanEverythingWizard({
     if (!isOpen) return null;
     return generateOptimalShifts(stations, config, shifts);
   }, [isOpen, stations, config, shifts]);
+
+  // v5.24.0 — upfront blockers preview. Computed once across all four
+  // steps so the wizard can show "here's what's blocking you" before
+  // the user opens each step in turn. Pre-v5.24 the user only saw a
+  // step's blockers after opening it, which led to a "click → blocked
+  // → back → fix → re-enter" loop. Now everything is visible up front.
+  interface WizardBlocker {
+    step: Step;
+    label: string;
+    fixIn: 'layout' | 'roster' | 'shifts' | null;
+  }
+  const wizardBlockers = useMemo<WizardBlocker[]>(() => {
+    if (!isOpen) return [];
+    const out: WizardBlocker[] = [];
+    if (stations.length === 0) {
+      out.push({ step: 'demand', label: t('planAll.blockers.noStations'), fixIn: 'layout' });
+    } else if (stationsMissingDemand.length > 0) {
+      out.push({
+        step: 'demand',
+        label: t('planAll.blockers.demandMissing', {
+          count: stationsMissingDemand.length,
+          names: stationsMissingDemand.slice(0, 3).map(s => s.name).join(', ')
+            + (stationsMissingDemand.length > 3 ? ` +${stationsMissingDemand.length - 3}` : ''),
+        }),
+        fixIn: 'layout',
+      });
+    }
+    const noWorkShifts = !shifts.some(s => s.isWork);
+    if (noWorkShifts) {
+      out.push({ step: 'shifts', label: t('planAll.blockers.noShifts'), fixIn: 'shifts' });
+    }
+    if (employees.length === 0) {
+      out.push({ step: 'schedule', label: t('planAll.blockers.noEmployees'), fixIn: 'roster' });
+    } else {
+      const noEligibility = employees.every(e =>
+        e.category !== 'Driver' &&
+        e.eligibleStations.length === 0 &&
+        (!e.eligibleGroups || e.eligibleGroups.length === 0),
+      );
+      if (noEligibility) {
+        out.push({ step: 'schedule', label: t('planAll.blockers.noEligibility'), fixIn: 'roster' });
+      }
+    }
+    return out;
+  }, [isOpen, stations, stationsMissingDemand, shifts, employees, t]);
 
   // Coverage diagnostics for the recap step. Computed only when the
   // wizard is on the recap step so we don't pay the cost on demand /
@@ -324,7 +379,55 @@ export function PlanEverythingWizard({
           </div>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto space-y-4">
+          {/* v5.24.0 — Upfront blockers preview. Lists every blocker the
+              wizard detects across all four steps, with a click-through
+              to the tab that owns the fix. Hidden once the user is on
+              the Recap step (the blockers were either fixed or skipped). */}
+          {step !== 'recap' && wizardBlockers.length > 0 && (
+            <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10">
+              <div className="flex items-start gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">
+                    {t('planAll.blockers.title')}
+                  </p>
+                  <p className="text-[10px] text-amber-700/80 dark:text-amber-200/80 leading-relaxed mt-0.5">
+                    {t('planAll.blockers.subtitle')}
+                  </p>
+                </div>
+              </div>
+              <ul className="space-y-1.5">
+                {wizardBlockers.map((b, i) => {
+                  const handler =
+                    b.fixIn === 'layout' ? onGoToLayout
+                    : b.fixIn === 'roster' ? onGoToRoster
+                    : b.fixIn === 'shifts' ? onGoToShifts
+                    : null;
+                  return (
+                    <li key={i} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-white/60 dark:bg-slate-900/40 border border-amber-200/60 dark:border-amber-500/20">
+                      <p className="text-[11px] text-slate-700 dark:text-slate-100 leading-snug flex-1 min-w-0">
+                        <span className="font-mono font-black text-[9px] text-amber-700 dark:text-amber-300 me-2 uppercase tracking-widest">
+                          {t(`planAll.step.${b.step}.title`)}
+                        </span>
+                        {b.label}
+                      </p>
+                      {handler && (
+                        <button
+                          type="button"
+                          onClick={() => { handler(); onClose(); }}
+                          className="apple-press shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[9px] font-bold uppercase tracking-widest font-mono"
+                        >
+                          {t('planAll.blockers.fixIn', { tab: t(`planAll.blockers.tab.${b.fixIn}`) })}
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           {stepRenderers[step]}
         </div>
 

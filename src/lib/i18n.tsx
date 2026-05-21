@@ -1,11 +1,22 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 
 import { en } from './i18n/en';
 import { ar } from './i18n/ar';
+import {
+  formatDate as fmtDateRaw,
+  formatNumber as fmtNumberRaw,
+  getArabicDigitsPref,
+  setArabicDigitsPref,
+  toArabicDigits,
+} from './i18n/format';
 
 // v5.23.0 — the EN/AR string tables were extracted into `i18n/en.ts` and
 // `i18n/ar.ts`. This file keeps the public API surface (types + provider +
 // `useI18n` hook) plus the `en` / `ar` re-exports for backward compat.
+//
+// v5.24.0 — locale-aware formatters (fmt.num / fmt.date / fmt.digits) are
+// surfaced on the i18n context. They auto-apply the user's Arabic-Indic
+// digit preference and the active locale.
 
 export type Locale = 'en' | 'ar';
 export type Dict = Record<string, string>;
@@ -16,6 +27,12 @@ export { en, ar };
 
 const DICTS: Record<Locale, Dict> = { en, ar };
 
+export interface I18nFormatters {
+  num: (value: number, opts?: Intl.NumberFormatOptions) => string;
+  date: (date: Date | number, fmt: string) => string;
+  digits: (s: string) => string;
+}
+
 interface I18nContextValue {
   locale: Locale;
   setLocale: (loc: Locale) => void;
@@ -24,6 +41,9 @@ interface I18nContextValue {
   // visibly broken rather than silently dropped.
   t: (key: string, vars?: Record<string, string | number>) => string;
   dir: 'ltr' | 'rtl';
+  fmt: I18nFormatters;
+  arabicDigits: boolean;
+  setArabicDigits: (enabled: boolean) => void;
 }
 
 const interpolate = (template: string, vars?: Record<string, string | number>): string => {
@@ -65,12 +85,41 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     return interpolate(template, vars);
   }, [locale]);
 
+  // Arabic-Indic digit preference. Defaults to ON for ar locale; the
+  // toggle lives in localStorage and survives reloads.
+  const [arabicDigits, setArabicDigitsState] = useState<boolean>(getArabicDigitsPref);
+  useEffect(() => {
+    const onChange = () => setArabicDigitsState(getArabicDigitsPref());
+    window.addEventListener('ils:arabic-digits-changed', onChange);
+    window.addEventListener('storage', onChange);
+    return () => {
+      window.removeEventListener('ils:arabic-digits-changed', onChange);
+      window.removeEventListener('storage', onChange);
+    };
+  }, []);
+  const setArabicDigits = useCallback((enabled: boolean) => {
+    setArabicDigitsPref(enabled);
+    setArabicDigitsState(enabled);
+  }, []);
+
+  const fmt = useMemo<I18nFormatters>(() => ({
+    num: (value, opts) => fmtNumberRaw(value, locale, { useArabicDigits: arabicDigits, ...opts }),
+    date: (date, f) => fmtDateRaw(date, f, locale, { useArabicDigits: arabicDigits }),
+    digits: (s) => (locale === 'ar' && arabicDigits ? toArabicDigits(s) : s),
+  }), [locale, arabicDigits]);
+
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t, dir }}>
+    <I18nContext.Provider value={{ locale, setLocale, t, dir, fmt, arabicDigits, setArabicDigits }}>
       {children}
     </I18nContext.Provider>
   );
 }
+
+const defaultFormatters: I18nFormatters = {
+  num: (v, opts) => new Intl.NumberFormat('en-US', opts).format(v),
+  date: (d, f) => fmtDateRaw(d, f, 'en'),
+  digits: (s) => s,
+};
 
 export function useI18n(): I18nContextValue {
   const ctx = useContext(I18nContext);
@@ -81,6 +130,9 @@ export function useI18n(): I18nContextValue {
       setLocale: () => {},
       t: (k: string, vars?: Record<string, string | number>) => interpolate(en[k] ?? k, vars),
       dir: 'ltr',
+      fmt: defaultFormatters,
+      arabicDigits: false,
+      setArabicDigits: () => {},
     };
   }
   return ctx;

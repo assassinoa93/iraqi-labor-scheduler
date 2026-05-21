@@ -45,7 +45,7 @@ export function SettingsTab({
   isAuthenticated, onSignOut, onSwitchMode,
   allowDestructive = true,
 }: SettingsTabProps) {
-  const { t } = useI18n();
+  const { t, locale, arabicDigits, setArabicDigits } = useI18n();
   const [signingOut, setSigningOut] = React.useState(false);
   const [connectionCode, setConnectionCode] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
@@ -121,6 +121,34 @@ export function SettingsTab({
           </div>
         </div>
       </div>
+
+      {/* v5.24.0 — Arabic-Indic digit toggle. Only relevant in Arabic
+          mode; English-locale users never see this section. The pref is
+          per-device (localStorage), defaults ON when the app first runs
+          in Arabic. */}
+      {locale === 'ar' && (
+        <div className="pt-8 border-t border-slate-100 dark:border-slate-700/60">
+          <div className="space-y-1 mb-4">
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('settings.display.title')}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-tighter">{t('settings.display.subtitle')}</p>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={arabicDigits}
+              onChange={e => setArabicDigits(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500/40"
+            />
+            <div className="flex-1">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{t('settings.display.arabicDigits')}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">{t('settings.display.arabicDigits.hint')}</p>
+            </div>
+            <span className="text-base font-mono text-slate-500 dark:text-slate-400">
+              {arabicDigits ? '١٢٣' : '123'}
+            </span>
+          </label>
+        </div>
+      )}
 
       <div className="pt-8 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center flex-wrap gap-4">
         <div className="space-y-1">

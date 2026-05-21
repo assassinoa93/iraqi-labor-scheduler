@@ -95,6 +95,31 @@ export interface LeaveRange {
   notes?: string;
 }
 
+// v5.24.0 — Leave request workflow. Supervisors / managers submit a
+// request on behalf of an employee (or, in future, the employee submits
+// themselves once a non-admin login UI exists). Managers + admins
+// approve / reject from a queue. Approved requests stamp a LeaveRange
+// onto the employee's record via the existing leaves.ts pipeline, so
+// the schedule and balance projections pick them up automatically.
+export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveRequest {
+  id: string;
+  empId: string;
+  type: LeaveType;
+  start: string;          // YYYY-MM-DD inclusive
+  end: string;            // YYYY-MM-DD inclusive
+  reason: string;
+  status: LeaveRequestStatus;
+  // Audit fields. createdAt + createdBy are filled at submission;
+  // decidedAt + decidedBy + decisionReason are filled on approve/reject.
+  createdAt: number;      // epoch ms
+  createdBy: string;      // submitter UID, or 'offline' in demo mode
+  decidedAt?: number;
+  decidedBy?: string;
+  decisionReason?: string;
+}
+
 // Station groups (v1.16). Stations of the same physical/operational type
 // (cashier counters, game machines, vehicles) belong to a group. Employees
 // declare eligibility at the GROUP level (eligibleGroups), so a single
@@ -487,4 +512,7 @@ export interface CompanyData {
   stationGroups?: StationGroup[];
   config: Config;
   allSchedules: Record<string, Schedule>;
+  // v5.24.0 — Leave request queue. Optional for backward compat with
+  // pre-v5.24 saves; an absent field reads as an empty queue.
+  leaveRequests?: LeaveRequest[];
 }
