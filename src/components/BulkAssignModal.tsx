@@ -94,7 +94,7 @@ export function BulkAssignModal({ isOpen, onClose, selectedCount, shifts, daysIn
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('bulkAssign.shiftPicker')}</label>
                 <div className="flex flex-wrap gap-2">

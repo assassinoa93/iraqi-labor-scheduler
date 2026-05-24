@@ -1541,6 +1541,8 @@ export default function App() {
   };
 
   const handleBulkAssignShift = (shiftCode: string, fromDay: number, toDay: number, overwrite: boolean) => {
+    const empCount = selectedEmployees.size;
+    const dayCount = Math.max(0, toDay - fromDay + 1);
     setSchedule(prev => {
       const next = { ...prev };
       for (const empId of selectedEmployees) {
@@ -1558,6 +1560,10 @@ export default function App() {
     // schedule-level undo (Auto-Schedule undo stack) if available.
     setCellUndoStack([]);
     setIsBulkAssignOpen(false);
+    showInfo(
+      t('info.bulkAssign.title'),
+      t('info.bulkAssign.body', { code: shiftCode, employees: empCount, days: dayCount }),
+    );
   };
 
   // v5.2.0 — applies a BulkEditPatch to every selected employee in a single
@@ -3933,6 +3939,10 @@ export default function App() {
                 onBulkMoveStations={(ids, newGroupId) => {
                   const idSet = new Set(ids);
                   setStations(prev => prev.map(s => idSet.has(s.id) ? { ...s, groupId: newGroupId } : s));
+                  showInfo(
+                    t('info.bulkMoveStations.title'),
+                    t('info.bulkMoveStations.body', { count: ids.length }),
+                  );
                 }}
                 // Bulk delete from the selection toolbar — gated by a
                 // single confirm dialog showing the count so an accidental
@@ -3944,6 +3954,10 @@ export default function App() {
                   onConfirm: () => {
                     const idSet = new Set(ids);
                     setStations(prev => prev.filter(s => !idSet.has(s.id)));
+                    showInfo(
+                      t('info.bulkDeleteStations.title'),
+                      t('info.bulkDeleteStations.body', { count: ids.length }),
+                    );
                   },
                 })}
                 // v5.13.0 — drag-drop role gate. When a station's

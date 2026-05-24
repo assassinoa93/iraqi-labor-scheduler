@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Database, BarChart3, X,
@@ -74,6 +74,21 @@ export function DashboardTab(props: DashboardTabProps) {
   } = props;
   const { t } = useI18n();
   const closeStatsButtonRef = useModalKeys(isStatsModalOpen, () => setIsStatsModalOpen(false)) as React.RefObject<HTMLButtonElement>;
+
+  // Pre-build empId → name map so the violations list (rendered up to 300px
+  // tall with potentially many rows) doesn't run an O(n) Array.find on every
+  // row × every render. With 100 employees × 100 violations that's 10k lookups
+  // per render → measurable on month transitions.
+  const empNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of employees) m.set(e.empId, e.name);
+    return m;
+  }, [employees]);
+
+  const daysInMonthArr = useMemo(
+    () => Array.from({ length: config.daysInMonth }, (_, i) => i + 1),
+    [config.daysInMonth]
+  );
 
   // Compliance health metric. Three checks per (employee × day): daily cap,
   // rest-between-shifts, weekly rest. Higher rule coverage might shift this
@@ -564,10 +579,10 @@ export function DashboardTab(props: DashboardTabProps) {
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-700/60 max-h-[300px] overflow-y-auto">
             {violations.map((v, i) => (
-              <div key={i} className={cn("flex items-center gap-6 px-6 py-4 transition-colors", v.article === "(Art. 67)" ? "bg-red-50/30 dark:bg-red-500/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60")}>
+              <div key={`${v.empId}|${v.article}|${v.day ?? i}|${i}`} className={cn("flex items-center gap-6 px-6 py-4 transition-colors", v.article === "(Art. 67)" ? "bg-red-50/30 dark:bg-red-500/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60")}>
                 <div className="font-mono text-xs text-slate-500 dark:text-slate-400 font-bold shrink-0">{v.empId}</div>
                 <div className="text-sm font-bold text-slate-800 dark:text-slate-100 w-40 truncate">
-                  {employees.find(e => e.empId === v.empId)?.name}
+                  {empNameById.get(v.empId)}
                 </div>
                 <div className="text-xs font-bold text-slate-400 dark:text-slate-500 w-24 shrink-0">{v.article}</div>
                 <div className={cn("text-xs font-medium flex-1", v.article.includes("Art. 67") || v.article.includes("Art. 68") ? "text-red-600 dark:text-red-300 font-bold" : "text-slate-500 dark:text-slate-400 font-medium")}>
@@ -576,7 +591,21 @@ export function DashboardTab(props: DashboardTabProps) {
               </div>
             ))}
             {violations.length === 0 && (
-              <div className="p-20 text-center text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-[10px]">{t('dashboard.noViolations')}</div>
+              <div className="p-12 text-center">
+                {hasScheduleEntries ? (
+                  <>
+                    <ShieldCheck className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto mb-3" />
+                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{t('dashboard.noViolations')}</div>
+                    <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('dashboard.noViolations.hint')}</div>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                    <div className="text-sm font-bold text-slate-500 dark:text-slate-300">{t('dashboard.noScheduleYet')}</div>
+                    <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('dashboard.noScheduleYet.hint')}</div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </Card>
@@ -619,7 +648,7 @@ export function DashboardTab(props: DashboardTabProps) {
                 </div>
               ))}
 
-              {Array.from({ length: config.daysInMonth }, (_, i) => i + 1).map(day => (
+              {daysInMonthArr.map(day => (
                 <React.Fragment key={day}>
                   <div className="flex flex-col justify-center pe-4 border-e border-slate-100 dark:border-slate-700/60">
                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{t('dashboard.day')} {day}</span>

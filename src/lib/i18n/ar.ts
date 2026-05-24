@@ -343,6 +343,7 @@ export const ar: Dict = {
 
   // Stations / Assets
   'layout.title': 'إعداد المحطات والأصول',
+  'layout.searchPlaceholder': 'ابحث عن المحطات بالاسم أو الدور…',
   'layout.subtitle': 'المحطات والمركبات والأصول الأخرى التي يتولى المُجدوِل التلقائي تعيين موظفين لها. حدِّد الأدوار المطلوبة لقصر المركبات على السائقين فقط.',
   'layout.empty': 'لا محطات أو أصول مُعرَّفة',
   'layout.emptyHint': 'ابدأ بإضافة نقاط البيع أو نوافذ الخدمة أو مناطق الألعاب.',
@@ -464,6 +465,7 @@ export const ar: Dict = {
 
   // Section headers
   'shifts.title': 'إعداد مكتبة المناوبات',
+  'shifts.searchPlaceholder': 'ابحث في المناوبات بالرمز أو الاسم…',
   'shifts.col.code': 'الرمز',
   'shifts.col.name': 'الاسم',
   'shifts.col.hours': 'الساعات',
@@ -581,6 +583,9 @@ export const ar: Dict = {
   'dashboard.complianceAudit': 'تدقيق الامتثال — تحليل قانون العمل',
   'dashboard.liveValidation': 'تحقق فوري',
   'dashboard.noViolations': 'لا توجد مشاكل امتثال في الجدول الفعّال.',
+  'dashboard.noViolations.hint': 'كل تركيبة موظف × يوم تجتاز فحوصات الحد اليومي والراحة بين المناوبات والراحة الأسبوعية.',
+  'dashboard.noScheduleYet': 'لا يوجد جدول لهذا الشهر بعد',
+  'dashboard.noScheduleYet.hint': 'ارسم بعض الخلايا أو شغّل الجدولة التلقائية لرؤية نتائج الامتثال هنا.',
   'dashboard.coverageTitle': 'تحليل التغطية بالساعة',
   'dashboard.coverage.low': 'منخفضة',
   'dashboard.coverage.optimal': 'مثالية',
@@ -746,6 +751,7 @@ export const ar: Dict = {
 
   // Company switcher
   'company.header': 'الشركات / الفروع',
+  'company.recent': 'الأخيرة',
   'company.add': 'إضافة شركة',
   'company.rename': 'إعادة تسمية',
   'company.delete': 'حذف',
@@ -1484,6 +1490,22 @@ export const ar: Dict = {
   'bulkEdit.applying': 'جارٍ التطبيق على {count}…',
   'info.bulkEdit.title': 'تم تطبيق التحرير الجماعي',
   'info.bulkEdit.body': 'تم تحديث {count} سجل(سجلات) موظف.',
+  'info.bulkAssign.title': 'تم تعيين المناوبة',
+  'info.bulkAssign.body': 'تم تعيين {code} لـ {employees} موظف(ين) عبر {days} يوم(أيام).',
+  'info.bulkMoveStations.title': 'تم نقل المحطات',
+  'info.bulkMoveStations.body': 'تم نقل {count} محطة(محطات) إلى مجموعة جديدة.',
+  'info.bulkDeleteStations.title': 'تم حذف المحطات',
+  'info.bulkDeleteStations.body': 'تم حذف {count} محطة(محطات) من التخطيط.',
+
+  // خدمات الذكاء الاصطناعي — السلاسل المرئية في المستوى الأعلى (تعريب v5.24.x)
+  'ai.tab.title': 'خدمات الذكاء الاصطناعي',
+  'ai.tab.beta.badge': 'تجريبي · قيد الاختبار',
+  'ai.tab.beta.tooltip': 'هذه الميزة قيد التطوير النشط. قد يتغير سلوكها بين الإصدارات.',
+  'ai.tab.subtitle': 'استخدم مفتاح OpenRouter الخاص بك. يستكشف المساعد المحطات والجداول والرواتب وخطط القوى العاملة معك ويُبرز نتائج المسؤولية / التكلفة / المخاطر.',
+  'ai.disabledByAdmin.title': 'خدمات الذكاء الاصطناعي معطّلة في مساحة العمل هذه',
+  'ai.disabledByAdmin.body': 'قام مدير عام بإيقاف خدمات الذكاء الاصطناعي على مستوى مساحة العمل. اطلب منه إعادة تفعيلها من هذا التبويب إذا كنت تحتاج إلى الوصول.',
+  'ai.noBridge.title': 'يلزم تطبيق سطح المكتب',
+  'ai.noBridge.bodyPrefix': 'تستخدم خدمات الذكاء الاصطناعي سلسلة مفاتيح نظام التشغيل لتشفير مفتاح OpenRouter أثناء التخزين. يتطلب ذلك تطبيق Electron لسطح المكتب — معاينة المتصفح لا تستطيع الوصول إلى السلسلة. شغّل التطبيق المثبَّت أو',
 
   // الإضافة الجماعية للمحطات (v5.3.0، أُعيد بناؤها في v5.3.1 بحقول قابلة للتعديل لكل صف)
   'bulkStation.title': 'إضافة محطات جماعيًا',

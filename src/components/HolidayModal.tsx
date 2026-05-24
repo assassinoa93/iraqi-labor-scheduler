@@ -98,7 +98,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
           </button>
         </div>
 
-        <div className="p-8 space-y-4">
+        <div className="p-8 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* v2.1.3 — native date picker. The HTML <input type="date">
               value is always YYYY-MM-DD, matching the storage format,
               so callers don't need to reformat. The i18n hint stays for

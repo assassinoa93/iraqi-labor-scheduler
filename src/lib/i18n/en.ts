@@ -350,6 +350,7 @@ export const en: Dict = {
 
   // Stations / Assets
   'layout.title': 'Stations & Assets Configuration',
+  'layout.searchPlaceholder': 'Search stations by name or role…',
   'layout.subtitle': 'Stations, vehicles, and other assets staffed by the auto-scheduler. Set required roles to gate vehicles to drivers only.',
   'layout.empty': 'No Stations or Assets Defined',
   'layout.emptyHint': 'Start by adding your POS gateways, service windows, or gaming areas.',
@@ -477,6 +478,7 @@ export const en: Dict = {
 
   // Section headers used across multiple tabs
   'shifts.title': 'Shift Library Configuration',
+  'shifts.searchPlaceholder': 'Search shifts by code or name…',
   'shifts.col.code': 'Code',
   'shifts.col.name': 'Name',
   'shifts.col.hours': 'Hours',
@@ -607,6 +609,9 @@ export const en: Dict = {
   'dashboard.complianceAudit': 'Compliance Audit — Labor Law Analysis',
   'dashboard.liveValidation': 'Live Validation',
   'dashboard.noViolations': 'No compliance issues detected in active schedule.',
+  'dashboard.noViolations.hint': 'Every employee × day combination passes daily, rest-between-shifts, and weekly-rest checks.',
+  'dashboard.noScheduleYet': 'No schedule for this month yet',
+  'dashboard.noScheduleYet.hint': 'Paint a few cells or run Auto-Schedule to see compliance results here.',
   'dashboard.coverageTitle': 'Hourly Coverage Analysis',
   'dashboard.coverage.low': 'Low',
   'dashboard.coverage.optimal': 'Optimal',
@@ -776,6 +781,7 @@ export const en: Dict = {
 
   // Company switcher
   'company.header': 'Companies / Branches',
+  'company.recent': 'Recent',
   'company.add': 'Add Company',
   'company.rename': 'Rename',
   'company.delete': 'Delete',
@@ -1549,6 +1555,22 @@ export const en: Dict = {
   'bulkEdit.applying': 'Applying to {count}…',
   'info.bulkEdit.title': 'Bulk Edit Applied',
   'info.bulkEdit.body': 'Updated {count} employee record(s).',
+  'info.bulkAssign.title': 'Shift Assigned',
+  'info.bulkAssign.body': 'Set {code} on {employees} employee(s) across {days} day(s).',
+  'info.bulkMoveStations.title': 'Stations Moved',
+  'info.bulkMoveStations.body': 'Moved {count} station(s) to a new group.',
+  'info.bulkDeleteStations.title': 'Stations Deleted',
+  'info.bulkDeleteStations.body': 'Removed {count} station(s) from the layout.',
+
+  // AI Services tab — top-level visible strings (v5.24.x i18n carve-out)
+  'ai.tab.title': 'AI Services',
+  'ai.tab.beta.badge': 'Beta · Testing',
+  'ai.tab.beta.tooltip': 'This feature is in active development. Behaviour may change between releases.',
+  'ai.tab.subtitle': 'Bring your own OpenRouter key. The assistant explores stations, schedules, payroll, and workforce plans with you and surfaces liability / cost / risk findings.',
+  'ai.disabledByAdmin.title': 'AI Services are disabled in this workspace',
+  'ai.disabledByAdmin.body': 'A super-admin has turned AI Services off workspace-wide. Ask them to re-enable it from this tab if you need access.',
+  'ai.noBridge.title': 'Desktop app required',
+  'ai.noBridge.bodyPrefix': "AI Services use the OS keychain to encrypt your OpenRouter key at rest. That requires the Electron desktop app — the browser preview can't access the keychain. Run the installed app or",
 
   // Bulk station add (v5.3.0, rebuilt v5.3.1 around per-row editable fields)
   'bulkStation.title': 'Bulk Add Stations',

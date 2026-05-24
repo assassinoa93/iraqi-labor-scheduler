@@ -2,6 +2,53 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.24.1 — 2026-05-24
+
+**UI/UX optimization pass: search across more tabs, perf fixes, empty-state polish, modal responsiveness, recent-companies switcher, bulk-op toasts, AI Services i18n carve-out.** No new product surfaces — this rollup closes out polish items surfaced by an end-to-end UX audit of v5.24.0.
+
+### Performance
+
+- [tabs/DashboardTab.tsx](src/tabs/DashboardTab.tsx) — pre-built `Map<empId, name>` for the violations panel via `useMemo`, killing an O(employees × violations) `Array.find` per render. Day-of-month array also memoized. Stable composite key (`empId|article|day|i`) replaces the previous `key={i}` index key so React reconciliation no longer drops state when violation order shifts.
+
+### Empty states
+
+- [tabs/DashboardTab.tsx](src/tabs/DashboardTab.tsx) — violations panel "no violations" empty state now distinguishes "all compliant" (emerald ShieldCheck + reassuring copy) from "no schedule painted yet" (slate Circle + actionable nudge). Previously a single grey "No violations" string regardless of state — confusing on a fresh month.
+
+### Search & filter
+
+- [tabs/ShiftsTab.tsx](src/tabs/ShiftsTab.tsx) — new search input (code / name / description) with count badge, aria-label, and Esc-to-clear.
+- [tabs/LayoutTab.tsx](src/tabs/LayoutTab.tsx) — new search input over the kanban (name / required-role match). Group columns with no matches hide while a search is active, so the screen isn't dominated by empty placeholders.
+- [tabs/RosterTab.tsx](src/tabs/RosterTab.tsx) — search input fixed for mobile (`w-72` → `w-full sm:w-72`), added explicit `aria-label`, and wired Esc-to-clear.
+
+### Modal responsiveness
+
+- [components/ShiftModal.tsx](src/components/ShiftModal.tsx), [components/HolidayModal.tsx](src/components/HolidayModal.tsx), [components/BulkAssignModal.tsx](src/components/BulkAssignModal.tsx) — body sections gain `max-h-[70-75vh] overflow-y-auto` so the Save/Cancel footer stays reachable on short viewports.
+
+### Recently-viewed companies
+
+- [components/CompanySwitcher.tsx](src/components/CompanySwitcher.tsx) — new "Recent" section above the main list surfaces the last 3 switched-to companies (excluding the active one). Persists per-device via `localStorage`, capped at 5 entries, deduplicated, deleted entries drop out automatically. Surfaces only when the workspace has ≥6 companies so smaller rosters don't get a redundant section. localStorage write failures (Electron secure-context edge cases) fail silently — the recent list is a nice-to-have.
+
+### Bulk-op toast feedback
+
+- [App.tsx](src/App.tsx) — `handleBulkAssignShift` ("Set {code} on {employees} employee(s) across {days} day(s)"), `onBulkMoveStations` ("Moved {count} station(s) to a new group"), and `onBulkDeleteStations` ("Removed {count} station(s) from the layout") now route through `showInfo` so the supervisor gets confirmation after destructive / large mutations. `applyBulkEdit` already had one; this brings the four bulk paths to parity.
+
+### AI Services i18n carve-out
+
+- [tabs/AIServicesTab.tsx](src/tabs/AIServicesTab.tsx) — Header title + subtitle, BETA pill label + tooltip, `DisabledByAdminCard`, and `NoBridgeCard` now route through `useI18n()`. The deeper-nested form labels inside `WorkspacePolicyCard` / model picker / spend tracker (~200 strings) remain English — flagged for a future focused pass; this carve-out covers the most user-visible Arabic-mode regressions reported in the audit.
+
+### Other
+
+- [src/lib/appMeta.ts](src/lib/appMeta.ts) — `APP_VERSION` had drifted to `5.20.1` through four releases (5.21.0 → 5.24.0) since the sidebar didn't visibly fail. Bumped to `5.24.1` so the sidebar tag matches the installer again.
+
+### i18n keys added
+
+`dashboard.noViolations.hint`, `dashboard.noScheduleYet`, `dashboard.noScheduleYet.hint`, `shifts.searchPlaceholder`, `layout.searchPlaceholder`, `company.recent`, `info.bulkAssign.title/body`, `info.bulkMoveStations.title/body`, `info.bulkDeleteStations.title/body`, `ai.tab.title`, `ai.tab.beta.badge`, `ai.tab.beta.tooltip`, `ai.tab.subtitle`, `ai.disabledByAdmin.title/body`, `ai.noBridge.title/bodyPrefix`. All 22 keys present in both `en.ts` and `ar.ts`.
+
+### Compatibility
+
+- 403/403 tests pass.
+- No data layer or schema changes — dual-mode parity unaffected (Offline Demo and Online both render identically).
+
 ## v5.22.1 — 2026-05-21
 
 **Maintenance pass: dark-mode coverage, type-safety cleanup, CI hardening, and compliance integration tests.** No new product surfaces — this rollup closes out polish items from the v5.22.0 review.

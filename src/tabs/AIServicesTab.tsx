@@ -33,6 +33,7 @@ import {
   Database, Building2, Users, Calendar, FileSpreadsheet, Clock, Flag,
 } from 'lucide-react';
 import type { CompanyData } from '../types';
+import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
 import { getMode } from '../lib/mode';
 import { useConfirm } from '../components/ConfirmModal';
@@ -391,23 +392,24 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
 // ─── Sub-components ─────────────────────────────────────────────────────
 
 function Header() {
+  const { t } = useI18n();
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300" />
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight">
-            AI Services
+            {t('ai.tab.title')}
           </h3>
           <span
             className="px-1.5 py-0.5 rounded-md text-[8px] font-black tracking-widest uppercase bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/30"
-            title="This feature is in active development. Behaviour may change between releases."
+            title={t('ai.tab.beta.tooltip')}
           >
-            Beta · Testing
+            {t('ai.tab.beta.badge')}
           </span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          Bring your own OpenRouter key. The assistant explores stations, schedules, payroll, and workforce plans with you and surfaces liability / cost / risk findings.
+          {t('ai.tab.subtitle')}
         </p>
       </div>
     </div>
@@ -415,14 +417,15 @@ function Header() {
 }
 
 function DisabledByAdminCard() {
+  const { t } = useI18n();
   return (
     <div className="p-5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/70 rounded-2xl">
       <div className="flex items-start gap-3">
         <Lock className="w-5 h-5 text-slate-400 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-100">AI Services are disabled in this workspace</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-100">{t('ai.disabledByAdmin.title')}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            A super-admin has turned AI Services off workspace-wide. Ask them to re-enable it from this tab if you need access.
+            {t('ai.disabledByAdmin.body')}
           </p>
         </div>
       </div>
@@ -431,14 +434,15 @@ function DisabledByAdminCard() {
 }
 
 function NoBridgeCard() {
+  const { t } = useI18n();
   return (
     <div className="p-5 bg-amber-50/60 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl">
       <div className="flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-300 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-sm font-bold text-amber-800 dark:text-amber-200">Desktop app required</p>
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-200">{t('ai.noBridge.title')}</p>
           <p className="text-xs text-amber-700 dark:text-amber-300/80">
-            AI Services use the OS keychain to encrypt your OpenRouter key at rest. That requires the Electron desktop app — the browser preview can&apos;t access the keychain. Run the installed app or <code className="font-mono">npm run electron:dev</code>.
+            {t('ai.noBridge.bodyPrefix')} <code className="font-mono">npm run electron:dev</code>.
           </p>
         </div>
       </div>

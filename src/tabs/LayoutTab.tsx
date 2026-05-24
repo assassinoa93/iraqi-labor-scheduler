@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers, GripVertical, CheckSquare, Square } from 'lucide-react';
+import { Plus, Edit3, Trash2, Layout, FolderPlus, ChevronDown, X, Layers, GripVertical, CheckSquare, Square, Search } from 'lucide-react';
 import { Employee, Station, StationGroup } from '../types';
 import { Card } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -59,6 +59,7 @@ export function LayoutTab({
   const { t } = useI18n();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   // v5.4.0 — multi-select state. `selectedIds` is the set of stations whose
   // checkbox is on. `dropTargetId` is the group being hovered over during a
   // drag (use '__ungrouped__' for the ungrouped column). `draggingIds` lets
@@ -241,15 +242,28 @@ export function LayoutTab({
   // longer exists (e.g. a deleted group).
   const grouped = useMemo(() => {
     const groupIds = new Set(stationGroups.map(g => g.id));
+    const q = searchTerm.trim().toLowerCase();
+    const filtered = q
+      ? stations.filter(s =>
+          s.name.toLowerCase().includes(q)
+          || (s.requiredRoles?.some(r => r.toLowerCase().includes(q)) ?? false)
+        )
+      : stations;
     const map = new Map<string, Station[]>();
     for (const g of stationGroups) map.set(g.id, []);
     map.set('__ungrouped__', []);
-    for (const st of stations) {
+    for (const st of filtered) {
       const key = st.groupId && groupIds.has(st.groupId) ? st.groupId : '__ungrouped__';
       map.get(key)!.push(st);
     }
     return map;
-  }, [stations, stationGroups]);
+  }, [stations, stationGroups, searchTerm]);
+
+  const totalFilteredCount = useMemo(() => {
+    let n = 0;
+    for (const arr of grouped.values()) n += arr.length;
+    return n;
+  }, [grouped]);
 
   const handleAddGroup = (name: string, color: string, icon: string) => {
     if (!name.trim()) return;
@@ -329,7 +343,26 @@ export function LayoutTab({
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('layout.title')}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{t('layout.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {stations.length > 0 && (
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <input
+                type="text"
+                placeholder={t('layout.searchPlaceholder')}
+                aria-label={t('layout.searchPlaceholder')}
+                className="w-full ps-10 pe-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-blue-500 outline-none shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape' && searchTerm) { e.preventDefault(); setSearchTerm(''); } }}
+              />
+              {searchTerm && (
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                  {totalFilteredCount}/{stations.length}
+                </span>
+              )}
+            </div>
+          )}
           <button
             onClick={() => setCreatingGroup(true)}
             className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
@@ -439,6 +472,9 @@ export function LayoutTab({
           const id = isUngrouped ? '__ungrouped__' : entry.group.id;
           const items = grouped.get(id) || [];
           if (isUngrouped && items.length === 0 && stationGroups.length > 0) return null;
+          // While a search is active, hide group columns that have no
+          // matches so the screen isn't dominated by empty placeholders.
+          if (searchTerm.trim() && items.length === 0) return null;
           const groupColor = isUngrouped ? '#94a3b8' : (entry.group.color || GROUP_COLOR_PALETTE[i % GROUP_COLOR_PALETTE.length]);
           const groupName = isUngrouped ? t('layout.group.ungrouped') : entry.group.name;
           const editing = !isUngrouped && editingGroupId === entry.group.id;
