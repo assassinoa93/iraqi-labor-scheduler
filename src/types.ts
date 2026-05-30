@@ -478,6 +478,14 @@ export interface Violation {
   // disk) still work — fines.ts falls back to keying off `rule` when
   // missing.
   ruleKey?: string;
+  // v5.25 — translatable detail. The engine emits a stable i18n key plus
+  // interpolation params alongside the English `message`, so display
+  // surfaces (findings.ts → FindingsList) render the detail in the active
+  // locale instead of raw English. `message` stays as the ASCII fallback
+  // for non-React / non-i18n consumers (PDF cell data, tests, the AI tool
+  // layer) and for any custom rule that doesn't register a key.
+  messageKey?: string;
+  messageParams?: Record<string, string | number>;
 }
 
 export interface ScheduleEntry {

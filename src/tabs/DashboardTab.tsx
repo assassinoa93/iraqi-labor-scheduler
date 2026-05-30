@@ -15,6 +15,8 @@ import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
 import { SetupChecklist } from '../components/SetupChecklist';
 import { StaffingAdvisoryCard } from '../components/StaffingAdvisoryCard';
+import { FindingsList } from '../components/FindingsList';
+import { countInstances, complianceScore } from '../lib/findings';
 import { computeStaffingAdvisory } from '../lib/staffingAdvisory';
 import { computeHolidayPay } from '../lib/holidayCompPay';
 
@@ -29,6 +31,9 @@ interface DashboardTabProps {
   allSchedules?: Record<string, Schedule>;
   stations: Station[];
   violations: Violation[];
+  // v5.25 — info-severity findings (holiday worked, comp-day owed). Shown in
+  // the Compliance Audit card's "Notes" section so they no longer vanish.
+  notes: Violation[];
   staffingGapsByStation: Array<{ stationId: string; stationName: string; gap: number; roleHint?: string }>;
   hourlyCoverage: {
     hours: number[];
@@ -65,14 +70,14 @@ interface DashboardTabProps {
 export function DashboardTab(props: DashboardTabProps) {
   const {
     employees, shifts, holidays, config, schedule, allSchedules, stations,
-    violations, staffingGapsByStation, hourlyCoverage,
+    violations, notes, staffingGapsByStation, hourlyCoverage,
     peakStabilityPercent, overallCoveragePercent,
     isStatsModalOpen, setIsStatsModalOpen,
     prevMonth, nextMonth, setActiveMonth, onGoToRoster, onLoadSample,
     onGoToLayout, onGoToShifts, onGoToSchedule,
     activeCompanyId, isPeakDay,
   } = props;
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const closeStatsButtonRef = useModalKeys(isStatsModalOpen, () => setIsStatsModalOpen(false)) as React.RefObject<HTMLButtonElement>;
 
   // Pre-build empId → name map so the violations list (rendered up to 300px
@@ -90,14 +95,16 @@ export function DashboardTab(props: DashboardTabProps) {
     [config.daysInMonth]
   );
 
-  // Compliance health metric. Three checks per (employee × day): daily cap,
-  // rest-between-shifts, weekly rest. Higher rule coverage might shift this
-  // but the original heuristic is good enough for an at-a-glance score.
-  const totalChecks = employees.length * config.daysInMonth * 3;
-  const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0);
-  const compliancePct = totalChecks === 0
-    ? '100%'
-    : `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`;
+  // v5.25 — shared canonical count + score (lib/findings.ts), identical to
+  // Reports, the schedule preview modal, and the approval dialog so the same
+  // schedule never shows a different "violations" number or compliance % on
+  // different tabs.
+  const totalViolationInstances = countInstances(violations);
+  const complianceScoreValue = complianceScore(employees.length, config.daysInMonth, totalViolationInstances);
+  const compliancePct = `${complianceScoreValue}%`;
+  // Distinct rule types in play (for the "across N rules" caption) — counts
+  // rule kinds, not the per-employee rows.
+  const distinctViolationRules = new Set(violations.map((v) => v.ruleKey ?? v.rule)).size;
 
   // OT pool measurements — the raw inputs the advisory needs. We compute
   // them here (rather than in the advisory) because the dashboard also
@@ -264,20 +271,20 @@ export function DashboardTab(props: DashboardTabProps) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <Card className="p-6 bg-blue-600 text-white border-0">
                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-100 mb-4 opacity-70">{t('dashboard.stats.complianceHealth')}</p>
-                    <p className="text-5xl font-black tracking-tight">{compliancePct}</p>
-                    <p className="text-xs font-bold text-blue-100 mt-2">{t('dashboard.stats.basedOn', { count: employees.length })}</p>
+                    <p className="text-5xl font-black tracking-tight">{fmt.digits(compliancePct)}</p>
+                    <p className="text-xs font-bold text-blue-100 mt-2">{t('dashboard.stats.basedOn', { count: fmt.num(employees.length) })}</p>
                   </Card>
                   <Card className="p-6 bg-slate-900 dark:bg-slate-800 text-white border-0">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">{t('dashboard.stats.totalIncidents')}</p>
-                    <p className="text-5xl font-black tracking-tight">{totalViolationInstances}</p>
-                    <p className="text-xs font-bold text-emerald-400 dark:text-emerald-300 mt-2">{t('dashboard.stats.acrossRules', { count: violations.length })}</p>
+                    <p className="text-5xl font-black tracking-tight">{fmt.num(totalViolationInstances)}</p>
+                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-2">{t('dashboard.stats.acrossRules', { count: fmt.num(distinctViolationRules) })}</p>
                   </Card>
                   <Card className="p-6 border-slate-200 dark:border-slate-700">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">{t('dashboard.peakStability')}</p>
                     <p className={cn(
                       "text-5xl font-black tracking-tight",
                       peakStabilityPercent >= 90 ? "text-emerald-600 dark:text-emerald-300" : peakStabilityPercent >= 75 ? "text-slate-800 dark:text-slate-100" : "text-rose-600 dark:text-rose-300"
-                    )}>{peakStabilityPercent}%</p>
+                    )}>{fmt.num(peakStabilityPercent)}%</p>
                     <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-2 italic">{t('dashboard.peakCaption')}</p>
                   </Card>
                 </div>
@@ -288,16 +295,16 @@ export function DashboardTab(props: DashboardTabProps) {
                   </h4>
                   <div className="grid grid-cols-1 gap-3">
                     {[
-                      { cat: t('dashboard.stats.cat.workHours'), count: violations.filter(v => v.article.includes('67') || v.article.includes('68')).length, icon: Clock, color: 'text-rose-500 dark:text-rose-300' },
-                      { cat: t('dashboard.stats.cat.restPeriods'), count: violations.filter(v => v.article.includes('71') || v.article.includes('72')).length, icon: ShieldCheck, color: 'text-emerald-500 dark:text-emerald-300' },
-                      { cat: t('dashboard.stats.cat.wagesOT'), count: violations.filter(v => v.article.includes('70')).length, icon: Database, color: 'text-blue-500 dark:text-blue-300' },
+                      { cat: t('dashboard.stats.cat.workHours'), count: countInstances(violations.filter(v => v.article.includes('67') || v.article.includes('68'))), icon: Clock, color: 'text-rose-500 dark:text-rose-300' },
+                      { cat: t('dashboard.stats.cat.restPeriods'), count: countInstances(violations.filter(v => v.article.includes('71') || v.article.includes('72'))), icon: AlertCircle, color: 'text-amber-500 dark:text-amber-300' },
+                      { cat: t('dashboard.stats.cat.wagesOT'), count: countInstances(violations.filter(v => v.article.includes('70'))), icon: Database, color: 'text-blue-500 dark:text-blue-300' },
                     ].map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-4">
                           <item.icon className={cn("w-5 h-5", item.color)} />
                           <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{item.cat}</span>
                         </div>
-                        <span className="text-lg font-black text-slate-800 dark:text-slate-100">{item.count}</span>
+                        <span className="text-lg font-black text-slate-800 dark:text-slate-100">{fmt.num(item.count)}</span>
                       </div>
                     ))}
                   </div>
@@ -355,20 +362,20 @@ export function DashboardTab(props: DashboardTabProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-white/10">
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.scheduledOT')}</p>
-                  <p className="text-xl font-black text-emerald-400">{totalOTHours.toFixed(0)}h</p>
+                  <p className="text-xl font-black text-emerald-400">{fmt.digits(totalOTHours.toFixed(0))}h</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.otPremium')}</p>
-                  <p className="text-xl font-black text-rose-400">{Math.round(totalOTPay).toLocaleString()} IQD</p>
+                  <p className="text-xl font-black text-rose-400">{fmt.num(Math.round(totalOTPay))} IQD</p>
                   {(totalOverCapPay > 0 || totalHolidayPay > 0) && (
                     <p className="text-[9px] text-white/50 font-mono leading-tight mt-1">
-                      {Math.round(totalOverCapPay).toLocaleString()} {t('dashboard.optim.overCapShort')} · {Math.round(totalHolidayPay).toLocaleString()} {t('dashboard.optim.holidayShort')}
+                      {fmt.num(Math.round(totalOverCapPay))} {t('dashboard.optim.overCapShort')} · {fmt.num(Math.round(totalHolidayPay))} {t('dashboard.optim.holidayShort')}
                     </p>
                   )}
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.staffDeficit')}</p>
-                  <p className="text-xl font-black text-blue-400">+{recommendedHires} {t('dashboard.optim.personnel')}</p>
+                  <p className="text-xl font-black text-blue-400">+{fmt.num(recommendedHires)} {t('dashboard.optim.personnel')}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-white/40 mb-1">{t('dashboard.optim.netDelta')}</p>
@@ -376,7 +383,7 @@ export function DashboardTab(props: DashboardTabProps) {
                     "text-xl font-black",
                     netMonthlyDelta > 0 ? "text-emerald-400" : netMonthlyDelta < 0 ? "text-amber-400" : "text-slate-200"
                   )}>
-                    {netMonthlyDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(netMonthlyDelta)).toLocaleString()} IQD
+                    {netMonthlyDelta >= 0 ? '+' : '−'}{fmt.num(Math.abs(Math.round(netMonthlyDelta)))} IQD
                   </p>
                   <p className="text-[9px] text-white/40 font-mono leading-tight mt-0.5">
                     {t('dashboard.optim.netDeltaCaption')}
@@ -399,7 +406,7 @@ export function DashboardTab(props: DashboardTabProps) {
                     </p>
                     <p className="text-sm text-rose-200">
                       {t('dashboard.optim.finesExposure.body', {
-                        amount: Math.round(currentPotentialFines).toLocaleString(),
+                        amount: fmt.num(Math.round(currentPotentialFines)),
                       })}
                     </p>
                   </div>
@@ -416,9 +423,9 @@ export function DashboardTab(props: DashboardTabProps) {
                         ? 'dashboard.optim.body.savesNet'
                         : 'dashboard.optim.body.costsNet',
                       {
-                        hours: totalOTHours.toFixed(0),
-                        hires: recommendedHires,
-                        delta: Math.abs(Math.round(netMonthlyDelta)).toLocaleString(),
+                        hours: fmt.digits(totalOTHours.toFixed(0)),
+                        hires: fmt.num(recommendedHires),
+                        delta: fmt.num(Math.abs(Math.round(netMonthlyDelta))),
                       }
                     )}
                   </p>
@@ -547,7 +554,7 @@ export function DashboardTab(props: DashboardTabProps) {
         <KpiCard label={t('dashboard.kpi.workforce')} value={employees.length} unit={t('kpi.unit.staff')} />
         <KpiCard label={t('dashboard.kpi.violations')} value={totalViolationInstances} trend={violations.length > 0 ? 'Critical' : 'Perfect'} />
         <KpiCard label={t('dashboard.kpi.stations')} value={stations.length} unit={t('kpi.unit.stations')} />
-        <KpiCard label={t('dashboard.kpi.compliance')} value={compliancePct} trend="Health" />
+        <KpiCard label={t('dashboard.kpi.compliance')} value={compliancePct} trend={complianceScoreValue < 80 ? 'Critical' : 'Health'} />
         <KpiCard
           label={t('dashboard.kpi.fteForecast')}
           value={recommendedHires === 0 ? '—' : `+${recommendedHires}`}
@@ -577,36 +584,12 @@ export function DashboardTab(props: DashboardTabProps) {
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('dashboard.complianceAudit')}</h3>
             <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded text-slate-500 dark:text-slate-400 font-mono font-bold uppercase">{t('dashboard.liveValidation')}</span>
           </div>
-          <div className="divide-y divide-slate-100 dark:divide-slate-700/60 max-h-[300px] overflow-y-auto">
-            {violations.map((v, i) => (
-              <div key={`${v.empId}|${v.article}|${v.day ?? i}|${i}`} className={cn("flex items-center gap-6 px-6 py-4 transition-colors", v.article === "(Art. 67)" ? "bg-red-50/30 dark:bg-red-500/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60")}>
-                <div className="font-mono text-xs text-slate-500 dark:text-slate-400 font-bold shrink-0">{v.empId}</div>
-                <div className="text-sm font-bold text-slate-800 dark:text-slate-100 w-40 truncate">
-                  {empNameById.get(v.empId)}
-                </div>
-                <div className="text-xs font-bold text-slate-400 dark:text-slate-500 w-24 shrink-0">{v.article}</div>
-                <div className={cn("text-xs font-medium flex-1", v.article.includes("Art. 67") || v.article.includes("Art. 68") ? "text-red-600 dark:text-red-300 font-bold" : "text-slate-500 dark:text-slate-400 font-medium")}>
-                  {v.message} {v.count && v.count > 1 && <span className="text-blue-600 dark:text-blue-300 font-black ms-1 uppercase">({v.count} {t('dashboard.times')})</span>}
-                </div>
-              </div>
-            ))}
-            {violations.length === 0 && (
-              <div className="p-12 text-center">
-                {hasScheduleEntries ? (
-                  <>
-                    <ShieldCheck className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto mb-3" />
-                    <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{t('dashboard.noViolations')}</div>
-                    <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('dashboard.noViolations.hint')}</div>
-                  </>
-                ) : (
-                  <>
-                    <Circle className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                    <div className="text-sm font-bold text-slate-500 dark:text-slate-300">{t('dashboard.noScheduleYet')}</div>
-                    <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('dashboard.noScheduleYet.hint')}</div>
-                  </>
-                )}
-              </div>
-            )}
+          <div className="max-h-[360px] overflow-y-auto">
+            <FindingsList
+              findings={[...violations, ...(notes ?? [])]}
+              empNameById={empNameById}
+              hasContext={hasScheduleEntries}
+            />
           </div>
         </Card>
 

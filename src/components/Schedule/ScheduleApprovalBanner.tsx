@@ -514,7 +514,7 @@ function statusPillLabel(status: ApprovalStatus): string {
     case 'draft':     return 'Draft';
     case 'submitted': return 'Awaiting manager';
     case 'locked':    return 'Awaiting admin';
-    case 'saved':     return 'Locked';
+    case 'saved':     return 'Final';
     case 'rejected':  return 'Sent back';
   }
 }

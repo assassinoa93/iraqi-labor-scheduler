@@ -62,7 +62,7 @@ export function WorkforcePlanningTab(props: Props) {
     employees, shifts, stations, stationGroups, holidays, config, schedule, allSchedules, isPeakDayFor,
     onGoToRoster, onGoToLayout, setConfig,
   } = props;
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
 
   const [mode, setMode] = useState<PlanMode>('conservative');
   const [idealOnly, setIdealOnly] = useState(false);
@@ -129,7 +129,12 @@ export function WorkforcePlanningTab(props: Props) {
     ? annual.byMonth.find(m => m.monthIndex === drillMonthIndex)
     : annual.byMonth[annual.peakMonthIndex - 1];
 
-  const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
+  // Display formatter — locale-aware so Arabic mode shows Arabic-Indic
+  // digits, matching the on-screen currency elsewhere. The PDF export
+  // below uses the ASCII variant: its summary lines are hardcoded English
+  // and jsPDF can't embed Arabic-Indic glyphs.
+  const fmtIQD = (n: number) => fmt.num(Math.round(Math.abs(n)));
+  const fmtIQDascii = (n: number) => Math.round(Math.abs(n)).toLocaleString();
 
   // v2.6.0 — five-number annual headcount summary, computed separately
   // for FTE and PT so the supervisor reads the demand profile clearly:
@@ -198,7 +203,7 @@ export function WorkforcePlanningTab(props: Props) {
       stationGroups,
     });
     return exportWorkforcePlanToPDF({
-      annual, rollup, roadmap, mode, idealOnly, fmtIQD, scenarios,
+      annual, rollup, roadmap, mode, idealOnly, fmtIQD: fmtIQDascii, scenarios,
     });
   };
 

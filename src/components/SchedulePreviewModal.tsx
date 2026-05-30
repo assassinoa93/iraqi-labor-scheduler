@@ -5,12 +5,17 @@ import { Schedule, Shift, Employee, Violation } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { FindingsList } from './FindingsList';
+import { complianceScore } from '../lib/findings';
 
 interface PreviewStats {
   totalAssignments: number;
   totalHours: number;
   unfilledStationDays: number;
   violationCount: number;
+  // v5.25 — canonical compliance score (shared lib/findings formula) so the
+  // preview headline % matches the Dashboard / Reports / approval exactly.
+  complianceScore: number;
   topViolations: Violation[];
   perRoleHours: Record<string, number>;
   // v1.16: residual comp-day debt — the count of (employee × PH-work day)
@@ -114,6 +119,7 @@ export function buildPreviewStats(
     totalHours,
     unfilledStationDays: Math.max(0, totalRequiredStationDays - filledStationDays),
     violationCount: totalViolationInstances,
+    complianceScore: complianceScore(employees.length, daysInMonth, totalViolationInstances),
     topViolations,
     perRoleHours,
     compDayShortfallTotal: compDayShortfall.reduce((s, e) => s + e.debtDays, 0),
@@ -152,10 +158,9 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
   if (!isOpen || !stats) return null;
   const violationLevel = stats.violationCount === 0 ? 'clean' : stats.violationCount < 10 ? 'mild' : 'heavy';
 
-  // Compliance health score for the headline. Same heuristic the dashboard
-  // uses (3 checks per employee×day) but applied to the preview's totals.
-  const totalChecks = Math.max(1, stats.totalAssignments * 3);
-  const compliancePct = Math.max(0, Math.round(100 - (stats.violationCount / totalChecks) * 100));
+  // v5.25 — shared canonical score (lib/findings.ts), computed in
+  // buildPreviewStats, so the preview headline % matches every other surface.
+  const compliancePct = stats.complianceScore;
 
   // Split top findings into hard violations vs informational notes so the user
   // sees them as separate columns — info findings (PH worked, comp day owed)
@@ -373,25 +378,11 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
             </div>
           )}
 
-          {/* Findings split — hard violations on the left, info notes on the right. */}
+          {/* Findings — the same shared grouped, severity-split, translated
+              list the Dashboard + Reports use, so the preview matches them. */}
           {(hardFindings.length > 0 || infoFindings.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {hardFindings.length > 0 && (
-                <FindingsList
-                  title={t('modal.preview.violationsHeader')}
-                  findings={hardFindings}
-                  tone="rose"
-                  Icon={ShieldAlert}
-                />
-              )}
-              {infoFindings.length > 0 && (
-                <FindingsList
-                  title={t('modal.preview.notesHeader')}
-                  findings={infoFindings}
-                  tone="blue"
-                  Icon={Info}
-                />
-              )}
+            <div className="border border-slate-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
+              <FindingsList findings={[...hardFindings, ...infoFindings]} />
             </div>
           )}
 
@@ -433,6 +424,7 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
 }
 
 function BigStat({ label, value, sub, tone = 'neutral' }: { label: string; value: number; sub?: string; tone?: 'ok' | 'warn' | 'bad' | 'neutral' }) {
+  const { fmt } = useI18n();
   const toneClass = tone === 'ok'
     ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-100 dark:border-emerald-500/30'
     : tone === 'warn'
@@ -450,46 +442,9 @@ function BigStat({ label, value, sub, tone = 'neutral' }: { label: string; value
   return (
     <div className={cn("p-3.5 rounded-xl border", toneClass)}>
       <p className="text-[9px] font-black uppercase tracking-widest opacity-60 text-slate-600 dark:text-slate-300">{label}</p>
-      <p className={cn("text-2xl font-black mt-1.5 leading-none", valueClass)}>{value.toLocaleString()}</p>
+      <p className={cn("text-2xl font-black mt-1.5 leading-none", valueClass)}>{fmt.num(value)}</p>
       {sub && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider">{sub}</p>}
     </div>
   );
 }
 
-function FindingsList({ title, findings, tone, Icon }: {
-  title: string;
-  findings: Violation[];
-  tone: 'rose' | 'blue';
-  Icon: React.ComponentType<{ className?: string }>;
-}) {
-  const headerClass = tone === 'rose' ? 'text-rose-600 dark:text-rose-300' : 'text-blue-600 dark:text-blue-300';
-  const rowBgClass = tone === 'rose' ? 'bg-rose-50/60 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/30' : 'bg-blue-50/60 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/30';
-  const ruleClass = tone === 'rose' ? 'text-rose-800 dark:text-rose-200' : 'text-blue-800 dark:text-blue-200';
-  const articleClass = tone === 'rose' ? 'text-rose-500 dark:text-rose-300' : 'text-blue-500 dark:text-blue-300';
-  const messageClass = tone === 'rose' ? 'text-rose-700 dark:text-rose-200' : 'text-blue-700 dark:text-blue-200';
-  const countClass = tone === 'rose' ? 'bg-rose-100 dark:bg-rose-500/25 text-rose-700 dark:text-rose-200' : 'bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200';
-  const iconClass = tone === 'rose' ? 'text-rose-500 dark:text-rose-300' : 'text-blue-500 dark:text-blue-300';
-  return (
-    <div className="space-y-2">
-      <p className={cn("text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5", headerClass)}>
-        <Icon className="w-3 h-3" /> {title}
-      </p>
-      <div className="space-y-1.5">
-        {findings.map((v, i) => (
-          <div key={i} className={cn("flex items-start gap-2 p-2.5 rounded-lg border", rowBgClass)}>
-            <AlertCircle className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", iconClass)} />
-            <div className="min-w-0 flex-1">
-              <p className={cn("text-[11px] font-black leading-tight", ruleClass)}>
-                {v.rule} <span className={cn("font-mono text-[9px] font-bold ms-0.5", articleClass)}>{v.article}</span>
-              </p>
-              <p className={cn("text-[10px] leading-snug mt-0.5", messageClass)}>{v.message}</p>
-            </div>
-            {(v.count || 1) > 1 && (
-              <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-black shrink-0", countClass)}>×{v.count}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

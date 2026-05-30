@@ -227,7 +227,7 @@ export const en: Dict = {
   'modal.preview.compShortfall.body': '{days} comp day(s) across {emps} employee(s) could not be placed inside the 7-day window after the holiday they\'re owed for. This usually means the current roster is too thin to spare workers for OFF on the busy days following holidays. Hiring is the real fix — see the Workforce Planning tab for the FTE shortfall.',
   // v5.21.0 — peak coverage shortfall
   'modal.preview.peakShortfall.title': 'Peak coverage uncoverable on some days',
-  'modal.preview.peakShortfall.body': '{rows} (date × station) slot(s) across {stations} station(s) couldn\'t reach the required HC even at strictness 3 — no eligible employees were left after rest days and weekly caps. The scheduler did NOT break any rule to chase peak; it scheduled to the achievable minimum and surfaced the gap here. The real fix is hiring more, lowering peak demand on those days, or accepting reduced peak coverage.',
+  'modal.preview.peakShortfall.body': 'Couldn\'t fully staff {rows} peak slot(s) at {stations} station(s) — no eligible staff were left after rest days and weekly caps. No rule was broken; the gap is shown as-is. Fix it by hiring, lowering peak demand on those days, or accepting the gap.',
   // v5.22.0 — consolidated notes panel + inline coverage nudge
   'modal.preview.notes.title': 'Coverage & operational notes ({count})',
   'modal.preview.peakShortfall.coverageNudge.body': 'You\'re on bare-hours coverage — the planner doesn\'t reserve floaters for sick days or rest-day gaps. Switching to Realistic coverage sizes the roster to absorb absences before they break peak.',
@@ -815,7 +815,7 @@ export const en: Dict = {
   'hint.coverage.body': 'Pick a replacement to absorb the open slot, or keep the gap if intentional.',
   'hint.coverage.tag.off': 'Off-day',
   'hint.coverage.tag.recommended': 'Recommended',
-  'hint.coverage.noCandidates': 'No eligible candidates available.',
+  'hint.coverage.noCandidates': 'No eligible staff are free. Keep the gap, widen eligibility in Roster, or hire.',
   'hint.coverage.override': "Click 'Keep gap' to leave it open.",
   'hint.coverage.keepGap': 'Keep gap',
 
@@ -1072,7 +1072,7 @@ export const en: Dict = {
   'pane.pending.label': 'queued',
   'pane.pending.hint': '{count} more pending — they\'ll surface when this one is dismissed or accepted.',
   'pane.massChange.title': 'Bulk operation detected',
-  'pane.massChange.body': 'Multiple absences/leave days were just placed. Picking substitutes one by one is slow at this scale — re-run the auto-scheduler in preserve-absences mode and it will route coverage around all of them in a single pass.',
+  'pane.massChange.body': 'Many absences were just placed. Re-run the scheduler in keep-absences mode to fill coverage around all of them in one pass.',
   'pane.massChange.cta': 'Run Optimal (Keep Absences)',
 
   // Holiday compensation modal (v1.11) — toggle per worked holiday whether
@@ -1172,7 +1172,7 @@ export const en: Dict = {
   'otAnalysis.mitigations.hire.body': 'Each new FTE relieves up to one monthly cap of over-cap pressure. Salary added is approximately {cost} IQD/mo at the roster average. See the Compliance Dashboard for per-station breakdown + simulation.',
   'otAnalysis.mitigations.hire.cta': 'See advisory',
   'otAnalysis.mitigations.compDay.title': 'Schedule {count} comp day(s) for holiday work',
-  'otAnalysis.mitigations.compDay.body': 'Iraqi Labor Law (Art. 74) entitles workers to BOTH the 2× cash premium AND a comp rest day within 7 days of working a public holiday. The cash premium is already in the OT total above; this row is a compliance reminder to schedule the OFF day too. The compliance engine will flag any PH-work day with no OFF/leave in the following 7 days.',
+  'otAnalysis.mitigations.compDay.body': 'Art. 74 owes a comp rest day within 7 days of holiday work — on top of the 2× premium already counted above. Schedule the OFF day; the engine flags any holiday with no OFF/leave in the next 7 days.',
   'otAnalysis.mitigations.compDay.cta': 'Open schedule',
   'otAnalysis.mitigations.rebalance.title': 'Re-run the auto-scheduler in strict mode',
   'otAnalysis.mitigations.rebalance.body': 'Sometimes a manually-edited schedule has skewed someone\'s weekly load. Strict-mode auto-scheduling re-distributes hours subject to all caps, so the over-cap pool can shrink without any new hires.',
@@ -1224,7 +1224,7 @@ export const en: Dict = {
   'workforce.action.hold': 'Hold',
   // Footer CTA
   'workforce.cta.title': 'Apply the recommendation',
-  'workforce.cta.body': 'Open the roster to add (or hold) employees per role. The dashboard advisory and OT analysis tabs will reflect the new headcount automatically once you re-run the auto-scheduler. Releasing employees is legally complex under Iraqi Labor Law (Art. 36/40 — fixed-term renewals become open-ended; dismissals require Minister of Labor approval), so the planner never recommends releases — it surfaces "hold" instead.',
+  'workforce.cta.body': 'Open the roster to add or hold staff per role; the advisory and OT tabs update after you re-run the scheduler. The planner never recommends releases — Iraqi Labor Law (Art. 36/40) makes them legally complex — so it surfaces "hold" instead.',
   'workforce.cta.button': 'Open Roster',
   // v5.19.0 — Coverage Scenario Panel (the "how does this look on the floor?" walkthrough)
   'workforce.scenario.title': 'Coverage Scenario — How will the day look?',
@@ -1237,7 +1237,7 @@ export const en: Dict = {
   'workforce.scenario.summary.rosterRequired': 'Total roster',
   'workforce.scenario.headline.title': 'Day-on-the-floor verdict',
   'workforce.scenario.headline.allCovered': 'Across {stations} station(s), every demand hour is covered by an existing shift. To keep coverage continuous through weekly rest (Art. 71) and annual leave (Art. 43), you need roughly {roster} employees on the combined roster.',
-  'workforce.scenario.headline.someGaps': 'Across {stations} station(s), {gaps} have coverage gaps totalling {uncovered} demand hours where no shift is on the floor. Total roster required to keep coverage continuous (with weekly rest + leave buffer) is approximately {roster} employees.',
+  'workforce.scenario.headline.someGaps': '{gaps} of {stations} station(s) have coverage gaps — {uncovered} demand-hours uncovered. You\'d need about {roster} staff for continuous coverage (incl. weekly rest + leave buffer).',
   'workforce.scenario.headline.largestGap': 'Largest single gap: {station} ({hours} demand hours uncovered). Use Auto-Generate Shifts to close it.',
   'workforce.scenario.ungrouped': 'Ungrouped',
   'workforce.scenario.station': 'station',
@@ -1971,6 +1971,45 @@ export const en: Dict = {
   'fines.rule.workedDuringSickLeave': 'Worked during sick leave',
   'fines.rule.workedDuringAnnualLeave': 'Worked during annual leave',
   'fines.rule.womensNightWorkIndustrial': 'Women\'s night work in industrial undertakings',
+
+  // v5.25 — info-note titles (findings with no fineable ruleKey). Used by
+  // findings.ts → FindingsList so notes get a translated title like the
+  // violation rules above.
+  'finding.note.publicHolidayWorked': 'Public holiday worked',
+  'finding.note.compDayOwed': 'Comp day owed',
+  'finding.note.compDayLate': 'Comp day late',
+
+  // v5.25 — translatable finding detail lines. The compliance engine emits a
+  // messageKey + params; these render in the active locale (replacing the raw
+  // English `message`). Kept short and headline-style so the report stays
+  // scannable. {hrs}/{cap}/{peak}/{gap}/{min}/{days}/{offset}/{rec} are filled
+  // by the engine.
+  'finding.msg.workedMaternity': 'Assigned a shift during maternity leave.',
+  'finding.msg.workedSick': 'Assigned a shift during sick leave.',
+  'finding.msg.workedAnnual': 'Assigned a shift during approved annual leave.',
+  'finding.msg.dailyCap': 'Worked {hrs}h — over the {cap}h daily cap.',
+  'finding.msg.continuousDriving': 'Drove {hrs}h with under 30 min break — over the {cap}h limit.',
+  'finding.msg.womensNight': 'Industrial shift in the protected {start}–{end} night window.',
+  'finding.msg.minRest': 'Only {gap}h rest between shifts — needs {min}h.',
+  'finding.msg.weeklyCap': 'Peak {peak}h in 7 days — over the {cap}h weekly cap.',
+  'finding.msg.weeklyRest': 'No rest day within a 7-day stretch.',
+  'finding.msg.consecutive': 'Worked {days} days straight — max is {cap}.',
+  'finding.msg.phWorked.cash': 'Holiday worked — 2× cash premium owed.',
+  'finding.msg.phWorked.both': 'Holiday worked — comp day + 2× premium owed.',
+  'finding.msg.phWorked.comp': 'Holiday worked — comp rest day owed.',
+  'finding.msg.compDayOwed': 'No comp day within {days} days. Grant one or switch to cash-OT.',
+  'finding.msg.compDayLate': 'Comp day landed {offset} days later — aim for within {rec}.',
+
+  // v5.25 — shared FindingsList (Dashboard "Compliance Audit", Reports,
+  // schedule preview). One grouped, severity-split, translated component.
+  'findings.section.violations': 'Violations',
+  'findings.section.notes': 'Notes',
+  'findings.allClear.title': 'No violations',
+  'findings.allClear.hint': 'This schedule meets the configured labor-law caps.',
+  'findings.noSchedule.title': 'Nothing to check yet',
+  'findings.noSchedule.hint': 'Build or generate a schedule to run compliance checks.',
+  'findings.staff': '{n} staff',
+  'findings.day': 'Day {day}',
 
   // Phase 3.2 — flat HC overridden hint (StationModal + BulkAddStations)
   'modal.station.flatHC.overridden': 'Overridden by hourly profile',

@@ -267,6 +267,7 @@ export class ComplianceEngine {
               ruleKey: RULE_KEYS.WORKED_DURING_MATERNITY,
               article: "(Art. 87)",
               message: "Employee is on maternity leave but has a work shift assigned.",
+              messageKey: "finding.msg.workedMaternity",
             });
             return;
           }
@@ -278,6 +279,7 @@ export class ComplianceEngine {
               ruleKey: RULE_KEYS.WORKED_DURING_SICK_LEAVE,
               article: "(Art. 84)",
               message: "Employee is on sick leave but has a work shift assigned.",
+              messageKey: "finding.msg.workedSick",
             });
             return;
           }
@@ -289,6 +291,7 @@ export class ComplianceEngine {
               ruleKey: RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE,
               article: "(Annual Leave)",
               message: "Employee is on approved annual leave but has a work shift assigned.",
+              messageKey: "finding.msg.workedAnnual",
             });
             return;
           }
@@ -320,7 +323,9 @@ export class ComplianceEngine {
                 rule: "Daily hours cap",
                 ruleKey: RULE_KEYS.DAILY_HOURS_CAP,
                 article,
-                message: `Worked ${shift.durationHrs}hrs. Cap is ${cap}hrs for ${category}.`
+                message: `Worked ${shift.durationHrs}hrs. Cap is ${cap}hrs for ${category}.`,
+                messageKey: "finding.msg.dailyCap",
+                messageParams: { hrs: shift.durationHrs, cap },
               });
             }
 
@@ -332,7 +337,9 @@ export class ComplianceEngine {
                 rule: "Continuous driving without break",
                 ruleKey: RULE_KEYS.CONTINUOUS_DRIVING_NO_BREAK,
                 article: "(Art. 88)",
-                message: `Driver shift of ${shift.durationHrs}hrs exceeds ${driverCfg.continuousDrivingHrsCap}hrs continuous-driving cap with break <30min.`
+                message: `Driver shift of ${shift.durationHrs}hrs exceeds ${driverCfg.continuousDrivingHrsCap}hrs continuous-driving cap with break <30min.`,
+                messageKey: "finding.msg.continuousDriving",
+                messageParams: { hrs: shift.durationHrs, cap: driverCfg.continuousDrivingHrsCap },
               });
             }
 
@@ -346,6 +353,8 @@ export class ComplianceEngine {
                   ruleKey: RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL,
                   article: "(Art. 86)",
                   message: `Industrial shift overlaps the protected ${art86NightStart}–${art86NightEnd} night window.`,
+                  messageKey: "finding.msg.womensNight",
+                  messageParams: { start: art86NightStart, end: art86NightEnd },
                 });
               }
             }
@@ -377,7 +386,9 @@ export class ComplianceEngine {
                 rule: "Min rest between shifts",
                 ruleKey: RULE_KEYS.MIN_REST_BETWEEN_SHIFTS,
                 article: restArticle,
-                message: `Rest period of ${gap}hrs is below the required ${minRest}hrs.`
+                message: `Rest period of ${gap}hrs is below the required ${minRest}hrs.`,
+                messageKey: "finding.msg.minRest",
+                messageParams: { gap, min: minRest },
               });
             }
           }
@@ -418,74 +429,98 @@ export class ComplianceEngine {
 
       // Rule: Weekly hours cap (Art. 70 / Art. 88 for drivers)
       // Rule: Weekly rest day (Art. 72)
+      // Both fire across overlapping rolling-7 windows. Scanning every window
+      // but emitting one row per window floods the report and inflates the
+      // violation count (an over-worked employee can trip ~25 windows in a
+      // month). We scan all windows but emit at most ONE finding per employee:
+      // the single worst over-cap week, and the first window missing a rest
+      // day. The cap/article are constant per employee, so hoist them out.
       if (!emp.hourExempt) {
+        const weeklyCap = driver
+          ? driverCfg.weeklyHrsCap
+          : (emp.isHazardous ? config.hazardousWeeklyHrsCap : config.standardWeeklyHrsCap);
+        const weeklyArticle = driver ? "(Art. 88)" : "(Art. 70)";
+        let weeklyCapPeak = 0;
+        let weeklyCapAnchor = 0;
+        let restMissingDay = 0; // 0 = no missing-rest window found
+
         for (let i = 0; i <= workData.length - 7; i++) {
           const window = workData.slice(i, i + 7);
           const totalHrs = window.reduce((sum, d) => sum + d.hrs, 0);
           const hasRest = window.some(d => !d.isWork);
 
-          // Anchor the violation on the first day of the window that lives in
-          // the current month. Skip windows that anchor in the previous month
-          // — we surfaced them only to count hours into the current month.
+          // Anchor on the first day of the window that lives in the current
+          // month; skip windows anchored in the previous month (surfaced only
+          // to count hours forward).
           const anchor = window.find(w => w.day >= 1);
           if (!anchor) continue;
 
-          const weeklyCap = driver
-            ? driverCfg.weeklyHrsCap
-            : (emp.isHazardous ? config.hazardousWeeklyHrsCap : config.standardWeeklyHrsCap);
-          const weeklyArticle = driver ? "(Art. 88)" : "(Art. 70)";
-          if (totalHrs > weeklyCap) {
-            violations.push({
-              empId: emp.empId,
-              day: anchor.day,
-              rule: "Weekly hours cap",
-              ruleKey: RULE_KEYS.WEEKLY_HOURS_CAP,
-              article: weeklyArticle,
-              message: `7-day rolling total of ${totalHrs}hrs exceeds ${weeklyCap}hrs limit.`
-            });
+          if (totalHrs > weeklyCap && totalHrs > weeklyCapPeak) {
+            weeklyCapPeak = totalHrs;
+            weeklyCapAnchor = anchor.day;
           }
-
           if (!hasRest) {
             const last = window[window.length - 1];
-            // Only flag a missing rest day when the window's last day is in
-            // the current month — otherwise we'd duplicate violations the
-            // previous month already surfaced.
-            if (last.day >= 1) {
-              violations.push({
-                empId: emp.empId,
-                day: last.day,
-                rule: "Weekly rest day",
-                ruleKey: RULE_KEYS.WEEKLY_REST_DAY,
-                article: "(Art. 72)",
-                message: "No rest day provided in a rolling 7-day period."
-              });
-            }
+            if (last.day >= 1 && restMissingDay === 0) restMissingDay = last.day;
           }
+        }
+
+        if (weeklyCapPeak > 0) {
+          violations.push({
+            empId: emp.empId,
+            day: weeklyCapAnchor,
+            rule: "Weekly hours cap",
+            ruleKey: RULE_KEYS.WEEKLY_HOURS_CAP,
+            article: weeklyArticle,
+            message: `Peak 7-day total of ${weeklyCapPeak}hrs exceeds the ${weeklyCap}hr cap.`,
+            messageKey: "finding.msg.weeklyCap",
+            messageParams: { peak: weeklyCapPeak, cap: weeklyCap },
+          });
+        }
+        if (restMissingDay > 0) {
+          violations.push({
+            empId: emp.empId,
+            day: restMissingDay,
+            rule: "Weekly rest day",
+            ruleKey: RULE_KEYS.WEEKLY_REST_DAY,
+            article: "(Art. 72)",
+            message: "No rest day provided in a rolling 7-day period.",
+            messageKey: "finding.msg.weeklyRest",
+          });
         }
       }
 
-      // Rule: Consecutive work days (Art. 71 §5, 72 / Art. 88 for drivers)
+      // Rule: Consecutive work days (Art. 71 §5, 72 / Art. 88 for drivers).
+      // Emit once per employee with the longest streak, not one row per day
+      // beyond the cap.
       const consecCap = driver ? driverCfg.maxConsecWorkDays : config.maxConsecWorkDays;
       const consecArticle = driver ? "(Art. 88)" : "(Art. 71 §5, 72)";
       let consecutive = 0;
+      let maxConsec = 0;
+      let consecAnchor = 0;
       workData.forEach((d) => {
         if (d.isWork) {
           consecutive++;
+          if (consecutive > consecCap && d.day >= 1 && consecutive > maxConsec) {
+            maxConsec = consecutive;
+            consecAnchor = d.day;
+          }
         } else {
           consecutive = 0;
         }
-
-        if (consecutive > consecCap && d.day >= 1) {
-          violations.push({
-            empId: emp.empId,
-            day: d.day,
-            rule: "Consecutive work days",
-            ruleKey: RULE_KEYS.CONSECUTIVE_WORK_DAYS,
-            article: consecArticle,
-            message: `Personnel worked ${consecutive} consecutive days. Max allowed is ${consecCap}.`
-          });
-        }
       });
+      if (maxConsec > 0) {
+        violations.push({
+          empId: emp.empId,
+          day: consecAnchor,
+          rule: "Consecutive work days",
+          ruleKey: RULE_KEYS.CONSECUTIVE_WORK_DAYS,
+          article: consecArticle,
+          message: `Personnel worked ${maxConsec} consecutive days. Max allowed is ${consecCap}.`,
+          messageKey: "finding.msg.consecutive",
+          messageParams: { days: maxConsec, cap: consecCap },
+        });
+      }
 
       // Rule: Holiday work — informational note, NOT a violation.
       // Working a public holiday is legal under Art. 74; the law just
@@ -526,12 +561,18 @@ export class ComplianceEngine {
                 : effMode === 'both'
                   ? "Worked on a public holiday — comp rest day AND 2× cash premium owed (Art. 74 strict-text mode)."
                   : "Worked on a public holiday — comp rest day owed within the configured window (Art. 74 comp mode).";
+              const noteKey = effMode === 'cash-ot'
+                ? "finding.msg.phWorked.cash"
+                : effMode === 'both'
+                  ? "finding.msg.phWorked.both"
+                  : "finding.msg.phWorked.comp";
               violations.push({
                 empId: emp.empId,
                 day,
                 rule: "Public holiday worked",
                 article: "(Art. 74)",
                 message: noteMsg,
+                messageKey: noteKey,
                 severity: 'info',
               });
             }
@@ -574,6 +615,8 @@ export class ComplianceEngine {
                 rule: "Comp day owed",
                 article: "(Art. 74)",
                 message: `Worked the public holiday on day ${day} but no OFF / CP / leave was scheduled within ${compWindowMax} days. Grant a comp day or flip the holiday to cash-OT mode.`,
+                messageKey: "finding.msg.compDayOwed",
+                messageParams: { day, days: compWindowMax },
                 severity: 'info',
               });
             } else if (compFound && compDayOffset > compWindowRec) {
@@ -586,6 +629,8 @@ export class ComplianceEngine {
                 rule: "Comp day late",
                 article: "(Art. 74)",
                 message: `Comp day for the day-${day} public holiday lands ${compDayOffset} days later — recommended is within ${compWindowRec} days.`,
+                messageKey: "finding.msg.compDayLate",
+                messageParams: { offset: compDayOffset, rec: compWindowRec },
                 severity: 'info',
               });
             }

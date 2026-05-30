@@ -386,6 +386,7 @@ function DeltaTile({ label, before, after, delta, better, unit }: {
   better: 'lower' | 'higher' | 'context';
   unit?: string;
 }) {
+  const { fmt: i18nFmt } = useI18n();
   const isBetter = better === 'lower' ? delta < 0 : better === 'higher' ? delta > 0 : false;
   const isWorse = better === 'lower' ? delta > 0 : better === 'higher' ? delta < 0 : false;
   const tone = isBetter ? 'emerald' : isWorse ? 'rose' : 'slate';
@@ -393,7 +394,7 @@ function DeltaTile({ label, before, after, delta, better, unit }: {
     tone === 'emerald' ? 'text-emerald-700 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30'
     : tone === 'rose' ? 'text-rose-700 dark:text-rose-200 bg-rose-50 dark:bg-rose-500/15 border-rose-200 dark:border-rose-500/30'
     : 'text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700';
-  const fmt = (n: number) => Math.round(n).toLocaleString();
+  const fmt = (n: number) => i18nFmt.num(Math.round(n));
   return (
     <div className={cn('p-2.5 rounded-lg border', toneClass)}>
       <p className="text-[8px] font-black uppercase tracking-widest mb-1">{label}</p>

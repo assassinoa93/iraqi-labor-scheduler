@@ -26,7 +26,7 @@ type ModeKey = 'eliminateOT' | 'optimalCoverage' | 'bestOfBoth';
 // OT / coverage so the recommendation is a real simulation, not just
 // back-of-envelope arithmetic.
 export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, simArgs }: Props) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [activeMode, setActiveMode] = useState<ModeKey>('bestOfBoth');
   const [simulating, setSimulating] = useState(false);
   const [simResults, setSimResults] = useState<Record<ModeKey, SimulationResult | null>>({
@@ -59,7 +59,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
 
   const active = modes.find(m => m.key === activeMode)!;
   const ActiveIcon = active.icon;
-  const fmtIQD = (n: number) => Math.abs(n).toLocaleString();
+  const fmtIQD = (n: number) => fmt.num(Math.abs(n));
   const activeSim = simResults[activeMode];
 
   const runSimulation = () => {
@@ -337,7 +337,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                             {t('advisory.fines.exposure.rowDetail', {
                               occ: entry.occurrences,
-                              rate: entry.ratePerOccurrence.toLocaleString(),
+                              rate: fmt.num(entry.ratePerOccurrence),
                             })}
                           </p>
                         </div>
@@ -402,8 +402,8 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
           <p>
             {t('advisory.footnote', {
               ot: currentOTHours.toFixed(0),
-              spend: currentOTPay.toLocaleString(),
-              avg: advisory.avgMonthlySalary.toLocaleString(),
+              spend: fmt.num(currentOTPay),
+              avg: fmt.num(advisory.avgMonthlySalary),
             })}
           </p>
         </div>
@@ -465,8 +465,8 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
 }
 
 function SimulationReadout({ result, currentFines }: { result: SimulationResult; currentFines: number }) {
-  const { t } = useI18n();
-  const fmtIQD = (n: number) => Math.abs(n).toLocaleString();
+  const { t, fmt } = useI18n();
+  const fmtIQD = (n: number) => fmt.num(Math.abs(n));
   // Hires can absorb over-cap OT and close coverage gaps; they CANNOT
   // eliminate holiday-premium hours (someone has to work each holiday). So
   // "clean" means cap-respected + every station covered + zero remaining

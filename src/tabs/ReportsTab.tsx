@@ -3,6 +3,8 @@ import { Download, FileSpreadsheet, Database, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation } from '../types';
 import { Card } from '../components/Primitives';
+import { FindingsList } from '../components/FindingsList';
+import { complianceScore, countInstances } from '../lib/findings';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 
@@ -12,17 +14,20 @@ interface ReportsTabProps {
   shifts: Shift[];
   config: Config;
   violations: Violation[];
+  notes: Violation[];
   onExportPDF: () => void;
   onExportCSV: () => void;
 }
 
-export function ReportsTab({ employees, schedule, shifts, config, violations, onExportPDF, onExportCSV }: ReportsTabProps) {
-  const { t } = useI18n();
-  const totalChecks = employees.length * config.daysInMonth * 3;
-  const totalViolationInstances = violations.reduce((s, v) => s + (v.count || 1), 0);
-  const compliancePct = totalChecks === 0
-    ? '100%'
-    : `${Math.max(0, Math.round(100 - (totalViolationInstances / Math.max(totalChecks, 1)) * 100))}%`;
+export function ReportsTab({ employees, schedule, shifts, config, violations, notes, onExportPDF, onExportCSV }: ReportsTabProps) {
+  const { t, fmt } = useI18n();
+  // v5.25 — shared canonical score + count so this matches the Dashboard,
+  // preview modal, and approval dialog exactly.
+  const score = complianceScore(employees.length, config.daysInMonth, countInstances(violations));
+  const scoreColor = score >= 90
+    ? 'text-emerald-600 dark:text-emerald-300'
+    : score >= 75 ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300';
+  const empNameById = new Map(employees.map((e) => [e.empId, e.name]));
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -86,11 +91,11 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, on
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.totalPersonnel')}</p>
-                <p className="text-2xl font-light text-slate-900 dark:text-slate-50">{employees.length}</p>
+                <p className="text-2xl font-light text-slate-900 dark:text-slate-50">{fmt.num(employees.length)}</p>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.complianceScore')}</p>
-                <p className="text-2xl font-light text-emerald-600 dark:text-emerald-300">{compliancePct}</p>
+                <p className={cn("text-2xl font-light", scoreColor)}>{fmt.num(score)}%</p>
               </div>
               <div className="bg-emerald-50/50 dark:bg-emerald-500/10 p-4 rounded-xl border border-emerald-100/50 dark:border-emerald-500/25">
                 <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-300 uppercase tracking-tighter mb-1">{t('reports.preview.coverageStatus')}</p>
@@ -119,9 +124,9 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, on
                       <tr key={emp.empId}>
                         <td className="px-4 py-2 font-mono text-slate-700 dark:text-slate-300">{emp.empId}</td>
                         <td className="px-4 py-2 font-bold text-slate-800 dark:text-slate-100">{emp.name}</td>
-                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{totalHours}h</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{fmt.num(totalHours)}h</td>
                         <td className={cn('px-4 py-2 font-bold', empViolations.length > 0 ? 'text-red-500 dark:text-red-300' : 'text-emerald-500 dark:text-emerald-300')}>
-                          {empViolations.length}
+                          {fmt.num(countInstances(empViolations))}
                         </td>
                       </tr>
                     );
@@ -129,7 +134,7 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, on
                   {employees.length > 5 && (
                     <tr>
                       <td colSpan={4} className="px-4 py-2 text-center text-slate-300 dark:text-slate-600 italic font-medium tracking-tight">
-                        + {employees.length - 5} {t('reports.preview.moreRecords')}
+                        + {fmt.num(employees.length - 5)} {t('reports.preview.moreRecords')}
                       </td>
                     </tr>
                   )}
@@ -139,6 +144,19 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, on
           </div>
         </div>
       </div>
+
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('dashboard.complianceAudit')}</h3>
+        </div>
+        <div className="max-h-[360px] overflow-y-auto">
+          <FindingsList
+            findings={[...violations, ...(notes ?? [])]}
+            empNameById={empNameById}
+            hasContext={Object.keys(schedule).length > 0}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

@@ -72,7 +72,7 @@ export function EmployeeOTDetailModal({
   premiumHolidayHours, overCapPay, holidayPay,
   stationNameById, allSchedules,
 }: Props) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   useModalKeys(isOpen, onClose);
 
   const cap = monthlyHourCap(config);
@@ -188,9 +188,9 @@ export function EmployeeOTDetailModal({
         {/* Top KPI strip — consistent with what the card showed. */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-slate-100 dark:border-slate-700/60 shrink-0">
           <KpiTile label={t('otDetail.kpi.totalHours')} value={`${totalHours.toFixed(1)}h`} sub={t('otDetail.kpi.cap', { cap })} />
-          <KpiTile label={t('otDetail.kpi.overCap')} value={`${payableOverCapHours.toFixed(1)}h`} tone={payableOverCapHours > 0 ? 'rose' : undefined} />
-          <KpiTile label={t('otDetail.kpi.holiday')} value={`${holidayHours.toFixed(1)}h`} tone={holidayHours > 0 ? 'amber' : undefined} />
-          <KpiTile label={t('otDetail.kpi.otPay')} value={Math.round(totalOTPay).toLocaleString()} sub="IQD" tone={totalOTPay > 0 ? 'rose' : undefined} />
+          <KpiTile label={t('otDetail.kpi.overCap')} value={`${fmt.digits(payableOverCapHours.toFixed(1))}h`} tone={payableOverCapHours > 0 ? 'rose' : undefined} />
+          <KpiTile label={t('otDetail.kpi.holiday')} value={`${fmt.digits(holidayHours.toFixed(1))}h`} tone={holidayHours > 0 ? 'amber' : undefined} />
+          <KpiTile label={t('otDetail.kpi.otPay')} value={fmt.num(Math.round(totalOTPay))} sub="IQD" tone={totalOTPay > 0 ? 'rose' : undefined} />
         </div>
 
         {capCrossDay !== null && (
@@ -216,7 +216,7 @@ export function EmployeeOTDetailModal({
                 <div className="flex items-start gap-2">
                   <span className="w-2 h-2 rounded-sm bg-rose-500 mt-1 shrink-0" />
                   <p className="text-slate-700 dark:text-slate-200 leading-relaxed">
-                    <span className="font-bold">{t('otDetail.why.overCap.title', { hrs: payableOverCapHours.toFixed(1), pay: Math.round(overCapPay).toLocaleString() })}</span>
+                    <span className="font-bold">{t('otDetail.why.overCap.title', { hrs: fmt.digits(payableOverCapHours.toFixed(1)), pay: fmt.num(Math.round(overCapPay)) })}</span>
                     {' '}
                     <span className="text-slate-500 dark:text-slate-400">{t('otDetail.why.overCap.body', { cap })}</span>
                   </p>
@@ -226,7 +226,7 @@ export function EmployeeOTDetailModal({
                 <div className="flex items-start gap-2">
                   <span className="w-2 h-2 rounded-sm bg-amber-500 mt-1 shrink-0" />
                   <p className="text-slate-700 dark:text-slate-200 leading-relaxed">
-                    <span className="font-bold">{t('otDetail.why.holiday.title', { hrs: premiumHolidayHours.toFixed(1), pay: Math.round(holidayPay).toLocaleString() })}</span>
+                    <span className="font-bold">{t('otDetail.why.holiday.title', { hrs: fmt.digits(premiumHolidayHours.toFixed(1)), pay: fmt.num(Math.round(holidayPay)) })}</span>
                     {' '}
                     <span className="text-slate-500 dark:text-slate-400">{t('otDetail.why.holiday.body')}</span>
                   </p>

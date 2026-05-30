@@ -40,7 +40,7 @@ export function CoverageOTAnalysisTab(props: Props) {
     employees, shifts, stations, holidays, config, schedule, allSchedules,
     prevMonth, nextMonth, setActiveMonth, onGoToRoster, onGoToSchedule,
   } = props;
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
 
   const analysis = useMemo(
     () => analyzeOT(employees, schedule, shifts, stations, holidays, config, allSchedules),
@@ -57,7 +57,7 @@ export function CoverageOTAnalysisTab(props: Props) {
     [analysis, avgMonthlySalary],
   );
 
-  const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
+  const fmtIQD = (n: number) => fmt.num(Math.round(Math.abs(n)));
   const overCapPct = analysis.totalOTPay > 0 ? Math.round((analysis.totalOverCapPay / analysis.totalOTPay) * 100) : 0;
 
   // v5.6.0 — per-employee OT detail modal. Clicking a "Who burned the OT"
@@ -322,8 +322,8 @@ export function CoverageOTAnalysisTab(props: Props) {
 }
 
 function MitigationRow({ m, avgSalary, onGoToSchedule }: { m: OTMitigation; avgSalary: number; onGoToSchedule: () => void }) {
-  const { t } = useI18n();
-  const fmtIQD = (n: number) => Math.round(Math.abs(n)).toLocaleString();
+  const { t, fmt } = useI18n();
+  const fmtIQD = (n: number) => fmt.num(Math.round(Math.abs(n)));
   const labels: Record<OTMitigation['id'], { title: string; body: string; cta: string; tone: 'rose' | 'amber' | 'blue' }> = {
     'hire-overcap': {
       title: t('otAnalysis.mitigations.hire.title', { count: m.count }),

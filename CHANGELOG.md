@@ -2,6 +2,40 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.25.0 — 2026-05-30
+
+**Reporting & compliance-flags unification: one source of truth for how violations, notes, counts, and scores are shown across every tab.** A cross-tab audit found violations counted four different ways, four compliance-score formulas, info-notes surfaced in only one place, raw English rule names in Arabic mode, and several walls of jargon. This release collapses all of it onto shared foundations so the same schedule reads identically everywhere — and trims the overload.
+
+### Findings: single source of truth
+
+- [lib/findings.ts](src/lib/findings.ts) — new module: `splitFindings` (hard violations vs info notes), `countInstances` (the one canonical count), `complianceScore` (the one 0-100 formula), `groupFindings` (group by rule so the report is scannable, not a flat dump), plus translated `findingTitle`/`findingDetail`. Every surface routes through it.
+- [components/FindingsList.tsx](src/components/FindingsList.tsx) — new shared component: grouped, severity-split (Violations / Notes), expandable, consistently coloured, fully translated. Now used by the Dashboard "Compliance Audit", the Reports center, and the auto-scheduler preview (whose local ad-hoc list was removed).
+- [lib/__tests__/findings.test.ts](src/lib/__tests__/findings.test.ts) — 14 new unit tests covering split / count / group / score / title behaviour (total suite now 417).
+
+### Weekly hours cap is now a real violation everywhere
+
+- [lib/compliance.ts](src/lib/compliance.ts) — the Art. 70 weekly-cap breach is no longer filtered out of the Dashboard / Reports / PDF (it previously painted a red grid badge with no matching report row). To avoid flooding the count, the engine now emits the per-window rules **once per employee**: weekly-cap = peak week, consecutive-days = longest streak, weekly-rest = first missing-rest window.
+- [App.tsx](src/App.tsx) — dropped the `rule !== 'Weekly hours cap'` filters; one `splitFindings` split now feeds violations + notes to every tab.
+
+### Translation
+
+- [lib/compliance.ts](src/lib/compliance.ts) — every finding now carries a translatable `messageKey` + `messageParams` alongside the English fallback `message`; titles resolve via `fines.rule.*` (violations) and new `finding.note.*` keys (info notes). [lib/i18n/en.ts](src/lib/i18n/en.ts) + [lib/i18n/ar.ts](src/lib/i18n/ar.ts) gain `finding.msg.*` / `finding.note.*` / `findings.*`. Arabic findings render Arabic-Indic digits.
+
+### Consistency & bug fixes
+
+- [App.tsx](src/App.tsx) — the approval dialog always reported "0 info findings" (it filtered an already-violation-only array); now uses the real notes count and the shared `complianceScore`.
+- [tabs/DashboardTab.tsx](src/tabs/DashboardTab.tsx) — the "Rest Periods" violation category no longer renders with a green ✓ (now amber); the "Compliance" KPI tones by score instead of always showing green; the "Wages & OT (Art 70)" category now populates. Count + score shared with every other surface.
+- [tabs/ReportsTab.tsx](src/tabs/ReportsTab.tsx) — compliance score and per-employee counts use the shared helpers; score colour reflects the value; added the shared findings list.
+- [components/Schedule/ScheduleApprovalBanner.tsx](src/components/Schedule/ScheduleApprovalBanner.tsx) — the saved/final schedule pill was mislabeled "Locked"; now "Final".
+
+### Copy clarity
+
+- [lib/i18n/en.ts](src/lib/i18n/en.ts) + [lib/i18n/ar.ts](src/lib/i18n/ar.ts) — rewrote the six worst walls of text (peak-shortfall, workforce-gap headline, mass-change nudge, comp-day mitigation, workforce CTA, no-candidates hint) to a headline + next-step form, dropping internal jargon ("strictness 3", "PAX-hour", "date × station"). The dead-end "no eligible candidates" hint now tells the user what to do.
+
+### Arabic-Indic digits (continued)
+
+- [tabs/PayrollTab.tsx](src/tabs/PayrollTab.tsx), [components/StaffingAdvisoryCard.tsx](src/components/StaffingAdvisoryCard.tsx), [components/EmployeeOTDetailModal.tsx](src/components/EmployeeOTDetailModal.tsx), [tabs/CoverageOTAnalysisTab.tsx](src/tabs/CoverageOTAnalysisTab.tsx), [tabs/WorkforcePlanningTab.tsx](src/tabs/WorkforcePlanningTab.tsx), [components/EmployeeModal.tsx](src/components/EmployeeModal.tsx), [components/VariablesTab.tsx](src/components/VariablesTab.tsx), [components/WhatIfPanel.tsx](src/components/WhatIfPanel.tsx) — additional currency / OT / net-pay figures routed through `fmt.num` so they localize to Arabic-Indic digits, per the established digit convention.
+
 ## v5.24.1 — 2026-05-24
 
 **UI/UX optimization pass: search across more tabs, perf fixes, empty-state polish, modal responsiveness, recent-companies switcher, bulk-op toasts, AI Services i18n carve-out.** No new product surfaces — this rollup closes out polish items surfaced by an end-to-end UX audit of v5.24.0.

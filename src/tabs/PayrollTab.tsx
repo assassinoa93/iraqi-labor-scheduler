@@ -733,8 +733,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{baseMonthly.toLocaleString()} IQD</td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{Math.round(hourlyRate).toLocaleString()} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{fmt.num(baseMonthly)} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{fmt.num(Math.round(hourlyRate))} IQD</td>
                     <td className="px-6 py-4">
                       <div className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded w-fit",
@@ -744,7 +744,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300">+{Math.round(otAmount).toLocaleString()}</div>
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300">+{fmt.num(Math.round(otAmount))}</div>
                       <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
                         {premiumHolidayHours > 0 && `(incl. ${premiumHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
@@ -769,7 +769,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tighter">
-                        {Math.round(netPayable).toLocaleString()}
+                        {fmt.num(Math.round(netPayable))}
                       </div>
                     </td>
                   </tr>
@@ -790,9 +790,9 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                           {t('payroll.group.headcount', { count: section.rows.length })}
                         </span>
                         <span className="ms-auto text-[9px] font-mono text-slate-500 dark:text-slate-400">
-                          {t('payroll.group.otRollup', { ot: Math.round(section.totalOTPay).toLocaleString() })}
+                          {t('payroll.group.otRollup', { ot: fmt.num(Math.round(section.totalOTPay)) })}
                           {' · '}
-                          {t('payroll.group.netRollup', { net: Math.round(section.totalNetPayable).toLocaleString() })}
+                          {t('payroll.group.netRollup', { net: fmt.num(Math.round(section.totalNetPayable)) })}
                         </span>
                       </div>
                     </td>

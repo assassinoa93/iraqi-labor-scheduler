@@ -688,7 +688,7 @@ function FineRatesSection({ config, setConfig, readOnly }: {
   setConfig: React.Dispatch<React.SetStateAction<Config>>;
   readOnly?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   // Display order matches operational severity (overwork rules first,
   // then leave-day work, then Art. 86 women's industrial night work).
   const RULE_ORDER: string[] = [
@@ -767,7 +767,7 @@ function FineRatesSection({ config, setConfig, readOnly }: {
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {t('variables.fines.row.help', { defaultAmount: seedDefault.toLocaleString() })}
+                  {t('variables.fines.row.help', { defaultAmount: fmt.num(seedDefault) })}
                 </p>
               </div>
               <div className="flex items-center gap-2">

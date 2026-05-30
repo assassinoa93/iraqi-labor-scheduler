@@ -41,6 +41,7 @@ import {
   LeaveType,
 } from './types';
 import { ComplianceEngine, previewAssignmentWarnings } from './lib/compliance';
+import { splitFindings, countInstances, complianceScore } from './lib/findings';
 import { format, getDaysInMonth, addMonths, subMonths } from 'date-fns';
 import {
   INITIAL_SHIFTS, INITIAL_EMPLOYEES, INITIAL_STATIONS, INITIAL_STATION_GROUPS, INITIAL_HOLIDAYS,
@@ -1139,12 +1140,18 @@ export default function App() {
   // table; `infoFindings` are notes the supervisor needs to be aware of
   // (e.g. holiday worked → eligible for double pay) but which are NOT rule
   // breaches and don't lower the compliance score.
-  const findings = useMemo(() => {
-    const raw = ComplianceEngine.check(employees, shifts, holidays, config, schedule, allSchedules);
-    return raw.filter(v => v.rule !== 'Weekly hours cap');
-  }, [schedule, employees, shifts, config, holidays, allSchedules]);
-  const violations = useMemo(() => findings.filter(v => (v.severity ?? 'violation') === 'violation'), [findings]);
-  const infoFindings = useMemo(() => findings.filter(v => v.severity === 'info'), [findings]);
+  const findings = useMemo(
+    () => ComplianceEngine.check(employees, shifts, holidays, config, schedule, allSchedules),
+    [schedule, employees, shifts, config, holidays, allSchedules],
+  );
+  // v5.25 — ONE split, one source of truth (lib/findings.ts). `violations`
+  // are hard breaches that drive the KPIs + compliance score; `infoNotes`
+  // are info-severity findings (holiday worked, comp-day owed) surfaced
+  // separately so they never silently disappear. Weekly-cap is no longer
+  // filtered out here — per product decision it's a real violation on every
+  // surface, and the engine now emits one row per employee so it can't flood
+  // the report or the grid.
+  const { violations, notes: infoNotes } = useMemo(() => splitFindings(findings), [findings]);
   // v5.18.0 — `${empId}:${day}` key set for hard violations only. The
   // Schedule grid threads this through to ScheduleCell to paint a small
   // red corner dot on each flagged cell. Memoized off `violations` so
@@ -2384,8 +2391,7 @@ export default function App() {
     const newSchedule = liabilityResult?.schedule ?? rawSchedule;
 
     const previewViolations = ComplianceEngine
-      .check(updatedEmployees, shifts, holidays, config, newSchedule, allSchedules)
-      .filter(v => v.rule !== 'Weekly hours cap');
+      .check(updatedEmployees, shifts, holidays, config, newSchedule, allSchedules);
 
     let totalRequired = 0;
     let totalFilled = 0;
@@ -3445,7 +3451,7 @@ export default function App() {
     }
     const baseViolations = ComplianceEngine
       .check(baselineActive.employees, baselineActive.shifts, baselineActive.holidays, baselineActive.config, baseSchedule, baselineActive.allSchedules)
-      .filter(v => v.rule !== 'Weekly hours cap')
+      .filter(v => (v.severity ?? 'violation') === 'violation')
       .reduce((s, v) => s + (v.count || 1), 0);
 
     const fmtIQD = (n: number) => `${Math.round(n).toLocaleString()}`;
@@ -3805,6 +3811,7 @@ export default function App() {
                   stations={stations}
                   isPeakDay={isPeakDay}
                   violations={violations}
+                  notes={infoNotes}
                   staffingGapsByStation={staffingGapsByStation}
                   hourlyCoverage={hourlyCoverage}
                   peakStabilityPercent={peakStabilityPercent}
@@ -3995,7 +4002,7 @@ export default function App() {
                 setScheduleViolationsOnly={setScheduleViolationsOnly}
                 scheduleGroupByStation={scheduleGroupByStation}
                 setScheduleGroupByStation={setScheduleGroupByStation}
-                violationCount={violations.filter(v => (v.severity ?? 'violation') === 'violation').length}
+                violationCount={countInstances(violations)}
                 rosterRoles={rosterRoles}
                 scheduleUndoStack={scheduleUndoStack}
                 prevMonth={prevMonth}
@@ -4186,6 +4193,7 @@ export default function App() {
                 shifts={shifts}
                 config={config}
                 violations={violations}
+                notes={infoNotes}
                 onExportPDF={handleExportPDF}
                 onExportCSV={exportScheduleCSV}
               />
@@ -4372,12 +4380,14 @@ export default function App() {
           summary numbers are passed through from the existing violations
           array so manager + admin see exactly what the supervisor saw. */}
       {(() => {
-        const hardViolations = violations.filter(v => (v.severity ?? 'violation') === 'violation').length;
-        const infoFindings = violations.filter(v => v.severity === 'info').length;
-        // Heuristic score — same penalty (2pts per violation, capped to 0)
-        // we use elsewhere; specific number isn't load-bearing, just gives
-        // the approver a quick gauge.
-        const compliancePctValue = Math.max(0, 100 - hardViolations * 2);
+        const hardViolations = countInstances(violations);
+        const infoFindings = countInstances(infoNotes);
+        // v5.25 — one canonical compliance-score formula (lib/findings.ts),
+        // shared with the Dashboard, preview modal, and Reports so the
+        // approver sees the same % everywhere. Also fixes the prior always-0
+        // info count (it filtered an already-violation-only array) and drops
+        // the bespoke 100 − rows×2 formula.
+        const compliancePctValue = complianceScore(employees.length, config.daysInMonth, hardViolations);
         const monthLabel = activeMonthLabel;
         const companyLabel = activeCompanyLabel;
         const submittedAtMs = (() => {

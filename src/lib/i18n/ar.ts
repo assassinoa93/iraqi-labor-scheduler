@@ -224,7 +224,7 @@ export const ar: Dict = {
   'modal.preview.compShortfall.title': 'الموظفون غير كافين لتدوير أيام التعويض كاملة',
   'modal.preview.compShortfall.body': '{days} يوم تعويضي عبر {emps} موظف لم يتمكن من تخصيصه ضمن نافذة 7 أيام بعد العطلة المستحقة. عادةً يعني أن الكادر الحالي ضيق جدًا لتوفير راحة لأحدهم في الأيام المزدحمة بعد العطل. التوظيف هو الحل الفعلي — انظر تبويب تخطيط القوى العاملة للنقص.',
   'modal.preview.peakShortfall.title': 'تغطية الذروة غير قابلة للتحقيق في بعض الأيام',
-  'modal.preview.peakShortfall.body': '{rows} فتحة (تاريخ × محطة) عبر {stations} محطة لم تتمكن من الوصول إلى عدد الموظفين المطلوب حتى بمستوى الصرامة 3 — لم يتبقَّ موظفون مؤهلون بعد أيام الراحة والسقوف الأسبوعية. لم يخرق المُجدوِل أي قاعدة لمطاردة الذروة؛ بل جدوَل وفق الحد الأدنى الممكن وأظهر الفجوة هنا. الحل الفعلي هو زيادة التوظيف، أو تخفيض طلب الذروة في تلك الأيام، أو قبول تغطية ذروة مخفّضة.',
+  'modal.preview.peakShortfall.body': 'تعذّر التغطية الكاملة لـ {rows} فترة ذروة في {stations} محطة — لا يوجد موظفون مؤهلون بعد أيام الراحة والحدود الأسبوعية. لم تُكسر أي قاعدة؛ الفجوة معروضة كما هي. عالِجها بالتوظيف، أو خفض ذروة الطلب في تلك الأيام، أو قبول الفجوة.',
   'modal.preview.notes.title': 'ملاحظات التغطية والتشغيل ({count})',
   'modal.preview.peakShortfall.coverageNudge.body': 'أنت تستخدم تغطية الساعات الأساسية — لا يحجز المخطط موظفين عائمين لأيام المرض أو فجوات الراحة. التحوّل إلى التغطية الواقعية يحجم الكادر لاستيعاب الغياب قبل أن يكسر الذروة.',
   'modal.preview.peakShortfall.coverageNudge.button': 'التبديل إلى التغطية الواقعية',
@@ -785,7 +785,7 @@ export const ar: Dict = {
   'hint.coverage.body': 'اختر بديلاً لسد الفراغ، أو أبقِ الفجوة إن كان ذلك مقصودًا.',
   'hint.coverage.tag.off': 'يوم راحة',
   'hint.coverage.tag.recommended': 'موصى به',
-  'hint.coverage.noCandidates': 'لا يوجد مرشحون مؤهلون.',
+  'hint.coverage.noCandidates': 'لا يوجد موظفون مؤهلون متاحون. أبقِ الفجوة، أو وسّع الأهلية في سجل الموظفين، أو وظّف.',
   'hint.coverage.override': 'انقر "إبقاء الفجوة" لتركها مفتوحة.',
   'hint.coverage.keepGap': 'إبقاء الفجوة',
 
@@ -1037,7 +1037,7 @@ export const ar: Dict = {
   'pane.pending.label': 'في الانتظار',
   'pane.pending.hint': '{count} اقتراح آخر معلّق — ستظهر بعد رفض أو قبول هذا.',
   'pane.massChange.title': 'تم رصد عملية جماعية',
-  'pane.massChange.body': 'تم تسجيل غيابات متعددة. اختيار البدلاء واحدًا واحدًا بطيء — أعد تشغيل المُجدوِل التلقائي بوضع الحفاظ على الغيابات وسيوجّه التغطية حولها في مرة واحدة.',
+  'pane.massChange.body': 'تم وضع عدة إجازات للتو. أعد تشغيل المُجدوِل بوضع الحفاظ على الغيابات لتغطيتها جميعًا دفعة واحدة.',
   'pane.massChange.cta': 'تشغيل المثالي (الحفاظ على الغيابات)',
 
   // Holiday compensation modal
@@ -1135,7 +1135,7 @@ export const ar: Dict = {
   'otAnalysis.mitigations.hire.body': 'كل موظف جديد يخفّف عن الموجودين ما يصل إلى حد شهري كامل من ساعات تجاوز الحد. الراتب المضاف ≈ {cost} د.ع/شهر بمتوسط الرواتب. انظر لوحة الامتثال للتفصيل والمحاكاة.',
   'otAnalysis.mitigations.hire.cta': 'اطلع على التوصية',
   'otAnalysis.mitigations.compDay.title': 'جدولة {count} يومًا تعويضيًا لعمل العطل',
-  'otAnalysis.mitigations.compDay.body': 'تمنح المادة 74 من قانون العمل العراقي العامل كلًا من علاوة 2× نقدًا و يوم راحة تعويضي خلال 7 أيام من العمل في عطلة رسمية. العلاوة النقدية مدرجة في الإجمالي أعلاه؛ هذا التذكير لجدولة يوم الراحة. سينبّه محرك الامتثال إلى أي يوم عطلة عُمل ولم تظهر له راحة في الأيام السبعة التالية.',
+  'otAnalysis.mitigations.compDay.body': 'تمنح المادة 74 يوم راحة تعويضي خلال 7 أيام من العمل في عطلة — إضافةً إلى علاوة 2× المحتسبة أعلاه. جدوِل يوم الراحة؛ ينبّه المحرك إلى أي عطلة بلا راحة/إجازة خلال 7 أيام.',
   'otAnalysis.mitigations.compDay.cta': 'افتح الجدول',
   'otAnalysis.mitigations.rebalance.title': 'أعد تشغيل المُجدوِل التلقائي بالوضع الصارم',
   'otAnalysis.mitigations.rebalance.body': 'أحيانًا يُحدث التحرير اليدوي اختلالًا في عبء أحدهم الأسبوعي. الجدولة الصارمة تُعيد التوزيع ضمن جميع الحدود، فيمكن أن تتقلص ساعات تجاوز الحد دون توظيف جديد.',
@@ -1183,7 +1183,7 @@ export const ar: Dict = {
   'workforce.action.release': 'تخفيض',
   'workforce.action.hold': 'إبقاء',
   'workforce.cta.title': 'طبّق التوصية',
-  'workforce.cta.body': 'افتح السجل لإضافة (أو الإبقاء على) الموظفين حسب الدور. تنعكس لوحة التوصيات وتحليل الإضافي تلقائيًا بعد إعادة تشغيل المُجدوِل التلقائي. تخفيض الموظفين معقد قانونيًا (المادتان 36/40 — التجديد يحوّل العقد المحدد إلى مفتوح؛ الفصل يتطلب موافقة وزير العمل)، لذا لا يقترح المخطّط التخفيض أبدًا — يقترح "الإبقاء" بدلًا.',
+  'workforce.cta.body': 'افتح السجل لإضافة الموظفين أو الإبقاء عليهم حسب الدور؛ تتحدّث لوحة التوصيات وتحليل الإضافي بعد إعادة تشغيل المُجدوِل. لا يقترح المخطّط التخفيض أبدًا — إذ تجعله المادتان 36/40 معقدًا قانونيًا — بل يقترح "الإبقاء".',
   'workforce.cta.button': 'فتح السجل',
   // v5.19.0 — لوحة سيناريو التغطية
   'workforce.scenario.title': 'سيناريو التغطية — كيف سيبدو اليوم؟',
@@ -1196,7 +1196,7 @@ export const ar: Dict = {
   'workforce.scenario.summary.rosterRequired': 'إجمالي الكادر',
   'workforce.scenario.headline.title': 'حُكم اليوم على الأرض',
   'workforce.scenario.headline.allCovered': 'في {stations} محطة، كل ساعات الطلب مُغطاة بوردية قائمة. لإبقاء التغطية مستمرة عبر الراحة الأسبوعية (المادة 71) والإجازة السنوية (المادة 43)، تحتاج تقريبًا {roster} موظف على الكادر الإجمالي.',
-  'workforce.scenario.headline.someGaps': 'في {stations} محطة، {gaps} منها بها فجوات تغطية مجموعها {uncovered} ساعة لا تخضع لأي وردية. إجمالي الكادر اللازم للتغطية المستمرة (مع الراحة + هامش الإجازة) ≈ {roster} موظف.',
+  'workforce.scenario.headline.someGaps': '{gaps} من {stations} محطة بها فجوات تغطية — {uncovered} ساعة طلب غير مغطّاة. تحتاج إلى نحو {roster} موظف لتغطية متواصلة (تشمل الراحة الأسبوعية وهامش الإجازات).',
   'workforce.scenario.headline.largestGap': 'أكبر فجوة منفردة: {station} ({hours} ساعة طلب غير مُغطاة). استخدم التوليد التلقائي للورديات لسدّها.',
   'workforce.scenario.ungrouped': 'بلا مجموعة',
   'workforce.scenario.station': 'محطة',
@@ -1872,6 +1872,38 @@ export const ar: Dict = {
   'fines.rule.workedDuringSickLeave': 'العمل خلال الإجازة المرضية',
   'fines.rule.workedDuringAnnualLeave': 'العمل خلال الإجازة السنوية',
   'fines.rule.womensNightWorkIndustrial': 'العمل الليلي للنساء في المنشآت الصناعية',
+
+  // v5.25 — عناوين الملاحظات (نتائج إعلامية بلا قاعدة غرامة)
+  'finding.note.publicHolidayWorked': 'عمل في عطلة رسمية',
+  'finding.note.compDayOwed': 'يوم تعويضي مستحق',
+  'finding.note.compDayLate': 'يوم تعويضي متأخر',
+
+  // v5.25 — أسطر تفاصيل النتائج (مترجمة، يملؤها المحرك بالأرقام)
+  'finding.msg.workedMaternity': 'تم إسناد وردية أثناء إجازة الأمومة.',
+  'finding.msg.workedSick': 'تم إسناد وردية أثناء الإجازة المرضية.',
+  'finding.msg.workedAnnual': 'تم إسناد وردية أثناء الإجازة السنوية المعتمدة.',
+  'finding.msg.dailyCap': 'عمل {hrs} ساعة — فوق الحد اليومي {cap} ساعة.',
+  'finding.msg.continuousDriving': 'قاد {hrs} ساعة باستراحة أقل من ٣٠ دقيقة — فوق حد {cap} ساعة.',
+  'finding.msg.womensNight': 'وردية صناعية ضمن نافذة الليل المحمية {start}–{end}.',
+  'finding.msg.minRest': 'راحة {gap} ساعة فقط بين الورديتين — المطلوب {min} ساعة.',
+  'finding.msg.weeklyCap': 'ذروة {peak} ساعة خلال ٧ أيام — فوق الحد الأسبوعي {cap} ساعة.',
+  'finding.msg.weeklyRest': 'لا يوجد يوم راحة خلال ٧ أيام متتالية.',
+  'finding.msg.consecutive': 'عمل {days} أيام متتالية — الحد الأقصى {cap}.',
+  'finding.msg.phWorked.cash': 'عمل في عطلة — يستحق بدلًا نقديًا ٢×.',
+  'finding.msg.phWorked.both': 'عمل في عطلة — يستحق يومًا تعويضيًا + بدل ٢×.',
+  'finding.msg.phWorked.comp': 'عمل في عطلة — يستحق يوم راحة تعويضي.',
+  'finding.msg.compDayOwed': 'لا يوجد يوم تعويضي خلال {days} يوم. امنح يومًا أو حوّل إلى الدفع النقدي.',
+  'finding.msg.compDayLate': 'اليوم التعويضي جاء بعد {offset} يوم — يُفضّل خلال {rec}.',
+
+  // v5.25 — مكوّن قائمة النتائج المشترك (لوحة الامتثال، التقارير، المعاينة)
+  'findings.section.violations': 'المخالفات',
+  'findings.section.notes': 'ملاحظات',
+  'findings.allClear.title': 'لا توجد مخالفات',
+  'findings.allClear.hint': 'هذا الجدول ملتزم بالحدود القانونية المضبوطة.',
+  'findings.noSchedule.title': 'لا يوجد ما يُفحص بعد',
+  'findings.noSchedule.hint': 'أنشئ جدولًا أو ولّده لتشغيل فحوص الامتثال.',
+  'findings.staff': '{n} موظف',
+  'findings.day': 'يوم {day}',
 
   'modal.station.flatHC.overridden': 'متجاوَز بواسطة الملف الساعي',
 };

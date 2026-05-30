@@ -64,7 +64,7 @@ const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
 };
 
 export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config, onManageLeaves }: EmployeeModalProps) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<Employee>(() => empty(config));
   // v5.18.0 — dirty tracking. `initialJson` is the JSON-serialised baseline
@@ -277,7 +277,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.otHourlyRate')}</label>
               <div className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-500 dark:text-slate-400 shadow-sm flex justify-between items-center">
-                 <span>{formData.baseHourlyRate.toLocaleString()} IQD</span>
+                 <span>{fmt.num(formData.baseHourlyRate)} IQD</span>
                  <span className="text-[8px] bg-blue-100 dark:bg-blue-500/25 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
               </div>
             </div>
