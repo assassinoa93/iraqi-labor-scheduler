@@ -1,5 +1,6 @@
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule, Violation } from '../types';
-import { monthlyHourCap, baseHourlyRate } from './payroll';
+import { monthlyHourCap, baseHourlyRate, monthlyCapFor } from './payroll';
+import { computeHolidayPay } from './holidayCompPay';
 import { runAutoScheduler } from './autoScheduler';
 import { peakDailyHC } from './stationDemand';
 import { ComplianceEngine } from './compliance';
@@ -70,6 +71,11 @@ export interface StaffingAdvisory {
 export interface StaffingArgs {
   employees: Employee[];
   schedule: Schedule;
+  /** Full multi-month schedule map so holiday comp-windows can cross the
+   *  month boundary when netting holiday hours out of the OT pool (v5.25).
+   *  Optional — when omitted, a late-month holiday whose comp day lands in
+   *  the next month isn't seen (conservative; same limitation as analyzeOT). */
+  allSchedules?: Record<string, Schedule>;
   shifts: Shift[];
   stations: Station[];
   holidays: PublicHoliday[];
@@ -89,43 +95,31 @@ export interface StaffingArgs {
   currentViolations?: Violation[];
 }
 
-// v5.17.0 — per-employee monthly cap. Drivers and hazardous workers have
-// different weekly caps under Iraqi Labor Law (Art. 88 / 70), so a single
-// flat cap from `monthlyHourCap(config)` would mis-attribute OT for those
-// categories. We mirror the compliance engine's cap selection so the
-// advisory's OT attribution matches the rule the engine actually fires.
-//
-//   - hourExempt: no cap → never accrues OT (treated as 0).
-//   - Driver category: weekly cap × 4 (default 56 × 4 = 224).
-//   - Hazardous flag: weekly cap × 4 (default 36 × 4 = 144).
-//   - Standard: standardWeeklyHrsCap × 4 (default 48 × 4 = 192).
-function monthlyCapFor(emp: Employee, config: Config): number {
-  if (emp.hourExempt) return Number.POSITIVE_INFINITY;
-  if (emp.category === 'Driver') {
-    const weekly = config.driverWeeklyHrsCap ?? 56;
-    return weekly * 4;
-  }
-  if (emp.isHazardous) {
-    return (config.hazardousWeeklyHrsCap ?? 36) * 4;
-  }
-  return monthlyHourCap(config);
-}
+// Per-employee category-aware cap now lives in payroll.ts (monthlyCapFor),
+// shared with otAnalysis.ts so OT attribution and the OT-analysis report use
+// one cap definition.
 
-// Distribute each employee's monthly OT across the stations they worked at,
-// proportionally to hours spent there. Returns Map<stationId, otHours>.
+// Distribute each employee's monthly NET-OF-HOLIDAY OT across the stations
+// they worked at, proportionally to hours spent there. Returns
+// Map<stationId, otHours>.
 //
-// Rationale: an employee who exceeds the monthly cap was over-scheduled. The
-// "blame" for that OT lives with the stations that consumed their hours. If
-// 60% of A's hours were at ST-C1 and 40% at ST-C2, then 60% of A's OT comes
-// from ST-C1 — hiring at ST-C1 would relieve more pressure than at ST-C2.
+// Rationale: an employee who exceeds the monthly cap on ORDINARY days was
+// over-scheduled, and the "blame" for that OT lives with the stations that
+// consumed their hours — hiring there relieves the pressure. Public-holiday
+// hours (Art. 74) are EXCLUDED: they are compensated by a 2× premium or a
+// comp rest day regardless of headcount, so a new hire cannot eliminate them
+// (someone still works the holiday). Counting them would over-attribute
+// station OT and over-recommend hires. This mirrors otAnalysis.ts's
+// payableOverCapHours so the advisory's per-station OT and the OT-analysis
+// report reconcile.
 //
-// v5.17.0 — uses per-employee caps via monthlyCapFor() so driver and
-// hazardous categories are attributed correctly. Pre-v5.17 every employee
-// was measured against the standard 48h × 4 cap, which under-attributed
-// OT for hazardous workers (real cap = 144h, not 192h) and over-attributed
-// for drivers (real cap = 224h, not 192h).
+// v5.25 — net-of-holiday + category-aware caps (shared monthlyCapFor). Pre-
+// v5.25 this used RAW over-cap hours including holiday hours, so holiday-heavy
+// months recommended phantom hires that could never clear the holiday pool.
 function attributeOTToStations(
-  employees: Employee[], schedule: Schedule, shifts: Shift[], config: Config,
+  employees: Employee[], schedule: Schedule, shifts: Shift[],
+  holidays: PublicHoliday[], config: Config,
+  allSchedules?: Record<string, Schedule>,
 ): Map<string, number> {
   const stationOT = new Map<string, number>();
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
@@ -144,7 +138,11 @@ function attributeOTToStations(
       totalHrs += shift.durationHrs;
     }
 
-    const empOT = Math.max(0, totalHrs - cap);
+    // Net the over-cap pool of all public-holiday hours (premium-owed +
+    // comp-day-compensated), exactly as otAnalysis.payableOverCapHours —
+    // hiring cannot absorb holiday hours (Art. 74).
+    const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, baseHourlyRate(emp, config), allSchedules);
+    const empOT = Math.max(0, totalHrs - cap - breakdown.premiumHolidayHours - breakdown.compensatedHolidayHours);
     if (empOT === 0 || totalHrs === 0) continue;
 
     for (const [stId, hrs] of perStationHours) {
@@ -186,9 +184,9 @@ function sumFinesByRuleKeys(estimate: FineEstimate, ruleKeys: Set<string>): numb
 export function computeStaffingAdvisory({
   employees, shifts, stations, holidays, config, isPeakDay,
   schedule, totalOTHours, totalOTPay, stationGaps,
-  currentViolations = [],
+  currentViolations = [], allSchedules,
 }: StaffingArgs): StaffingAdvisory {
-  void shifts; void holidays; void isPeakDay; void baseHourlyRate;
+  void isPeakDay;
   const cap = monthlyHourCap(config);
 
   // v5.17.0 — fines avoidance is sliced from the current violation set
@@ -219,7 +217,7 @@ export function computeStaffingAdvisory({
 
   // ── Per-station data sources ────────────────────────────────────────────
   // OT: distributed across stations by hours-worked.
-  const stationOTMap = attributeOTToStations(employees, schedule, shifts, config);
+  const stationOTMap = attributeOTToStations(employees, schedule, shifts, holidays, config, allSchedules);
   // Gap: from the dashboard's peak-hour shortfall. Each unit is one FTE.
   const stationGapMap = new Map(stationGaps.map(g => [g.stationId, g.gap]));
   const stationNameLookup = new Map(stations.map(s => [s.id, s.name]));

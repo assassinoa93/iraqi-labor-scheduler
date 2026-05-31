@@ -261,3 +261,28 @@ describe('suggestMitigations', () => {
     expect(suggestMitigations(a, 1_500_000)).toHaveLength(0);
   });
 });
+
+// v5.25 — per-employee category-aware cap (monthlyCapFor). Pre-v5.25 analyzeOT
+// measured everyone against the flat standard cap; drivers were under- and
+// hazardous workers over-attributed. These lock the two category branches.
+describe('analyzeOT — category-aware caps (v5.25 monthlyCapFor)', () => {
+  it('measures a Driver against the 224h driver cap, not the 192h standard cap', () => {
+    // Driver, 25 days × 8h = 200h. Driver cap = driverWeeklyHrsCap(56) × 4 = 224h.
+    // 200 < 224 → zero over-cap. (Against the flat 192h cap this would be 8h over.)
+    const driver: Employee = { ...mkEmp('D'), category: 'Driver' };
+    const days = Array.from({ length: 25 }, (_, i) => i + 1);
+    const a = analyzeOT([driver], sched('D', 'ST-A', days), [FS, OFF], [STATION_A], [], config);
+    expect(a.totalOverCapHours).toBe(0);
+    expect(a.byEmployee).toHaveLength(0);
+  });
+
+  it('measures a hazardous worker against the 144h hazardous cap', () => {
+    // Hazardous, 19 days × 8h = 152h. Hazardous cap = hazardousWeeklyHrsCap(36) × 4 = 144h.
+    // 152 − 144 = 8h over-cap. (Against the flat 192h cap this would be 0h over.)
+    const haz: Employee = { ...mkEmp('H'), isHazardous: true };
+    const days = Array.from({ length: 19 }, (_, i) => i + 1);
+    const a = analyzeOT([haz], sched('H', 'ST-A', days), [FS, OFF], [STATION_A], [], config);
+    expect(a.byEmployee[0].overCapHours).toBe(8);
+    expect(a.byEmployee[0].cap).toBe(144);
+  });
+});

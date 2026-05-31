@@ -25,6 +25,9 @@ import type { ApprovalBlock, ApprovalStatus, ScheduleDiffSummary } from '../../l
 import type { Role } from '../../lib/auth';
 import { availableActionsFor, formatApprovalActor } from '../../lib/scheduleApproval';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
+
+type TFunc = (key: string, vars?: Record<string, string | number>) => string;
 
 interface Props {
   /** Active approval block from the schedule doc; missing/undefined = draft. */
@@ -84,6 +87,7 @@ export function ScheduleApprovalBanner({
   diffSummary, diffSnapshotLabel, onToggleDiff,
   onExportHrisBundle, hrisExportBusy, hrisLastExportedAt,
 }: Props) {
+  const { t } = useI18n();
   const status: ApprovalStatus = approval?.status ?? 'draft';
   const actions = availableActionsFor(status, role);
 
@@ -100,18 +104,18 @@ export function ScheduleApprovalBanner({
         <Pencil className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-            <span>Working draft</span>
+            <span>{t('banner.approval.workingDraft.title')}</span>
             <span className="ms-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">· {monthLabel}</span>
           </p>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">
-            Auto-saved locally. Use the Save Draft button on the toolbar for an immediate flush + confirmation.
+            {t('banner.approval.workingDraft.body')}
           </p>
         </div>
         <span className={cn(
           'px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase shrink-0',
           statusPillCls('draft'),
         )}>
-          {statusPillLabel('draft')}
+          {statusPillLabel('draft', t)}
         </span>
       </div>
     );
@@ -128,7 +132,7 @@ export function ScheduleApprovalBanner({
   const wasReopened = !!approval?.history?.some((h) => h.action === 'reopen');
   const isReApproval = !!hasArchivedSnapshot || wasReopened || !!approval?.savedAt;
 
-  const config = bannerConfigFor(status, approval, isReApproval);
+  const config = bannerConfigFor(status, approval, isReApproval, t);
 
   return (
     <div
@@ -156,7 +160,7 @@ export function ScheduleApprovalBanner({
             'ms-auto px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest shrink-0',
             statusPillCls(status),
           )}>
-            {statusPillLabel(status)}
+            {statusPillLabel(status, t)}
           </span>
         </div>
 
@@ -172,7 +176,7 @@ export function ScheduleApprovalBanner({
         {status === 'rejected' && approval?.rejectedNotes && (
           <div className={cn('mt-2 p-2.5 rounded-lg text-[11px] leading-relaxed', config.notesBg)}>
             <span className="font-bold uppercase tracking-widest text-[9px] block mb-1 opacity-80">
-              {approval.rejectedFrom === 'admin' ? 'Returned by admin' : 'Returned by manager'}
+              {approval.rejectedFrom === 'admin' ? t('banner.approval.returnedBy.admin') : t('banner.approval.returnedBy.manager')}
             </span>
             <p className="italic">{approval.rejectedNotes}</p>
           </div>
@@ -202,33 +206,33 @@ export function ScheduleApprovalBanner({
           {actions.canSubmit && canWriteSchedule && onSubmit && (
             <button
               onClick={onSubmit}
-              title={status === 'rejected' ? 'Re-submit this schedule for manager approval after addressing the rejection notes.' : 'Submit this draft to the manager for validation.'}
+              title={status === 'rejected' ? t('banner.approval.action.submit.tooltip.resubmit') : t('banner.approval.action.submit.tooltip.submit')}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               {status === 'rejected' ? <Undo2 className="w-3 h-3" /> : <Send className="w-3 h-3" />}
-              {status === 'rejected' ? 'Resubmit' : 'Submit for approval'}
+              {status === 'rejected' ? t('banner.approval.action.resubmit') : t('banner.approval.action.submit')}
               <ArrowRight className="w-3 h-3" />
             </button>
           )}
           {actions.canLock && onLock && (
             <button
               onClick={onLock}
-              title="Lock the submitted schedule for admin finalization. Supervisors can no longer edit cells after this."
+              title={t('banner.approval.action.lock.tooltip')}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <ShieldCheck className="w-3 h-3" />
-              Lock — manager-validate
+              {t('banner.approval.action.lock')}
               <ArrowRight className="w-3 h-3" />
             </button>
           )}
           {actions.canSave && onSave && (
             <button
               onClick={onSave}
-              title="Finalize this locked schedule as the official archive. Once saved, only Reopen can re-enable editing."
+              title={t('banner.approval.action.save.tooltip')}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <LockIcon className="w-3 h-3" />
-              Save &amp; finalize
+              {t('banner.approval.action.save')}
               <ArrowRight className="w-3 h-3" />
             </button>
           )}
@@ -236,22 +240,22 @@ export function ScheduleApprovalBanner({
             <button
               onClick={onSendBack}
               title={status === 'submitted'
-                ? 'Reject this submission and send it back to the supervisor with notes explaining what needs fixing.'
-                : 'Send this locked schedule back to the manager for re-validation.'}
+                ? t('banner.approval.action.sendBack.tooltip.fromSubmitted')
+                : t('banner.approval.action.sendBack.tooltip.fromLocked')}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <ArrowLeft className="w-3 h-3" />
-              Send back
+              {t('banner.approval.action.sendBack')}
             </button>
           )}
           {actions.canReopen && onReopen && (
             <button
               onClick={onReopen}
-              title="Reopen this saved schedule for editing. The current archive is preserved as a snapshot; the schedule returns to draft so supervisors can amend."
+              title={t('banner.approval.action.reopen.tooltip')}
               className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
             >
               <Pencil className="w-3 h-3" />
-              Reopen for editing
+              {t('banner.approval.action.reopen')}
             </button>
           )}
 
@@ -268,8 +272,8 @@ export function ScheduleApprovalBanner({
               disabled={!!hrisExportBusy}
               title={
                 hrisLastExportedAt
-                  ? `Last exported ${format(new Date(hrisLastExportedAt), 'yyyy-MM-dd HH:mm')}. Re-exporting produces a fresh bundle with a new bundle ID.`
-                  : 'Assemble the HRIS handoff bundle (manifest + schedule.csv + roster.csv + leaves.csv + compliance.json + README) as a single .zip download.'
+                  ? t('banner.approval.hris.reexport.tooltip', { date: format(new Date(hrisLastExportedAt), 'yyyy-MM-dd HH:mm') })
+                  : t('banner.approval.hris.export.tooltip')
               }
               className={cn(
                 'apple-press inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm border',
@@ -278,7 +282,7 @@ export function ScheduleApprovalBanner({
               )}
             >
               {hrisExportBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <PackageCheck className="w-3 h-3" />}
-              {hrisLastExportedAt ? 'Re-export HRIS bundle' : 'Export HRIS bundle'}
+              {hrisLastExportedAt ? t('banner.approval.hris.reexport') : t('banner.approval.hris.export')}
               <Download className="w-3 h-3" />
             </button>
           )}
@@ -295,6 +299,7 @@ export function ScheduleApprovalBanner({
               summary={diffSummary ?? null}
               snapshotLabel={diffSnapshotLabel ?? null}
               onToggle={onToggleDiff}
+              t={t}
             />
           )}
         </div>
@@ -304,7 +309,7 @@ export function ScheduleApprovalBanner({
             re-export button above re-runs the same flow. */}
         {status === 'saved' && hrisLastExportedAt && (
           <p className="text-[10px] font-medium text-emerald-700/80 dark:text-emerald-200/70 mt-1">
-            HRIS bundle last exported {format(new Date(hrisLastExportedAt), 'yyyy-MM-dd HH:mm')}.
+            {t('banner.approval.hris.lastExported', { date: format(new Date(hrisLastExportedAt), 'yyyy-MM-dd HH:mm') })}
           </p>
         )}
 
@@ -315,15 +320,15 @@ export function ScheduleApprovalBanner({
           <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-1">
             <span className="inline-flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm border-2 border-emerald-500 dark:border-emerald-400" />
-              Added · {diffSummary.added}
+              {t('banner.approval.diff.added', { count: diffSummary.added })}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm border-2 border-amber-500 dark:border-amber-300" />
-              Modified · {diffSummary.modified}
+              {t('banner.approval.diff.modified', { count: diffSummary.modified })}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm border-2 border-rose-500 dark:border-rose-400" />
-              Removed · {diffSummary.removed}
+              {t('banner.approval.diff.removed', { count: diffSummary.removed })}
             </span>
             {diffSnapshotLabel && (
               <span className="ms-auto font-mono normal-case text-slate-400 dark:text-slate-500">{diffSnapshotLabel}</span>
@@ -332,7 +337,7 @@ export function ScheduleApprovalBanner({
         )}
         {diffEnabled && diffSummary && diffSummary.total === 0 && (
           <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 italic mt-1">
-            No changes since the last archived version.
+            {t('banner.approval.diff.noChanges')}
           </p>
         )}
       </div>
@@ -345,13 +350,14 @@ export function ScheduleApprovalBanner({
 // keeps the banner self-contained for the diff feature; the cell-level
 // outline is the only piece outside.
 function DiffToggleButton({
-  enabled, loading, summary, snapshotLabel, onToggle,
+  enabled, loading, summary, snapshotLabel, onToggle, t,
 }: {
   enabled: boolean;
   loading: boolean;
   summary: ScheduleDiffSummary | null;
   snapshotLabel: string | null;
   onToggle: (next: boolean) => void;
+  t: TFunc;
 }) {
   const totalLabel = enabled && summary ? ` · ${summary.total}` : '';
   return (
@@ -360,8 +366,8 @@ function DiffToggleButton({
       disabled={loading}
       title={
         snapshotLabel
-          ? `Compare current schedule to the latest archived snapshot (${snapshotLabel})`
-          : 'Compare current schedule to the latest archived snapshot'
+          ? t('banner.approval.diff.toggle.tooltip.withSnapshot', { snapshot: snapshotLabel })
+          : t('banner.approval.diff.toggle.tooltip')
       }
       aria-pressed={enabled}
       className={cn(
@@ -373,7 +379,7 @@ function DiffToggleButton({
       )}
     >
       {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitCompare className="w-3 h-3" />}
-      {enabled ? 'Hide changes' : 'Show changes'}{totalLabel}
+      {enabled ? t('banner.approval.diff.toggle.hide') : t('banner.approval.diff.toggle.show')}{totalLabel}
     </button>
   );
 }
@@ -395,6 +401,7 @@ function bannerConfigFor(
   status: ApprovalStatus,
   approval: ApprovalBlock | undefined,
   isReApproval: boolean,
+  t: TFunc,
 ): BannerConfig {
   // v5.1.0 — when a schedule has already been through a save → reopen
   // cycle, prepend a body line so reviewers immediately know they're
@@ -403,9 +410,9 @@ function bannerConfigFor(
   // is the actionable companion to this signal.
   const reApprovalLine = (status: ApprovalStatus): string | null => {
     if (!isReApproval) return null;
-    if (status === 'saved') return 'Re-saved after a previous archive — the latest snapshot is now the official record.';
-    if (status === 'draft') return 'Reopened from a previous archive — edit cells, then resubmit through the chain.';
-    return 'Resubmitted after a previous archive — use "Show changes" below to compare against the latest archived snapshot.';
+    if (status === 'saved') return t('banner.approval.reApproval.saved');
+    if (status === 'draft') return t('banner.approval.reApproval.draft');
+    return t('banner.approval.reApproval.default');
   };
   const prefixWithReApproval = (lines: string[]): string[] => {
     const re = reApprovalLine(status);
@@ -423,8 +430,8 @@ function bannerConfigFor(
         subColor: 'text-slate-500 dark:text-slate-400',
         bodyColor: 'text-slate-600 dark:text-slate-300',
         notesBg: 'bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300',
-        title: 'Draft schedule',
-        bodyLines: prefixWithReApproval(['Edit cells freely, then submit for approval when ready.']),
+        title: t('banner.approval.status.draft.title'),
+        bodyLines: prefixWithReApproval([t('banner.approval.status.draft.body')]),
       };
     case 'submitted':
       return {
@@ -436,10 +443,13 @@ function bannerConfigFor(
         subColor: 'text-amber-700 dark:text-amber-300',
         bodyColor: 'text-amber-700 dark:text-amber-200/80',
         notesBg: 'bg-amber-100/60 dark:bg-amber-500/15 text-amber-800 dark:text-amber-100',
-        title: 'Submitted — awaiting manager validation',
+        title: t('banner.approval.status.submitted.title'),
         bodyLines: prefixWithReApproval([
-          `Submitted by ${formatApprovalActor(approval?.submittedByName, approval?.submittedByPosition, approval?.submittedBy)} on ${formatStamp(approval?.submittedAt)}.`,
-          'Cells are read-only until a manager locks or sends it back.',
+          t('banner.approval.status.submitted.by', {
+            actor: formatApprovalActor(approval?.submittedByName, approval?.submittedByPosition, approval?.submittedBy),
+            date: formatStamp(approval?.submittedAt),
+          }),
+          t('banner.approval.status.submitted.body'),
         ]),
       };
     case 'rejected':
@@ -452,8 +462,8 @@ function bannerConfigFor(
         subColor: 'text-rose-700 dark:text-rose-300',
         bodyColor: 'text-rose-700 dark:text-rose-200/80',
         notesBg: 'bg-rose-100/60 dark:bg-rose-500/15 text-rose-800 dark:text-rose-100',
-        title: 'Sent back for edits',
-        bodyLines: prefixWithReApproval(['Make the requested changes, then resubmit.']),
+        title: t('banner.approval.status.rejected.title'),
+        bodyLines: prefixWithReApproval([t('banner.approval.status.rejected.body')]),
       };
     case 'locked':
       return {
@@ -465,10 +475,13 @@ function bannerConfigFor(
         subColor: 'text-blue-700 dark:text-blue-300',
         bodyColor: 'text-blue-700 dark:text-blue-200/80',
         notesBg: 'bg-blue-100/60 dark:bg-blue-500/15 text-blue-800 dark:text-blue-100',
-        title: 'Locked — manager-validated, awaiting admin finalization',
+        title: t('banner.approval.status.locked.title'),
         bodyLines: prefixWithReApproval([
-          `Locked by ${formatApprovalActor(approval?.lockedByName, approval?.lockedByPosition, approval?.lockedBy)} on ${formatStamp(approval?.lockedAt)}.`,
-          'Cells are read-only. Admin can save & finalize, or send back to manager.',
+          t('banner.approval.status.locked.by', {
+            actor: formatApprovalActor(approval?.lockedByName, approval?.lockedByPosition, approval?.lockedBy),
+            date: formatStamp(approval?.lockedAt),
+          }),
+          t('banner.approval.status.locked.body'),
         ]),
       };
     case 'saved':
@@ -481,10 +494,13 @@ function bannerConfigFor(
         subColor: 'text-emerald-700 dark:text-emerald-300',
         bodyColor: 'text-emerald-700 dark:text-emerald-200/80',
         notesBg: 'bg-emerald-100/60 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-100',
-        title: 'Saved — final, archived for record-keeping',
+        title: t('banner.approval.status.saved.title'),
         bodyLines: prefixWithReApproval([
-          `Saved by ${formatApprovalActor(approval?.savedByName, approval?.savedByPosition, approval?.savedBy)} on ${formatStamp(approval?.savedAt)}.`,
-          'This is the official version. Admin can export to HRIS or reopen for amendments.',
+          t('banner.approval.status.saved.by', {
+            actor: formatApprovalActor(approval?.savedByName, approval?.savedByPosition, approval?.savedBy),
+            date: formatStamp(approval?.savedAt),
+          }),
+          t('banner.approval.status.saved.body'),
         ]),
       };
   }
@@ -509,12 +525,12 @@ function statusPillCls(status: ApprovalStatus): string {
   }
 }
 
-function statusPillLabel(status: ApprovalStatus): string {
+function statusPillLabel(status: ApprovalStatus, t: TFunc): string {
   switch (status) {
-    case 'draft':     return 'Draft';
-    case 'submitted': return 'Awaiting manager';
-    case 'locked':    return 'Awaiting admin';
-    case 'saved':     return 'Final';
-    case 'rejected':  return 'Sent back';
+    case 'draft':     return t('banner.approval.pill.draft');
+    case 'submitted': return t('banner.approval.pill.submitted');
+    case 'locked':    return t('banner.approval.pill.locked');
+    case 'saved':     return t('banner.approval.pill.saved');
+    case 'rejected':  return t('banner.approval.pill.rejected');
   }
 }

@@ -273,3 +273,47 @@ describe('computeStaffingAdvisory — fines avoided (v5.17.0)', () => {
     expect(advisory.currentPotentialFines.total).toBe(0);
   });
 });
+
+// v5.25 — net-of-holiday OT attribution. The per-station OT pool (which drives
+// eliminateOT/bestOfBoth per-station hires) must EXCLUDE public-holiday hours,
+// mirroring otAnalysis.payableOverCapHours: hiring cannot absorb holiday hours
+// (Art. 74 premium/comp-day applies regardless of headcount), so a worker who
+// is over cap ONLY because of holiday work must not generate a phantom hire.
+describe('computeStaffingAdvisory — net-of-holiday OT attribution (v5.25)', () => {
+  const FS: Shift = { code: 'FS', name: 'Full', start: '09:00', end: '17:00', durationHrs: 8, breakMin: 30, isIndustrial: false, isHazardous: false, isWork: true, description: '' };
+  const ST_A: Station = { id: 'ST-A', name: 'Station A', normalMinHC: 1, peakMinHC: 1, openingTime: '09:00', closingTime: '17:00' };
+  // Premium-owed config (no comp-day carry-forward) so holiday hours are
+  // unambiguously classified and netted out of the over-cap pool.
+  const cfg: Config = { ...baseConfig, carryForwardUnspentCompDays: false };
+
+  it('does NOT attribute station OT when the over-cap is entirely holiday hours', () => {
+    // 24 ordinary days (192h = cap) + 4 holiday days (32h) = 224h at ST-A.
+    // Raw over-cap = 32h, but all 32h are holiday hours → net over-cap = 0.
+    const workDays = [...Array.from({ length: 24 }, (_, i) => i + 1), 28, 29, 30, 31];
+    const schedule: Schedule = { E1: Object.fromEntries(workDays.map(d => [d, { shiftCode: 'FS', stationId: 'ST-A' }])) };
+    const holidays: PublicHoliday[] = [28, 29, 30, 31].map(d => ({ date: `2026-01-${d}`, name: `H${d}`, type: 'National', legalReference: 'Art. 74' }));
+    const advisory = computeStaffingAdvisory(baseArgs({
+      employees: [mkEmp('E1', 1_500_000)],
+      schedule, shifts: [FS], stations: [ST_A], holidays, config: cfg,
+      // The caller now feeds the NET pool; here it is 0.
+      totalOTHours: 0, totalOTPay: 0,
+    }));
+    expect(advisory.eliminateOT.perStation).toHaveLength(0);
+    expect(advisory.eliminateOT.hiresNeeded).toBe(0);
+  });
+
+  it('still attributes station OT for ordinary (non-holiday) over-cap hours', () => {
+    // 25 ordinary days × 8h = 200h at ST-A, no holidays → 8h net over-cap.
+    const workDays = Array.from({ length: 25 }, (_, i) => i + 1);
+    const schedule: Schedule = { E1: Object.fromEntries(workDays.map(d => [d, { shiftCode: 'FS', stationId: 'ST-A' }])) };
+    const advisory = computeStaffingAdvisory(baseArgs({
+      employees: [mkEmp('E1', 1_500_000)],
+      schedule, shifts: [FS], stations: [ST_A], holidays: [], config: cfg,
+      totalOTHours: 8, totalOTPay: 200_000,
+    }));
+    const stA = advisory.eliminateOT.perStation.find(p => p.stationId === 'ST-A');
+    expect(stA).toBeDefined();
+    expect(stA?.otHours).toBeCloseTo(8, 1);
+    expect(advisory.eliminateOT.hiresNeeded).toBeGreaterThanOrEqual(1);
+  });
+});

@@ -1,6 +1,6 @@
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
 import { format } from 'date-fns';
-import { monthlyHourCap, baseHourlyRate } from './payroll';
+import { monthlyHourCap, baseHourlyRate, monthlyCapFor } from './payroll';
 import { computeHolidayPay } from './holidayCompPay';
 
 // OT breakdown for a single month, split into the two pools that drive
@@ -172,7 +172,12 @@ export function analyzeOT(
 
     if (totalHours === 0) continue;
 
-    const overCapHours = Math.max(0, totalHours - cap);
+    // v5.25 — per-employee category-aware cap (shared monthlyCapFor) so
+    // drivers/hazardous workers are measured against their real caps. The
+    // top-level `cap` (standard monthlyHourCap) is kept for the hire-count
+    // division and the "X over the {cap}h cap" headline.
+    const empCap = monthlyCapFor(emp, config);
+    const overCapHours = Math.max(0, totalHours - empCap);
     // v5.5.0: subtract ALL holiday hours from the over-cap pool, not just
     // the premium-paid subset. Pre-v5.5 the formula was `overCap -
     // premiumHolidayHours`, which incorrectly billed 1.5× OT on the
@@ -196,7 +201,7 @@ export function analyzeOT(
         empId: emp.empId,
         empName: emp.name,
         totalHours,
-        cap,
+        cap: empCap,
         overCapHours,
         holidayHours,
         premiumHolidayHours,

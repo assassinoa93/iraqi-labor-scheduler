@@ -18,6 +18,7 @@ import { Link2, AlertCircle, CheckCircle2, RefreshCw, FilePlus2, ExternalLink } 
 import * as adminApi from '../../lib/adminApi';
 import { getActiveConfig } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 // Deep-link to the Service Accounts tab of the active project's settings.
 // If we don't know the projectId yet (shouldn't happen by the time this panel
@@ -30,6 +31,7 @@ function serviceAccountsConsoleUrl(): string {
 }
 
 export function ConnectionPanel() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<{ linked: boolean; path: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,14 +58,14 @@ export function ConnectionPanel() {
     setInfo(null);
     try {
       const result = await adminApi.linkServiceAccount();
-      setInfo(`Linked to project ${result.projectId}.`);
+      setInfo(t('superAdmin.connection.linkedToProject', { projectId: result.projectId }));
       await refresh();
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === 'CANCELLED') {
         // User dismissed the file picker — not an error worth surfacing.
       } else {
-        setError(err.message ?? 'Failed to link service account');
+        setError(err.message ?? t('superAdmin.connection.linkFailed'));
       }
     } finally {
       setBusy(false);
@@ -72,15 +74,15 @@ export function ConnectionPanel() {
 
   if (!adminApi.isAvailable()) {
     return (
-      <Section title="Connection" subtitle="Firebase project + service-account link">
+      <Section title={t('superAdmin.connection.title')} subtitle={t('superAdmin.connection.subtitle')}>
         <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/30 rounded-xl">
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300 mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
-              Admin features unavailable
+              {t('superAdmin.connection.unavailable.title')}
             </p>
             <p className="text-[11px] text-amber-700 dark:text-amber-200/80 leading-relaxed">
-              The Admin SDK bridge isn't loaded in this build. Open the app via the Electron desktop installer to enable user management and database cleanup.
+              {t('superAdmin.connection.unavailable.body')}
             </p>
           </div>
         </div>
@@ -89,13 +91,13 @@ export function ConnectionPanel() {
   }
 
   return (
-    <Section title="Connection" subtitle="Firebase project + service-account link">
+    <Section title={t('superAdmin.connection.title')} subtitle={t('superAdmin.connection.subtitle')}>
       {status?.linked ? (
         <div className="flex items-start gap-3 p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-xl">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-300 mt-0.5 shrink-0" />
           <div className="space-y-1 flex-1 min-w-0">
             <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
-              Service account linked
+              {t('superAdmin.connection.linked.title')}
             </p>
             <p className="text-[10px] text-emerald-700 dark:text-emerald-200/80 leading-relaxed font-mono break-all">
               {status.path}
@@ -107,20 +109,27 @@ export function ConnectionPanel() {
           <Link2 className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />
           <div className="space-y-2">
             <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
-              Service account not linked
+              {t('superAdmin.connection.notLinked.title')}
             </p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Generate a service-account JSON in{' '}
-              <a
-                href={serviceAccountsConsoleUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
-              >
-                Firebase Console → Project Settings → Service Accounts
-                <ExternalLink className="w-3 h-3 self-center" />
-              </a>
-              {' '}(<strong>Generate new private key</strong>), then link the downloaded file with the button below. It stays on your machine only — never bundled with the app.
+              {(() => {
+                const [before, after] = t('superAdmin.connection.notLinked.body').split('{link}');
+                return (
+                  <>
+                    {before}
+                    <a
+                      href={serviceAccountsConsoleUrl()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-baseline gap-1 text-blue-600 dark:text-blue-300 underline hover:no-underline font-medium"
+                    >
+                      {t('superAdmin.connection.notLinked.consoleLink')}
+                      <ExternalLink className="w-3 h-3 self-center" />
+                    </a>
+                    {after}
+                  </>
+                );
+              })()}
             </p>
           </div>
         </div>
@@ -139,7 +148,11 @@ export function ConnectionPanel() {
           )}
         >
           {status?.linked ? <RefreshCw className="w-3 h-3" /> : <FilePlus2 className="w-3 h-3" />}
-          {busy ? 'Linking…' : status?.linked ? 'Relink service account' : 'Link service account'}
+          {busy
+            ? t('superAdmin.connection.linking')
+            : status?.linked
+              ? t('superAdmin.connection.relink')
+              : t('superAdmin.connection.link')}
         </button>
       </div>
 

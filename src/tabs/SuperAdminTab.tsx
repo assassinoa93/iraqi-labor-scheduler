@@ -23,6 +23,7 @@
 
 import React from 'react';
 import { useAuth } from '../lib/auth';
+import { useI18n } from '../lib/i18n';
 import { ConnectionPanel } from '../components/SuperAdmin/ConnectionPanel';
 import { CompaniesPanel } from '../components/SuperAdmin/CompaniesPanel';
 import { DatabasePanel } from '../components/SuperAdmin/DatabasePanel';
@@ -41,11 +42,12 @@ interface Props {
 
 export function SuperAdminTab({ companies, onAddCompany, onRenameCompany, onDeleteCompany }: Props) {
   const { role } = useAuth();
+  const { t } = useI18n();
   if (role !== 'super_admin') {
     return (
       <div className="p-8">
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          You don't have permission to view this tab.
+          {t('superAdmin.noPermission')}
         </p>
       </div>
     );
@@ -55,10 +57,10 @@ export function SuperAdminTab({ companies, onAddCompany, onRenameCompany, onDele
     <div className="space-y-10 max-w-6xl">
       <div>
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight mb-1">
-          Super Admin
+          {t('superAdmin.title')}
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          Manage users, companies, and database — all from inside the app
+          {t('superAdmin.subtitle')}
         </p>
       </div>
 

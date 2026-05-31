@@ -15,6 +15,7 @@ import React, { useState } from 'react';
 import { Building2, Plus, Pencil, Trash2, AlertCircle, X } from 'lucide-react';
 import type { Company } from '../../types';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 interface Props {
   companies: Company[];
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Company | null>(null);
@@ -42,7 +44,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
       setCreating(false);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message ?? 'Failed to create company');
+      setError(err.message ?? t('superAdmin.companies.error.create'));
     } finally {
       setBusy(false);
     }
@@ -56,7 +58,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
       setEditing(null);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message ?? 'Failed to rename company');
+      setError(err.message ?? t('superAdmin.companies.error.rename'));
     } finally {
       setBusy(false);
     }
@@ -70,16 +72,16 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
       onDelete(c.id);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message ?? 'Failed to delete company');
+      setError(err.message ?? t('superAdmin.companies.error.delete'));
     }
   };
 
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Companies</p>
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.companies.title')}</p>
         <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
-          Add / rename / delete · {companies.length} total
+          {t('superAdmin.companies.subtitle', { count: companies.length })}
         </p>
       </div>
 
@@ -91,7 +93,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
             className="apple-press px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5 disabled:opacity-60"
           >
             <Plus className="w-3 h-3" />
-            New company
+            {t('superAdmin.companies.new')}
           </button>
         ) : (
           <form
@@ -103,7 +105,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Company name"
+              placeholder={t('superAdmin.companies.namePlaceholder')}
               className="px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             />
             <button
@@ -111,14 +113,14 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
               disabled={busy || !newName.trim()}
               className="apple-press px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60"
             >
-              {busy ? 'Adding…' : 'Add'}
+              {busy ? t('superAdmin.companies.adding') : t('superAdmin.companies.add')}
             </button>
             <button
               type="button"
               onClick={() => { setCreating(false); setNewName(''); }}
               className="apple-press px-3 py-2 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono"
             >
-              Cancel
+              {t('superAdmin.companies.cancel')}
             </button>
           </form>
         )}
@@ -138,7 +140,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
         <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
           <Building2 className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />
           <p className="text-[11px] text-slate-600 dark:text-slate-300">
-            No companies yet. Add the first one to start scheduling.
+            {t('superAdmin.companies.empty')}
           </p>
         </div>
       ) : (
@@ -149,6 +151,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
               company={c}
               isEditing={editing?.id === c.id}
               busy={busy}
+              t={t}
               onEdit={() => setEditing(c)}
               onCancelEdit={() => setEditing(null)}
               onRename={(name) => handleRename(c.id, name)}
@@ -161,8 +164,9 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
   );
 }
 
-function CompanyRow({ company, isEditing, busy, onEdit, onCancelEdit, onRename, onDelete }: {
+function CompanyRow({ company, isEditing, busy, t, onEdit, onCancelEdit, onRename, onDelete }: {
   company: Company; isEditing: boolean; busy: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   onEdit: () => void; onCancelEdit: () => void; onRename: (name: string) => void; onDelete: () => void;
 }) {
   const [name, setName] = useState(company.name);
@@ -186,14 +190,14 @@ function CompanyRow({ company, isEditing, busy, onEdit, onCancelEdit, onRename, 
           disabled={busy || !name.trim() || name === company.name}
           className="apple-press px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono disabled:opacity-60"
         >
-          Save
+          {t('superAdmin.companies.save')}
         </button>
         <button
           type="button"
           onClick={onCancelEdit}
           className="apple-press px-3 py-1.5 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono"
         >
-          Cancel
+          {t('superAdmin.companies.cancel')}
         </button>
       </form>
     );
@@ -211,7 +215,7 @@ function CompanyRow({ company, isEditing, busy, onEdit, onCancelEdit, onRename, 
           "apple-press p-1.5 rounded-md bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800",
           busy && "opacity-60 cursor-wait",
         )}
-        title="Rename"
+        title={t('superAdmin.companies.rename.tooltip')}
       >
         <Pencil className="w-3 h-3" />
       </button>
@@ -221,7 +225,7 @@ function CompanyRow({ company, isEditing, busy, onEdit, onCancelEdit, onRename, 
           "apple-press p-1.5 rounded-md bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-300 border border-rose-100 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/20",
           busy && "opacity-60 cursor-wait",
         )}
-        title="Delete"
+        title={t('superAdmin.companies.delete.tooltip')}
       >
         <Trash2 className="w-3 h-3" />
       </button>

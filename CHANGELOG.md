@@ -2,6 +2,31 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.26.0 — 2026-05-31
+
+**Overtime hire-advice now nets out public-holiday hours, a 10-screen Arabic internationalization pass, and a Payroll empty state.** A continuation of the v5.25 reporting/compliance unification (the inline `v5.25 —` code markers reflect that same initiative). The "hire to end overtime" math counted Art. 74 public-holiday hours — which no amount of hiring can remove — so it over-recommended staff and projected savings that never land. This release puts every overtime surface on one net-of-holiday, category-aware definition, brings the approval banner / AI tab / super-admin panels into Arabic, and gives the Payroll tab a real empty state.
+
+### Overtime: net-of-holiday, one definition everywhere
+
+- [lib/payroll.ts](src/lib/payroll.ts) — new shared `monthlyCapFor(emp, config)`: the single source of truth for the per-employee monthly cap (Driver 224h, hazardous 144h, hour-exempt none, else standard). Replaces a private copy in the staffing advisory and a flat cap in the OT analysis.
+- [lib/staffingAdvisory.ts](src/lib/staffingAdvisory.ts), [tabs/DashboardTab.tsx](src/tabs/DashboardTab.tsx), [App.tsx](src/App.tsx) — the over-cap pool that drives the hire recommendation now excludes **all** public-holiday hours (premium-owed + comp-day-compensated), matching `otAnalysis.payableOverCapHours`. A worker over cap only because of holiday work no longer generates a phantom hire; holiday pressure is answered by the comp-day rotation, not headcount.
+- [App.tsx](src/App.tsx) — the Simulation what-if panel's baseline used the old formula while its live side used the new one, so a no-op sim could show a phantom OT delta; both halves now use the same net-of-holiday math.
+- [components/EmployeeOTDetailModal.tsx](src/components/EmployeeOTDetailModal.tsx) — the OT drill-down labeled the cap and drew the cap-crossing line at the flat 192h even for drivers/hazardous workers (whose parent row already showed 224h/144h); now uses the per-employee cap.
+- [lib/__tests__/otAnalysis.test.ts](src/lib/__tests__/otAnalysis.test.ts), [lib/__tests__/staffingAdvisory.test.ts](src/lib/__tests__/staffingAdvisory.test.ts) — +4 tests: the net-of-holiday staffing invariant (holiday-only over-cap → 0 hires) and the driver / hazardous cap branches (suite now 421).
+- [lib/workforcePlanning.ts](src/lib/workforcePlanning.ts) — intentionally unchanged: it answers "what roster covers the demand curve", a different axis from "hire to end overtime", and already treats holiday work as separately compensated.
+
+### Internationalization: 10 hardcoded-English screens
+
+- The schedule approval banner, the entire AI tab ([ChatPanel](src/components/AI/ChatPanel.tsx), [ScopeBar](src/components/AI/ScopeBar.tsx), [AdvisoryCard](src/components/AI/AdvisoryCard.tsx), [AIServicesTab](src/tabs/AIServicesTab.tsx)), and the super-admin panels ([Connection](src/components/SuperAdmin/ConnectionPanel.tsx), [Quota](src/components/SuperAdmin/QuotaPanel.tsx), [Companies](src/components/SuperAdmin/CompaniesPanel.tsx), [Database](src/components/SuperAdmin/DatabasePanel.tsx)) now render through the i18n system — 312 new keys with full English/Arabic parity. AI data-overview month labels localize too.
+
+### Terminology, casing & copy
+
+- [lib/i18n/en.ts](src/lib/i18n/en.ts) + [lib/i18n/ar.ts](src/lib/i18n/ar.ts) — collapsed drifting terms ("Informational Notes" → "Notes", "Coverage Hint" → "Coverage Suggestion", "…Continuity Advice" → "…Continuity Advisory") and a Title-Case sweep on heading/button labels (Leave Requests, Display Preferences, Plan Everything, Re-Fill (Keep My Edits), Coverage Gaps · Why, …).
+
+### Payroll empty state
+
+- [tabs/PayrollTab.tsx](src/tabs/PayrollTab.tsx) — with no employees the tab rendered a full header, toolbar, and an empty table (looking broken / scaffold-only); it now shows a guided empty state with a "Go to Roster" action, matching the Coverage & OT Analysis tab.
+
 ## v5.25.0 — 2026-05-30
 
 **Reporting & compliance-flags unification: one source of truth for how violations, notes, counts, and scores are shown across every tab.** A cross-tab audit found violations counted four different ways, four compliance-score formulas, info-notes surfaced in only one place, raw English rule names in Arabic mode, and several walls of jargon. This release collapses all of it onto shared foundations so the same schedule reads identically everywhere — and trims the overload.

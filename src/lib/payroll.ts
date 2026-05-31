@@ -38,6 +38,26 @@ export function monthlyHourCap(config: Pick<Config, 'standardWeeklyHrsCap'>): nu
   return config.standardWeeklyHrsCap * 4;
 }
 
+// v5.25 — per-employee monthly OT cap, category-aware. Drivers and hazardous
+// workers have different weekly caps under Iraqi Labor Law (Art. 88 / 70), so
+// a flat monthlyHourCap mis-attributes their OT. This is the single source of
+// truth for cap selection, shared by otAnalysis.ts and staffingAdvisory.ts so
+// their hour pools and hire counts reconcile.
+//   - hourExempt: no cap (Infinity) → never accrues OT.
+//   - Driver:    driverWeeklyHrsCap × 4 (default 56 × 4 = 224).
+//   - Hazardous: hazardousWeeklyHrsCap × 4 (default 36 × 4 = 144).
+//   - Standard:  standardWeeklyHrsCap × 4 (default 48 × 4 = 192).
+export function monthlyCapFor(emp: Employee, config: Config): number {
+  if (emp.hourExempt) return Number.POSITIVE_INFINITY;
+  if (emp.category === 'Driver') {
+    return (config.driverWeeklyHrsCap ?? 56) * 4;
+  }
+  if (emp.isHazardous) {
+    return (config.hazardousWeeklyHrsCap ?? 36) * 4;
+  }
+  return monthlyHourCap(config);
+}
+
 // Sum of worked hours for an employee in the active month with
 // leave-overlap days excluded. v2.1.3: a v1.6 backup may carry a legacy
 // `annualLeaveStart/End` field that the schedule grid was never

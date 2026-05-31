@@ -48,7 +48,7 @@ import {
   DEFAULT_CONFIG, INITIAL_COMPANIES, DEFAULT_COMPANY_ID,
 } from './lib/initialData';
 import { APP_VERSION } from './lib/appMeta';
-import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWorkedHours } from './lib/payroll';
+import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, monthlyCapFor, computeWorkedHours } from './lib/payroll';
 import { computeHolidayPay } from './lib/holidayCompPay';
 import { isSystemShift } from './lib/systemShifts';
 import { expandHolidayDates } from './lib/holidays';
@@ -2708,10 +2708,14 @@ export default function App() {
       const totalHrs = computeWorkedHours(emp, schedule, shifts, config);
       totalWorkHours += totalHrs;
       const hourly = baseHourlyRate(emp, config);
+      const empCap = monthlyCapFor(emp, config);
       const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourly, allSchedules);
-      const stdOT = Math.max(0, totalHrs - cap - breakdown.premiumHolidayHours);
-      totalOTHours += Math.max(0, totalHrs - cap);
-      totalOTPay += stdOT * hourly * otRateDay + breakdown.premiumPay;
+      // v5.25 — net-of-holiday over-cap pool (premium + comp-day-compensated
+      // holiday hours excluded), matching otAnalysis + the dashboard so the
+      // hire recommendation never counts irreducible holiday hours.
+      const netOverCap = Math.max(0, totalHrs - empCap - breakdown.premiumHolidayHours - breakdown.compensatedHolidayHours);
+      totalOTHours += netOverCap;
+      totalOTPay += netOverCap * hourly * otRateDay + breakdown.premiumPay;
     }
     const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));
     return { totalOTHours, totalOTPay, potentialHires, totalWorkHours };
@@ -3435,7 +3439,6 @@ export default function App() {
     if (!baselineActive) return [];
     const baseScheduleKey = `scheduler_schedule_${baselineActive.config.year}_${baselineActive.config.month}`;
     const baseSchedule = baselineActive.allSchedules[baseScheduleKey] ?? {};
-    const baseCap = monthlyHourCap(baselineActive.config);
     let baseOTHrs = 0;
     let baseOTPay = 0;
     for (const emp of baselineActive.employees) {
@@ -3445,9 +3448,13 @@ export default function App() {
         emp, baseSchedule, baselineActive.shifts, baselineActive.holidays,
         baselineActive.config, hourly, baselineActive.allSchedules,
       );
-      const stdOT = Math.max(0, totalHrs - baseCap - breakdown.premiumHolidayHours);
-      baseOTHrs += Math.max(0, totalHrs - baseCap);
-      baseOTPay += stdOT * hourly * (baselineActive.config.otRateDay ?? 1.5) + breakdown.premiumPay;
+      // v5.25 — mirror the live otSummary exactly: per-employee category-aware
+      // cap + net-of-holiday over-cap pool, so the sim baseline reconciles with
+      // the sim side (otSummary) and a no-op sim shows a zero OT delta.
+      const empCap = monthlyCapFor(emp, baselineActive.config);
+      const netOverCap = Math.max(0, totalHrs - empCap - breakdown.premiumHolidayHours - breakdown.compensatedHolidayHours);
+      baseOTHrs += netOverCap;
+      baseOTPay += netOverCap * hourly * (baselineActive.config.otRateDay ?? 1.5) + breakdown.premiumPay;
     }
     const baseViolations = ComplianceEngine
       .check(baselineActive.employees, baselineActive.shifts, baselineActive.holidays, baselineActive.config, baseSchedule, baselineActive.allSchedules)
@@ -3876,6 +3883,7 @@ export default function App() {
                 prevMonth={prevMonth}
                 nextMonth={nextMonth}
                 setActiveMonth={setActiveMonth}
+                onGoToRoster={() => setActiveTab('roster')}
                 onExport={exportScheduleCSV}
                 onUpdateEmployee={(next) => {
                   // Diff against the prior employee record so we can:

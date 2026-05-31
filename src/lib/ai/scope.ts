@@ -103,20 +103,27 @@ export function useAiScope(): [AiScope, (next: AiScope) => void, () => void] {
 
 // ─── Formatters ─────────────────────────────────────────────────────────
 
+// English short-month fallback. The in-app Scope bar passes a localized
+// array (resolved from `common.month.short.*`), so Arabic mode shows Arabic
+// month names in the pills. Keeping the default here leaves the formatter
+// pure and unit-testable, and is what locale-less callers (e.g. tests) get.
 const MONTH_NAMES_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-export function formatMonthRange(r: MonthRange | null): string {
+export function formatMonthRange(
+  r: MonthRange | null,
+  monthNames: readonly string[] = MONTH_NAMES_SHORT,
+): string {
   if (!r) return '—';
   if (r.fromYear === r.toYear && r.fromMonth === r.toMonth) {
-    return `${MONTH_NAMES_SHORT[r.fromMonth - 1]} ${r.fromYear}`;
+    return `${monthNames[r.fromMonth - 1]} ${r.fromYear}`;
   }
   if (r.fromYear === r.toYear) {
-    return `${MONTH_NAMES_SHORT[r.fromMonth - 1]}–${MONTH_NAMES_SHORT[r.toMonth - 1]} ${r.fromYear}`;
+    return `${monthNames[r.fromMonth - 1]}–${monthNames[r.toMonth - 1]} ${r.fromYear}`;
   }
-  return `${MONTH_NAMES_SHORT[r.fromMonth - 1]} ${r.fromYear} – ${MONTH_NAMES_SHORT[r.toMonth - 1]} ${r.toYear}`;
+  return `${monthNames[r.fromMonth - 1]} ${r.fromYear} – ${monthNames[r.toMonth - 1]} ${r.toYear}`;
 }
 
 export function formatDateRange(r: DateRange | null): string {

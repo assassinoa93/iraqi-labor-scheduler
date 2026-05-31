@@ -100,6 +100,20 @@ describe('formatMonthRange', () => {
     expect(formatMonthRange({ fromYear: 2025, fromMonth: 11, toYear: 2026, toMonth: 2 }))
       .toBe('Nov 2025 – Feb 2026');
   });
+  it('uses a caller-supplied localized month-name array (ar locale)', () => {
+    // Mirrors what the Scope bar passes — `common.month.short.*` resolved
+    // via t() in Arabic — so pills read in Arabic instead of leaking English.
+    const ar = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    expect(formatMonthRange({ fromYear: 2026, fromMonth: 4, toYear: 2026, toMonth: 4 }, ar))
+      .toBe('أبريل 2026');
+    expect(formatMonthRange({ fromYear: 2026, fromMonth: 1, toYear: 2026, toMonth: 12 }, ar))
+      .toBe('يناير–ديسمبر 2026');
+    expect(formatMonthRange({ fromYear: 2025, fromMonth: 11, toYear: 2026, toMonth: 2 }, ar))
+      .toBe('نوفمبر 2025 – فبراير 2026');
+  });
 });
 
 describe('formatDateRange', () => {

@@ -10,7 +10,7 @@ import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station } 
 import { Card, KpiCard, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
-import { baseHourlyRate, monthlyHourCap } from '../lib/payroll';
+import { baseHourlyRate, monthlyCapFor } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
 import { SetupChecklist } from '../components/SetupChecklist';
@@ -110,7 +110,6 @@ export function DashboardTab(props: DashboardTabProps) {
   // them here (rather than in the advisory) because the dashboard also
   // surfaces them as standalone headlines (scheduled-OT hours, OT
   // premium broken out by over-cap vs holiday).
-  const cap = monthlyHourCap(config);
   const otRateDay = config.otRateDay ?? 1.5;
   const shiftByCode = new Map(shifts.map(s => [s.code, s]));
 
@@ -134,10 +133,15 @@ export function DashboardTab(props: DashboardTabProps) {
     const hourly = baseHourlyRate(emp, config);
     // v2.1.1 — Holiday OT honours the Art. 74 either-or model. The 2×
     // premium fires only when no comp day landed inside the window.
+    const empCap = monthlyCapFor(emp, config);
     const breakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourly, allSchedules);
-    const stdOT = Math.max(0, totalHrs - cap - breakdown.premiumHolidayHours);
-    totalOTHours += Math.max(0, totalHrs - cap);
-    totalOverCapPay += stdOT * hourly * otRateDay;
+    // v5.25 — net-of-holiday over-cap pool (premium + comp-day-compensated
+    // holiday hours excluded), identical to otAnalysis.payableOverCapHours
+    // and the App-level otSummary, so the dashboard headline, the advisory
+    // hire count, and the OT-analysis report all reconcile.
+    const netOverCap = Math.max(0, totalHrs - empCap - breakdown.premiumHolidayHours - breakdown.compensatedHolidayHours);
+    totalOTHours += netOverCap;
+    totalOverCapPay += netOverCap * hourly * otRateDay;
     totalHolidayPay += breakdown.premiumPay;
   }
   const totalOTPay = totalOverCapPay + totalHolidayPay;
@@ -161,7 +165,7 @@ export function DashboardTab(props: DashboardTabProps) {
   }));
   const advisorySimArgs = {
     employees, schedule, shifts, stations, holidays, config, isPeakDay,
-    totalOTHours, totalOTPay, stationGaps,
+    totalOTHours, totalOTPay, stationGaps, allSchedules,
     currentViolations: violations,
   };
   const advisory = computeStaffingAdvisory(advisorySimArgs);

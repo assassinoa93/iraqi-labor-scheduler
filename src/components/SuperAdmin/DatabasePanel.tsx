@@ -19,11 +19,13 @@ import * as adminApi from '../../lib/adminApi';
 import type { AuditStats, RulesDeployResult } from '../../lib/adminApi';
 import { cn } from '../../lib/utils';
 import { useConfirm } from '../ConfirmModal';
+import { useI18n } from '../../lib/i18n';
 
-const PRESETS: Array<{ label: string; days: number }> = [
-  { label: '90 days', days: 90 },
-  { label: '180 days', days: 180 },
-  { label: '1 year', days: 365 },
+// label is an i18n key resolved at render time (numbers stay ASCII).
+const PRESETS: Array<{ labelKey: string; days: number }> = [
+  { labelKey: 'superAdmin.database.preset.90', days: 90 },
+  { labelKey: 'superAdmin.database.preset.180', days: 180 },
+  { labelKey: 'superAdmin.database.preset.365', days: 365 },
 ];
 
 export function DatabasePanel() {
@@ -39,6 +41,7 @@ export function DatabasePanel() {
   const [deployingRules, setDeployingRules] = useState(false);
   const [lastRulesDeploy, setLastRulesDeploy] = useState<RulesDeployResult | null>(null);
   const { confirm, slot: confirmSlot } = useConfirm();
+  const { t } = useI18n();
 
   const refresh = async () => {
     if (!adminApi.isAvailable()) return;
@@ -49,7 +52,7 @@ export function DatabasePanel() {
       setStats(s);
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      setError(err.message ?? 'Failed to load audit stats');
+      setError(err.message ?? t('superAdmin.database.statsFailed'));
     } finally {
       setLoading(false);
     }
@@ -65,15 +68,18 @@ export function DatabasePanel() {
       const res = await adminApi.deployFirestoreRules();
       setLastRulesDeploy(res);
       setInfo(
-        `Security rules deployed. Active ruleset: ${res.name}. Created at ` +
-        `${new Date(res.createTime).toLocaleString()} (${res.bytes} bytes).`
+        t('superAdmin.database.rules.deployed', {
+          name: res.name,
+          time: new Date(res.createTime).toLocaleString(),
+          bytes: res.bytes,
+        })
       );
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       setError(
         err.code === 'security-rules/internal' || /permission/i.test(err.message ?? '')
-          ? `Rules deploy failed: ${err.message}. Check that the linked service account has the Firebase Rules Admin role in Cloud Console → IAM & Admin → IAM.`
-          : err.message ?? 'Rules deploy failed'
+          ? t('superAdmin.database.rules.deployFailed.permission', { message: err.message ?? '' })
+          : err.message ?? t('superAdmin.database.rules.deployFailed')
       );
     } finally {
       setDeployingRules(false);
@@ -84,8 +90,8 @@ export function DatabasePanel() {
     const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
     const cutoffDate = new Date(cutoffMs).toISOString().slice(0, 10);
     const ok = await confirm({
-      title: `Purge audit older than ${days} days?`,
-      message: `Permanently deletes every audit entry older than ${cutoffDate}. This cannot be undone.`,
+      title: t('superAdmin.database.purge.confirm.title', { days }),
+      message: t('superAdmin.database.purge.confirm.body', { date: cutoffDate }),
     });
     if (!ok) return;
     setPurging(days);
@@ -93,11 +99,11 @@ export function DatabasePanel() {
     setInfo(null);
     try {
       const res = await adminApi.purgeAuditOlderThan(cutoffMs);
-      setInfo(`Deleted ${res.deleted} audit entr${res.deleted === 1 ? 'y' : 'ies'}.`);
+      setInfo(t('superAdmin.database.purge.done', { count: res.deleted }));
       await refresh();
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message ?? 'Purge failed');
+      setError(err.message ?? t('superAdmin.database.purge.failed'));
     } finally {
       setPurging(null);
     }
@@ -120,11 +126,12 @@ export function DatabasePanel() {
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div className="space-y-1">
           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-            {stats === null ? 'Loading…' : (
+            {stats === null ? t('superAdmin.database.loading') : (
               <>
-                <span className="text-slate-800 dark:text-slate-100 font-bold">{stats.total.toLocaleString()}</span>{' '}
-                audit entr{stats.total === 1 ? 'y' : 'ies'}
-                {oldestText && <> · oldest from <span className="font-mono">{oldestText}</span></>}
+                <span className="text-slate-800 dark:text-slate-100 font-bold">
+                  {t('superAdmin.database.entryCount', { count: stats.total })}
+                </span>
+                {oldestText && <> · <span className="font-mono">{t('superAdmin.database.oldestFrom', { date: oldestText })}</span></>}
               </>
             )}
           </p>
@@ -135,7 +142,7 @@ export function DatabasePanel() {
           className="apple-press px-4 py-1.5 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 flex items-center gap-1.5"
         >
           <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-          Refresh
+          {t('superAdmin.database.refresh')}
         </button>
       </div>
 
@@ -148,13 +155,13 @@ export function DatabasePanel() {
         <div className="flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-100">Firestore security rules</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.database.rules.title')}</p>
             <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed mt-1">
-              Sync the bundled <code className="font-mono">firestore.rules</code> to this project. Run this after upgrading the app if the release notes mention a rules change — without the sync, the new rule paths won't take effect even though the renderer expects them.
+              {t('superAdmin.database.rules.body')}
             </p>
             {lastRulesDeploy && !lastRulesDeploy.error && (
               <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-mono mt-2 truncate" title={lastRulesDeploy.name}>
-                Last deploy: ruleset {lastRulesDeploy.name} ({lastRulesDeploy.bytes} bytes)
+                {t('superAdmin.database.rules.lastDeploy', { name: lastRulesDeploy.name, bytes: lastRulesDeploy.bytes })}
               </p>
             )}
           </div>
@@ -168,14 +175,14 @@ export function DatabasePanel() {
             )}
           >
             {deployingRules ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
-            {deployingRules ? 'Deploying…' : 'Sync rules'}
+            {deployingRules ? t('superAdmin.database.rules.deploying') : t('superAdmin.database.rules.sync')}
           </button>
         </div>
       </div>
 
       <div className="space-y-3">
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-          Purge audit older than
+          {t('superAdmin.database.purge.label')}
         </p>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
@@ -190,12 +197,12 @@ export function DatabasePanel() {
               )}
             >
               <Trash2 className="w-3 h-3" />
-              {purging === p.days ? 'Purging…' : p.label}
+              {purging === p.days ? t('superAdmin.database.purge.purging') : t(p.labelKey)}
             </button>
           ))}
         </div>
         <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
-          Audit entries are immutable for everyone except the super-admin (via this panel). Purged entries are gone permanently — back up the audit log first if you need a record (Audit Log tab → export).
+          {t('superAdmin.database.purge.note')}
         </p>
       </div>
 
@@ -219,12 +226,13 @@ export function DatabasePanel() {
 }
 
 function Section({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Database</p>
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.database.title')}</p>
         <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
-          Audit log retention
+          {t('superAdmin.database.subtitle')}
         </p>
       </div>
       {children}
@@ -233,11 +241,12 @@ function Section({ children }: { children: React.ReactNode }) {
 }
 
 function Unavailable() {
+  const { t } = useI18n();
   return (
     <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
       <AlertCircle className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />
       <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-        Database operations are unavailable in this build. Use the Electron desktop installer.
+        {t('superAdmin.database.unavailable')}
       </p>
     </div>
   );

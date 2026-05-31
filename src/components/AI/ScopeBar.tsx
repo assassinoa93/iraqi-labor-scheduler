@@ -23,6 +23,7 @@ import {
   formatMonthRange, formatDateRange, isoToday,
 } from '../../lib/ai/scope';
 import type { DataSurvey } from '../../lib/ai/dataSurvey';
+import { useI18n } from '../../lib/i18n';
 
 interface Props {
   scope: AiScope;
@@ -32,40 +33,49 @@ interface Props {
 
 type EditorTarget = 'schedules' | 'payroll' | 'leave' | 'wfp' | null;
 
+/** Translator signature, matching useI18n()'s `t`. Passed into the
+ *  presentational sub-editors so they can localize without each
+ *  pulling the hook (keeps them pure/testable). */
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
 export function ScopeBar({ scope, onChange, survey }: Props) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState<EditorTarget>(null);
+  // Localized short month names (Jan…/يناير…), resolved once for the pills
+  // and threaded into the month editors.
+  const monthNames = MONTH_KEYS.map((k) => t(k));
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <ScopePill
           icon={Calendar}
-          label="Schedules"
-          value={formatMonthRange(scope.schedules)}
+          label={t('ai.scope.pill.schedules')}
+          value={formatMonthRange(scope.schedules, monthNames)}
           onClick={() => setEditing(editing === 'schedules' ? null : 'schedules')}
           active={editing === 'schedules'}
         />
         <ScopePill
           icon={FileSpreadsheet}
-          label="Payroll"
-          value={formatMonthRange(scope.payroll)}
+          label={t('ai.scope.pill.payroll')}
+          value={formatMonthRange(scope.payroll, monthNames)}
           onClick={() => setEditing(editing === 'payroll' ? null : 'payroll')}
           active={editing === 'payroll'}
         />
         <ScopePill
           icon={Clock}
-          label="Leave"
+          label={t('ai.scope.pill.leave')}
           value={
             scope.leave.range
               ? formatDateRange(scope.leave.range)
-              : `as of ${scope.leave.asOf}`
+              : t('ai.scope.leave.asOf', { date: scope.leave.asOf })
           }
           onClick={() => setEditing(editing === 'leave' ? null : 'leave')}
           active={editing === 'leave'}
         />
         <ScopePill
           icon={TrendingUp}
-          label="WFP"
+          label={t('ai.scope.pill.wfp')}
           value={scope.wfp ? String(scope.wfp.year) : '—'}
           onClick={() => setEditing(editing === 'wfp' ? null : 'wfp')}
           active={editing === 'wfp'}
@@ -74,20 +84,22 @@ export function ScopeBar({ scope, onChange, survey }: Props) {
 
       {editing === 'schedules' && (
         <MonthRangeEditor
-          label="Schedules window"
+          label={t('ai.scope.editor.schedules.title')}
           value={scope.schedules}
           survey={survey}
           domain="schedules"
+          t={t}
           onSave={(r) => { onChange({ ...scope, schedules: r }); setEditing(null); }}
           onClear={() => { onChange({ ...scope, schedules: null }); setEditing(null); }}
         />
       )}
       {editing === 'payroll' && (
         <MonthRangeEditor
-          label="Payroll window"
+          label={t('ai.scope.editor.payroll.title')}
           value={scope.payroll}
           survey={survey}
           domain="payroll"
+          t={t}
           onSave={(r) => { onChange({ ...scope, payroll: r }); setEditing(null); }}
           onClear={() => { onChange({ ...scope, payroll: null }); setEditing(null); }}
         />
@@ -96,6 +108,7 @@ export function ScopeBar({ scope, onChange, survey }: Props) {
         <LeaveEditor
           range={scope.leave.range}
           asOf={scope.leave.asOf}
+          t={t}
           onSave={(range, asOf) => {
             onChange({ ...scope, leave: { range, asOf } });
             setEditing(null);
@@ -107,6 +120,7 @@ export function ScopeBar({ scope, onChange, survey }: Props) {
         <YearEditor
           value={scope.wfp?.year ?? null}
           defaultYear={survey?.wfp.defaultYear ?? new Date().getFullYear()}
+          t={t}
           onSave={(year) => { onChange({ ...scope, wfp: year != null ? { year } : null }); setEditing(null); }}
           onClear={() => { onChange({ ...scope, wfp: null }); setEditing(null); }}
         />
@@ -145,12 +159,13 @@ function ScopePill({
 // ─── Inline editors ─────────────────────────────────────────────────────
 
 function MonthRangeEditor({
-  label, value, survey, domain, onSave, onClear,
+  label, value, survey, domain, t, onSave, onClear,
 }: {
   label: string;
   value: MonthRange | null;
   survey: DataSurvey | null;
   domain: 'schedules' | 'payroll';
+  t: TFn;
   onSave: (r: MonthRange) => void;
   onClear: () => void;
 }) {
@@ -165,27 +180,34 @@ function MonthRangeEditor({
   const bounds = survey ? survey[domain] : null;
 
   return (
-    <EditorShell title={label} hint={
+    <EditorShell title={label} t={t} hint={
       bounds && bounds.earliest && bounds.latest
-        ? `Available: ${MONTHS[bounds.earliest.month - 1]} ${bounds.earliest.year} → ${MONTHS[bounds.latest.month - 1]} ${bounds.latest.year} (${bounds.monthCount} months)`
-        : 'No data on file yet.'
+        ? t('ai.scope.editor.available', {
+            fromMonth: t(MONTH_KEYS[bounds.earliest.month - 1]),
+            fromYear: bounds.earliest.year,
+            toMonth: t(MONTH_KEYS[bounds.latest.month - 1]),
+            toYear: bounds.latest.year,
+            count: bounds.monthCount,
+          })
+        : t('ai.scope.editor.noData')
     } onClose={onClear}>
       <div className="grid grid-cols-2 gap-3">
-        <MonthYearField label="From" year={draft.fromYear} month={draft.fromMonth}
+        <MonthYearField label={t('ai.scope.editor.from')} year={draft.fromYear} month={draft.fromMonth} t={t}
           onChange={(y, m) => setDraft({ ...draft, fromYear: y, fromMonth: m })} />
-        <MonthYearField label="To" year={draft.toYear} month={draft.toMonth}
+        <MonthYearField label={t('ai.scope.editor.to')} year={draft.toYear} month={draft.toMonth} t={t}
           onChange={(y, m) => setDraft({ ...draft, toYear: y, toMonth: m })} />
       </div>
-      <EditorActions onSave={() => onSave(normalizeMonthRange(draft))} onClear={onClear} />
+      <EditorActions t={t} onSave={() => onSave(normalizeMonthRange(draft))} onClear={onClear} />
     </EditorShell>
   );
 }
 
 function LeaveEditor({
-  range, asOf, onSave, onClear,
+  range, asOf, t, onSave, onClear,
 }: {
   range: DateRange | null;
   asOf: string;
+  t: TFn;
   onSave: (range: DateRange | null, asOf: string) => void;
   onClear: () => void;
 }) {
@@ -195,16 +217,18 @@ function LeaveEditor({
 
   return (
     <EditorShell
-      title="Leave window"
-      hint="Leave history range is optional. `As of` controls the date used for current balance calculations."
+      title={t('ai.scope.editor.leave.title')}
+      hint={t('ai.scope.editor.leave.hint')}
+      t={t}
       onClose={onClear}
     >
       <div className="grid grid-cols-3 gap-3">
-        <LabeledInput label="History from" type="date" value={from} onChange={setFrom} />
-        <LabeledInput label="History to" type="date" value={to} onChange={setTo} />
-        <LabeledInput label="Balances as of" type="date" value={asOfDraft} onChange={setAsOfDraft} />
+        <LabeledInput label={t('ai.scope.editor.leave.historyFrom')} type="date" value={from} onChange={setFrom} />
+        <LabeledInput label={t('ai.scope.editor.leave.historyTo')} type="date" value={to} onChange={setTo} />
+        <LabeledInput label={t('ai.scope.editor.leave.balancesAsOf')} type="date" value={asOfDraft} onChange={setAsOfDraft} />
       </div>
       <EditorActions
+        t={t}
         onSave={() => onSave(from && to ? { from, to } : null, asOfDraft || isoToday())}
         onClear={onClear}
       />
@@ -213,25 +237,26 @@ function LeaveEditor({
 }
 
 function YearEditor({
-  value, defaultYear, onSave, onClear,
+  value, defaultYear, t, onSave, onClear,
 }: {
   value: number | null;
   defaultYear: number;
+  t: TFn;
   onSave: (year: number | null) => void;
   onClear: () => void;
 }) {
   const [draft, setDraft] = useState<number>(value ?? defaultYear);
   return (
-    <EditorShell title="Workforce planning year" hint="Full-year forecast. Pick any year — WFP projects from current employees + holidays." onClose={onClear}>
+    <EditorShell title={t('ai.scope.editor.wfp.title')} hint={t('ai.scope.editor.wfp.hint')} t={t} onClose={onClear}>
       <div className="grid grid-cols-1 gap-3">
         <LabeledInput
-          label="Year"
+          label={t('ai.scope.editor.wfp.year')}
           type="number"
           value={String(draft)}
           onChange={(v) => setDraft(Number(v) || draft)}
         />
       </div>
-      <EditorActions onSave={() => onSave(draft)} onClear={onClear} />
+      <EditorActions t={t} onSave={() => onSave(draft)} onClear={onClear} />
     </EditorShell>
   );
 }
@@ -239,8 +264,8 @@ function YearEditor({
 // ─── Editor primitives ─────────────────────────────────────────────────
 
 function EditorShell({
-  title, hint, children, onClose,
-}: { title: string; hint: string; children: React.ReactNode; onClose: () => void }) {
+  title, hint, t, children, onClose,
+}: { title: string; hint: string; t: TFn; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-xl shadow-sm space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -251,7 +276,7 @@ function EditorShell({
         <button
           onClick={onClose}
           className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-          aria-label="Close editor"
+          aria-label={t('ai.scope.editor.close.ariaLabel')}
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -261,20 +286,20 @@ function EditorShell({
   );
 }
 
-function EditorActions({ onSave, onClear }: { onSave: () => void; onClear: () => void }) {
+function EditorActions({ t, onSave, onClear }: { t: TFn; onSave: () => void; onClear: () => void }) {
   return (
     <div className="flex justify-end gap-2 pt-1">
       <button
         onClick={onClear}
         className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700"
       >
-        Clear
+        {t('ai.scope.editor.clear')}
       </button>
       <button
         onClick={onSave}
         className="apple-press px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25"
       >
-        Save scope
+        {t('ai.scope.editor.save')}
       </button>
     </div>
   );
@@ -296,11 +321,18 @@ function LabeledInput({
   );
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// i18n keys for the month <select>. Resolved via t() so the dropdown and the
+// scope pills show localized month names in Arabic mode (mirrors the
+// WorkforcePlanningTab / Primitives convention).
+const MONTH_KEYS = [
+  'common.month.short.jan', 'common.month.short.feb', 'common.month.short.mar', 'common.month.short.apr',
+  'common.month.short.may', 'common.month.short.jun', 'common.month.short.jul', 'common.month.short.aug',
+  'common.month.short.sep', 'common.month.short.oct', 'common.month.short.nov', 'common.month.short.dec',
+];
 
 function MonthYearField({
-  label, year, month, onChange,
-}: { label: string; year: number; month: number; onChange: (y: number, m: number) => void }) {
+  label, year, month, t, onChange,
+}: { label: string; year: number; month: number; t: TFn; onChange: (y: number, m: number) => void }) {
   return (
     <div className="space-y-1">
       <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</label>
@@ -310,8 +342,8 @@ function MonthYearField({
           onChange={(e) => onChange(year, Number(e.target.value))}
           className="flex-1 px-2 py-1.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
         >
-          {MONTHS.map((name, i) => (
-            <option key={name} value={i + 1}>{name}</option>
+          {MONTH_KEYS.map((key, i) => (
+            <option key={key} value={i + 1}>{t(key)}</option>
           ))}
         </select>
         <input
@@ -341,6 +373,7 @@ function normalizeMonthRange(r: MonthRange): MonthRange {
 export function ApplyDefaultScopeButton({
   survey, onApply,
 }: { survey: DataSurvey; onApply: (next: AiScope) => void }) {
+  const { t } = useI18n();
   const handle = () => {
     const today = new Date();
     const latestSched = survey.schedules.latest;
@@ -375,7 +408,7 @@ export function ApplyDefaultScopeButton({
       className="apple-press inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25"
     >
       <Sparkles className="w-3 h-3" />
-      Apply suggested scope
+      {t('ai.scope.applySuggested')}
     </button>
   );
 }

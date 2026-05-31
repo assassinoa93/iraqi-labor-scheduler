@@ -6,7 +6,7 @@ import { Employee, Shift, Schedule, PublicHoliday, Config } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
-import { monthlyHourCap, baseHourlyRate } from '../lib/payroll';
+import { monthlyHourCap, monthlyCapFor, baseHourlyRate } from '../lib/payroll';
 import { computeHolidayPay } from '../lib/holidayCompPay';
 
 // v5.6.0 — drill-down for the "Who burned the OT" card on the Coverage / OT
@@ -75,7 +75,11 @@ export function EmployeeOTDetailModal({
   const { t, fmt } = useI18n();
   useModalKeys(isOpen, onClose);
 
-  const cap = monthlyHourCap(config);
+  // v5.25 — match the per-employee category-aware cap the parent OT-analysis
+  // row shows (analyzeOT now sets byEmployee[].cap = monthlyCapFor). Using the
+  // flat cap here made a Driver/hazardous drill-down mislabel the cap and mark
+  // cap-crossing days at the wrong threshold.
+  const cap = employee ? monthlyCapFor(employee, config) : monthlyHourCap(config);
 
   // v5.6.0 — per-holiday breakdown so the modal can show, for each holiday
   // the employee worked, whether the premium is owed (and why) vs.

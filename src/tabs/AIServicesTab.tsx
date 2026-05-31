@@ -87,6 +87,7 @@ interface AIServicesTabProps {
 }
 
 export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabProps) {
+  const { t } = useI18n();
   const { user, role } = useAuth();
   const isSuperAdmin = role === 'super_admin';
   // Offline mode (role===null) treats everyone as fully privileged, same
@@ -217,14 +218,14 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
     setSaveError(null);
     const trimmed = keyInput.trim();
     if (!trimmed) {
-      setSaveError('Paste your OpenRouter key first.');
+      setSaveError(t('ai.key.error.empty'));
       return;
     }
     setSavingKey(true);
     try {
       const valid = await validateKey(trimmed);
       if (!valid) {
-        setSaveError('Key was rejected by OpenRouter (401/403). Double-check it on openrouter.ai/keys.');
+        setSaveError(t('ai.key.error.rejected'));
         return;
       }
       // First-time use: surface the consent dialog before persisting.
@@ -271,8 +272,8 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
 
   const handleDeleteKey = async () => {
     const ok = await confirm({
-      title: 'Remove your OpenRouter key?',
-      message: 'The encrypted key will be deleted from this device. AI Services on this device will be disabled until you paste a new key. Your OpenRouter account itself is not affected.',
+      title: t('ai.removeKey.confirm.title'),
+      message: t('ai.removeKey.confirm.body'),
     });
     if (!ok) return;
     await aiKeyStore.deleteKey(userId);
@@ -335,7 +336,7 @@ export function AIServicesTab({ companyData, activeCompanyId }: AIServicesTabPro
       {hasKey === null ? (
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Loading…</span>
+          <span>{t('ai.loading')}</span>
         </div>
       ) : !hasKey ? (
         <EmptyKeyState
@@ -456,6 +457,7 @@ function WorkspacePolicyCard({
   policy: ReturnType<typeof useWorkspaceAiPolicy>[0];
   setPolicy: ReturnType<typeof useWorkspaceAiPolicy>[1];
 }) {
+  const { t } = useI18n();
   const [allowedModelsText, setAllowedModelsText] = useState(
     (policy.allowedModels ?? []).join(', '),
   );
@@ -474,40 +476,40 @@ function WorkspacePolicyCard({
       <div className="flex items-center gap-2">
         <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-300" />
         <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-          Workspace Policy
+          {t('ai.policy.title')}
         </h4>
         <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          Super-admin only
+          {t('ai.policy.superAdminOnly')}
         </span>
       </div>
 
       <PolicyToggle
-        label="AI mode enabled"
-        description="Master switch. When off, AI Services are hidden for everyone in this workspace regardless of role or per-user keys."
+        label={t('ai.policy.aiMode.label')}
+        description={t('ai.policy.aiMode.description')}
         checked={policy.aiModeEnabled}
         onChange={(v) => setPolicy({ ...policy, aiModeEnabled: v })}
       />
 
       <PolicyToggle
-        label="Usage log"
-        description="When on, log each AI session (user + timestamp + action) so admins can see who is using the feature. The contents of prompts and responses are never logged."
+        label={t('ai.policy.usageLog.label')}
+        description={t('ai.policy.usageLog.description')}
         checked={policy.aiUsageLog}
         onChange={(v) => setPolicy({ ...policy, aiUsageLog: v })}
       />
 
       <div className="space-y-2">
         <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-          Allowed models
+          {t('ai.policy.allowedModels.label')}
         </label>
         <p className="text-[10px] text-slate-500 dark:text-slate-400">
-          Optional. Comma-separated OpenRouter model ids users may select. Leave empty for no restriction. Useful for capping spend by allowing only Haiku / Sonnet / Mini class models.
+          {t('ai.policy.allowedModels.description')}
         </p>
         <input
           type="text"
           value={allowedModelsText}
           onChange={(e) => setAllowedModelsText(e.target.value)}
           onBlur={commitAllowedModels}
-          placeholder="e.g. anthropic/claude-haiku-4.5, openai/gpt-4o-mini"
+          placeholder={t('ai.policy.allowedModels.placeholder')}
           className="w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all"
         />
       </div>
@@ -557,31 +559,32 @@ function EmptyKeyState({
   encryptionAvailable: boolean | null;
   onSave: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-2xl space-y-4 shadow-sm">
       <div className="flex items-center gap-2">
         <KeyRound className="w-4 h-4 text-slate-500 dark:text-slate-400" />
         <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-          Bring your own OpenRouter key
+          {t('ai.emptyKey.title')}
         </h4>
       </div>
 
       <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-        AI Services use <strong>your</strong> OpenRouter account, not a shared one. The app does not ship with a key — every user pastes their own. Your key is encrypted with the OS keychain and stored only on this machine; it is never synced to Firestore or shared with other users.
+        {t('ai.emptyKey.body')}
       </p>
 
       {encryptionAvailable === false && (
         <div className="p-3 bg-amber-50/70 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
           <p className="text-[11px] text-amber-800 dark:text-amber-200 font-bold flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5" />
-            OS encryption unavailable — install gnome-keyring (Linux) before saving your key.
+            {t('ai.emptyKey.noEncryption')}
           </p>
         </div>
       )}
 
       <div className="space-y-2">
         <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-          API key
+          {t('ai.emptyKey.field.label')}
         </label>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -598,7 +601,7 @@ function EmptyKeyState({
               type="button"
               onClick={() => setShowKey(!showKey)}
               className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              aria-label={showKey ? 'Hide key' : 'Show key'}
+              aria-label={showKey ? t('ai.emptyKey.hideKey.ariaLabel') : t('ai.emptyKey.showKey.ariaLabel')}
             >
               {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
@@ -610,7 +613,7 @@ function EmptyKeyState({
             className="apple-press px-5 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {savingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-            {savingKey ? 'Validating…' : 'Validate & save'}
+            {savingKey ? t('ai.emptyKey.validating') : t('ai.emptyKey.validateSave')}
           </button>
         </div>
         {saveError && (
@@ -624,7 +627,7 @@ function EmptyKeyState({
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-300 hover:underline"
       >
-        Get a key on openrouter.ai/keys <ExternalLink className="w-3 h-3" />
+        {t('ai.emptyKey.getKeyLink')} <ExternalLink className="w-3 h-3" />
       </a>
     </div>
   );
@@ -643,6 +646,7 @@ function ConfiguredKeyState({
   onRefresh: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   // Filter models to those allowed by workspace policy AND that support
   // tool use — the AI workflow depends on the tool-use loop, so non-tool
   // models would silently break the interview flow.
@@ -667,10 +671,10 @@ function ConfiguredKeyState({
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />
             <div>
               <p className="text-xs font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest">
-                OpenRouter key connected
+                {t('ai.configured.connected.title')}
               </p>
               <p className="text-[10px] text-emerald-700 dark:text-emerald-300/80 mt-0.5">
-                Encrypted via OS keychain. This device only.
+                {t('ai.configured.connected.subtitle')}
               </p>
             </div>
           </div>
@@ -681,14 +685,14 @@ function ConfiguredKeyState({
               className="apple-press px-3 py-1.5 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 disabled:opacity-60"
             >
               {loadingInfo ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              Refresh
+              {t('ai.configured.refresh')}
             </button>
             <button
               onClick={onDelete}
               className="apple-press px-3 py-1.5 bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200 border border-rose-200 dark:border-rose-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/25 flex items-center gap-1.5"
             >
               <Trash2 className="w-3 h-3" />
-              Remove
+              {t('ai.configured.remove')}
             </button>
           </div>
         </div>
@@ -699,17 +703,17 @@ function ConfiguredKeyState({
 
         {keyInfo && (
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <ReadoutTile label="Spend so far" value={formatUsd(keyInfo.usage)} />
+            <ReadoutTile label={t('ai.configured.tile.spend')} value={formatUsd(keyInfo.usage)} />
             <ReadoutTile
-              label="Spend cap"
-              value={keyInfo.limit == null ? 'No limit' : formatUsd(keyInfo.limit)}
+              label={t('ai.configured.tile.spendCap')}
+              value={keyInfo.limit == null ? t('ai.configured.noLimit') : formatUsd(keyInfo.limit)}
             />
             <ReadoutTile
-              label="Plan"
-              value={keyInfo.is_free_tier ? 'Free tier' : 'Paid'}
+              label={t('ai.configured.tile.plan')}
+              value={keyInfo.is_free_tier ? t('ai.configured.tile.plan.free') : t('ai.configured.tile.plan.paid')}
             />
             <ReadoutTile
-              label="Label"
+              label={t('ai.configured.tile.label')}
               value={keyInfo.label ?? '—'}
               mono
             />
@@ -720,16 +724,16 @@ function ConfiguredKeyState({
       {/* Model picker + privacy */}
       <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-2xl space-y-5 shadow-sm">
         <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-          Your settings
+          {t('ai.configured.settings.title')}
         </h4>
 
         <div className="space-y-2">
           <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-            Model
+            {t('ai.configured.model.label')}
           </label>
           <p className="text-[10px] text-slate-500 dark:text-slate-400">
-            Filtered to models that support tool use (required for the interview / advisory flow). {policy.allowedModels && policy.allowedModels.length > 0 && (
-              <span>Workspace allows {policy.allowedModels.length} model{policy.allowedModels.length === 1 ? '' : 's'}.</span>
+            {t('ai.configured.model.help')} {policy.allowedModels && policy.allowedModels.length > 0 && (
+              <span>{t('ai.configured.model.allowedCount', { count: policy.allowedModels.length })}</span>
             )}
           </p>
           <select
@@ -738,11 +742,14 @@ function ConfiguredKeyState({
             disabled={!filteredModels.length}
             className="w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all disabled:opacity-60"
           >
-            <option value="">— Pick a model —</option>
+            <option value="">{t('ai.configured.model.pickPlaceholder')}</option>
             {filteredModels.map((m) => {
               const price = pricePerMtok(m);
               const priceText = price.prompt != null && price.completion != null
-                ? ` · $${price.prompt.toFixed(2)}/$${price.completion.toFixed(2)} per Mtok`
+                ? ` · ${t('ai.configured.model.price', {
+                    prompt: `$${price.prompt.toFixed(2)}`,
+                    completion: `$${price.completion.toFixed(2)}`,
+                  })}`
                 : '';
               return (
                 <option key={m.id} value={m.id}>
@@ -756,14 +763,14 @@ function ConfiguredKeyState({
           )}
           {!loadingInfo && filteredModels.length === 0 && models && (
             <p className="text-[11px] text-amber-700 dark:text-amber-300 font-bold">
-              No models match the current allowlist. Loosen the workspace allowed-models list to see options.
+              {t('ai.configured.model.noMatch')}
             </p>
           )}
         </div>
 
         <PolicyToggle
-          label="No-training mode"
-          description="When on, asks OpenRouter to set provider data_collection: 'deny' so the upstream model provider may not train on your prompts. Default on. Turn off only if you want providers to use your data for training."
+          label={t('ai.configured.noTraining.label')}
+          description={t('ai.configured.noTraining.description')}
           checked={prefs.noTraining}
           onChange={(v) => setPrefs({ ...prefs, noTraining: v })}
         />
@@ -795,20 +802,21 @@ function WorkspaceOverviewCard({
   scope: ReturnType<typeof useAiScope>[0];
   setScope: ReturnType<typeof useAiScope>[1];
 }) {
-  const formatMonthKey = (k: { year: number; month: number } | null) => {
-    if (!k) return '—';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[k.month - 1]} ${k.year}`;
-  };
+  const { t } = useI18n();
+  // v5.25 — localized month label (mirrors ScopeBar/Primitives) so the data
+  // overview tile shows Arabic month names in Arabic mode instead of English.
+  const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const formatMonthKey = (k: { year: number; month: number } | null) =>
+    k ? `${t(`common.month.short.${MONTH_KEYS[k.month - 1]}`)} ${k.year}` : '—';
   const scheduleSummary = survey.schedules.earliest && survey.schedules.latest
     ? `${formatMonthKey(survey.schedules.earliest)} → ${formatMonthKey(survey.schedules.latest)} (${survey.schedules.monthCount}m)`
-    : 'No schedules saved yet';
+    : t('ai.overview.schedules.empty');
   const leaveSummary = survey.leave.earliest && survey.leave.latest
     ? `${survey.leave.earliest} → ${survey.leave.latest} (${survey.leave.totalRanges} ranges)`
-    : 'No leave records yet';
+    : t('ai.overview.leave.empty');
   const holidaySummary = survey.holidays.count > 0
     ? `${survey.holidays.earliest} → ${survey.holidays.latest} (${survey.holidays.count})`
-    : 'No holidays on file';
+    : t('ai.overview.holidays.empty');
 
   const profilePct = survey.stations.count > 0
     ? Math.round((survey.stations.profiledCount / survey.stations.count) * 100)
@@ -823,52 +831,52 @@ function WorkspaceOverviewCard({
       <div className="flex items-center gap-2">
         <Database className="w-4 h-4 text-slate-500 dark:text-slate-400" />
         <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-          What the assistant will see
+          {t('ai.overview.title')}
         </h4>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <OverviewTile
           icon={Building2}
-          label="Stations"
+          label={t('ai.overview.tile.stations')}
           value={String(survey.stations.count)}
           hint={
             survey.stations.count > 0
-              ? `${survey.stations.profiledCount} profiled (${profilePct}%)`
-              : 'Add stations on Layout tab'
+              ? t('ai.overview.tile.stations.profiled', { count: survey.stations.profiledCount, pct: profilePct })
+              : t('ai.overview.tile.stations.empty')
           }
         />
         <OverviewTile
           icon={Users}
-          label="Employees"
+          label={t('ai.overview.tile.employees')}
           value={String(survey.employees.count)}
-          hint={`${survey.employees.activeContractCount} active contracts`}
+          hint={t('ai.overview.tile.employees.active', { count: survey.employees.activeContractCount })}
         />
         <OverviewTile
           icon={Clock}
-          label="Shifts"
+          label={t('ai.overview.tile.shifts')}
           value={String(survey.shifts.count)}
-          hint={`${survey.shifts.workShiftCount} work-coded`}
+          hint={t('ai.overview.tile.shifts.workCoded', { count: survey.shifts.workShiftCount })}
         />
         <OverviewTile
           icon={Calendar}
-          label="Schedules"
+          label={t('ai.overview.tile.schedules')}
           value={scheduleSummary}
-          hint={`${survey.schedules.monthCount} month${survey.schedules.monthCount === 1 ? '' : 's'}`}
+          hint={t('ai.overview.tile.schedules.months', { count: survey.schedules.monthCount })}
           wide
         />
         <OverviewTile
           icon={FileSpreadsheet}
-          label="Leave history"
+          label={t('ai.overview.tile.leaveHistory')}
           value={leaveSummary}
-          hint="Computed from per-employee leave ranges"
+          hint={t('ai.overview.tile.leaveHistory.hint')}
           wide
         />
         <OverviewTile
           icon={Flag}
-          label="Holidays"
+          label={t('ai.overview.tile.holidays')}
           value={holidaySummary}
-          hint={`Earliest → latest`}
+          hint={t('ai.overview.tile.holidays.hint')}
           wide
         />
       </div>
@@ -876,18 +884,18 @@ function WorkspaceOverviewCard({
       <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-700/60">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Session scope</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{t('ai.overview.scope.title')}</p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400">
               {scopeIsSet
-                ? 'Locked for this session. Click any pill to adjust.'
-                : 'Not yet set. Click a pill to choose a window, or apply the suggested defaults.'}
+                ? t('ai.overview.scope.set')
+                : t('ai.overview.scope.unset')}
             </p>
           </div>
           <ApplyDefaultScopeButton survey={survey} onApply={setScope} />
         </div>
         <ScopeBar scope={scope} onChange={setScope} survey={survey} />
         <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
-          WFP defaults to the active config year ({survey.wfp.defaultYear}). Pick any year — projections are computed from current employees + holidays at view time.
+          {t('ai.overview.scope.wfpHint', { year: survey.wfp.defaultYear })}
         </p>
       </div>
     </div>
@@ -918,6 +926,7 @@ function OverviewTile({
 // ─── Tool inspector (phase 3) ───────────────────────────────────────────
 
 function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope }) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<string>('listAvailableData');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -983,20 +992,20 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
         <div className="flex items-center gap-2">
           <FlaskConicalIcon />
           <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-            Tool inspector
+            {t('ai.inspector.title')}
           </h4>
           <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-            Preview
+            {t('ai.inspector.preview')}
           </span>
         </div>
         <p className="text-[10px] text-slate-500 dark:text-slate-400 max-w-md">
-          Run any read-only tool against your current scope to see what JSON the AI would receive. Helps verify scope before chat fires.
+          {t('ai.inspector.subtitle')}
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[220px] space-y-1">
-          <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tool</label>
+          <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('ai.inspector.tool.label')}</label>
           <select
             value={selected}
             onChange={(e) => { setSelected(e.target.value); setResult(null); setError(null); }}
@@ -1013,20 +1022,20 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
           className="apple-press px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
         >
           {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <RunIcon />}
-          {running ? 'Running…' : 'Run'}
+          {running ? t('ai.inspector.running') : t('ai.inspector.run')}
         </button>
       </div>
 
       {/* Args readout — pretty print so users see what's being passed. */}
       {argsForTool !== null && (
         <div className="space-y-1">
-          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Args (from scope)</p>
+          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('ai.inspector.args.title')}</p>
           <pre className="text-[10px] font-mono p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700/70 rounded-lg overflow-x-auto text-slate-700 dark:text-slate-300">
 {JSON.stringify(argsForTool, null, 2)}
           </pre>
           {selected === 'getStationProfile' && (
             <p className="text-[10px] text-amber-700 dark:text-amber-300 font-bold">
-              The Tool Inspector doesn&apos;t pick a station for you. The chat panel will pass the right id when it ships in phase 4.
+              {t('ai.inspector.stationNote')}
             </p>
           )}
         </div>
@@ -1034,7 +1043,7 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
       {argsForTool === null && (
         <div className="p-3 bg-amber-50/70 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
           <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200">
-            Set the relevant scope window above (Schedules / Leave / WFP) before running this tool.
+            {t('ai.inspector.setScope')}
           </p>
         </div>
       )}
@@ -1052,10 +1061,14 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
               {result.verdict}
             </span>
             <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              ≈ {result.tokens.toLocaleString()} tokens
+              {t('ai.inspector.tokenEstimate', { count: result.tokens.toLocaleString() })}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
-              comfortable ≤ {TOKEN_BUDGET.comfortable.toLocaleString()} · soft ≤ {TOKEN_BUDGET.soft.toLocaleString()} · hard ≤ {TOKEN_BUDGET.hard.toLocaleString()}
+              {t('ai.inspector.budgetLegend', {
+                comfortable: TOKEN_BUDGET.comfortable.toLocaleString(),
+                soft: TOKEN_BUDGET.soft.toLocaleString(),
+                hard: TOKEN_BUDGET.hard.toLocaleString(),
+              })}
             </span>
           </div>
           <pre className="text-[10px] font-mono p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700/70 rounded-lg overflow-x-auto max-h-96 overflow-y-auto text-slate-700 dark:text-slate-300">
@@ -1086,13 +1099,14 @@ function RunIcon() {
 function ConsentDialog({
   open, onAccept, onDecline,
 }: { open: boolean; onAccept: () => void; onDecline: () => void }) {
+  const { t } = useI18n();
   if (!open) return null;
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      aria-label="AI data disclosure"
+      aria-label={t('ai.consent.ariaLabel')}
     >
       <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="p-6">
@@ -1100,17 +1114,17 @@ function ConsentDialog({
             <ShieldCheck className="w-6 h-6" />
           </div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 text-center">
-            Heads up: AI mode sends your data off-device
+            {t('ai.consent.title')}
           </h3>
           <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed space-y-3">
             <p>
-              When you use AI Services, the assistant sends scoped business data — schedules, payroll figures, station profiles for the period you choose — to <strong>OpenRouter</strong> and the model provider you pick. This data leaves your device.
+              {t('ai.consent.body1')}
             </p>
             <p>
-              By default, the app asks providers <strong>not to use your data for training</strong> (you can change this in AI Settings). Other parts of this app remain local-first; only AI Services route data outside.
+              {t('ai.consent.body2')}
             </p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Do not enable if your workplace data is not allowed to leave the device.
+              {t('ai.consent.body3')}
             </p>
           </div>
           <div className="flex gap-3 mt-6">
@@ -1118,13 +1132,13 @@ function ConsentDialog({
               onClick={onDecline}
               className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
             >
-              Cancel
+              {t('ai.consent.cancel')}
             </button>
             <button
               onClick={onAccept}
               className="apple-press flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25"
             >
-              I understand — enable AI
+              {t('ai.consent.accept')}
             </button>
           </div>
         </div>

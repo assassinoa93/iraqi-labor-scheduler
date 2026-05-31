@@ -25,6 +25,7 @@ import { AlertCircle, RefreshCw, Activity, AlertTriangle, ExternalLink, Copy, Ch
 import * as adminApi from '../../lib/adminApi';
 import type { QuotaUsage, QuotaMetric, QuotaErrorCause } from '../../lib/adminApi';
 import { getActiveConfig } from '../../lib/firebase';
+import { useI18n } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 
 // GCP Console deep links — keyed off the active project so each link lands
@@ -56,17 +57,18 @@ const POLL_MS = 60_000;
 
 interface MetricRow {
   key: 'reads' | 'writes' | 'deletes';
-  label: string;
-  helper: string;
+  labelKey: string;
+  helperKey: string;
 }
 
 const ROWS: MetricRow[] = [
-  { key: 'reads',   label: 'Document reads',   helper: 'Snapshot listeners + one-shot gets across all clients in the last 24h.' },
-  { key: 'writes',  label: 'Document writes',  helper: 'setDoc / updateDoc / batched commits across all clients in the last 24h.' },
-  { key: 'deletes', label: 'Document deletes', helper: 'Includes audit-log purges and any client-side delete calls.' },
+  { key: 'reads',   labelKey: 'superAdmin.quota.metric.reads.label',   helperKey: 'superAdmin.quota.metric.reads.helper' },
+  { key: 'writes',  labelKey: 'superAdmin.quota.metric.writes.label',  helperKey: 'superAdmin.quota.metric.writes.helper' },
+  { key: 'deletes', labelKey: 'superAdmin.quota.metric.deletes.label', helperKey: 'superAdmin.quota.metric.deletes.helper' },
 ];
 
 export function QuotaPanel() {
+  const { t } = useI18n();
   const [usage, setUsage] = useState<QuotaUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ export function QuotaPanel() {
       } catch { /* ignore */ }
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
-      setError(err.message ?? 'Failed to fetch quota usage');
+      setError(err.message ?? t('superAdmin.quota.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +124,7 @@ export function QuotaPanel() {
         <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
           <AlertCircle className="w-4 h-4 text-slate-500 dark:text-slate-400 mt-0.5 shrink-0" />
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-            Quota stats are unavailable in this build. Use the Electron desktop installer.
+            {t('superAdmin.quota.unavailable')}
           </p>
         </div>
       </Section>
@@ -161,9 +163,9 @@ export function QuotaPanel() {
         <div className="space-y-1">
           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
             <Activity className="w-3 h-3 inline-block me-1 -mt-0.5" />
-            Rolling 24-hour usage · Spark plan free tier
-            {usage && <> · last fetched <span className="font-mono">{fetchedAtLabel}</span></>}
-            {usage?.cached && <span className="text-slate-400 dark:text-slate-500"> (cached)</span>}
+            {t('superAdmin.quota.rollingUsage')}
+            {usage && <> · <span className="font-mono">{t('superAdmin.quota.lastFetched', { time: fetchedAtLabel })}</span></>}
+            {usage?.cached && <span className="text-slate-400 dark:text-slate-500"> {t('superAdmin.quota.cached')}</span>}
           </p>
         </div>
         <button
@@ -172,7 +174,7 @@ export function QuotaPanel() {
           className="apple-press px-4 py-1.5 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 flex items-center gap-1.5"
         >
           <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-          Refresh now
+          {t('superAdmin.quota.refreshNow')}
         </button>
       </div>
 
@@ -192,7 +194,7 @@ export function QuotaPanel() {
             ))}
           </div>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
-            Cloud Monitoring data lags real time by ~3–5 minutes. If users start hitting "database usage limit reached" before this panel shows red, that's why — the local exhaust banner above is the immediate signal.
+            {t('superAdmin.quota.lagNote')}
           </p>
         </>
       )}
@@ -212,6 +214,7 @@ function SetupRequiredCard({ cause, serviceAccountEmail, onRecheck }: {
   serviceAccountEmail: string;
   onRecheck: () => void;
 }) {
+  const { t } = useI18n();
   const projectId = getActiveConfig()?.projectId;
   const [copied, setCopied] = useState(false);
   const handleCopyEmail = async () => {
@@ -229,13 +232,13 @@ function SetupRequiredCard({ cause, serviceAccountEmail, onRecheck }: {
   const isBillingRequired = cause === 'BILLING_REQUIRED';
 
   const headlineCopy = isBillingRequired
-    ? 'Live quota visibility requires the Blaze (pay-as-you-go) plan'
-    : 'One-time setup needed to read live quota';
+    ? t('superAdmin.quota.setup.billing.headline')
+    : t('superAdmin.quota.setup.default.headline');
   const bodyCopy = isBillingRequired
-    ? "Cloud Monitoring's quota-read API is only available on Firebase projects with billing enabled (Blaze plan). The Spark free tier doesn't expose this metric. Reading the metric itself is still free; the project just has to be billing-eligible. The local-exhaust banner above continues to work on either plan."
+    ? t('superAdmin.quota.setup.billing.body')
     : isApiDisabled
-      ? 'The Cloud Monitoring API isn\'t enabled on this Firebase / Google Cloud project yet. Enable it in Cloud Console (free, no billing), then come back and click Re-check.'
-      : 'Your service account is missing the Monitoring Viewer role. The Firebase Admin SDK role granted by default doesn\'t include it. Add the role in Cloud Console IAM, then come back and click Re-check.';
+      ? t('superAdmin.quota.setup.apiDisabled.body')
+      : t('superAdmin.quota.setup.permission.body');
 
   return (
     <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-5 space-y-4">
@@ -250,73 +253,68 @@ function SetupRequiredCard({ cause, serviceAccountEmail, onRecheck }: {
       {isBillingRequired ? (
         <ol className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed list-decimal list-inside space-y-1.5 ms-1">
           <li>
-            Open{' '}
+            {t('superAdmin.quota.setup.openPrefix')}{' '}
             <a
               href={firebaseUpgradeUrl(projectId)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-baseline gap-1 underline hover:no-underline font-medium"
             >
-              Firebase Console → Usage and billing
+              {t('superAdmin.quota.setup.billing.step1.link')}
               <ExternalLink className="w-3 h-3 self-center" />
             </a>{' '}
-            for project <code className="font-mono">{projectId ?? '…'}</code> and click <strong>Modify plan</strong> → <strong>Blaze</strong>.
+            {t('superAdmin.quota.setup.billing.step1.body', { projectId: projectId ?? '…' })}
           </li>
           <li>
-            Or link a billing account directly in{' '}
-            <a
+            <LinkSentence
+              template={t('superAdmin.quota.setup.billing.step2.body')}
               href={gcpBillingEnableUrl(projectId)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-baseline gap-1 underline hover:no-underline font-medium"
-            >
-              Cloud Console → Billing
-              <ExternalLink className="w-3 h-3 self-center" />
-            </a>.
+              linkText={t('superAdmin.quota.setup.billing.step2.link')}
+            />
           </li>
-          <li>Wait ~1–2 minutes for the project to switch tier, then click <strong>Re-check</strong> below.</li>
+          <li>{t('superAdmin.quota.setup.billing.step3')}</li>
           <li className="text-amber-700 dark:text-amber-200/80 italic list-none ms-0 pt-1">
-            Heads-up: Blaze is pay-as-you-go but stays free up to the same Spark limits — no charge until you exceed those. Reading the quota metric itself is free.
+            {t('superAdmin.quota.setup.billing.note')}
           </li>
         </ol>
       ) : isApiDisabled ? (
         <ol className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed list-decimal list-inside space-y-1.5 ms-1">
           <li>
-            Open{' '}
+            {t('superAdmin.quota.setup.openPrefix')}{' '}
             <a
               href={gcpEnableMonitoringApiUrl(projectId)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-baseline gap-1 underline hover:no-underline font-medium"
             >
-              Cloud Console → API Library → Cloud Monitoring API
+              {t('superAdmin.quota.setup.apiDisabled.step1.link')}
               <ExternalLink className="w-3 h-3 self-center" />
             </a>{' '}
-            for project <code className="font-mono">{projectId ?? '…'}</code>.
+            {t('superAdmin.quota.setup.apiDisabled.step1.body', { projectId: projectId ?? '…' })}
           </li>
-          <li>Click <strong>Enable</strong>. Wait ~30 seconds for the API to activate.</li>
-          <li>Click <strong>Re-check</strong> below.</li>
+          <li>{t('superAdmin.quota.setup.apiDisabled.step2')}</li>
+          <li>{t('superAdmin.quota.setup.recheckStep')}</li>
         </ol>
       ) : (
         <ol className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed list-decimal list-inside space-y-1.5 ms-1">
           <li>
-            Open{' '}
+            {t('superAdmin.quota.setup.openPrefix')}{' '}
             <a
               href={gcpIamUrl(projectId)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-baseline gap-1 underline hover:no-underline font-medium"
             >
-              Cloud Console → IAM &amp; Admin → IAM
+              {t('superAdmin.quota.setup.permission.step1.link')}
               <ExternalLink className="w-3 h-3 self-center" />
             </a>{' '}
-            for project <code className="font-mono">{projectId ?? '…'}</code>.
+            {t('superAdmin.quota.setup.permission.step1.body', { projectId: projectId ?? '…' })}
           </li>
           <li>
-            Find the row for the service account below (use <strong>Copy</strong> to grab the email):
+            {t('superAdmin.quota.setup.permission.step2')}
             <div className="flex gap-2 mt-1.5 mb-0.5">
               <code className="flex-1 px-2 py-1.5 text-[10px] font-mono text-amber-900 dark:text-amber-100 bg-amber-100/60 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 rounded break-all">
-                {serviceAccountEmail || '(unknown — relink the service-account JSON first)'}
+                {serviceAccountEmail || t('superAdmin.quota.setup.permission.unknownEmail')}
               </code>
               <button
                 onClick={handleCopyEmail}
@@ -328,25 +326,25 @@ function SetupRequiredCard({ cause, serviceAccountEmail, onRecheck }: {
                     : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800",
                 )}
               >
-                {copied ? <><Check className="w-3 h-3" />Copied</> : <><Copy className="w-3 h-3" />Copy</>}
+                {copied ? <><Check className="w-3 h-3" />{t('superAdmin.quota.setup.copied')}</> : <><Copy className="w-3 h-3" />{t('superAdmin.quota.setup.copy')}</>}
               </button>
             </div>
           </li>
-          <li>Click the pencil to edit, then <strong>Add another role</strong> → search and pick <strong>Monitoring Viewer</strong> → Save.</li>
-          <li>Click <strong>Re-check</strong> below.</li>
+          <li>{t('superAdmin.quota.setup.permission.step3')}</li>
+          <li>{t('superAdmin.quota.setup.recheckStep')}</li>
         </ol>
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
         <p className="text-[10px] text-amber-700 dark:text-amber-200/70 leading-relaxed">
-          Until this is set up, the local-exhaust banner at the top of this panel still works — users who hit a quota error will trigger it automatically.
+          {t('superAdmin.quota.setup.footerNote')}
         </p>
         <button
           onClick={onRecheck}
           className="apple-press px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-1.5"
         >
           <RefreshCw className="w-3 h-3" />
-          Re-check
+          {t('superAdmin.quota.setup.recheck')}
         </button>
       </div>
     </div>
@@ -354,6 +352,7 @@ function SetupRequiredCard({ cause, serviceAccountEmail, onRecheck }: {
 }
 
 function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | undefined }) {
+  const { t } = useI18n();
   const used = metric?.used;
   const limit = metric?.limit ?? 0;
   const ratio = used !== null && used !== undefined && limit > 0 ? Math.min(used / limit, 1.2) : 0;
@@ -381,17 +380,20 @@ function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | unde
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100">{row.label}</p>
+        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100">{t(row.labelKey)}</p>
         <p className="text-[10px] font-mono">
           {apiError ? (
-            <span className="text-rose-600 dark:text-rose-300">unavailable</span>
+            <span className="text-rose-600 dark:text-rose-300">{t('superAdmin.quota.metric.unavailable')}</span>
           ) : used === null || used === undefined ? (
             <span className="text-slate-400 dark:text-slate-500">—</span>
           ) : (
-            <>
-              <span className={cn("font-bold", labelCls)}>{used.toLocaleString()}</span>
-              <span className="text-slate-400 dark:text-slate-500"> / {limit.toLocaleString()} ({pct}%)</span>
-            </>
+            <span className={cn("font-bold", labelCls)}>
+              {t('superAdmin.quota.metric.usage', {
+                used: used.toLocaleString(),
+                limit: limit.toLocaleString(),
+                pct,
+              })}
+            </span>
           )}
         </p>
       </div>
@@ -401,7 +403,7 @@ function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | unde
           style={{ width: `${Math.min(pct, 100)}%` }}
         />
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{row.helper}</p>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{t(row.helperKey)}</p>
       {apiError && (
         <p className="text-[10px] text-rose-600 dark:text-rose-300 font-mono leading-relaxed">
           {apiError.code}: {apiError.message}
@@ -412,8 +414,13 @@ function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | unde
 }
 
 function LocalExhaustBanner({ stamp }: { stamp: { at: number; resetAt: string } }) {
+  const { t } = useI18n();
   const ageMin = Math.round((Date.now() - stamp.at) / 60_000);
-  const ageLabel = ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`;
+  const ageLabel = ageMin < 1
+    ? t('superAdmin.quota.localExhaust.age.now')
+    : ageMin < 60
+      ? t('superAdmin.quota.localExhaust.age.minutes', { count: ageMin })
+      : t('superAdmin.quota.localExhaust.age.hours', { count: Math.round(ageMin / 60) });
   const reset = new Date(stamp.resetAt);
   const resetLabel = reset.toLocaleString(undefined, {
     weekday: 'short', month: 'short', day: 'numeric',
@@ -424,23 +431,47 @@ function LocalExhaustBanner({ stamp }: { stamp: { at: number; resetAt: string } 
       <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-300 mt-0.5 shrink-0" />
       <div className="space-y-1 flex-1 min-w-0">
         <p className="text-xs font-bold text-rose-800 dark:text-rose-200">
-          A quota-exhausted error was reported {ageLabel}
+          {t('superAdmin.quota.localExhaust.title', { age: ageLabel })}
         </p>
         <p className="text-[11px] text-rose-700 dark:text-rose-200/80 leading-relaxed">
-          Users are receiving the "database usage limit reached" message. Quota resets at <strong>{resetLabel}</strong>. Consider upgrading the Firebase plan to Blaze (pay-as-you-go) if this becomes recurring — the daily Spark caps don't move.
+          {t('superAdmin.quota.localExhaust.body', { resetTime: resetLabel })}
         </p>
       </div>
     </div>
   );
 }
 
+// Renders a translated sentence that contains a single `{link}` placeholder,
+// substituting an inline anchor for the placeholder so the link text and any
+// surrounding punctuation (e.g. a trailing period) stay localized and in the
+// grammatically correct position for both LTR and RTL.
+function LinkSentence({ template, href, linkText }: { template: string; href: string; linkText: string }) {
+  const [before, after = ''] = template.split('{link}');
+  return (
+    <>
+      {before}
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-baseline gap-1 underline hover:no-underline font-medium"
+      >
+        {linkText}
+        <ExternalLink className="w-3 h-3 self-center" />
+      </a>
+      {after}
+    </>
+  );
+}
+
 function Section({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Firebase quota</p>
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.quota.title')}</p>
         <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
-          Live Firestore usage · Spark plan free-tier limits
+          {t('superAdmin.quota.subtitle')}
         </p>
       </div>
       {children}

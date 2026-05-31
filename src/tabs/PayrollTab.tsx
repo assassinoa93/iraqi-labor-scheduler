@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers, AlertTriangle } from 'lucide-react';
+import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers, AlertTriangle, Users } from 'lucide-react';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -37,6 +37,8 @@ interface PayrollTabProps {
   // modal is reachable from EmployeeModal too. The Payroll row's leaves
   // button now just calls back into App with the target employee.
   onOpenLeaveManager: (emp: Employee) => void;
+  /** v5.25 — navigate to the Roster tab from the no-employees empty state. */
+  onGoToRoster: () => void;
 }
 
 const csvCell = (v: string | number): string => {
@@ -67,7 +69,7 @@ const parseCSVLine = (line: string): string[] => {
   return out;
 };
 
-export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth, setActiveMonth, onOpenLeaveManager }: PayrollTabProps) {
+export function PayrollTab({ employees, schedule, shifts, holidays, config, allSchedules, onExport, onUpdateEmployee, prevMonth, nextMonth, setActiveMonth, onOpenLeaveManager, onGoToRoster }: PayrollTabProps) {
   const { t, fmt } = useI18n();
   const importInputRef = useRef<HTMLInputElement>(null);
   const balanceImportInputRef = useRef<HTMLInputElement>(null);
@@ -315,6 +317,43 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
     };
     reader.readAsText(file);
   };
+
+  // v5.25 — no-employees empty state. Without it the page rendered the full
+  // header, export/import buttons, filter bar and an empty table — looking
+  // broken/scaffold-only. Mirrors the Coverage & OT Analysis empty state.
+  if (employees.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <MonthYearPicker
+              year={config.year}
+              month={config.month}
+              onChange={setActiveMonth}
+              onPrev={prevMonth}
+              onNext={nextMonth}
+            />
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t('payroll.title')}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('payroll.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+        <Card className="p-10 text-center space-y-4">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">
+            <Users className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t('payroll.empty.title')}</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">{t('payroll.empty.body')}</p>
+          <div className="flex justify-center pt-2">
+            <button onClick={onGoToRoster} className="px-5 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600">
+              {t('payroll.empty.cta')}
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

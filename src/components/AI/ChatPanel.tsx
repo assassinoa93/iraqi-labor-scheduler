@@ -53,6 +53,7 @@ import {
 import { ChipsBlock } from './ChipsBlock';
 import { AdvisoryCard } from './AdvisoryCard';
 import { generateAiAdvisoryReport } from '../../lib/ai/aiPdfReport';
+import { useI18n } from '../../lib/i18n';
 
 interface Props {
   aiUserId: string;
@@ -78,6 +79,7 @@ const FULL_ADVISORY_PROMPT = [
 export function ChatPanel({
   aiUserId, model, noTraining, ctx, scope, companyData,
 }: Props) {
+  const { t } = useI18n();
   const [session, setSession] = useState<AiSession | null>(null);
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(false);
@@ -184,7 +186,7 @@ export function ChatPanel({
       return;
     }
     if (!apiKey) {
-      setError('No OpenRouter key on file. Re-paste it in AI Settings.');
+      setError(t('ai.chat.error.noKey'));
       setRunning(false);
       return;
     }
@@ -238,7 +240,7 @@ export function ChatPanel({
           setActiveTool(null);
           if (err) setError(err.message);
           else if (reason === 'maxIterations') {
-            setError('The assistant hit the iteration cap. Send another message to continue, or start a new session.');
+            setError(t('ai.chat.error.maxIterations'));
           }
         },
       },
@@ -288,7 +290,7 @@ export function ChatPanel({
           [chipSet.field]: option.value,
         } as Partial<{ [k: string]: unknown }>);
       } catch (e) {
-        setError(`Profile write failed: ${(e as Error).message}`);
+        setError(t('ai.chat.error.profileWrite', { error: (e as Error).message }));
       }
     }
 
@@ -329,7 +331,7 @@ export function ChatPanel({
         includePending,
       });
     } catch (e) {
-      setError(`PDF export failed: ${(e as Error).message}`);
+      setError(t('ai.chat.error.pdfExport', { error: (e as Error).message }));
     }
   };
 
@@ -341,9 +343,9 @@ export function ChatPanel({
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-300 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">Pick a model first</p>
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">{t('ai.chat.noModel.title')}</p>
             <p className="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
-              Choose a model in AI Settings (above) before starting a chat. The chat will pin to that model for the session.
+              {t('ai.chat.noModel.body')}
             </p>
           </div>
         </div>
@@ -363,18 +365,21 @@ export function ChatPanel({
         <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300" />
           <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
-            Chat
+            {t('ai.chat.title')}
           </h4>
           {session && session.messages.length > 0 && (
             <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono">
-              {session.totalTokens.total.toLocaleString()} tok · {session.messages.filter((m) => m.role !== 'system').length} msg
+              {t('ai.chat.stats', {
+                tokens: session.totalTokens.total.toLocaleString(),
+                count: session.messages.filter((m) => m.role !== 'system').length,
+              })}
             </span>
           )}
           {findings.length > 0 && (
             <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-              · {findings.length} finding{findings.length === 1 ? '' : 's'}
-              {acceptedCount > 0 && <span className="text-emerald-600 dark:text-emerald-300"> · {acceptedCount} accepted</span>}
-              {pendingCount > 0 && <span className="text-amber-600 dark:text-amber-300"> · {pendingCount} pending</span>}
+              · {t('ai.chat.findingCount', { count: findings.length })}
+              {acceptedCount > 0 && <span className="text-emerald-600 dark:text-emerald-300"> · {t('ai.chat.findingAccepted', { count: acceptedCount })}</span>}
+              {pendingCount > 0 && <span className="text-amber-600 dark:text-amber-300"> · {t('ai.chat.findingPending', { count: pendingCount })}</span>}
             </span>
           )}
         </div>
@@ -383,10 +388,10 @@ export function ChatPanel({
             onClick={handleRunFullAdvisoryPass}
             disabled={running}
             className="apple-press inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 border border-amber-200 dark:border-amber-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-amber-500/25 disabled:opacity-50"
-            title="Walk every station in scope and emit one finding per issue"
+            title={t('ai.chat.fullPass.tooltip')}
           >
             <ListChecks className="w-3 h-3" />
-            Run full advisory pass
+            {t('ai.chat.fullPass.cta')}
           </button>
           <ExportButton
             disabled={running || !exportable}
@@ -400,7 +405,7 @@ export function ChatPanel({
             className="apple-press inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
           >
             <RotateCcw className="w-3 h-3" />
-            New session
+            {t('ai.chat.newSession')}
           </button>
         </div>
       </div>
@@ -408,7 +413,7 @@ export function ChatPanel({
       <div
         ref={scrollerRef}
         className="space-y-3 max-h-[560px] overflow-y-auto pr-1"
-        aria-label="Chat history"
+        aria-label={t('ai.chat.history.ariaLabel')}
       >
         {(!session || session.messages.filter((m) => m.role !== 'system').length === 0) && (
           <EmptyChat />
@@ -428,7 +433,7 @@ export function ChatPanel({
         {running && (
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 px-2 py-1">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>{activeTool ? `Calling ${activeTool}…` : 'Thinking…'}</span>
+            <span>{activeTool ? t('ai.chat.callingTool', { tool: activeTool }) : t('ai.chat.thinking')}</span>
           </div>
         )}
       </div>
@@ -445,14 +450,17 @@ export function ChatPanel({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask the assistant — e.g. 'walk me through April OT pressure'"
+          placeholder={t('ai.chat.input.placeholder')}
           rows={3}
           disabled={running}
           className="w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all resize-y disabled:opacity-60"
         />
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-[10px] text-slate-400 dark:text-slate-500">
-            Cmd/Ctrl+Enter to send · model: <span className="font-mono">{model}</span> · {noTraining ? 'no-training on' : 'no-training off'}
+            {t('ai.chat.input.hint', {
+              model,
+              trainingState: noTraining ? t('ai.chat.input.noTraining.on') : t('ai.chat.input.noTraining.off'),
+            })}
           </p>
           <button
             onClick={handleSend}
@@ -460,7 +468,7 @@ export function ChatPanel({
             className="apple-press inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-            Send
+            {t('ai.chat.send')}
           </button>
         </div>
       </div>
@@ -469,12 +477,13 @@ export function ChatPanel({
 }
 
 function EmptyChat() {
+  const { t } = useI18n();
   return (
     <div className="text-center py-8 px-4">
       <Sparkles className="w-8 h-8 text-amber-400 dark:text-amber-300 mx-auto mb-3 opacity-60" />
-      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Start a conversation</p>
+      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{t('ai.chat.empty.title')}</p>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
-        Try: <em>&quot;walk me through April OT pressure&quot;</em> or <em>&quot;which stations need profile interviews?&quot;</em>. The assistant will use your scope above and call tools to ground its answers in real data.
+        {t('ai.chat.empty.body')}
       </p>
     </div>
   );
@@ -535,6 +544,7 @@ function AssistantBubble({
   onAskMore: (finding: SessionFinding) => void;
   disabled: boolean;
 }) {
+  const { t } = useI18n();
   const hasContent = !!(message.content && message.content.trim());
   const hasToolCalls = !!(message.tool_calls && message.tool_calls.length > 0);
 
@@ -601,7 +611,7 @@ function AssistantBubble({
           return (
             <details key={i} className="bg-slate-100 dark:bg-slate-800/60 rounded-lg px-3 py-2">
               <summary className="text-[10px] font-bold text-rose-600 dark:text-rose-300 cursor-pointer">
-                Couldn&apos;t parse a structured block: {seg.reason}
+                {t('ai.chat.parseError', { reason: seg.reason })}
               </summary>
               <pre className="mt-2 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-pre-wrap">{seg.raw}</pre>
             </details>
@@ -612,14 +622,18 @@ function AssistantBubble({
             {message.tool_calls!.map((tc) => (
               <div key={tc.id} className="text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Wrench className="w-2.5 h-2.5" />
-                <span>calling <span className="font-bold text-slate-700 dark:text-slate-200">{tc.function.name}</span></span>
+                <span>{t('ai.chat.toolCall.inline', { tool: tc.function.name })}</span>
               </div>
             ))}
           </div>
         )}
         {message.tokens && (
           <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">
-            {message.tokens.total.toLocaleString()} tok ({message.tokens.prompt} in / {message.tokens.completion} out)
+            {t('ai.chat.tokenBreakdown', {
+              total: message.tokens.total.toLocaleString(),
+              prompt: message.tokens.prompt,
+              completion: message.tokens.completion,
+            })}
           </p>
         )}
       </div>
@@ -628,6 +642,7 @@ function AssistantBubble({
 }
 
 function ToolResult({ message }: { message: SessionMessage }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const verdictColor = {
     comfortable: 'text-emerald-600 dark:text-emerald-300',
@@ -647,9 +662,9 @@ function ToolResult({ message }: { message: SessionMessage }) {
         ) : (
           <Wrench className="w-3 h-3" />
         )}
-        <span className="font-bold">{message.name ?? 'tool'}</span>
-        <span className={verdictColor}>≈ {(message.toolEstimateTokens ?? 0).toLocaleString()} tok</span>
-        <span className="text-slate-400 dark:text-slate-500">{message.toolError ? '(error)' : '(result)'}</span>
+        <span className="font-bold">{message.name ?? t('ai.chat.toolResult.fallbackName')}</span>
+        <span className={verdictColor}>{t('ai.chat.toolResult.estimate', { count: (message.toolEstimateTokens ?? 0).toLocaleString() })}</span>
+        <span className="text-slate-400 dark:text-slate-500">{message.toolError ? t('ai.chat.toolResult.error') : t('ai.chat.toolResult.result')}</span>
       </button>
       {open && (
         <pre className="mt-1 text-[10px] font-mono p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700/70 rounded-lg overflow-x-auto max-h-64 overflow-y-auto text-slate-700 dark:text-slate-300">
@@ -674,6 +689,7 @@ function ExportButton({
   pendingCount: number;
   onExport: (includePending: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -700,11 +716,11 @@ function ExportButton({
       <button
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
-        title={noFindings ? 'Nothing to export — accept findings or run a full pass first' : 'Export findings as PDF'}
+        title={noFindings ? t('ai.chat.export.tooltip.empty') : t('ai.chat.export.tooltip')}
         className="apple-press inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-100 dark:hover:bg-emerald-500/25 disabled:opacity-50"
       >
         <FileDown className="w-3 h-3" />
-        Export PDF
+        {t('ai.chat.export.cta')}
         <ChevronDown className="w-3 h-3" />
       </button>
       {open && (
@@ -714,22 +730,22 @@ function ExportButton({
             disabled={noAccepted}
             className="w-full text-start px-3 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-100">Accepted only</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-100">{t('ai.chat.export.acceptedOnly.title')}</p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              {acceptedCount} finding{acceptedCount === 1 ? '' : 's'} · the curated action plan
+              {t('ai.chat.export.acceptedOnly.desc', { count: acceptedCount })}
             </p>
           </button>
           <button
             onClick={() => { setOpen(false); onExport(true); }}
             className="w-full text-start px-3 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800"
           >
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-100">Accepted + pending</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-100">{t('ai.chat.export.acceptedPending.title')}</p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              {acceptedCount + pendingCount} finding{acceptedCount + pendingCount === 1 ? '' : 's'} · includes still under review
+              {t('ai.chat.export.acceptedPending.desc', { count: acceptedCount + pendingCount })}
             </p>
           </button>
           <p className="text-[9px] text-slate-400 dark:text-slate-500 px-3 pt-2 pb-1 border-t border-slate-100 dark:border-slate-800 mt-1">
-            Dismissed findings are always excluded. Report is generated in English.
+            {t('ai.chat.export.footer')}
           </p>
         </div>
       )}
@@ -738,6 +754,7 @@ function ExportButton({
 }
 
 function SystemMarker({ message }: { message: SessionMessage }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const preview = (message.content ?? '').split('\n').find(Boolean) ?? 'system';
   return (
@@ -747,7 +764,7 @@ function SystemMarker({ message }: { message: SessionMessage }) {
         className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        <span>system: {preview.replace(/[#*]/g, '').slice(0, 60)}{preview.length > 60 ? '…' : ''}</span>
+        <span>{t('ai.chat.systemMarker', { preview: `${preview.replace(/[#*]/g, '').slice(0, 60)}${preview.length > 60 ? '…' : ''}` })}</span>
       </button>
       {open && (
         <pre className="mt-2 text-left text-[10px] font-mono p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700/70 rounded-lg overflow-x-auto max-h-64 overflow-y-auto text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
