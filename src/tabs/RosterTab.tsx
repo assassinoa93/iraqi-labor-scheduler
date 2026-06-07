@@ -93,6 +93,10 @@ export function RosterTab({
     return null;
   };
 
+  // v5.28 — "In probation" until the probation end date (reporting only).
+  const inProbation = (emp: Employee): boolean =>
+    !!emp.probationEndDate && emp.probationEndDate >= todayStr;
+
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -324,6 +328,11 @@ export function RosterTab({
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">{emp.contractType}</p>
+                    {inProbation(emp) && (
+                      <span className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-200 text-[8px] font-black uppercase tracking-widest border border-violet-200 dark:border-violet-500/40" title={emp.probationEndDate}>
+                        {t('roster.contract.probation')}
+                      </span>
+                    )}
                     {(() => {
                       const ce = contractExpiry(emp);
                       if (!ce) return null;

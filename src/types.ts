@@ -13,6 +13,11 @@ export interface Employee {
   // contracts expire (Art. 36)" advice has concrete dates to act on. Reporting
   // only — never blocks scheduling.
   contractEndDate?: string;
+  // v5.28 — optional probation end date (YYYY-MM-DD). Empty / absent = not in
+  // (or past) probation. Reporting only: surfaces an "In probation" chip on the
+  // Roster so the supervisor remembers notice/confirmation timing. Does NOT
+  // affect gratuity (Art. 137 accrues from hire date, probation included).
+  probationEndDate?: string;
   contractedWeeklyHrs: number;
   shiftEligibility: string;
   isHazardous: boolean;

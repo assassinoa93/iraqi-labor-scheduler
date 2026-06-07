@@ -56,6 +56,10 @@ export function normalizeEmployee(raw: Partial<Employee> & Record<string, unknow
     contractEndDate: typeof raw.contractEndDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.contractEndDate)
       ? raw.contractEndDate
       : undefined,
+    // v5.28 — optional probation end date. Same pass-through semantics.
+    probationEndDate: typeof raw.probationEndDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.probationEndDate)
+      ? raw.probationEndDate
+      : undefined,
     contractedWeeklyHrs: Number(raw.contractedWeeklyHrs ?? 48),
     shiftEligibility: String(raw.shiftEligibility ?? 'All'),
     isHazardous: !!raw.isHazardous,

@@ -265,6 +265,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             {/* v5.27 — optional fixed-term end date. Blank = open-ended. Stored
                 as '' (never undefined) so Firestore setDoc stays happy. */}
             <SettingField label={t('modal.employee.field.contractEnd')} type="date" value={formData.contractEndDate ?? ''} onChange={v => setFormData({...formData, contractEndDate: v})} />
+            {/* v5.28 — optional probation end date (reporting only). */}
+            <SettingField label={t('modal.employee.field.probationEnd')} type="date" value={formData.probationEndDate ?? ''} onChange={v => setFormData({...formData, probationEndDate: v})} />
             <SettingField required min={0} max={84} step={1} label={t('modal.employee.field.weeklyHours')} type="number" value={formData.contractedWeeklyHrs} onChange={v => {
               const weekly = Math.max(0, Math.min(84, parseInt(v) || 0));
               setFormData(prev => ({

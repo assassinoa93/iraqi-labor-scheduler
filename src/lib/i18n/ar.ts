@@ -88,6 +88,7 @@ export const ar: Dict = {
   // v5.27 — شارات انتهاء العقد محدد المدة
   'roster.contract.expired': 'انتهى قبل {n} يوم',
   'roster.contract.expiring': 'ينتهي بعد {n} يوم',
+  'roster.contract.probation': 'تحت التجربة',
   'roster.unassigned': 'غير معين',
   'roster.editEmployee': 'تعديل {name}',
   'roster.deleteEmployee': 'حذف {name}',
@@ -102,6 +103,7 @@ export const ar: Dict = {
   'modal.employee.field.department': 'القسم',
   'modal.employee.field.contract': 'نوع العقد',
   'modal.employee.field.contractEnd': 'انتهاء العقد (اختياري)',
+  'modal.employee.field.probationEnd': 'انتهاء فترة التجربة (اختياري)',
   'modal.employee.field.weeklyHours': 'الساعات الأسبوعية',
   'modal.employee.field.phone': 'رقم الهاتف',
   'modal.employee.field.hireDate': 'تاريخ التعيين',

@@ -91,6 +91,7 @@ export const en: Dict = {
   // v5.27 — fixed-term contract expiry chips
   'roster.contract.expired': 'Expired {n}d ago',
   'roster.contract.expiring': 'Ends in {n}d',
+  'roster.contract.probation': 'In probation',
   'roster.unassigned': 'Unassigned',
   'roster.editEmployee': 'Edit {name}',
   'roster.deleteEmployee': 'Delete {name}',
@@ -105,6 +106,7 @@ export const en: Dict = {
   'modal.employee.field.department': 'Department',
   'modal.employee.field.contract': 'Contract Type',
   'modal.employee.field.contractEnd': 'Contract End (optional)',
+  'modal.employee.field.probationEnd': 'Probation End (optional)',
   'modal.employee.field.weeklyHours': 'Weekly Hours',
   'modal.employee.field.phone': 'Phone Contact',
   'modal.employee.field.hireDate': 'Hire Date',
