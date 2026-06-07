@@ -10,7 +10,17 @@
 import { describe, it, expect } from 'vitest';
 import { validateIdentifier } from '../utils';
 import { diffLeaveRequests } from '../audit';
-import type { LeaveRequest } from '../../types';
+import { remainingAnnualLeave, inclusiveDayCount } from '../leaves';
+import type { Employee, LeaveRequest } from '../../types';
+
+const baseEmp = (over: Partial<Employee>): Employee => ({
+  empId: 'EMP-1', name: 'A', role: '', department: '', contractType: 'Permanent',
+  contractedWeeklyHrs: 48, shiftEligibility: 'All', isHazardous: false,
+  isIndustrialRotating: false, hourExempt: false, fixedRestDay: 0, phone: '',
+  hireDate: '2020-01-01', notes: '', eligibleStations: [], holidayBank: 0,
+  annualLeaveBalance: 21, baseMonthlySalary: 0, baseHourlyRate: 0, overtimeHours: 0,
+  ...over,
+});
 
 describe('validateIdentifier', () => {
   it('accepts a unique, well-formed id', () => {
@@ -96,5 +106,53 @@ describe('diffLeaveRequests', () => {
   it('emits nothing when the queue is unchanged', () => {
     const q = [req({})];
     expect(diffLeaveRequests(q, [req({})])).toEqual([]);
+  });
+});
+
+describe('inclusiveDayCount', () => {
+  it('counts a single day as 1', () => {
+    expect(inclusiveDayCount('2026-06-01', '2026-06-01')).toBe(1);
+  });
+  it('counts an inclusive multi-day range', () => {
+    expect(inclusiveDayCount('2026-06-01', '2026-06-05')).toBe(5);
+  });
+  it('returns 0 for an inverted or empty range', () => {
+    expect(inclusiveDayCount('2026-06-05', '2026-06-01')).toBe(0);
+    expect(inclusiveDayCount('', '2026-06-01')).toBe(0);
+  });
+});
+
+describe('remainingAnnualLeave', () => {
+  it('returns the full entitlement when no annual leave is booked', () => {
+    expect(remainingAnnualLeave(baseEmp({ annualLeaveBalance: 21 }), '2026-06-01')).toBe(21);
+  });
+
+  it('subtracts annual leave booked anywhere in the same year', () => {
+    const emp = baseEmp({
+      annualLeaveBalance: 21,
+      leaveRanges: [{ id: 'r1', type: 'annual', start: '2026-08-01', end: '2026-08-10' }], // 10 days
+    });
+    // counts the whole year, so a future August booking still reduces it
+    expect(remainingAnnualLeave(emp, '2026-06-01')).toBe(11);
+  });
+
+  it('ignores leave in other years and non-annual types', () => {
+    const emp = baseEmp({
+      annualLeaveBalance: 21,
+      leaveRanges: [
+        { id: 'r1', type: 'annual', start: '2025-08-01', end: '2025-08-10' }, // prior year
+        { id: 'r2', type: 'sick', start: '2026-03-01', end: '2026-03-10' },   // not annual
+      ],
+    });
+    expect(remainingAnnualLeave(emp, '2026-06-01')).toBe(21);
+  });
+
+  it('floors at 0 on overdraw and never mutates the stored balance', () => {
+    const emp = baseEmp({
+      annualLeaveBalance: 5,
+      leaveRanges: [{ id: 'r1', type: 'annual', start: '2026-02-01', end: '2026-02-20' }], // 20 days
+    });
+    expect(remainingAnnualLeave(emp, '2026-06-01')).toBe(0);
+    expect(emp.annualLeaveBalance).toBe(5); // unchanged
   });
 });

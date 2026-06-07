@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Calendar, CheckCircle2, ClipboardList, Inbox, Plus, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, ClipboardList, Inbox, Plus, X, XCircle } from 'lucide-react';
 import type { Employee, LeaveRequest, LeaveType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useI18n } from '../../lib/i18n';
+import { remainingAnnualLeave, inclusiveDayCount } from '../../lib/leaves';
 
 // v5.24.0 — Leave request workflow UI.
 //
@@ -218,6 +219,33 @@ export function LeaveRequestPanel({
                         <Calendar className="w-3 h-3 inline-block me-1" />
                         {fmt.digits(req.start)} → {fmt.digits(req.end)}
                       </p>
+                      {/* v5.27 — annual-leave balance context + non-blocking
+                          overdraw warning. Reporting, not enforcement: the
+                          Approve button stays enabled. Pure derivation; the
+                          stored balance is never mutated. */}
+                      {req.type === 'annual' && emp && (() => {
+                        const entitlement = emp.annualLeaveBalance ?? 0;
+                        const remaining = remainingAnnualLeave(emp, req.start);
+                        const requested = inclusiveDayCount(req.start, req.end);
+                        const overdraw = requested > remaining;
+                        return (
+                          <>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {t('leaveReq.balance.line', {
+                                requested: fmt.num(requested),
+                                remaining: fmt.num(remaining),
+                                entitlement: fmt.num(entitlement),
+                              })}
+                            </p>
+                            {overdraw && (
+                              <p className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 text-[10px] font-bold border border-amber-200 dark:border-amber-500/40">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                {t('leaveReq.balance.overdraw', { over: fmt.num(requested - remaining) })}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                       <p className="text-[11px] text-slate-700 dark:text-slate-200 mt-1 italic">"{req.reason}"</p>
                     </div>
                     {canDecide && !isRejecting && (

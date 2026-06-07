@@ -257,6 +257,9 @@ export const ar: Dict = {
   'leaveReq.subtitle': 'قدّم طلباً نيابة عن موظف، ثم وافق أو ارفض من قائمة المعلَّقات. الطلبات المعتمدة تُختم على الجدول تلقائياً.',
   'leaveReq.pendingCount': '{count} معلَّق',
   'leaveReq.empty': 'لا توجد طلبات إجازة معلَّقة.',
+  // v5.27 — سياق رصيد الإجازة السنوية عند الموافقة (للعرض فقط)
+  'leaveReq.balance.line': 'الطلب {requested} يوم · المتبقي {remaining} من {entitlement} يوم سنوي هذا العام',
+  'leaveReq.balance.overdraw': 'يتجاوز الرصيد المتبقي بـ {over} يوم — الموافقة على أي حال؟',
   'leaveReq.recent': 'القرارات الأخيرة',
   'leaveReq.submit.cta': 'طلب جديد',
   'leaveReq.submit.confirm': 'إرسال الطلب',

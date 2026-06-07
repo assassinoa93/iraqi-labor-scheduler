@@ -178,6 +178,28 @@ export function countLeaveDaysOfTypeInRange(
   return total;
 }
 
+// v5.27 — remaining annual-leave entitlement for the calendar year of
+// `anyDateInYearStr` (its first 4 chars pick the year). entitlement
+// (annualLeaveBalance — the stored YEARLY allotment) minus annual days already
+// booked across that whole year (Jan 1 → Dec 31). Floored at 0.
+//
+// IMPORTANT: this is a PURE derivation. It never mutates annualLeaveBalance —
+// that field is the entitlement baseline the Payroll projector and the
+// workforce-planning distributor both subtract from on the fly, so decrementing
+// it on approval would double-count. The leave-request approval UI uses this
+// only to surface a non-blocking overdraw warning (reporting, not enforcement).
+export function remainingAnnualLeave(emp: Employee, anyDateInYearStr: string): number {
+  const year = anyDateInYearStr.slice(0, 4);
+  const used = countLeaveDaysOfTypeInRange(emp, 'annual', `${year}-01-01`, `${year}-12-31`);
+  return Math.max(0, (emp.annualLeaveBalance ?? 0) - used);
+}
+
+// Inclusive day count of a [start, end] YYYY-MM-DD range (1 for a single day).
+export function inclusiveDayCount(startStr: string, endStr: string): number {
+  if (!startStr || !endStr || endStr < startStr) return 0;
+  return Math.floor((new Date(endStr).getTime() - new Date(startStr).getTime()) / 86400000) + 1;
+}
+
 // Walk an employee's painted schedule cells in the active month and derive
 // LeaveRange entries from contiguous runs of AL / SL / MAT codes (v1.15).
 // Pre-1.15 the leave-history view in the Roster + Credits & Payroll tabs

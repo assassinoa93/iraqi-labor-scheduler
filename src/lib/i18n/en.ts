@@ -264,6 +264,9 @@ export const en: Dict = {
   'leaveReq.subtitle': 'Submit on behalf of an employee, then approve or reject from the pending queue. Approved requests stamp onto the schedule automatically.',
   'leaveReq.pendingCount': '{count} pending',
   'leaveReq.empty': 'No pending leave requests.',
+  // v5.27 — annual-leave balance context at approval (reporting only)
+  'leaveReq.balance.line': 'Requesting {requested}d · {remaining} of {entitlement} annual days left this year',
+  'leaveReq.balance.overdraw': 'Exceeds remaining balance by {over}d — approve anyway?',
   'leaveReq.recent': 'Recent decisions',
   'leaveReq.submit.cta': 'New Request',
   'leaveReq.submit.confirm': 'Submit request',
