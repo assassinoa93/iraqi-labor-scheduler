@@ -727,6 +727,8 @@ export const ar: Dict = {
   'print.legend.break': 'استراحة',
   'pdf.section.roster': 'الجدول الرئيسي للواجبات',
   'pdf.section.compliance': 'ملخص الامتثال والتدقيق',
+  'pdf.section.statuteLegend': 'مرجع النصوص — قانون العمل العراقي رقم ٣٧ لسنة ٢٠١٥',
+  'pdf.col.requirement': 'المتطلب',
   'pdf.section.performance': 'أداء الموظفين والأرصدة',
   'pdf.section.allocation': 'توزيع الموارد',
   'pdf.col.personnel': 'الموظف',

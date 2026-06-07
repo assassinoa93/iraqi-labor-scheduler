@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation, Station } from '../types';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './payroll';
 import { en } from './i18n/en';
+import { statuteLegendFor } from './statuteText';
 
 // v5.22.1 — jspdf-autotable mutates the jsPDF document with a `lastAutoTable`
 // property after every table render, but the type defs don't expose it. The
@@ -118,6 +119,27 @@ export const generatePDFReport = (
     headStyles: { fillColor: [220, 38, 38] },
     styles: { fontSize: 9 }
   });
+
+  // --- Statute reference legend (v5.29) ---
+  // Plain-language requirement for each cited Iraqi Labour Law article, so the
+  // compliance page reads as inspector-ready evidence rather than bare tokens.
+  const legend = statuteLegendFor(violations);
+  if (legend.length > 0) {
+    const legendY = getLastTableY(doc) + 12;
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text(t('pdf.section.statuteLegend'), 15, legendY);
+    autoTable(doc, {
+      head: [[t('pdf.col.article'), t('pdf.col.requirement')]],
+      body: legend.map(l => [l.article, l.requirement]),
+      startY: legendY + 4,
+      theme: 'plain',
+      headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255] },
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      columnStyles: { 0: { cellWidth: 28, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+      margin: { left: 15, right: 15 },
+    });
+  }
 
   // --- Employee Performance & Credits ---
   const auditY = getLastTableY(doc) + 15;

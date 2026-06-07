@@ -757,6 +757,8 @@ export const en: Dict = {
   'print.legend.break': 'break',
   'pdf.section.roster': 'Master Duty Roster',
   'pdf.section.compliance': 'Compliance & Audit Summary',
+  'pdf.section.statuteLegend': 'Statute Reference — Iraqi Labour Law No. 37 of 2015',
+  'pdf.col.requirement': 'Requirement',
   'pdf.section.performance': 'Personnel Performance & Credits',
   'pdf.section.allocation': 'Resource Allocation',
   'pdf.col.personnel': 'Personnel',

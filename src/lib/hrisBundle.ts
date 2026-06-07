@@ -44,6 +44,7 @@ import type {
   Employee, Shift, Schedule, Config, Violation, PublicHoliday, Station, LeaveRange,
 } from '../types';
 import { listAllLeaveRangesIncludingPainted } from './leaves';
+import { requirementForArticle, statuteLegendFor } from './statuteText';
 import type { ApprovalBlock } from './firestoreSchedules';
 
 const BUNDLE_VERSION = '5.1.0';
@@ -303,11 +304,17 @@ function buildComplianceJson(inputs: BundleInputs): string {
       day: v.day,
       rule: v.rule,
       article: v.article,
+      // v5.29 — plain-language statute requirement for the cited article so
+      // downstream HR / an inspector reads WHAT the law requires, not just a
+      // token. Null when the citation has no catalogued article number.
+      requirement: requirementForArticle(v.article),
       message: v.message,
       severity: v.severity ?? 'violation',
       count: v.count ?? 1,
     })),
-    notes: 'Severity "info" indicates a legitimate operational situation (rotating rest, holiday work paid as comp, etc.). Severity "violation" is a hard rule break. The platform reports — the human reviewer decides.',
+    // v5.29 — distinct article → requirement legend for the whole report.
+    statuteLegend: statuteLegendFor(inputs.violations),
+    notes: 'Severity "info" indicates a legitimate operational situation (rotating rest, holiday work paid as comp, etc.). Severity "violation" is a hard rule break. The platform reports — the human reviewer decides. "requirement"/"statuteLegend" are practitioner summaries of Iraqi Labour Law No. 37/2015 articles — confirm exact wording with counsel for formal use.',
   }, null, 2);
 }
 
