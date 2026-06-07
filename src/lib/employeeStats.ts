@@ -89,12 +89,27 @@ export function computeEmployeeRunningStats(
 // Render a one-line summary suitable for use in a `title` tooltip. Designed
 // to read like a labor-law dashboard glance: hours-vs-cap, weekly window,
 // longest streak, last day worked.
-export function formatEmployeeStatsTooltip(stats: EmployeeRunningStats): string {
+// v5.30 — optional translator so the schedule-grid hover tooltip renders in
+// the active locale. Numbers stay ASCII (hours/day counts follow the
+// Western-digit convention used across the schedule grid). When `t` is omitted
+// (tests / non-i18n callers) it falls back to the original English.
+export function formatEmployeeStatsTooltip(
+  stats: EmployeeRunningStats,
+  t?: (k: string, vars?: Record<string, string | number>) => string,
+): string {
   const parts: string[] = [];
-  parts.push(`Hours: ${stats.totalHrs.toFixed(1)} / ${stats.monthlyCap}`);
-  parts.push(`Peak weekly: ${stats.weeklyHrsRolling.toFixed(1)} / ${stats.weeklyCap}`);
-  parts.push(`Longest streak: ${stats.longestStreakDays} / ${stats.maxConsecCap} days`);
-  if (stats.lastWorkedDay) parts.push(`Last worked: day ${stats.lastWorkedDay}`);
-  parts.push(`Worked ${stats.daysWorked}d · Off ${stats.daysOff}d · Leave ${stats.daysOnLeave}d`);
+  if (t) {
+    parts.push(t('empStats.hours', { used: stats.totalHrs.toFixed(1), cap: stats.monthlyCap }));
+    parts.push(t('empStats.peakWeekly', { used: stats.weeklyHrsRolling.toFixed(1), cap: stats.weeklyCap }));
+    parts.push(t('empStats.longestStreak', { days: stats.longestStreakDays, cap: stats.maxConsecCap }));
+    if (stats.lastWorkedDay) parts.push(t('empStats.lastWorked', { day: stats.lastWorkedDay }));
+    parts.push(t('empStats.summary', { worked: stats.daysWorked, off: stats.daysOff, leave: stats.daysOnLeave }));
+  } else {
+    parts.push(`Hours: ${stats.totalHrs.toFixed(1)} / ${stats.monthlyCap}`);
+    parts.push(`Peak weekly: ${stats.weeklyHrsRolling.toFixed(1)} / ${stats.weeklyCap}`);
+    parts.push(`Longest streak: ${stats.longestStreakDays} / ${stats.maxConsecCap} days`);
+    if (stats.lastWorkedDay) parts.push(`Last worked: day ${stats.lastWorkedDay}`);
+    parts.push(`Worked ${stats.daysWorked}d · Off ${stats.daysOff}d · Leave ${stats.daysOnLeave}d`);
+  }
   return parts.join('\n');
 }

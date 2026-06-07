@@ -85,6 +85,12 @@ export const ar: Dict = {
   // v5.27 — إظهار الإجازة لكل صف
   'roster.leave.onToday': 'في إجازة {type}',
   'roster.leave.upcoming': '{type} بعد {n} يوم',
+  // v5.30 — تلميح إحصاءات الموظف في شبكة الجدول (الأرقام تبقى لاتينية)
+  'empStats.hours': 'الساعات: {used} / {cap}',
+  'empStats.peakWeekly': 'ذروة أسبوعية: {used} / {cap}',
+  'empStats.longestStreak': 'أطول تتابع: {days} / {cap} يوم',
+  'empStats.lastWorked': 'آخر عمل: يوم {day}',
+  'empStats.summary': 'عمل {worked} · راحة {off} · إجازة {leave}',
   // v5.27 — شارات انتهاء العقد محدد المدة
   'roster.contract.expired': 'انتهى قبل {n} يوم',
   'roster.contract.expiring': 'ينتهي بعد {n} يوم',

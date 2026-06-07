@@ -88,6 +88,12 @@ export const en: Dict = {
   // v5.27 — per-row leave visibility
   'roster.leave.onToday': 'On {type} leave',
   'roster.leave.upcoming': '{type} in {n}d',
+  // v5.30 — schedule-grid per-employee stats tooltip (numbers stay ASCII)
+  'empStats.hours': 'Hours: {used} / {cap}',
+  'empStats.peakWeekly': 'Peak weekly: {used} / {cap}',
+  'empStats.longestStreak': 'Longest streak: {days} / {cap} days',
+  'empStats.lastWorked': 'Last worked: day {day}',
+  'empStats.summary': 'Worked {worked}d · Off {off}d · Leave {leave}d',
   // v5.27 — fixed-term contract expiry chips
   'roster.contract.expired': 'Expired {n}d ago',
   'roster.contract.expiring': 'Ends in {n}d',

@@ -38,6 +38,21 @@ export interface ScheduleArchiveProps {
   hrisLastExportedAt?: number | null;
 }
 
+// v5.30 — i18n keys for localized weekday/month abbreviations in the day
+// header + its hover tooltip. Raw date-fns format('EEE'/'MMM') is always
+// English; these resolve via t() so the grid header reads correctly in Arabic.
+// DOW indexed by JS getDay() (0=Sun … 6=Sat); MONTH by (month-1).
+const DOW_SHORT_KEYS = [
+  'common.day.short.sunday', 'common.day.short.monday', 'common.day.short.tuesday',
+  'common.day.short.wednesday', 'common.day.short.thursday', 'common.day.short.friday',
+  'common.day.short.saturday',
+];
+const MONTH_SHORT_KEYS = [
+  'common.month.short.jan', 'common.month.short.feb', 'common.month.short.mar', 'common.month.short.apr',
+  'common.month.short.may', 'common.month.short.jun', 'common.month.short.jul', 'common.month.short.aug',
+  'common.month.short.sep', 'common.month.short.oct', 'common.month.short.nov', 'common.month.short.dec',
+];
+
 interface ScheduleTabProps {
   employees: Employee[];
   filteredEmployees: Employee[];
@@ -238,6 +253,10 @@ interface RowData {
   // threaded down here so the cell can render a coloured outline.
   // null = diff view off (most of the time).
   diffMap: import('../lib/firestoreSchedules').ScheduleDiffMap | null;
+  // v5.30 — translator threaded down so the per-employee stats tooltip renders
+  // in the active locale (react-window rows are outside the component tree, so
+  // they can't call useI18n themselves).
+  t: (k: string, vars?: Record<string, string | number>) => string;
 }
 
 // Each visible row is rendered by react-window. We deliberately do NOT wrap
@@ -247,7 +266,7 @@ interface RowData {
 function ScheduleRow({
   index, style, rowPlan, days, schedule, onCellClick, onCellMouseDown, onCellMouseEnter,
   recentlyChangedCells, violationCellKeys, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
-  cellsReadOnly, diffMap, dayCellWidth,
+  cellsReadOnly, diffMap, dayCellWidth, t,
 }: RowComponentProps<RowData>) {
   const item = rowPlan[index];
   if (!item) return <div style={style} />;
@@ -324,7 +343,7 @@ function ScheduleRow({
         data-sticky-left
         className="bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 z-10 px-4 py-2 border-r border-slate-200 dark:border-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)] flex flex-col justify-center will-change-transform"
         style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
-        title={stats ? formatEmployeeStatsTooltip(stats) : undefined}
+        title={stats ? formatEmployeeStatsTooltip(stats, t) : undefined}
       >
         <div className="flex items-center gap-1.5">
           <span className="font-bold text-slate-700 dark:text-slate-100 text-xs truncate uppercase tracking-tight flex-1 min-w-0">{emp?.name}</span>
@@ -1292,7 +1311,7 @@ export function ScheduleTab({
                 return (
                   <div
                     key={d}
-                    title={isHoli ? `${d} ${format(date, 'MMM')} — ${holiday.name}` : `${d} ${format(date, 'MMM')} (${format(date, 'EEEE')})`}
+                    title={isHoli ? `${d} ${t(MONTH_SHORT_KEYS[config.month - 1])} — ${holiday.name}` : `${d} ${t(MONTH_SHORT_KEYS[config.month - 1])} (${t(DOW_SHORT_KEYS[dow])})`}
                     className={cn(
                       "py-3 text-center border-r schedule-grid-line tracking-tighter flex flex-col items-center relative",
                       weekendDay && "bg-slate-100/60 dark:bg-slate-800/80",
@@ -1321,7 +1340,7 @@ export function ScheduleTab({
                       "text-[7px] font-bold uppercase shrink-0 leading-none mt-0.5",
                       isToday ? "text-blue-500 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",
                     )}>
-                      {format(date, 'EEE')}
+                      {t(DOW_SHORT_KEYS[dow])}
                     </span>
                   </div>
                 );
@@ -1355,6 +1374,7 @@ export function ScheduleTab({
                   cellsReadOnly: !canEditCells,
                   diffMap: diffEnabled ? diffMap : null,
                   dayCellWidth,
+                  t,
                 }}
               />
             )}

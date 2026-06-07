@@ -4,6 +4,15 @@ import { Employee, Shift, PublicHoliday, Config, Schedule } from '../types';
 import { useI18n } from '../lib/i18n';
 import { getShiftColor } from '../lib/colors';
 
+// v5.30 — localized short weekday labels (indexed by JS getDay() 0=Sun…6=Sat).
+// The HTML print view CAN render Arabic (unlike the jsPDF report), so the
+// per-column weekday is translated rather than left as date-fns English.
+const DOW_SHORT_KEYS = [
+  'common.day.short.sunday', 'common.day.short.monday', 'common.day.short.tuesday',
+  'common.day.short.wednesday', 'common.day.short.thursday', 'common.day.short.friday',
+  'common.day.short.saturday',
+];
+
 interface Props {
   employees: Employee[];
   shifts: Shift[];
@@ -63,7 +72,7 @@ export function PrintScheduleView({ employees, shifts, holidays, config, schedul
                   }
                 >
                   <div>{d}</div>
-                  <div className="print-dow">{format(date, 'EEEEE')}</div>
+                  <div className="print-dow">{t(DOW_SHORT_KEYS[dow])}</div>
                 </th>
               );
             })}
