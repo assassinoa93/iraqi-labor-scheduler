@@ -91,6 +91,11 @@ export const ar: Dict = {
   'empStats.longestStreak': 'أطول تتابع: {days} / {cap} يوم',
   'empStats.lastWorked': 'آخر عمل: يوم {day}',
   'empStats.summary': 'عمل {worked} · راحة {off} · إجازة {leave}',
+  // v5.31 — حالة خلية الجدول لقارئ الشاشة (أبعد من اللون)
+  'schedule.cell.aria.violation': 'مخالفة',
+  'schedule.cell.aria.diff.added': 'مُضاف',
+  'schedule.cell.aria.diff.modified': 'مُعدَّل',
+  'schedule.cell.aria.diff.removed': 'محذوف',
   // v5.27 — شارات انتهاء العقد محدد المدة
   'roster.contract.expired': 'انتهى قبل {n} يوم',
   'roster.contract.expiring': 'ينتهي بعد {n} يوم',

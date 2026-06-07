@@ -2029,11 +2029,15 @@ export default function App() {
       isHazardous?: boolean;
       isIndustrialRotating?: boolean;
       hourExempt?: boolean;
+      contractEndDate?: string;
+      probationEndDate?: string;
     };
     const parseRow = (cols: string[]): RowPatch | null => {
       const [
         id, name, role, dept, type, hrs, phone, hireDate, salary,
         annualLeave, restDay, category, gender, hazardous, industrial, hourExempt,
+        // v5.31 — optional trailing columns; absent on pre-v5.31 templates.
+        contractEnd, probationEnd,
       ] = cols;
       // The only thing that uniquely identifies a row across imports is the
       // empId. With no id AND no name there's nothing to upsert against,
@@ -2071,6 +2075,8 @@ export default function App() {
         isHazardous: parseOptionalBool(hazardous),
         isIndustrialRotating: parseOptionalBool(industrial),
         hourExempt: parseOptionalBool(hourExempt),
+        contractEndDate: /^\d{4}-\d{2}-\d{2}$/.test(trim(contractEnd)) ? trim(contractEnd) : undefined,
+        probationEndDate: /^\d{4}-\d{2}-\d{2}$/.test(trim(probationEnd)) ? trim(probationEnd) : undefined,
       };
     };
 
@@ -2126,6 +2132,8 @@ export default function App() {
             if (p.isHazardous !== undefined) merged.isHazardous = p.isHazardous;
             if (p.isIndustrialRotating !== undefined) merged.isIndustrialRotating = p.isIndustrialRotating;
             if (p.hourExempt !== undefined) merged.hourExempt = p.hourExempt;
+            if (p.contractEndDate !== undefined) merged.contractEndDate = p.contractEndDate;
+            if (p.probationEndDate !== undefined) merged.probationEndDate = p.probationEndDate;
             // Recompute the OT hourly rate if either input changed — same
             // path the EmployeeModal uses for individual edits.
             if (p.baseMonthlySalary !== undefined || p.contractedWeeklyHrs !== undefined) {
@@ -2171,6 +2179,9 @@ export default function App() {
               overtimeHours: 0,
               category: p.category ?? 'Standard',
               ...(p.gender ? { gender: p.gender } : {}),
+              // Conditional spread — never write undefined (Firestore-safe).
+              ...(p.contractEndDate ? { contractEndDate: p.contractEndDate } : {}),
+              ...(p.probationEndDate ? { probationEndDate: p.probationEndDate } : {}),
             };
             next.push(fresh);
             byId.set(fresh.empId, fresh);
@@ -2235,11 +2246,14 @@ export default function App() {
       'Hazardous (yes|no)',
       'Industrial (yes|no)',
       'Hour Exempt (yes|no)',
+      // v5.31 — optional fixed-term contract end + probation end (YYYY-MM-DD).
+      'Contract End (YYYY-MM-DD, optional)',
+      'Probation End (YYYY-MM-DD, optional)',
     ];
     const sampleRows = [
-      ['EMP-1100', 'John Doe',  'Operator', 'Warehouse', 'Permanent', '48', '07700000000', '2023-01-15', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no'],
-      ['EMP-3100', 'Ali Driver','Driver',   'Transport', 'Permanent', '56', '07712345678', '2022-05-01', '1400000', '21', '5', 'Driver',   'M', 'no',  'no',  'no'],
-      ['EMP-2200', 'أحمد علي',  'Operator', 'Warehouse', 'Permanent', '48', '07798765432', '2024-03-20', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no'],
+      ['EMP-1100', 'John Doe',  'Operator', 'Warehouse', 'Permanent', '48', '07700000000', '2023-01-15', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no', '', ''],
+      ['EMP-3100', 'Ali Driver','Driver',   'Transport', 'Fixed-Term','56', '07712345678', '2022-05-01', '1400000', '21', '5', 'Driver',   'M', 'no',  'no',  'no', '2026-12-31', ''],
+      ['EMP-2200', 'أحمد علي',  'Operator', 'Warehouse', 'Permanent', '48', '07798765432', '2024-03-20', '1500000', '21', '0', 'Standard', 'M', 'no',  'yes', 'no', '', '2026-09-20'],
     ];
     const BOM = String.fromCharCode(0xFEFF);
     const csvContent = BOM + [headers, ...sampleRows]

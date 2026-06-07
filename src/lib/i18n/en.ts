@@ -94,6 +94,11 @@ export const en: Dict = {
   'empStats.longestStreak': 'Longest streak: {days} / {cap} days',
   'empStats.lastWorked': 'Last worked: day {day}',
   'empStats.summary': 'Worked {worked}d · Off {off}d · Leave {leave}d',
+  // v5.31 — schedule-cell screen-reader state (beyond colour)
+  'schedule.cell.aria.violation': 'violation',
+  'schedule.cell.aria.diff.added': 'added',
+  'schedule.cell.aria.diff.modified': 'modified',
+  'schedule.cell.aria.diff.removed': 'removed',
   // v5.27 — fixed-term contract expiry chips
   'roster.contract.expired': 'Expired {n}d ago',
   'roster.contract.expiring': 'Ends in {n}d',

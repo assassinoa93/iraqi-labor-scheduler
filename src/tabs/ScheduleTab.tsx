@@ -359,7 +359,7 @@ function ScheduleRow({
                 "shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black tracking-widest transition-opacity",
                 tone === 'over'
                   ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200 opacity-100"
-                  : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200 opacity-0 group-hover:opacity-100",
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
               )}
               title={`${stats.weeklyHrsRolling.toFixed(1)} / ${stats.weeklyCap} h peak weekly`}
             >
@@ -378,9 +378,17 @@ function ScheduleRow({
         const hasViolation = !!emp && !!violationCellKeys?.has(cellKey);
         const diffKind = emp && diffMap ? diffMap.get(cellKey) ?? null : null;
         const code = emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : '';
-        const ariaLabel = emp
-          ? `${emp.name} · day ${day}${code ? ` · ${code}` : ''}${hasViolation ? ' · violation' : ''}`
-          : undefined;
+        // v5.31 — localized, fully-encoded cell aria-label. Beyond colour: the
+        // violation AND diff (added/modified/removed) state are spoken to
+        // screen readers, not conveyed by the red dot / outline tint alone.
+        let ariaLabel: string | undefined;
+        if (emp) {
+          const parts = [emp.name, t('findings.day', { day })];
+          if (code) parts.push(code);
+          if (hasViolation) parts.push(t('schedule.cell.aria.violation'));
+          if (diffKind) parts.push(t(`schedule.cell.aria.diff.${diffKind}`));
+          ariaLabel = parts.join(' · ');
+        }
         return (
           <div key={day} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
             <ScheduleCell
