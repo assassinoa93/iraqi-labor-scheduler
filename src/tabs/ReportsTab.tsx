@@ -15,11 +15,16 @@ interface ReportsTabProps {
   config: Config;
   violations: Violation[];
   notes: Violation[];
+  // v5.27.0 — real station-coverage percentage (required HC actually filled
+  // across operating hours) computed in App.tsx. Replaces the old hardcoded
+  // "Authenticated" placeholder that conveyed nothing.
+  overallCoveragePercent: number;
+  hasScheduleData: boolean;
   onExportPDF: () => void;
   onExportCSV: () => void;
 }
 
-export function ReportsTab({ employees, schedule, shifts, config, violations, notes, onExportPDF, onExportCSV }: ReportsTabProps) {
+export function ReportsTab({ employees, schedule, shifts, config, violations, notes, overallCoveragePercent, hasScheduleData, onExportPDF, onExportCSV }: ReportsTabProps) {
   const { t, fmt } = useI18n();
   // v5.25 — shared canonical score + count so this matches the Dashboard,
   // preview modal, and approval dialog exactly.
@@ -27,6 +32,11 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
   const scoreColor = score >= 90
     ? 'text-emerald-600 dark:text-emerald-300'
     : score >= 75 ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300';
+  // v5.27.0 — colour the coverage tile by the same thresholds as the score so
+  // a low fill rate reads as a warning, not a green "all good".
+  const coverageColor = overallCoveragePercent >= 90
+    ? 'text-emerald-600 dark:text-emerald-300'
+    : overallCoveragePercent >= 75 ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300';
   const empNameById = new Map(employees.map((e) => [e.empId, e.name]));
 
   return (
@@ -97,9 +107,13 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.complianceScore')}</p>
                 <p className={cn("text-2xl font-light", scoreColor)}>{fmt.num(score)}%</p>
               </div>
-              <div className="bg-emerald-50/50 dark:bg-emerald-500/10 p-4 rounded-xl border border-emerald-100/50 dark:border-emerald-500/25">
-                <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-300 uppercase tracking-tighter mb-1">{t('reports.preview.coverageStatus')}</p>
-                <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-200 uppercase">{t('reports.preview.authenticated')}</p>
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.coverageStatus')}</p>
+                {hasScheduleData ? (
+                  <p className={cn("text-2xl font-light", coverageColor)}>{fmt.num(overallCoveragePercent)}%</p>
+                ) : (
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase pt-2">{t('reports.preview.noSchedule')}</p>
+                )}
               </div>
             </div>
 

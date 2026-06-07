@@ -26,7 +26,7 @@
  */
 
 import type { Unsubscribe } from 'firebase/firestore';
-import type { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule } from '../types';
+import type { Employee, Shift, Station, StationGroup, PublicHoliday, Config, Schedule, LeaveRequest } from '../types';
 import { getDb } from './firestoreClient';
 
 export type AuditOp = 'add' | 'remove' | 'modify' | 'replace';
@@ -164,6 +164,33 @@ export function diffConfig(prev: Config, next: Config): AuditEntry[] {
     ts, domain: 'config', op: 'modify',
     summary: `Config edited: ${changed.slice(0, 8).join(', ')}${changed.length > 8 ? `, +${changed.length - 8} more` : ''}`,
   }];
+}
+export function diffLeaveRequests(prev: LeaveRequest[] | undefined, next: LeaveRequest[] | undefined): AuditEntry[] {
+  // v5.27.0 — audit the leave-request lifecycle (submit / approve / reject).
+  // A "modify" here is almost always a status transition, so render the
+  // status into the summary rather than the generic changed-fields list.
+  const ts = Date.now();
+  const entries: AuditEntry[] = [];
+  const prevById = new Map<string, LeaveRequest>();
+  for (const r of prev ?? []) prevById.set(r.id, r);
+  const nextById = new Map<string, LeaveRequest>();
+  for (const r of next ?? []) nextById.set(r.id, r);
+  const verb = (r: LeaveRequest) =>
+    r.status === 'approved' ? 'Approved' : r.status === 'rejected' ? 'Rejected' : 'Submitted';
+  for (const [id, r] of nextById) {
+    const before = prevById.get(id);
+    if (!before) {
+      entries.push({ ts, domain: 'leaveRequests', op: 'add', targetId: id, label: r.empId, summary: `Submitted ${r.type} leave request for ${r.empId} (${r.start}→${r.end})` });
+    } else if (JSON.stringify(before) !== JSON.stringify(r)) {
+      entries.push({ ts, domain: 'leaveRequests', op: 'modify', targetId: id, label: r.empId, summary: `${verb(r)} ${r.type} leave request for ${r.empId} (${r.start}→${r.end})` });
+    }
+  }
+  for (const [id, r] of prevById) {
+    if (!nextById.has(id)) {
+      entries.push({ ts, domain: 'leaveRequests', op: 'remove', targetId: id, label: r.empId, summary: `Removed ${r.type} leave request for ${r.empId}` });
+    }
+  }
+  return entries;
 }
 export function diffCompanies(_prev: unknown, _next: unknown): AuditEntry[] {
   // Companies CRUD already audits via the Phase 2.1 Firestore mutators

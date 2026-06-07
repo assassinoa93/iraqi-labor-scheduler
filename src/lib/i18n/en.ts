@@ -600,6 +600,7 @@ export const en: Dict = {
   'reports.preview.complianceScore': 'Compliance Score',
   'reports.preview.coverageStatus': 'Coverage Status',
   'reports.preview.authenticated': 'Authenticated',
+  'reports.preview.noSchedule': 'No schedule yet',
   'reports.preview.totalHours': 'Total Hours',
   'reports.preview.moreRecords': 'more records (truncated in preview)',
   'settings.coverageActive': 'Station-Based Coverage is ACTIVE',
@@ -846,6 +847,20 @@ export const en: Dict = {
   'info.csvImport.body': '{added} added, {updated} updated, {skipped} unchanged. Existing data (schedule, leaves, station eligibility) was preserved on updated rows.',
   'info.backup.invalidFile': 'Please select a valid .json backup file.',
   'info.backup.parseFailed': 'Error parsing backup file: {msg}',
+  // v5.27.0 — PDF is English-only (jsPDF has no Arabic glyphs); warn that
+  // Arabic employee names will render as blank boxes in the export.
+  'info.pdf.arabicNames.title': 'PDF Exported (English Labels)',
+  'info.pdf.arabicNames.body': 'The PDF report uses English labels because the PDF engine cannot render Arabic. Some employee names are written in Arabic and will appear as blank boxes in the PDF. For a fully readable export, use the CSV/Excel export instead.',
+  // v5.27.0 — Online mode can't restore a local backup file (Firestore is the
+  // source of truth). Tell the user plainly instead of silently reverting.
+  'info.backup.onlineUnsupported.title': 'Backup Restore Unavailable Online',
+  'info.backup.onlineUnsupported.body': 'You are signed in to the cloud workspace, where the database is the source of truth. Restoring a local backup file here would be overwritten immediately, so it is disabled — your cloud data was NOT changed. To restore a backup, open the app in Offline Demo mode.',
+
+  // v5.27.0 — identifier validation (employee empId / shift code / station id)
+  'validate.id.required': 'An ID is required.',
+  'validate.id.slash': 'The ID cannot contain a slash ( / ).',
+  'validate.id.dots': 'The ID cannot be "." or "..".',
+  'validate.id.duplicate': 'That ID is already in use. Pick a unique one — saving would overwrite the existing record.',
 
   // Dashboard FTE forecast
   'dashboard.kpi.fteForecast': 'Recommended Hires',
@@ -865,6 +880,10 @@ export const en: Dict = {
   'audit.cleared.title': 'Audit Log Cleared',
   'audit.cleared.body': 'All audit entries have been removed.',
   'audit.cleared.failed': 'Could not clear the audit log. Please retry or check the server logs.',
+  // v5.27.0 — the cloud audit trail is immutable by design (security rules
+  // forbid deletion), so Clear is disabled in Online mode.
+  'audit.clear.onlineDisabled.title': 'Audit Trail Is Immutable',
+  'audit.clear.onlineDisabled.body': 'The cloud audit trail cannot be cleared — it is a tamper-proof record kept for accountability. (Clearing is only available in Offline Demo mode.)',
 
   // Variables tab — section blurbs + reference footer
   'variables.editingNote.title': 'Editing these values is intentional but consequential.',

@@ -9,7 +9,7 @@ import { useModalKeys } from '../lib/hooks';
 import { useConfirm } from './ConfirmModal';
 import { parseHour } from '../lib/time';
 import { isSystemShift } from '../lib/systemShifts';
-import { cn } from '../lib/utils';
+import { cn, validateIdentifier } from '../lib/utils';
 
 interface ShiftModalProps {
   isOpen: boolean;
@@ -17,6 +17,9 @@ interface ShiftModalProps {
   onSave: (s: Shift) => void;
   shift: Shift | null;
   config: Config;
+  // v5.27.0 — codes of OTHER shifts, so save can reject a duplicate code
+  // that would silently overwrite an existing shift's record.
+  existingIds?: string[];
 }
 
 const empty = (): Shift => ({
@@ -27,12 +30,22 @@ const empty = (): Shift => ({
   description: ''
 });
 
-export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModalProps) {
+export function ShiftModal({ isOpen, onClose, onSave, shift, config, existingIds = [] }: ShiftModalProps) {
   const { t } = useI18n();
   const [formData, setFormData] = useState<Shift>(shift || empty());
   const [initialJson, setInitialJson] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
   const isDirty = JSON.stringify(formData) !== initialJson;
   const { confirm, slot: confirmSlot } = useConfirm();
+
+  // v5.27.0 — validate the code (the shift's stable id) before save. An empty,
+  // '/'-bearing, or duplicate code would silently overwrite another shift's
+  // record in both Offline and Online persistence.
+  const handleSave = () => {
+    const idErr = validateIdentifier(formData.code, existingIds);
+    if (idErr) { setError(t(idErr)); return; }
+    onSave(formData);
+  };
 
   const requestClose = useCallback(async () => {
     if (!isDirty) { onClose(); return; }
@@ -64,6 +77,7 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
       const seed = shift || empty();
       setFormData(seed);
       setInitialJson(JSON.stringify(seed));
+      setError(null);
     }
   }, [shift, isOpen]);
 
@@ -108,6 +122,11 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
               <p className="text-[10px] text-violet-700 dark:text-violet-200 leading-relaxed">
                 {t('modal.shift.autoGen.banner')}
               </p>
+            </div>
+          )}
+          {error && (
+            <div className="text-[11px] font-bold text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/40 rounded-lg px-3 py-2">
+              {error}
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -166,7 +185,7 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config }: ShiftModa
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
           <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
-            onClick={() => onSave(formData)}
+            onClick={handleSave}
             className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
           >
             {t('modal.shift.save')}

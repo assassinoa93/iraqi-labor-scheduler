@@ -34,7 +34,7 @@ async function startServer() {
   // Per-company domains. Each is stored on disk as Record<companyId, T>; the
   // server migrates legacy bare arrays / objects to the namespaced shape on
   // first read. `companies.json` carries the list of companies + active id.
-  const COMPANY_DOMAINS = new Set(["employees", "shifts", "holidays", "config", "stations", "stationGroups", "allSchedules"]);
+  const COMPANY_DOMAINS = new Set(["employees", "shifts", "holidays", "config", "stations", "stationGroups", "allSchedules", "leaveRequests"]);
   const ALLOWED_KEYS = new Set([...COMPANY_DOMAINS, "companies"]);
   const RESET_CONFIRM_TOKEN = "DELETE_ALL_DATA";
   const AUDIT_FILE = path.join(DATA_DIR, "audit.json");
@@ -193,6 +193,21 @@ async function startServer() {
         }
         if (changed.length > 0) {
           entries.push({ ts, domain: "config", op: "modify", summary: `Config edited: ${changed.slice(0, 8).join(", ")}${changed.length > 8 ? `, +${changed.length - 8} more` : ""}`, companyId });
+        }
+      } else if (key === "leaveRequests") {
+        // v5.27.0 — leave-request queue audit. A "modify" is a status
+        // transition (pending → approved/rejected); render the status.
+        const prevArr: any[] = Array.isArray(prev) ? prev : [];
+        const nextArr: any[] = Array.isArray(next) ? next : [];
+        const prevById = new Map(prevArr.map(x => [x.id, x]));
+        const nextById = new Map(nextArr.map(x => [x.id, x]));
+        const verb = (r: any) => r.status === "approved" ? "Approved" : r.status === "rejected" ? "Rejected" : "Submitted";
+        for (const [id, item] of nextById) {
+          if (!prevById.has(id)) entries.push({ ts, domain: "leaveRequests", op: "add", targetId: id, label: item.empId, summary: `Submitted ${item.type} leave request for ${item.empId} (${item.start}→${item.end})`, companyId });
+          else if (JSON.stringify(prevById.get(id)) !== JSON.stringify(item)) entries.push({ ts, domain: "leaveRequests", op: "modify", targetId: id, label: item.empId, summary: `${verb(item)} ${item.type} leave request for ${item.empId} (${item.start}→${item.end})`, companyId });
+        }
+        for (const [id, item] of prevById) {
+          if (!nextById.has(id)) entries.push({ ts, domain: "leaveRequests", op: "remove", targetId: id, label: item.empId, summary: `Removed ${item.type} leave request for ${item.empId}`, companyId });
         }
       } else if (key === "allSchedules") {
         const a = prev || {}, b = next || {};

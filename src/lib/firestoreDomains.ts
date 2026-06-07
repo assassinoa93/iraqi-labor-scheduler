@@ -31,7 +31,7 @@
  */
 
 import type { Unsubscribe } from 'firebase/firestore';
-import type { Employee, Shift, Station, StationGroup, PublicHoliday, Config } from '../types';
+import type { Employee, Shift, Station, StationGroup, PublicHoliday, Config, LeaveRequest } from '../types';
 import { getDb } from './firestoreClient';
 
 // ── Generic helpers (private) ────────────────────────────────────────────
@@ -211,6 +211,23 @@ export function subscribeHolidays(companyId: string, onChange: (items: PublicHol
 }
 export function syncHolidays(companyId: string, prev: PublicHoliday[], next: PublicHoliday[], actorUid: string | null) {
   return syncArrayCollection<PublicHoliday>(companyId, 'holidays', holidayId, prev, next, actorUid);
+}
+
+// Leave Requests ---------------------------------------------------------
+// v5.27.0 — the leave-request queue is now a first-class persisted domain
+// (previously in-memory only, which lost pending requests / rejections /
+// decision audit on reload in BOTH modes). One doc per request, keyed by
+// the stable `id` generated in leaveRequests.ts. The CompanyData field is
+// optional (pre-v5.27 saves have none), so coerce undefined → [] both ways.
+export function subscribeLeaveRequests(companyId: string, onChange: (items: LeaveRequest[]) => void, onError?: (err: unknown) => void) {
+  return subscribeArrayCollection<LeaveRequest>(
+    companyId, 'leaveRequests',
+    (data, id) => ({ ...(data as Omit<LeaveRequest, 'id'>), id }),
+    onChange, onError,
+  );
+}
+export function syncLeaveRequests(companyId: string, prev: LeaveRequest[] | undefined, next: LeaveRequest[] | undefined, actorUid: string | null) {
+  return syncArrayCollection<LeaveRequest>(companyId, 'leaveRequests', (r) => r.id, prev ?? [], next ?? [], actorUid);
 }
 
 // Config (single doc) ----------------------------------------------------

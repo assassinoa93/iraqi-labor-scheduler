@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, ChevronDown, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { Station, HourlyDemandSlot } from '../types';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { useConfirm } from './ConfirmModal';
 import { validateHourlyDemand } from '../lib/stationDemand';
 import type { DemandSuggestion } from '../lib/demandHistory';
 import { HourlyDemandEditor, nextSlotDefaults } from './HourlyDemandEditor';
-import { cn } from '../lib/utils';
+import { cn, validateIdentifier } from '../lib/utils';
 
 interface StationModalProps {
   isOpen: boolean;
@@ -26,6 +27,9 @@ interface StationModalProps {
   // BulkAddStationsModal) compile unchanged — when omitted, the suggest
   // button doesn't render.
   onSuggestFromHistory?: (stationId: string) => DemandSuggestion | null;
+  // v5.27.0 — ids of OTHER stations, so save can reject a duplicate id that
+  // would silently overwrite an existing station's record.
+  existingIds?: string[];
 }
 
 const empty = (): Station => ({
@@ -33,11 +37,26 @@ const empty = (): Station => ({
   openingTime: '08:00', closingTime: '23:00', color: '#3B82F6'
 });
 
-export function StationModal({ isOpen, onClose, onSave, station, availableRoles = [], onSuggestFromHistory }: StationModalProps) {
+export function StationModal({ isOpen, onClose, onSave, station, availableRoles = [], onSuggestFromHistory, existingIds = [] }: StationModalProps) {
   const { t } = useI18n();
-  const closeButtonRef = useModalKeys(isOpen, onClose) as React.RefObject<HTMLButtonElement>;
   const [formData, setFormData] = useState<Station>(empty());
   const [error, setError] = useState<string | null>(null);
+  // v5.27.0 — unsaved-changes guard, matching Employee/Shift/Holiday modals.
+  // Previously this was the one data-entry modal a stray Esc/Cancel could
+  // discard without warning.
+  const [initialJson, setInitialJson] = useState<string>('');
+  const isDirty = JSON.stringify(formData) !== initialJson;
+  const { confirm, slot: confirmSlot } = useConfirm();
+  const requestClose = useCallback(async () => {
+    if (!isDirty) { onClose(); return; }
+    const ok = await confirm({
+      title: t('modal.unsavedChanges.title'),
+      message: t('modal.unsavedChanges.body'),
+    });
+    if (ok) onClose();
+  }, [isDirty, onClose, confirm, t]);
+  const canClose = useCallback(() => !isDirty, [isDirty]);
+  const closeButtonRef = useModalKeys(isOpen, requestClose, canClose) as React.RefObject<HTMLButtonElement>;
   // v5.14.0 — hourly demand editor. Auto-expanded when the station
   // already has hourly slots configured so the supervisor sees them
   // without having to hunt for the section. Collapsed by default for
@@ -49,7 +68,9 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   const [suggestionInfo, setSuggestionInfo] = useState<DemandSuggestion | null>(null);
 
   useEffect(() => {
-    setFormData(station ?? empty());
+    const seed = station ?? empty();
+    setFormData(seed);
+    setInitialJson(JSON.stringify(seed));
     setError(null);
     setSuggestionInfo(null);
     const hasHourly = !!(station?.normalHourlyDemand?.length || station?.peakHourlyDemand?.length);
@@ -82,7 +103,10 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   const handleSave = () => {
     const trimmedId = formData.id.trim();
     const trimmedName = formData.name.trim();
-    if (!trimmedId) { setError(t('modal.station.error.id')); return; }
+    // v5.27.0 — reject empty / illegal / duplicate ids before they become a
+    // Firestore doc id (a dupe would silently overwrite an existing station).
+    const idErr = validateIdentifier(formData.id, existingIds);
+    if (idErr) { setError(idErr === 'validate.id.required' ? t('modal.station.error.id') : t(idErr)); return; }
     if (!trimmedName) { setError(t('modal.station.error.name')); return; }
     // v5.14.0 — validate any hourly demand slots before save. Bad data
     // (overlap, end <= start, negative HC) blocks save with a clear
@@ -151,12 +175,15 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
   const roleOptions = Array.from(new Set([...availableRoles, 'Driver'])).filter(Boolean).sort();
 
   // v5.3.1: sticky backdrop — Esc + X + Cancel are the only paths out.
+  // v5.27.0: those paths now route through requestClose's unsaved-changes guard.
   return (
+    <>
+    {confirmSlot}
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label={t('modal.station.title')}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-slate-100 dark:border-slate-700/60 flex justify-between items-center bg-slate-50 dark:bg-slate-800/40">
           <h3 className="font-black text-slate-800 dark:text-slate-100 uppercase tracking-tighter">{t('modal.station.title')}</h3>
-          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400 dark:text-slate-500" /></button>
+          <button ref={closeButtonRef} onClick={requestClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400 dark:text-slate-500" /></button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
@@ -431,11 +458,12 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
           )}
         </div>
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
+          <button onClick={requestClose} className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
           <button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-white transition-all">{t('modal.station.save')}</button>
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 

@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { X, Plus, CalendarHeart } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Station, StationGroup, Config, Shift } from '../types';
-import { cn } from '../lib/utils';
+import { cn, validateIdentifier } from '../lib/utils';
 import { SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
@@ -31,6 +31,9 @@ interface EmployeeModalProps {
   // without needing the Payroll tab. App.tsx wires the actual modal
   // open/close + save plumbing.
   onManageLeaves?: () => void;
+  // v5.27.0 — empIds of OTHER employees, so save can reject a duplicate id
+  // that would silently overwrite an existing employee's record.
+  existingIds?: string[];
 }
 
 const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
@@ -63,7 +66,7 @@ const empty = (config: Pick<Config, 'standardWeeklyHrsCap'>): Employee => {
   return seed;
 };
 
-export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config, onManageLeaves }: EmployeeModalProps) {
+export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, stationGroups, shifts, config, onManageLeaves, existingIds = [] }: EmployeeModalProps) {
   const { t, fmt } = useI18n();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState<Employee>(() => empty(config));
@@ -75,8 +78,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
   // shallow record of primitives + simple arrays; deep-equal would be
   // overkill and the form is small enough that the cost is irrelevant.
   const [initialJson, setInitialJson] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
   const isDirty = JSON.stringify(formData) !== initialJson;
   const { confirm, slot: confirmSlot } = useConfirm();
+
+  // v5.27.0 — validate empId before save. An empty, '/'-bearing, or duplicate
+  // empId would silently overwrite another employee's record in both Offline
+  // (Record keyed by empId) and Online (setDoc on the empId doc) persistence.
+  const handleSave = () => {
+    const idErr = validateIdentifier(formData.empId, existingIds);
+    if (idErr) { setError(t(idErr)); return; }
+    onSave(formData);
+  };
 
   // Wraps `onClose` with the dirty-state guard. Every dismissal path
   // (Esc via useModalKeys, the X button, the Cancel button, the surrounding
@@ -103,6 +116,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
       const seed = employee ? { category: 'Standard' as const, ...employee } : empty(config);
       setFormData(seed);
       setInitialJson(JSON.stringify(seed));
+      setError(null);
       // Defer focus past the mount tick so it lands on the first form
       // input rather than racing with the document focus.
       const tHandle = window.setTimeout(() => {
@@ -552,10 +566,15 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
           </div>
         </div>
 
-        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end items-center gap-3">
+          {error && (
+            <span className="me-auto text-[11px] font-bold text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/40 rounded-lg px-3 py-2">
+              {error}
+            </span>
+          )}
           <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
           <button
-            onClick={() => onSave(formData)}
+            onClick={handleSave}
             className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
           >
             {t('modal.employee.commit')}

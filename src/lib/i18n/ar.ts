@@ -574,6 +574,7 @@ export const ar: Dict = {
   'reports.preview.complianceScore': 'درجة الامتثال',
   'reports.preview.coverageStatus': 'حالة التغطية',
   'reports.preview.authenticated': 'مُوثَّق',
+  'reports.preview.noSchedule': 'لا يوجد جدول بعد',
   'reports.preview.totalHours': 'إجمالي الساعات',
   'reports.preview.moreRecords': 'سجلات إضافية (مقتطعة في المعاينة)',
   'settings.coverageActive': 'التغطية على أساس المحطات نشطة',
@@ -814,6 +815,19 @@ export const ar: Dict = {
   'info.csvImport.body': 'تمت إضافة {added}، تحديث {updated}، {skipped} دون تغيير. تم الحفاظ على البيانات الموجودة (الجدول، الإجازات، أهلية المحطات) على السجلات المحدثة.',
   'info.backup.invalidFile': 'يرجى اختيار ملف نسخة احتياطية بصيغة .json.',
   'info.backup.parseFailed': 'خطأ في قراءة ملف النسخة الاحتياطية: {msg}',
+  // v5.27.0 — تقرير PDF بالإنجليزية فقط (محرّك PDF لا يعرض العربية)؛ تنبيه بأن
+  // أسماء الموظفين العربية ستظهر كمربعات فارغة.
+  'info.pdf.arabicNames.title': 'تم تصدير PDF (بعناوين إنجليزية)',
+  'info.pdf.arabicNames.body': 'يستخدم تقرير PDF عناوين إنجليزية لأن محرّك PDF لا يستطيع عرض العربية. بعض أسماء الموظفين مكتوبة بالعربية وستظهر كمربعات فارغة في الملف. للحصول على تصدير مقروء بالكامل، استخدم تصدير CSV/Excel بدلًا من ذلك.',
+  // v5.27.0 — لا يمكن استعادة نسخة احتياطية محلية في الوضع السحابي.
+  'info.backup.onlineUnsupported.title': 'استعادة النسخة الاحتياطية غير متاحة في الوضع السحابي',
+  'info.backup.onlineUnsupported.body': 'أنت مسجَّل الدخول في مساحة العمل السحابية، حيث تكون قاعدة البيانات هي المصدر الموثوق. استعادة ملف نسخة احتياطية محلي هنا ستُستبدل فورًا، لذا فهي معطَّلة — ولم تتغيَّر بياناتك السحابية. لاستعادة نسخة احتياطية، افتح التطبيق في وضع العرض دون اتصال.',
+
+  // v5.27.0 — التحقق من المعرّف (معرّف الموظف / رمز الوردية / معرّف المحطة)
+  'validate.id.required': 'المعرّف مطلوب.',
+  'validate.id.slash': 'لا يمكن أن يحتوي المعرّف على شَرطة مائلة ( / ).',
+  'validate.id.dots': 'لا يمكن أن يكون المعرّف «.» أو «..».',
+  'validate.id.duplicate': 'هذا المعرّف مستخدَم بالفعل. اختر معرّفًا فريدًا — الحفظ سيستبدل السجل الموجود.',
 
   // Dashboard FTE forecast
   'dashboard.kpi.fteForecast': 'التوظيف الموصى به',
@@ -833,6 +847,9 @@ export const ar: Dict = {
   'audit.cleared.title': 'تم مسح سجل التدقيق',
   'audit.cleared.body': 'تمت إزالة جميع إدخالات التدقيق.',
   'audit.cleared.failed': 'تعذّر مسح السجل. حاول مرة أخرى أو راجع سجلات الخادم.',
+  // v5.27.0 — سجل التدقيق السحابي غير قابل للتعديل بحكم التصميم.
+  'audit.clear.onlineDisabled.title': 'سجل التدقيق غير قابل للمسح',
+  'audit.clear.onlineDisabled.body': 'لا يمكن مسح سجل التدقيق السحابي — فهو سجل محصَّن ضد العبث يُحفظ للمساءلة. (المسح متاح فقط في وضع العرض دون اتصال.)',
 
   // Variables tab — section blurbs + reference footer
   'variables.editingNote.title': 'تعديل هذه القيم متعمد لكنه ذو أثر كبير.',

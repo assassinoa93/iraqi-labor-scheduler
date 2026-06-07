@@ -33,6 +33,7 @@ import {
   Config,
   Violation,
   Schedule,
+  ScheduleEntry,
   Station,
   StationGroup,
   Company,
@@ -109,6 +110,7 @@ import {
   subscribeStationGroups, syncStationGroups,
   subscribeHolidays, syncHolidays,
   subscribeConfig, syncConfig,
+  subscribeLeaveRequests, syncLeaveRequests,
   seedCompanyDefaults,
 } from './lib/firestoreDomains';
 import {
@@ -145,7 +147,7 @@ import {
   writeAuditEntries,
   buildApprovalAuditEntry,
   diffEmployees, diffShifts, diffStations, diffStationGroups,
-  diffHolidays, diffConfig, diffAllSchedules,
+  diffHolidays, diffConfig, diffAllSchedules, diffLeaveRequests,
 } from './lib/audit';
 import type { DayOfWeek } from './types';
 
@@ -180,6 +182,7 @@ const emptyCompanyData = (): CompanyData => ({
   holidays: [],
   config: { ...DEFAULT_CONFIG },
   allSchedules: {},
+  leaveRequests: [],
 });
 
 // CSV-escape a single cell: wraps in double quotes and doubles internal quotes
@@ -374,6 +377,7 @@ export default function App() {
           case 'holidays':      auditEntries = diffHolidays(priorValue as PublicHoliday[], next as PublicHoliday[]); break;
           case 'config':        auditEntries = diffConfig(priorValue as Config, next as Config); break;
           case 'allSchedules':  auditEntries = diffAllSchedules(priorValue as Record<string, Schedule>, next as Record<string, Schedule>); break;
+          case 'leaveRequests': auditEntries = diffLeaveRequests(priorValue as LeaveRequest[] | undefined, next as LeaveRequest[] | undefined); break;
         }
         const handleQuotaError = (err: unknown) => {
           const quota = detectQuotaExhausted(err);
@@ -433,6 +437,7 @@ export default function App() {
                 }
                 return promises.length ? Promise.all(promises).then(() => undefined) : null;
               }
+              case 'leaveRequests': return syncLeaveRequests(cid, priorValue as LeaveRequest[] | undefined, next as LeaveRequest[] | undefined, actor);
               default:              return null;
             }
           })();
@@ -586,6 +591,9 @@ export default function App() {
           // companies seed the new groups so the kanban view in Stations
           // ships pre-populated. Custom companies start empty.
           const rawGroups = data.stationGroups?.[c.id] ?? (c.id === DEFAULT_COMPANY_ID ? INITIAL_STATION_GROUPS : []);
+          // v5.27.0 — leave-request queue is now persisted. Absent on
+          // pre-v5.27 saves; default to an empty queue.
+          const rawLeaveReqs = data.leaveRequests?.[c.id];
           map[c.id] = {
             employees: normalizeEmployees(rawEmps),
             shifts: normalizeShifts(rawShifts),
@@ -594,6 +602,7 @@ export default function App() {
             stationGroups: Array.isArray(rawGroups) ? rawGroups : [],
             config: normalizeConfig(rawConfig),
             allSchedules: normalizeAllSchedules(rawSchedules),
+            leaveRequests: Array.isArray(rawLeaveReqs) ? rawLeaveReqs : [],
           };
         }
         setCompaniesState(resolvedCompanies);
@@ -617,6 +626,7 @@ export default function App() {
             holidays: INITIAL_HOLIDAYS,
             config: { ...DEFAULT_CONFIG },
             allSchedules: {},
+            leaveRequests: [],
           },
         });
         setDataLoaded(true);
@@ -717,6 +727,7 @@ export default function App() {
           await subscribeStations(cid, (items) => updateDomain('stations', items)),
           await subscribeStationGroups(cid, (items) => updateDomain('stationGroups', items)),
           await subscribeHolidays(cid, (items) => updateDomain('holidays', items)),
+          await subscribeLeaveRequests(cid, (items) => updateDomain('leaveRequests', items)),
           await subscribeConfig(cid, (cfg) => {
             // If the doc doesn't exist yet (first edit on this company in
             // Online mode), keep whatever the local default seeded — the
@@ -892,6 +903,7 @@ export default function App() {
     const stationGroupsByCo: Record<string, StationGroup[]> = {};
     const configByCo: Record<string, Config> = {};
     const allSchedulesByCo: Record<string, Record<string, Schedule>> = {};
+    const leaveRequestsByCo: Record<string, LeaveRequest[]> = {};
     for (const id of Object.keys(companyData)) {
       const cd = companyData[id];
       employeesByCo[id] = cd.employees;
@@ -901,6 +913,7 @@ export default function App() {
       stationGroupsByCo[id] = cd.stationGroups ?? [];
       configByCo[id] = cd.config;
       allSchedulesByCo[id] = cd.allSchedules;
+      leaveRequestsByCo[id] = cd.leaveRequests ?? [];
     }
     const body = {
       companies: { companies, activeCompanyId },
@@ -911,6 +924,7 @@ export default function App() {
       stationGroups: stationGroupsByCo,
       config: configByCo,
       allSchedules: allSchedulesByCo,
+      leaveRequests: leaveRequestsByCo,
     };
     const serialized = JSON.stringify(body);
     saveBodyRef.current = serialized;
@@ -1370,10 +1384,29 @@ export default function App() {
       message: t('confirm.removeEmp.body', { id: empId }),
       onConfirm: () => {
         setEmployees(prev => prev.filter(e => e.empId !== empId));
-        setSchedule(prev => {
-          const next = { ...prev };
-          delete next[empId];
-          return next;
+        // v5.27.0 — purge the employee's schedule rows from EVERY month, not
+        // just the active one. Previously the delete only touched the visible
+        // month, leaving orphaned entries in other months that inflated
+        // coverage/demand projections and the OT counters. Clone only the
+        // months that actually contained the employee so untouched months keep
+        // reference-equality (minimal Firestore syncMonth fan-out in Online
+        // mode). Note: in Online mode only months already loaded into local
+        // state are reachable here; months never visited this session stay in
+        // Firestore until next opened (still strictly better than before).
+        setAllSchedules(prev => {
+          let changed = false;
+          const next: Record<string, Schedule> = {};
+          for (const [key, sched] of Object.entries(prev)) {
+            if (sched[empId]) {
+              const cloned = { ...sched };
+              delete cloned[empId];
+              next[key] = cloned;
+              changed = true;
+            } else {
+              next[key] = sched;
+            }
+          }
+          return changed ? next : prev;
         });
         setSelectedEmployees(prev => {
           const next = new Set(prev);
@@ -1536,16 +1569,68 @@ export default function App() {
       title: t('confirm.bulkRemove.title'),
       message: t('confirm.bulkRemove.body', { count: selectedEmployees.size }),
       onConfirm: () => {
-        setEmployees(prev => prev.filter(e => !selectedEmployees.has(e.empId)));
-        setSchedule(prev => {
-          const next = { ...prev };
-          selectedEmployees.forEach(id => delete next[id]);
-          return next;
+        const removed = selectedEmployees;
+        setEmployees(prev => prev.filter(e => !removed.has(e.empId)));
+        // v5.27.0 — purge the removed employees from EVERY month (see
+        // handleDeleteEmployee). Clone only months that held a removed emp.
+        setAllSchedules(prev => {
+          let changed = false;
+          const next: Record<string, Schedule> = {};
+          for (const [key, sched] of Object.entries(prev)) {
+            if (Object.keys(sched).some(id => removed.has(id))) {
+              const cloned = { ...sched };
+              removed.forEach(id => delete cloned[id]);
+              next[key] = cloned;
+              changed = true;
+            } else {
+              next[key] = sched;
+            }
+          }
+          return changed ? next : prev;
         });
         setSelectedEmployees(new Set());
       }
     });
   };
+
+  // v5.27.0 — when a station is deleted, clear its id from any schedule entry
+  // that referenced it (across ALL loaded months), keeping the cell's
+  // shiftCode intact. Previously a deleted station left dangling stationId
+  // refs: those assignments silently fell out of station-coverage counts and
+  // the WorkforcePlanning demand profile still counted the vanished station.
+  // Clones only the months/rows that actually change so untouched data keeps
+  // reference-equality (minimal Firestore syncMonth fan-out).
+  const clearStationRefsFromSchedules = React.useCallback((stationIds: Set<string>) => {
+    if (stationIds.size === 0) return;
+    setAllSchedules(prev => {
+      let changed = false;
+      const nextAll: Record<string, Schedule> = {};
+      for (const [monthKey, sched] of Object.entries(prev)) {
+        let monthChanged = false;
+        const nextSched: Schedule = {};
+        for (const [empId, days] of Object.entries(sched)) {
+          let empChanged = false;
+          const nextDays: Record<number, ScheduleEntry> = {};
+          for (const [dStr, entry] of Object.entries(days)) {
+            const d = Number(dStr);
+            if (entry.stationId && stationIds.has(entry.stationId)) {
+              const { stationId: _drop, ...rest } = entry;
+              void _drop;
+              nextDays[d] = rest;
+              empChanged = true;
+            } else {
+              nextDays[d] = entry;
+            }
+          }
+          nextSched[empId] = empChanged ? nextDays : days;
+          if (empChanged) monthChanged = true;
+        }
+        nextAll[monthKey] = monthChanged ? nextSched : sched;
+        if (monthChanged) changed = true;
+      }
+      return changed ? nextAll : prev;
+    });
+  }, [setAllSchedules]);
 
   const handleBulkAssignShift = (shiftCode: string, fromDay: number, toDay: number, overwrite: boolean) => {
     const empCount = selectedEmployees.size;
@@ -1649,6 +1734,19 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // v5.27.0 — Online mode guard. Restoring a backup into local React state
+    // is a silent no-op online: Firestore is the source of truth and its
+    // onSnapshot listeners overwrite whatever we set on the very next tick (or
+    // the post-import reload). The pre-v5.27 path "succeeded" visually then
+    // reverted to the old cloud data with no error — a data-trust trap. Tell
+    // the user plainly and leave the cloud untouched. A real online restore
+    // (fanning the backup through the sync writers) is a separate follow-up.
+    if (getMode() === 'online') {
+      showInfo(t('info.backup.onlineUnsupported.title'), t('info.backup.onlineUnsupported.body'));
+      if (e.target) e.target.value = '';
+      return;
+    }
+
     if (!file.name.endsWith('.json')) {
       showInfo(t('info.error.title'), t('info.backup.invalidFile'));
       return;
@@ -1689,6 +1787,7 @@ export default function App() {
                   holidays: normalizeHolidays(raw.holidays?.[c.id] ?? []),
                   config: normalizeConfig(raw.config?.[c.id] ?? {}),
                   allSchedules: normalizeAllSchedules(raw.allSchedules?.[c.id] ?? {}),
+                  leaveRequests: Array.isArray(raw.leaveRequests?.[c.id]) ? raw.leaveRequests[c.id] : [],
                 };
               }
               setCompaniesState(importedCompanies);
@@ -1709,6 +1808,7 @@ export default function App() {
                 holidays: normalizeHolidays(raw.holidays ?? []),
                 config: cfg,
                 allSchedules: allSched,
+                leaveRequests: Array.isArray(raw.leaveRequests) ? raw.leaveRequests : [],
               };
               setCompaniesState(INITIAL_COMPANIES);
               setActiveCompanyId(DEFAULT_COMPANY_ID);
@@ -1755,6 +1855,7 @@ export default function App() {
         const stationGroupsByCo: Record<string, StationGroup[]> = {};
         const configByCo: Record<string, Config> = {};
         const allSchedulesByCo: Record<string, Record<string, Schedule>> = {};
+        const leaveRequestsByCo: Record<string, LeaveRequest[]> = {};
         for (const id of Object.keys(companyData)) {
           const cd = companyData[id];
           employeesByCo[id] = cd.employees;
@@ -1764,11 +1865,13 @@ export default function App() {
           stationGroupsByCo[id] = cd.stationGroups ?? [];
           configByCo[id] = cd.config;
           allSchedulesByCo[id] = cd.allSchedules;
+          leaveRequestsByCo[id] = cd.leaveRequests ?? [];
         }
         const body = {
           companies: { companies, activeCompanyId },
           employees: employeesByCo, shifts: shiftsByCo, holidays: holidaysByCo,
           stations: stationsByCo, stationGroups: stationGroupsByCo, config: configByCo, allSchedules: allSchedulesByCo,
+          leaveRequests: leaveRequestsByCo,
         };
         fetch('/api/save', {
           method: 'POST',
@@ -1804,6 +1907,7 @@ export default function App() {
     const stationGroupsByCo: Record<string, StationGroup[]> = {};
     const configByCo: Record<string, Config> = {};
     const allSchedulesByCo: Record<string, Record<string, Schedule>> = {};
+    const leaveRequestsByCo: Record<string, LeaveRequest[]> = {};
     for (const id of Object.keys(companyData)) {
       const cd = companyData[id];
       employeesByCo[id] = cd.employees;
@@ -1813,12 +1917,14 @@ export default function App() {
       stationGroupsByCo[id] = cd.stationGroups ?? [];
       configByCo[id] = cd.config;
       allSchedulesByCo[id] = cd.allSchedules;
+      leaveRequestsByCo[id] = cd.leaveRequests ?? [];
     }
     const data = {
       companies: { companies, activeCompanyId },
       employees: employeesByCo, shifts: shiftsByCo, holidays: holidaysByCo,
       stations: stationsByCo, stationGroups: stationGroupsByCo,
       config: configByCo, allSchedules: allSchedulesByCo,
+      leaveRequests: leaveRequestsByCo,
       version: APP_VERSION,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2461,6 +2567,14 @@ export default function App() {
   const handleExportPDF = async () => {
     const { generatePDFReport } = await import('./lib/pdfReport');
     generatePDFReport(employees, schedule, shifts, { ...config, holidays }, violations, stations, t);
+    // v5.27.0 — the PDF is always rendered with English labels (jsPDF has no
+    // Arabic glyphs). Employee names are data, not labels, so an Arabic name
+    // still comes out as blank boxes. Warn the user once after export so a
+    // tofu name column isn't a silent surprise.
+    const arabicChar = new RegExp('[\\u0600-\\u06FF]');
+    if (employees.some(e => arabicChar.test(e.name))) {
+      showInfo(t('info.pdf.arabicNames.title'), t('info.pdf.arabicNames.body'));
+    }
   };
 
   const handleSaveHoliday = (holi: PublicHoliday) => {
@@ -3943,7 +4057,10 @@ export default function App() {
                   isOpen: true,
                   title: t('confirm.removeStation.title'),
                   message: t('confirm.removeStation.body', { name: st.name }),
-                  onConfirm: () => setStations(prev => prev.filter(s => s.id !== st.id)),
+                  onConfirm: () => {
+                    setStations(prev => prev.filter(s => s.id !== st.id));
+                    clearStationRefsFromSchedules(new Set([st.id]));
+                  },
                 })}
                 onUpdateStation={(st) => setStations(prev => prev.map(s => s.id === st.id ? st : s))}
                 onSaveGroups={(groups) => setStationGroups(groups)}
@@ -3969,6 +4086,7 @@ export default function App() {
                   onConfirm: () => {
                     const idSet = new Set(ids);
                     setStations(prev => prev.filter(s => !idSet.has(s.id)));
+                    clearStationRefsFromSchedules(idSet);
                     showInfo(
                       t('info.bulkDeleteStations.title'),
                       t('info.bulkDeleteStations.body', { count: ids.length }),
@@ -4202,6 +4320,8 @@ export default function App() {
                 config={config}
                 violations={violations}
                 notes={infoNotes}
+                overallCoveragePercent={overallCoveragePercent}
+                hasScheduleData={Object.keys(schedule).length > 0}
                 onExportPDF={handleExportPDF}
                 onExportCSV={exportScheduleCSV}
               />
@@ -4286,6 +4406,9 @@ export default function App() {
         // so the modal opens with the same plumbing regardless of where
         // the user came from.
         onManageLeaves={editingEmployee ? () => setLeaveEditFor(editingEmployee) : undefined}
+        // v5.27.0 — reject a duplicate empId (would silently overwrite an
+        // existing employee). Exclude the record being edited.
+        existingIds={employees.filter(e => e.empId !== editingEmployee?.empId).map(e => e.empId)}
       />
 
       {/* v5.5.0 — LeaveManagerModal hoisted to App.tsx so it's reachable
@@ -4312,6 +4435,7 @@ export default function App() {
         station={selectedStation}
         availableRoles={rosterRoles}
         onSuggestFromHistory={handleSuggestStationDemandFromHistory}
+        existingIds={stations.filter(s => s.id !== selectedStation?.id).map(s => s.id)}
       />
 
       {/* v5.18.0 — Plan-Everything wizard. Tied to the schedule toolbar's
@@ -4361,6 +4485,7 @@ export default function App() {
         onSave={handleSaveShift}
         shift={editingShift}
         config={config}
+        existingIds={shifts.filter(s => s.code !== editingShift?.code).map(s => s.code)}
       />
 
       <ConfirmModal

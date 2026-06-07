@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation, Station } from '../types';
 import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './payroll';
+import { en } from './i18n/en';
 
 // v5.22.1 — jspdf-autotable mutates the jsPDF document with a `lastAutoTable`
 // property after every table render, but the type defs don't expose it. The
@@ -12,10 +13,16 @@ import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './pa
 const getLastTableY = (doc: jsPDF): number =>
   (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
-// jsPDF cannot render right-to-left Arabic glyphs without a custom font, so the
-// PDF is always generated in English (matching the convention used by Iraqi
-// regulators who accept English-language submissions). The `t` translator is
-// passed in so the *labels* track the user's locale where rendering allows.
+// jsPDF cannot render right-to-left Arabic glyphs without an embedded custom
+// font — Arabic text comes out as blank "tofu" boxes. So the PDF is ALWAYS
+// generated with English labels (matching the convention used by Iraqi
+// regulators, who accept English-language submissions). v5.27.0: previously
+// the caller's active-locale translator was passed through, which meant an
+// Arabic-locale user got an unreadable all-tofu report. We now resolve every
+// label from the English dictionary regardless of the UI locale. The trailing
+// param is retained for back-compat (and ignored). Note: employee *names* are
+// data, not labels — Arabic names still won't render, so the export caller
+// warns the user when any name contains Arabic.
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 
 export const generatePDFReport = (
@@ -25,8 +32,15 @@ export const generatePDFReport = (
   config: Config,
   violations: Violation[],
   stations: Station[],
-  t: Translator = (k) => k,
+  _localeT: Translator = (k) => k,
 ) => {
+  void _localeT; // PDF is always English — see header comment.
+  // English-only translator: resolve from the `en` dict with {var} interpolation.
+  const t: Translator = (key, vars) => {
+    let s: string = en[key] ?? key;
+    if (vars) for (const k of Object.keys(vars)) s = s.split(`{${k}}`).join(String(vars[k]));
+    return s;
+  };
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
