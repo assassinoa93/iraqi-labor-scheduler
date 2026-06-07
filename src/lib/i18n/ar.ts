@@ -89,6 +89,11 @@ export const ar: Dict = {
   'roster.contract.expired': 'انتهى قبل {n} يوم',
   'roster.contract.expiring': 'ينتهي بعد {n} يوم',
   'roster.contract.probation': 'تحت التجربة',
+  // v5.28 — تسميات الوصول التي كانت إنجليزية ثابتة
+  'a11y.selectAll': 'تحديد الكل',
+  'a11y.selectRow': 'تحديد {name}',
+  'a11y.changeGroupIcon': 'تغيير أيقونة المجموعة',
+  'a11y.holidayMarker': 'عطلة رسمية',
   'roster.unassigned': 'غير معين',
   'roster.editEmployee': 'تعديل {name}',
   'roster.deleteEmployee': 'حذف {name}',

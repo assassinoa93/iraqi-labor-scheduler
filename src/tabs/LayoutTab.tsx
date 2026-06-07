@@ -993,6 +993,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
 function GroupIconButton({
   icon, color, onPick,
 }: { icon: string | undefined; color: string; onPick: (name: string) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const Icon = getGroupIcon(icon);
@@ -1015,8 +1016,8 @@ function GroupIconButton({
     <div ref={wrapRef} className="relative shrink-0">
       <button
         onClick={() => setOpen(o => !o)}
-        title="Change icon"
-        aria-label="Change group icon"
+        title={t('a11y.changeGroupIcon')}
+        aria-label={t('a11y.changeGroupIcon')}
         className="w-7 h-7 rounded-lg flex items-center justify-center text-white hover:opacity-90 transition-opacity"
         style={{ backgroundColor: color }}
       >

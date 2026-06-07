@@ -1302,7 +1302,7 @@ export function ScheduleTab({
                     style={{ width: dayCellWidth, minWidth: dayCellWidth }}
                   >
                     {isHoli && (
-                      <span className="absolute top-1 start-1 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Holiday" />
+                      <span className="absolute top-1 start-1 w-1.5 h-1.5 rounded-full bg-red-500" aria-label={t('a11y.holidayMarker')} />
                     )}
                     {isToday && (
                       <span className="absolute -top-0.5 right-0.5 text-[7px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-tighter">●</span>

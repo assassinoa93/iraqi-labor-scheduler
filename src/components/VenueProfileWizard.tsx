@@ -317,7 +317,7 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                 onClick={back}
                 className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5"
               >
-                <ChevronLeft className="w-3 h-3" />
+                <ChevronLeft className="w-3 h-3 rtl-flip" />
                 {t('wizard.venueProfile.back')}
               </button>
             )}
@@ -327,7 +327,7 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm transition-all flex items-center gap-1.5"
               >
                 {t('wizard.venueProfile.next')}
-                <ChevronRight className="w-3 h-3" />
+                <ChevronRight className="w-3 h-3 rtl-flip" />
               </button>
             ) : (
               <button

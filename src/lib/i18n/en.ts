@@ -92,6 +92,11 @@ export const en: Dict = {
   'roster.contract.expired': 'Expired {n}d ago',
   'roster.contract.expiring': 'Ends in {n}d',
   'roster.contract.probation': 'In probation',
+  // v5.28 — accessibility labels that were hardcoded English
+  'a11y.selectAll': 'Select all',
+  'a11y.selectRow': 'Select {name}',
+  'a11y.changeGroupIcon': 'Change group icon',
+  'a11y.holidayMarker': 'Public holiday',
   'roster.unassigned': 'Unassigned',
   'roster.editEmployee': 'Edit {name}',
   'roster.deleteEmployee': 'Delete {name}',

@@ -255,7 +255,7 @@ export function RosterTab({
               <th className="px-4 py-3 text-center">
                 <input
                   type="checkbox"
-                  aria-label="Select all"
+                  aria-label={t('a11y.selectAll')}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedEmployees(new Set(visible.map(emp => emp.empId)));
@@ -301,7 +301,7 @@ export function RosterTab({
                 <td className="px-4 py-4 text-center">
                   <input
                     type="checkbox"
-                    aria-label={`Select ${emp.name}`}
+                    aria-label={t('a11y.selectRow', { name: emp.name })}
                     checked={selectedEmployees.has(emp.empId)}
                     onChange={() => toggleEmployeeSelection(emp.empId)}
                   />

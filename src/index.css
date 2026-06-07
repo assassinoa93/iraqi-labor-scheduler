@@ -770,3 +770,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* v5.28 — RTL-aware directional arrows. A "next →" / "back ←" nav arrow points
+   the wrong way in Arabic. Add `rtl-flip` to a *directional* icon (NOT to
+   expand/collapse chevrons) and it mirrors horizontally under RTL. Scoped to
+   [dir="rtl"] so LTR is untouched. */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
