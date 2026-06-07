@@ -154,13 +154,18 @@ export function AuditLogTab() {
       // CSV-escape the summary
       `"${e.summary.replace(/"/g, '""')}"`,
     ]);
-    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    // v5.27 — prepend a UTF-8 BOM and use CRLF line endings so Excel opens
+    // Arabic summaries/labels correctly instead of as mojibake; revoke the
+    // object URL to avoid leaking it. (Mirrors the Payroll exporter.)
+    const BOM = String.fromCharCode(0xFEFF);
+    const csv = BOM + [header.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `Audit_Log_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Group by day for nicer reading

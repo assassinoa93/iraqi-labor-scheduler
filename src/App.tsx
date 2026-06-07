@@ -883,7 +883,12 @@ export default function App() {
   // most recent draft edits. sendBeacon guarantees the request makes it
   // out the door even after unload returns; perfect fit for "OS clicked
   // the X button" mid-paint.
-  const saveBodyRef = React.useRef<string | null>(null);
+  // v5.27 — hold the latest save BODY OBJECT (cheap, shallow refs to the
+  // domain maps), not a pre-serialized string. JSON.stringify of the whole
+  // multi-company dataset now happens only when we actually save (debounced
+  // timeout / forceSaveNow / beforeunload) instead of on every cell paint —
+  // a 31-day drag previously serialized the entire dataset 31 times.
+  const saveBodyObjRef = React.useRef<Record<string, unknown> | null>(null);
   const forceSaveNowRef = React.useRef<() => Promise<void>>(async () => {});
   // v5.11.0 — track the timestamp of the most recent schedule edit so
   // the Online-mode beforeunload warning can decide whether the user
@@ -927,19 +932,20 @@ export default function App() {
       allSchedules: allSchedulesByCo,
       leaveRequests: leaveRequestsByCo,
     };
-    const serialized = JSON.stringify(body);
-    saveBodyRef.current = serialized;
+    // Store the latest body object (cheap). Serialization is deferred to the
+    // actual save sites below so rapid edits don't each pay a full stringify.
+    saveBodyObjRef.current = body;
     // forceSaveNow flushes the latest body via fetch (so callers can
     // await + show success). The Save Draft button uses this; the
     // beforeunload path uses sendBeacon for the synchronous guarantee.
     forceSaveNowRef.current = async () => {
-      if (!saveBodyRef.current) return;
+      if (!saveBodyObjRef.current) return;
       setSaveState('saving');
       try {
         await fetch('/api/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: saveBodyRef.current,
+          body: JSON.stringify(saveBodyObjRef.current),
         });
         setSaveState('saved');
         setLastSavedAt(Date.now());
@@ -962,7 +968,7 @@ export default function App() {
       fetch('/api/save' + (skipAudit ? '?skipAudit=1' : ''), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: serialized,
+        body: JSON.stringify(saveBodyObjRef.current),
       })
         .then(() => {
           setSaveState('saved');
@@ -1021,9 +1027,9 @@ export default function App() {
     // Offline mode: send the latest body via sendBeacon (synchronously
     // queued, browser-guaranteed delivery even after unload).
     const onBeforeUnload = () => {
-      if (!saveBodyRef.current) return;
+      if (!saveBodyObjRef.current) return;
       try {
-        const blob = new Blob([saveBodyRef.current], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(saveBodyObjRef.current)], { type: 'application/json' });
         navigator.sendBeacon('/api/save', blob);
       } catch {
         // sendBeacon throws on size limits (~64KB-1MB depending on
@@ -2196,13 +2202,16 @@ export default function App() {
       }
       return cells.join(',');
     });
-    const csvContent = [headers.map(csvCell).join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // v5.27 — UTF-8 BOM + CRLF + charset so Excel renders Arabic employee
+    // names correctly (was mojibake); revoke the object URL after click.
+    const csvContent = String.fromCharCode(0xFEFF) + [headers.map(csvCell).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `Schedule_Export_${config.year}_${config.month}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const downloadRosterTemplate = () => {
