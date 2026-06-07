@@ -7,6 +7,12 @@ export interface Employee {
   role: string;
   department: string;
   contractType: string;
+  // v5.27 — optional fixed-term contract end date (YYYY-MM-DD). Empty / absent
+  // means open-ended (Permanent). Drives the Roster expiry chip + the Dashboard
+  // "contracts expiring" card so the workforce planner's "let fixed-term
+  // contracts expire (Art. 36)" advice has concrete dates to act on. Reporting
+  // only — never blocks scheduling.
+  contractEndDate?: string;
   contractedWeeklyHrs: number;
   shiftEligibility: string;
   isHazardous: boolean;

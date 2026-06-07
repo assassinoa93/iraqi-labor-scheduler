@@ -51,6 +51,11 @@ export function normalizeEmployee(raw: Partial<Employee> & Record<string, unknow
     role: String(raw.role ?? ''),
     department: String(raw.department ?? ''),
     contractType: String(raw.contractType ?? 'Permanent'),
+    // v5.27 — optional fixed-term end date. Pass through a valid YYYY-MM-DD;
+    // anything else (absent/blank/malformed) becomes undefined = open-ended.
+    contractEndDate: typeof raw.contractEndDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.contractEndDate)
+      ? raw.contractEndDate
+      : undefined,
     contractedWeeklyHrs: Number(raw.contractedWeeklyHrs ?? 48),
     shiftEligibility: String(raw.shiftEligibility ?? 'All'),
     isHazardous: !!raw.isHazardous,

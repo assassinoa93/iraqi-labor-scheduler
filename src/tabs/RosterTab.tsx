@@ -81,6 +81,18 @@ export function RosterTab({
     return best ? { kind: 'soon', type: best.type, days: best.days } : null;
   };
 
+  // v5.27 — fixed-term contract expiry heads-up. contractType is otherwise
+  // cosmetic; this gives the "let fixed-term contracts expire" planning advice
+  // concrete, actionable dates. Reporting only.
+  const contractExpiry = (emp: Employee): { kind: 'expired' | 'soon'; days: number } | null => {
+    if (!emp.contractEndDate) return null;
+    const d = differenceInCalendarDays(new Date(emp.contractEndDate + 'T00:00:00'), new Date(todayStr + 'T00:00:00'));
+    if (Number.isNaN(d)) return null;
+    if (d < 0) return { kind: 'expired', days: -d };
+    if (d <= 60) return { kind: 'soon', days: d };
+    return null;
+  };
+
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -310,7 +322,22 @@ export function RosterTab({
                       );
                     })()}
                   </div>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-tighter mt-0.5">{emp.contractType}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-tighter">{emp.contractType}</p>
+                    {(() => {
+                      const ce = contractExpiry(emp);
+                      if (!ce) return null;
+                      return ce.kind === 'expired' ? (
+                        <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-200 text-[8px] font-black uppercase tracking-widest border border-rose-200 dark:border-rose-500/40">
+                          {t('roster.contract.expired', { n: fmt.num(ce.days) })}
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-200 text-[8px] font-black uppercase tracking-widest border border-amber-200 dark:border-amber-500/40">
+                          {t('roster.contract.expiring', { n: fmt.num(ce.days) })}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">

@@ -88,6 +88,9 @@ export const en: Dict = {
   // v5.27 — per-row leave visibility
   'roster.leave.onToday': 'On {type} leave',
   'roster.leave.upcoming': '{type} in {n}d',
+  // v5.27 — fixed-term contract expiry chips
+  'roster.contract.expired': 'Expired {n}d ago',
+  'roster.contract.expiring': 'Ends in {n}d',
   'roster.unassigned': 'Unassigned',
   'roster.editEmployee': 'Edit {name}',
   'roster.deleteEmployee': 'Delete {name}',
@@ -101,6 +104,7 @@ export const en: Dict = {
   'modal.employee.field.role': 'Job Role',
   'modal.employee.field.department': 'Department',
   'modal.employee.field.contract': 'Contract Type',
+  'modal.employee.field.contractEnd': 'Contract End (optional)',
   'modal.employee.field.weeklyHours': 'Weekly Hours',
   'modal.employee.field.phone': 'Phone Contact',
   'modal.employee.field.hireDate': 'Hire Date',
@@ -638,6 +642,7 @@ export const en: Dict = {
   // v5.27 — time-off-this-week card
   'dashboard.offThisWeek.title': 'Time Off — Next 7 Days',
   'dashboard.offThisWeek.empty': 'No one is on leave in the next 7 days.',
+  'dashboard.contractsExpiring.title': 'Contracts Expiring (Next 60 Days)',
   'dashboard.noViolations': 'No compliance issues detected in active schedule.',
   'dashboard.noViolations.hint': 'Every employee × day combination passes daily, rest-between-shifts, and weekly-rest checks.',
   'dashboard.noScheduleYet': 'No schedule for this month yet',

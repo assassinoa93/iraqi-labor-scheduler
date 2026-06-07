@@ -85,6 +85,9 @@ export const ar: Dict = {
   // v5.27 — إظهار الإجازة لكل صف
   'roster.leave.onToday': 'في إجازة {type}',
   'roster.leave.upcoming': '{type} بعد {n} يوم',
+  // v5.27 — شارات انتهاء العقد محدد المدة
+  'roster.contract.expired': 'انتهى قبل {n} يوم',
+  'roster.contract.expiring': 'ينتهي بعد {n} يوم',
   'roster.unassigned': 'غير معين',
   'roster.editEmployee': 'تعديل {name}',
   'roster.deleteEmployee': 'حذف {name}',
@@ -98,6 +101,7 @@ export const ar: Dict = {
   'modal.employee.field.role': 'الدور الوظيفي',
   'modal.employee.field.department': 'القسم',
   'modal.employee.field.contract': 'نوع العقد',
+  'modal.employee.field.contractEnd': 'انتهاء العقد (اختياري)',
   'modal.employee.field.weeklyHours': 'الساعات الأسبوعية',
   'modal.employee.field.phone': 'رقم الهاتف',
   'modal.employee.field.hireDate': 'تاريخ التعيين',
@@ -612,6 +616,7 @@ export const ar: Dict = {
   // v5.27 — بطاقة الإجازات خلال الأسبوع
   'dashboard.offThisWeek.title': 'الإجازات — خلال 7 أيام',
   'dashboard.offThisWeek.empty': 'لا أحد في إجازة خلال الأيام السبعة القادمة.',
+  'dashboard.contractsExpiring.title': 'عقود تنتهي (خلال 60 يومًا)',
   'dashboard.noViolations': 'لا توجد مشاكل امتثال في الجدول الفعّال.',
   'dashboard.noViolations.hint': 'كل تركيبة موظف × يوم تجتاز فحوصات الحد اليومي والراحة بين المناوبات والراحة الأسبوعية.',
   'dashboard.noScheduleYet': 'لا يوجد جدول لهذا الشهر بعد',

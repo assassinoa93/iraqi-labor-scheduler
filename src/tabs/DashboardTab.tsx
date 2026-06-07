@@ -5,7 +5,7 @@ import {
   ShieldAlert, Clock, ShieldCheck, AlertCircle, TrendingUp,
   Briefcase, Plus, CalendarOff,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station, LeaveType } from '../types';
 import { Card, KpiCard, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
@@ -118,6 +118,21 @@ export function DashboardTab(props: DashboardTabProps) {
       if (people.length) out.push({ dateStr, label: format(d, 'EEE MMM d'), people });
     }
     return out;
+  }, [employees]);
+
+  // v5.27 — fixed-term contracts expiring within 60 days (or already expired),
+  // soonest first. Gives the "let fixed-term contracts expire (Art. 36)"
+  // planning advice concrete dates to act on. Reporting only.
+  const contractsExpiring = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const out: Array<{ name: string; dateStr: string; days: number; expired: boolean }> = [];
+    for (const e of employees) {
+      if (!e.contractEndDate) continue;
+      const d = differenceInCalendarDays(new Date(e.contractEndDate + 'T00:00:00'), new Date(todayStr + 'T00:00:00'));
+      if (Number.isNaN(d)) continue;
+      if (d <= 60) out.push({ name: e.name, dateStr: e.contractEndDate, days: Math.abs(d), expired: d < 0 });
+    }
+    return out.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
   }, [employees]);
 
   // v5.25 — shared canonical count + score (lib/findings.ts), identical to
@@ -606,6 +621,36 @@ export function DashboardTab(props: DashboardTabProps) {
               ))}
             </div>
           )}
+        </Card>
+      )}
+
+      {/* v5.27 — fixed-term contracts expiring soon (or already expired). Only
+          rendered when there's at least one, to avoid empty clutter. */}
+      {contractsExpiring.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Briefcase className="w-4 h-4 text-rose-600 dark:text-rose-300" />
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('dashboard.contractsExpiring.title')}</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {contractsExpiring.map((c, i) => (
+              <span
+                key={`${c.name}-${i}`}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border',
+                  c.expired
+                    ? 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-200 border-rose-100 dark:border-rose-500/30'
+                    : 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 border-amber-100 dark:border-amber-500/30',
+                )}
+                title={c.dateStr}
+              >
+                {c.name}
+                <span className="uppercase tracking-wider text-[8px] opacity-80">
+                  {c.expired ? t('roster.contract.expired', { n: fmt.num(c.days) }) : t('roster.contract.expiring', { n: fmt.num(c.days) })}
+                </span>
+              </span>
+            ))}
+          </div>
         </Card>
       )}
 
