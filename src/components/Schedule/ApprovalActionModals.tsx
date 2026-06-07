@@ -50,13 +50,15 @@ function ModalShell({ isOpen, onClose, title, subtitle, Icon, iconTone, children
   if (!isOpen) return null;
   const tone = ICON_TONES[iconTone];
   return (
+    // v5.27 — sticky backdrop: these approval modals carry mandatory free-text
+    // (lock/send-back/reopen reasons), so a stray backdrop click must NOT
+    // discard them. Esc (useModalKeys) + the X / Cancel buttons are the only
+    // dismissal paths, matching the data-entry modal convention.
     <div
-      onClick={onClose}
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md"
       role="dialog" aria-modal="true" aria-label={title}
     >
       <motion.div
-        onClick={(e) => e.stopPropagation()}
         initial={{ scale: 0.95, opacity: 0, y: 8 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
