@@ -18,15 +18,26 @@ interface Props {
   stationsCount: number;
   employeesCount: number;
   shiftsCount: number;
+  // v5.27 — Step 4 ("generate a schedule") is now a real, completable step
+  // driven by whether the active month has any assignments. Previously it was
+  // hardcoded incomplete AND the card self-dismissed the instant stations +
+  // employees + shifts existed — i.e. exactly when the "now build a schedule"
+  // nudge became relevant. This also lets us retire the parallel amber setup
+  // card the Dashboard rendered alongside it.
+  hasScheduleEntries: boolean;
   onGoToLayout: () => void;
   onGoToRoster: () => void;
   onGoToShifts: () => void;
   onGoToSchedule: () => void;
+  // v5.27 — when provided, Step 4's CTA opens the Plan-Everything wizard
+  // directly instead of just dropping the user on the Schedule tab to hunt
+  // for the button.
+  onOpenPlanWizard?: () => void;
 }
 
 export function SetupChecklist({
-  stationsCount, employeesCount, shiftsCount,
-  onGoToLayout, onGoToRoster, onGoToShifts, onGoToSchedule,
+  stationsCount, employeesCount, shiftsCount, hasScheduleEntries,
+  onGoToLayout, onGoToRoster, onGoToShifts, onGoToSchedule, onOpenPlanWizard,
 }: Props) {
   const { t } = useI18n();
   const [dismissed, setDismissed] = useState<boolean>(() => {
@@ -41,7 +52,9 @@ export function SetupChecklist({
   const stationsDone = stationsCount > 0;
   const employeesDone = employeesCount > 0;
   const shiftsDone = shiftsCount > 0;
-  const allDone = stationsDone && employeesDone && shiftsDone;
+  // v5.27 — "all done" now includes a built schedule, so the card stays
+  // through the final step instead of vanishing right before it.
+  const allDone = stationsDone && employeesDone && shiftsDone && hasScheduleEntries;
 
   useEffect(() => {
     if (allDone) setDismissed(true);
@@ -140,11 +153,11 @@ export function SetupChecklist({
         />
         <Step
           badge={t('setup.checklist.step4.badge')}
-          done={false}
+          done={hasScheduleEntries}
           label={t('setup.checklist.step4.label')}
           hint={t('setup.checklist.step4.hint')}
-          cta={t('setup.checklist.step4.cta')}
-          onClick={onGoToSchedule}
+          cta={onOpenPlanWizard ? t('setup.checklist.step4.ctaWizard') : t('setup.checklist.step4.cta')}
+          onClick={onOpenPlanWizard ?? onGoToSchedule}
         />
       </div>
     </div>

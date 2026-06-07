@@ -4013,6 +4013,7 @@ export default function App() {
                   onGoToLayout={() => setActiveTab('layout')}
                   onGoToShifts={() => setActiveTab('shifts')}
                   onGoToSchedule={() => setActiveTab('schedule')}
+                  onOpenPlanWizard={() => setIsPlanWizardOpen(true)}
                   onLoadSample={loadSampleData}
                   activeCompanyId={activeCompanyId}
                 />

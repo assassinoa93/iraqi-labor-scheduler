@@ -320,6 +320,7 @@ export const en: Dict = {
   'setup.checklist.step4.label': 'Run the Plan-Everything wizard',
   'setup.checklist.step4.hint': 'Validates your setup, runs the auto-scheduler, and gives you a recap. Repeat any time the inputs change.',
   'setup.checklist.step4.cta': 'Open Schedule',
+  'setup.checklist.step4.ctaWizard': 'Plan Everything',
 
   // Variables tab
   'variables.title': 'Legal Variables & Compliance Caps',

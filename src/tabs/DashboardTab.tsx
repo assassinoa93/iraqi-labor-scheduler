@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Database, BarChart3, X,
   ShieldAlert, Clock, ShieldCheck, AlertCircle, TrendingUp,
-  Briefcase, Plus, CheckCircle2, Circle, CalendarOff,
+  Briefcase, Plus, CalendarOff,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station, LeaveType } from '../types';
@@ -55,6 +55,9 @@ interface DashboardTabProps {
   onGoToLayout: () => void;
   onGoToShifts: () => void;
   onGoToSchedule: () => void;
+  // v5.27 — opens the Plan-Everything wizard from the setup checklist's
+  // final step, so first-run users reach it without hunting the toolbar.
+  onOpenPlanWizard: () => void;
   onLoadSample: () => void;
   // Identifies which company we're recording the compliance trend for. The
   // trend card persists per-company snapshots in localStorage so switching
@@ -75,7 +78,7 @@ export function DashboardTab(props: DashboardTabProps) {
     peakStabilityPercent, overallCoveragePercent,
     isStatsModalOpen, setIsStatsModalOpen,
     prevMonth, nextMonth, setActiveMonth, onGoToRoster, onLoadSample,
-    onGoToLayout, onGoToShifts, onGoToSchedule,
+    onGoToLayout, onGoToShifts, onGoToSchedule, onOpenPlanWizard,
     activeCompanyId, isPeakDay,
   } = props;
   const { t, fmt } = useI18n();
@@ -228,13 +231,6 @@ export function DashboardTab(props: DashboardTabProps) {
   );
   const hasScheduleEntries = Object.values(schedule).some(empSched => empSched && Object.keys(empSched).length > 0);
   const setupComplete = hasRoster && hasStations && hasShifts && hasEligibility && hasScheduleEntries;
-  const setupChecklist: Array<{ key: string; ok: boolean; labelKey: string }> = [
-    { key: 'roster', ok: hasRoster, labelKey: 'dashboard.setup.needRoster' },
-    { key: 'stations', ok: hasStations, labelKey: 'dashboard.setup.needStations' },
-    { key: 'shifts', ok: hasShifts, labelKey: 'dashboard.setup.needShifts' },
-    { key: 'elig', ok: hasEligibility, labelKey: 'dashboard.setup.needEligibility' },
-    { key: 'schedule', ok: hasScheduleEntries, labelKey: 'dashboard.setup.needSchedule' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -265,10 +261,12 @@ export function DashboardTab(props: DashboardTabProps) {
         stationsCount={stations.length}
         employeesCount={employees.length}
         shiftsCount={shifts.filter(s => s.isWork).length}
+        hasScheduleEntries={hasScheduleEntries}
         onGoToLayout={onGoToLayout}
         onGoToRoster={onGoToRoster}
         onGoToShifts={onGoToShifts}
         onGoToSchedule={onGoToSchedule}
+        onOpenPlanWizard={onOpenPlanWizard}
       />
 
       <AnimatePresence>
@@ -346,33 +344,9 @@ export function DashboardTab(props: DashboardTabProps) {
         )}
       </AnimatePresence>
 
-      {!setupComplete && employees.length > 0 && (
-        <Card className="p-6 border-amber-200 dark:border-amber-500/40 bg-amber-50/40 dark:bg-amber-500/10">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-500/25 rounded-xl flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-6 h-6 text-amber-700 dark:text-amber-200" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t('dashboard.setup.title')}</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mt-1">{t('dashboard.setup.body')}</p>
-              <div className="mt-4 space-y-1.5">
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('dashboard.setup.checklist')}</p>
-                {setupChecklist.map(item => (
-                  <div key={item.key} className="flex items-center gap-2">
-                    {item.ok
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300 shrink-0" />
-                      : <Circle className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />}
-                    <p className={cn(
-                      "text-xs leading-relaxed",
-                      item.ok ? "text-slate-400 dark:text-slate-500 line-through" : "text-slate-700 dark:text-slate-200 font-medium",
-                    )}>{t(item.labelKey)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
+      {/* v5.27 — the parallel amber "setup" card was removed here: the
+          SetupChecklist above is now the single onboarding surface (it covers
+          the same signals and stays through schedule generation). */}
 
       {setupComplete && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

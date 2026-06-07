@@ -313,6 +313,7 @@ export const ar: Dict = {
   'setup.checklist.step4.label': 'شغّل معالج "خطط كل شيء"',
   'setup.checklist.step4.hint': 'يتحقق من الإعداد، يشغّل الجدولة التلقائية، ويعطيك ملخصاً. كرّر العملية عند تغيّر أي إدخال.',
   'setup.checklist.step4.cta': 'فتح الجدول',
+  'setup.checklist.step4.ctaWizard': 'خطّط كل شيء',
 
   // Variables tab
   'variables.title': 'المتغيرات القانونية وحدود الامتثال',
