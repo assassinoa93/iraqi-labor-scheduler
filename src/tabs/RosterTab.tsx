@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit, CalendarOff } from 'lucide-react';
 import { Employee, LeaveRequest, LeaveType, Station, StationGroup } from '../types';
@@ -136,6 +136,20 @@ export function RosterTab({
     }
     return list;
   }, [employees, searchTerm, roleFilter, sortKey, sortDir]);
+
+  // v5.32 — paginate large rosters so a 200+ roster renders one page (50) at a
+  // time instead of every row. Select-all still operates over the FULL filtered
+  // set (`visible`), not just the current page, so bulk actions are predictable.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  // Snap back to the first page whenever the filtered set changes shape.
+  useEffect(() => { setPage(0); }, [searchTerm, roleFilter, sortKey, sortDir, employees.length]);
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const paginated = visible.length > PAGE_SIZE;
+  const paged = paginated ? visible.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE) : visible;
+  const pageFrom = visible.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
+  const pageTo = Math.min(visible.length, safePage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -296,7 +310,7 @@ export function RosterTab({
                 </td>
               </tr>
             )}
-            {visible.map((emp) => (
+            {paged.map((emp) => (
               <tr key={emp.empId} className={cn("hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group", selectedEmployees.has(emp.empId) && "bg-blue-50/30 dark:bg-blue-500/10")}>
                 <td className="px-4 py-4 text-center">
                   <input
@@ -416,6 +430,33 @@ export function RosterTab({
             ))}
           </tbody>
         </table>
+        {/* v5.32 — pager, shown only when the filtered roster exceeds one page. */}
+        {paginated && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/40">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+              {t('roster.pager.range', { from: fmt.num(pageFrom), to: fmt.num(pageTo), total: fmt.num(visible.length) })}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="apple-press px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t('roster.pager.prev')}
+              </button>
+              <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+                {t('roster.pager.page', { page: fmt.num(safePage + 1), pages: fmt.num(pageCount) })}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                disabled={safePage >= pageCount - 1}
+                className="apple-press px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t('roster.pager.next')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

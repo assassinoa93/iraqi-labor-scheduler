@@ -103,6 +103,11 @@ export const en: Dict = {
   'roster.contract.expired': 'Expired {n}d ago',
   'roster.contract.expiring': 'Ends in {n}d',
   'roster.contract.probation': 'In probation',
+  // v5.32 — roster pagination
+  'roster.pager.range': '{from}–{to} of {total}',
+  'roster.pager.prev': 'Prev',
+  'roster.pager.next': 'Next',
+  'roster.pager.page': 'Page {page} / {pages}',
   // v5.28 — accessibility labels that were hardcoded English
   'a11y.selectAll': 'Select all',
   'a11y.selectRow': 'Select {name}',

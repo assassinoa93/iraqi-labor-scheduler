@@ -100,6 +100,11 @@ export const ar: Dict = {
   'roster.contract.expired': 'انتهى قبل {n} يوم',
   'roster.contract.expiring': 'ينتهي بعد {n} يوم',
   'roster.contract.probation': 'تحت التجربة',
+  // v5.32 — ترقيم صفحات القائمة
+  'roster.pager.range': '{from}–{to} من {total}',
+  'roster.pager.prev': 'السابق',
+  'roster.pager.next': 'التالي',
+  'roster.pager.page': 'صفحة {page} / {pages}',
   // v5.28 — تسميات الوصول التي كانت إنجليزية ثابتة
   'a11y.selectAll': 'تحديد الكل',
   'a11y.selectRow': 'تحديد {name}',
