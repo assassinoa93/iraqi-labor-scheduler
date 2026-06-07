@@ -56,6 +56,9 @@ export const RULE_KEYS = {
   WORKED_DURING_SICK_LEAVE: 'workedDuringSickLeave',
   WORKED_DURING_ANNUAL_LEAVE: 'workedDuringAnnualLeave',
   WOMENS_NIGHT_WORK_INDUSTRIAL: 'womensNightWorkIndustrial',
+  // v5.27 — Art. 69 intra-shift rest break (non-driver). Drivers are covered by
+  // the stricter Art. 88 continuous-driving rule.
+  BREAK_REQUIRED_LONG_SHIFT: 'breakRequiredLongShift',
 } as const;
 
 export type RuleKey = (typeof RULE_KEYS)[keyof typeof RULE_KEYS];
@@ -75,6 +78,7 @@ export const DEFAULT_FINE_RATES: Record<string, number> = {
   [RULE_KEYS.WORKED_DURING_SICK_LEAVE]: 500_000,
   [RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE]: 250_000,
   [RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL]: 1_000_000,
+  [RULE_KEYS.BREAK_REQUIRED_LONG_SHIFT]: 250_000,
 };
 
 // Article citation per rule key — used by the Variables tab to label
@@ -91,6 +95,7 @@ export const RULE_ARTICLES: Record<string, string> = {
   [RULE_KEYS.WORKED_DURING_SICK_LEAVE]: 'Art. 84',
   [RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE]: 'Annual Leave',
   [RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL]: 'Art. 86',
+  [RULE_KEYS.BREAK_REQUIRED_LONG_SHIFT]: 'Art. 69',
 };
 
 // Display label key per rule key — UI translates via i18n. Falls back
@@ -106,6 +111,7 @@ export const RULE_LABEL_I18N_KEYS: Record<string, string> = {
   [RULE_KEYS.WORKED_DURING_SICK_LEAVE]: 'fines.rule.workedDuringSickLeave',
   [RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE]: 'fines.rule.workedDuringAnnualLeave',
   [RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL]: 'fines.rule.womensNightWorkIndustrial',
+  [RULE_KEYS.BREAK_REQUIRED_LONG_SHIFT]: 'fines.rule.breakRequiredLongShift',
 };
 
 // Legacy fallback: if a Violation predates v5.17 and lacks a `ruleKey`,
@@ -126,6 +132,7 @@ const RULE_NAME_TO_KEY: Record<string, RuleKey> = {
   'Worked during sick leave': RULE_KEYS.WORKED_DURING_SICK_LEAVE,
   'Worked during annual leave': RULE_KEYS.WORKED_DURING_ANNUAL_LEAVE,
   "Women's night work in industrial undertakings": RULE_KEYS.WOMENS_NIGHT_WORK_INDUSTRIAL,
+  'Rest break required (long shift)': RULE_KEYS.BREAK_REQUIRED_LONG_SHIFT,
 };
 
 function deriveRuleKey(v: Violation): string | null {

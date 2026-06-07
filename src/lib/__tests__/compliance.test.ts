@@ -65,6 +65,55 @@ const buildSchedule = (assignments: Record<number, string>): Schedule => ({
   'EMP-1': Object.fromEntries(Object.entries(assignments).map(([d, code]) => [d, { shiftCode: code }])),
 });
 
+// v5.27 — Art. 69 intra-shift rest break + Art. 71 annual-leave minimum.
+const NOBREAK: Shift = { code: 'NB', name: 'No break', start: '09:00', end: '17:00', durationHrs: 8, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: true, description: '' };
+const SHORT: Shift = { code: 'SH', name: 'Short', start: '09:00', end: '13:00', durationHrs: 4, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: true, description: '' };
+
+describe('ComplianceEngine — Art. 69 intra-shift break', () => {
+  it('flags a >5h non-driver shift with under 30min break', () => {
+    const sched = buildSchedule({ 1: 'NB', 2: 'OFF' });
+    const v = ComplianceEngine.check([baseEmployee], [NOBREAK, OFF], [], baseConfig, sched);
+    const f = v.find(x => x.rule === 'Rest break required (long shift)');
+    expect(f).toBeDefined();
+    expect(f?.article).toBe('(Art. 69)');
+  });
+
+  it('does not flag when the break is at least 30min', () => {
+    const sched = buildSchedule({ 1: 'FS', 2: 'OFF' }); // FS = 8h, 30min break
+    const v = ComplianceEngine.check([baseEmployee], [FS, OFF], [], baseConfig, sched);
+    expect(v.find(x => x.rule === 'Rest break required (long shift)')).toBeUndefined();
+  });
+
+  it('does not flag a short (<=5h) shift even with no break', () => {
+    const sched = buildSchedule({ 1: 'SH', 2: 'OFF' });
+    const v = ComplianceEngine.check([baseEmployee], [SHORT, OFF], [], baseConfig, sched);
+    expect(v.find(x => x.rule === 'Rest break required (long shift)')).toBeUndefined();
+  });
+
+  it('does not double-flag a driver (covered by Art. 88 instead)', () => {
+    const driver = { ...baseEmployee, category: 'Driver' as const };
+    const sched = buildSchedule({ 1: 'NB', 2: 'OFF' });
+    const v = ComplianceEngine.check([driver], [NOBREAK, OFF], [], baseConfig, sched);
+    expect(v.find(x => x.rule === 'Rest break required (long shift)')).toBeUndefined();
+  });
+});
+
+describe('ComplianceEngine — Art. 71 annual-leave minimum', () => {
+  it('emits an info finding when entitlement is below 21 days', () => {
+    const emp = { ...baseEmployee, annualLeaveBalance: 10 };
+    const v = ComplianceEngine.check([emp], [FS, OFF], [], baseConfig, buildSchedule({ 1: 'OFF' }));
+    const f = v.find(x => x.rule === 'Annual leave below statutory minimum');
+    expect(f).toBeDefined();
+    expect(f?.severity).toBe('info');
+    expect(f?.article).toBe('(Art. 71)');
+  });
+
+  it('does not fire when entitlement meets the 21-day minimum', () => {
+    const v = ComplianceEngine.check([baseEmployee], [FS, OFF], [], baseConfig, buildSchedule({ 1: 'OFF' }));
+    expect(v.find(x => x.rule === 'Annual leave below statutory minimum')).toBeUndefined();
+  });
+});
+
 describe('ComplianceEngine — daily hours cap', () => {
   it('passes a normal 8h shift', () => {
     const sched = buildSchedule({ 1: 'FS', 2: 'OFF' });

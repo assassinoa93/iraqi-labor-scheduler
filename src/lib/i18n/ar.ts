@@ -1940,11 +1940,13 @@ export const ar: Dict = {
   'fines.rule.workedDuringSickLeave': 'العمل خلال الإجازة المرضية',
   'fines.rule.workedDuringAnnualLeave': 'العمل خلال الإجازة السنوية',
   'fines.rule.womensNightWorkIndustrial': 'العمل الليلي للنساء في المنشآت الصناعية',
+  'fines.rule.breakRequiredLongShift': 'استراحة مطلوبة (وردية طويلة)',
 
   // v5.25 — عناوين الملاحظات (نتائج إعلامية بلا قاعدة غرامة)
   'finding.note.publicHolidayWorked': 'عمل في عطلة رسمية',
   'finding.note.compDayOwed': 'يوم تعويضي مستحق',
   'finding.note.compDayLate': 'يوم تعويضي متأخر',
+  'finding.note.annualLeaveBelowMin': 'الإجازة السنوية دون الحد الأدنى القانوني',
 
   // v5.25 — أسطر تفاصيل النتائج (مترجمة، يملؤها المحرك بالأرقام)
   'finding.msg.workedMaternity': 'تم إسناد وردية أثناء إجازة الأمومة.',
@@ -1952,6 +1954,8 @@ export const ar: Dict = {
   'finding.msg.workedAnnual': 'تم إسناد وردية أثناء الإجازة السنوية المعتمدة.',
   'finding.msg.dailyCap': 'عمل {hrs} ساعة — فوق الحد اليومي {cap} ساعة.',
   'finding.msg.continuousDriving': 'قاد {hrs} ساعة باستراحة أقل من ٣٠ دقيقة — فوق حد {cap} ساعة.',
+  'finding.msg.breakRequired': 'وردية {hrs} ساعة باستراحة أقل من {min} دقيقة — المادة ٦٩ تتطلب استراحة بعد {after} ساعات متواصلة.',
+  'finding.msg.annualLeaveBelowMin': 'رصيد الإجازة السنوية {days} يوم — دون الحد الأدنى القانوني {min} يوم.',
   'finding.msg.womensNight': 'وردية صناعية ضمن نافذة الليل المحمية {start}–{end}.',
   'finding.msg.minRest': 'راحة {gap} ساعة فقط بين الورديتين — المطلوب {min} ساعة.',
   'finding.msg.weeklyCap': 'ذروة {peak} ساعة خلال ٧ أيام — فوق الحد الأسبوعي {cap} ساعة.',

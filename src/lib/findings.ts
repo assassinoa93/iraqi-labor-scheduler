@@ -25,6 +25,8 @@ const NOTE_TITLE_KEYS: Record<string, string> = {
   'Public holiday worked': 'finding.note.publicHolidayWorked',
   'Comp day owed': 'finding.note.compDayOwed',
   'Comp day late': 'finding.note.compDayLate',
+  // v5.27 — Art. 71 statutory annual-leave minimum (info, not a breach).
+  'Annual leave below statutory minimum': 'finding.note.annualLeaveBelowMin',
 };
 
 export function findingSeverity(v: Violation): FindingSeverity {

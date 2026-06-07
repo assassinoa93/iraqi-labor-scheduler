@@ -17,6 +17,16 @@ const RAMADAN_DEFAULT_DAILY_CAP = 6;
 const ART86_DEFAULT_NIGHT_START = '22:00';
 const ART86_DEFAULT_NIGHT_END = '07:00';
 
+// v5.27 — Art. 69 (intra-shift rest break) + Art. 71 (annual leave) statutory
+// constants. Iraqi Labour Law No. 37/2015, Art. 69: a worker must not work
+// more than (5) continuous hours without a rest break of at least (30) minutes
+// (the break is not counted as working time). Art. 71: minimum (21) days paid
+// annual leave per year of service. These are fixed legal thresholds, not
+// operator-tunable caps, so they live here rather than in Config.
+const ART69_BREAK_AFTER_CONTINUOUS_HRS = 5;
+const ART69_MIN_BREAK_MINUTES = 30;
+const ART71_MIN_ANNUAL_LEAVE_DAYS = 21;
+
 const isDriver = (emp: Employee) => emp.category === 'Driver';
 
 // Type-specific leave predicates. These delegate to the unified
@@ -248,6 +258,24 @@ export class ComplianceEngine {
       const driver = isDriver(emp);
       const dateStrFor = (day: number) => format(new Date(config.year, config.month - 1, day), 'yyyy-MM-dd');
 
+      // Rule: Art. 71 — statutory minimum annual leave. INFO finding (reporting,
+      // not a schedule breach): flags an employee whose annual-leave ENTITLEMENT
+      // is recorded below the 21-day legal minimum so the supervisor can fix the
+      // record. Checks the yearly allotment (annualLeaveBalance), so no mid-year
+      // proration is needed. Emitted once per employee (day 1 as a placeholder).
+      if ((emp.annualLeaveBalance ?? 0) < ART71_MIN_ANNUAL_LEAVE_DAYS) {
+        violations.push({
+          empId: emp.empId,
+          day: 1,
+          severity: 'info',
+          rule: "Annual leave below statutory minimum",
+          article: "(Art. 71)",
+          message: `Annual-leave entitlement is ${emp.annualLeaveBalance ?? 0} days; the statutory minimum is ${ART71_MIN_ANNUAL_LEAVE_DAYS} (Art. 71).`,
+          messageKey: "finding.msg.annualLeaveBelowMin",
+          messageParams: { days: emp.annualLeaveBalance ?? 0, min: ART71_MIN_ANNUAL_LEAVE_DAYS },
+        });
+      }
+
       // Rule: Daily hours cap (Art. 67 & 68 / Art. 88 for drivers / Ramadan reduced-hours)
       if (!emp.hourExempt) {
         days.forEach(day => {
@@ -340,6 +368,26 @@ export class ComplianceEngine {
                 message: `Driver shift of ${shift.durationHrs}hrs exceeds ${driverCfg.continuousDrivingHrsCap}hrs continuous-driving cap with break <30min.`,
                 messageKey: "finding.msg.continuousDriving",
                 messageParams: { hrs: shift.durationHrs, cap: driverCfg.continuousDrivingHrsCap },
+              });
+            }
+
+            // Rule: Art. 69 — intra-shift rest break (non-drivers; drivers are
+            // covered by the stricter Art. 88 check above). The law forbids
+            // more than 5 continuous work hours without a >=30-min break. The
+            // grid models total break MINUTES (not timing), so we approximate:
+            // a work shift whose NET worked hours exceed the threshold AND
+            // carries < 30 break minutes means the worker did >5h with no
+            // adequate break. breakMin >= 30 is treated as satisfying the rule.
+            if (!driver && shift.durationHrs > ART69_BREAK_AFTER_CONTINUOUS_HRS && (shift.breakMin || 0) < ART69_MIN_BREAK_MINUTES) {
+              violations.push({
+                empId: emp.empId,
+                day,
+                rule: "Rest break required (long shift)",
+                ruleKey: RULE_KEYS.BREAK_REQUIRED_LONG_SHIFT,
+                article: "(Art. 69)",
+                message: `Shift of ${shift.durationHrs}hrs carries only ${shift.breakMin || 0}min break — Art. 69 requires a >=${ART69_MIN_BREAK_MINUTES}min rest break after ${ART69_BREAK_AFTER_CONTINUOUS_HRS} continuous hours.`,
+                messageKey: "finding.msg.breakRequired",
+                messageParams: { hrs: shift.durationHrs, after: ART69_BREAK_AFTER_CONTINUOUS_HRS, min: ART69_MIN_BREAK_MINUTES },
               });
             }
 

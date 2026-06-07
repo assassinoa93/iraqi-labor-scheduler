@@ -2041,6 +2041,7 @@ export const en: Dict = {
   'fines.rule.workedDuringSickLeave': 'Worked during sick leave',
   'fines.rule.workedDuringAnnualLeave': 'Worked during annual leave',
   'fines.rule.womensNightWorkIndustrial': 'Women\'s night work in industrial undertakings',
+  'fines.rule.breakRequiredLongShift': 'Rest break required (long shift)',
 
   // v5.25 — info-note titles (findings with no fineable ruleKey). Used by
   // findings.ts → FindingsList so notes get a translated title like the
@@ -2048,6 +2049,7 @@ export const en: Dict = {
   'finding.note.publicHolidayWorked': 'Public holiday worked',
   'finding.note.compDayOwed': 'Comp day owed',
   'finding.note.compDayLate': 'Comp day late',
+  'finding.note.annualLeaveBelowMin': 'Annual leave below statutory minimum',
 
   // v5.25 — translatable finding detail lines. The compliance engine emits a
   // messageKey + params; these render in the active locale (replacing the raw
@@ -2059,6 +2061,8 @@ export const en: Dict = {
   'finding.msg.workedAnnual': 'Assigned a shift during approved annual leave.',
   'finding.msg.dailyCap': 'Worked {hrs}h — over the {cap}h daily cap.',
   'finding.msg.continuousDriving': 'Drove {hrs}h with under 30 min break — over the {cap}h limit.',
+  'finding.msg.breakRequired': '{hrs}h shift with under {min}min break — Art. 69 requires a break after {after} continuous hours.',
+  'finding.msg.annualLeaveBelowMin': 'Annual-leave entitlement is {days}d — under the {min}d statutory minimum.',
   'finding.msg.womensNight': 'Industrial shift in the protected {start}–{end} night window.',
   'finding.msg.minRest': 'Only {gap}h rest between shifts — needs {min}h.',
   'finding.msg.weeklyCap': 'Peak {peak}h in 7 days — over the {cap}h weekly cap.',
