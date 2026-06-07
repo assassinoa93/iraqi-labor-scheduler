@@ -239,6 +239,8 @@ function buildScheduleCsv(inputs: BundleInputs): string {
 function buildRosterCsv(inputs: BundleInputs): string {
   const header = [
     'Employee ID', 'Name', 'Role', 'Department', 'Category', 'Gender', 'Contract Type',
+    // v5.28 — fixed-term contract end + probation end for HRIS handoff.
+    'Contract End', 'Probation End',
     'Weekly Hours', 'Base Monthly Salary', 'Base Hourly Rate', 'Hire Date', 'Phone', 'Notes',
   ];
   const rows: (string | number | null | undefined)[][] = [header];
@@ -246,7 +248,8 @@ function buildRosterCsv(inputs: BundleInputs): string {
     rows.push([
       emp.empId, emp.name, emp.role, emp.department,
       emp.category ?? 'Standard', emp.gender ?? '',
-      emp.contractType, emp.contractedWeeklyHrs,
+      emp.contractType, emp.contractEndDate ?? '', emp.probationEndDate ?? '',
+      emp.contractedWeeklyHrs,
       emp.baseMonthlySalary, emp.baseHourlyRate,
       emp.hireDate, emp.phone, emp.notes,
     ]);
