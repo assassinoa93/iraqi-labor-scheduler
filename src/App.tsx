@@ -2933,6 +2933,11 @@ export default function App() {
   // to `simMetrics` baseline below. `computeWorkedHours` also subtracts
   // legacy leave-overlap days so totalWorkHours matches PayrollTab.
   const otSummary = useMemo(() => {
+    // v5.32 (perf) — the ONLY consumer is the simulation delta panel, which
+    // early-returns when not simulating. Dashboard + Reports compute their own
+    // OT separately, so off-sim we skip this whole per-employee holiday-pay
+    // loop (computeHolidayPay × every employee on every render).
+    if (!simMode) return { totalOTHours: 0, totalOTPay: 0, potentialHires: 0, totalWorkHours: 0 };
     const cap = monthlyHourCap(config);
     const otRateDay = config.otRateDay ?? 1.5;
     let totalOTHours = 0;
@@ -2953,7 +2958,7 @@ export default function App() {
     }
     const potentialHires = Math.ceil(totalOTHours / Math.max(1, cap));
     return { totalOTHours, totalOTPay, potentialHires, totalWorkHours };
-  }, [employees, schedule, shifts, holidays, config, allSchedules]);
+  }, [employees, schedule, shifts, holidays, config, allSchedules, simMode]);
 
   // Run coverage-gap detection after a paint that may have removed a station
   // assignment. If a gap is found, queue up swap suggestions for the toast.
