@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, ChevronDown, ChevronRight, MapPin, Download, FlaskConical, Save } from 'lucide-react';
+import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, CalendarRange, ChevronDown, ChevronRight, MapPin, Download, FlaskConical, Save, Copy } from 'lucide-react';
 import { ScheduleApprovalBanner } from '../components/Schedule/ScheduleApprovalBanner';
 import { CoverageDiagnosticsPanel } from '../components/Schedule/CoverageDiagnosticsPanel';
 import { AutoScheduleRangePicker } from '../components/Schedule/AutoScheduleRangePicker';
@@ -80,6 +80,11 @@ interface ScheduleTabProps {
   // the whole month.
   onUndoCell?: () => void;
   cellUndoDepth?: number;
+  // v5.27 — reuse a stable rotation without re-painting it by hand. Copy the
+  // previous month's grid into this month (skip cells already filled), or fill
+  // the whole month from the first week's weekday pattern. Both push one undo.
+  onCopyPreviousMonth?: () => void;
+  onRepeatFirstWeek?: () => void;
   // v2.2.0 — range is an ISO-date pair (YYYY-MM-DD). Cross-month ranges
   // (e.g. 2026-04-15 → 2026-05-15) are honoured; the App.tsx orchestrator
   // splits the run into per-month invocations and stitches the rolling
@@ -388,6 +393,7 @@ export function ScheduleTab({
   violationCount, rosterRoles,
   scheduleUndoStack, prevMonth, nextMonth, setActiveMonth, onCellClick, onCellRangeFill,
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
+  onCopyPreviousMonth, onRepeatFirstWeek,
   canRunAuto, runAutoDisabledReason,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells, violationCellKeys,
   onExportSchedule, simMode, onEnterSimMode, onSaveDraft, saveState, lastSavedAt,
@@ -1024,6 +1030,30 @@ export function ScheduleTab({
             >
               <Undo2 className="w-4 h-4" />
               {t('action.undoCell')} ({cellUndoDepth})
+            </button>
+          )}
+
+          {/* v5.27 — reuse a stable rotation. Both skip already-filled cells
+              and are undoable, so they're safe to click on a partly-built
+              month. Hidden when the grid isn't editable (locked/approved). */}
+          {canEditCells && onCopyPreviousMonth && (
+            <button
+              onClick={onCopyPreviousMonth}
+              title={t('schedule.copyMonth.tooltip')}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+            >
+              <Copy className="w-4 h-4" />
+              {t('schedule.copyMonth.button')}
+            </button>
+          )}
+          {canEditCells && onRepeatFirstWeek && (
+            <button
+              onClick={onRepeatFirstWeek}
+              title={t('schedule.repeatWeek.tooltip')}
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+            >
+              <CalendarRange className="w-4 h-4" />
+              {t('schedule.repeatWeek.button')}
             </button>
           )}
 

@@ -14,9 +14,14 @@
  *   • Each group expands to the per-employee detail on click.
  *   • Titles + detail render through findings.ts → fully translated, with
  *     Arabic-Indic digits when that locale/pref is active.
+ *
+ * v5.27 — expansion state lifted to the top so a search box + expand-all /
+ * collapse-all can drive every group at once. On a busy month a supervisor no
+ * longer clicks each rule open one at a time, and a name/rule search auto-opens
+ * the matching groups.
  */
-import React, { useState } from 'react';
-import { AlertTriangle, Info, ChevronDown, ShieldCheck, Circle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AlertTriangle, Info, ChevronDown, ShieldCheck, Circle, Search, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import type { Violation } from '../types';
@@ -46,6 +51,42 @@ export function FindingsList({ findings, empNameById, hasContext = true, classNa
   const vGroups = groupFindings(violations);
   const nGroups = groupFindings(notes);
 
+  const [query, setQuery] = useState('');
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const q = query.trim().toLowerCase();
+
+  // A group matches the query when its rule title, article, or any of its
+  // employees (name or id) contains the search text.
+  const matchGroup = useMemo(() => (g: FindingGroup): boolean => {
+    if (!q) return true;
+    if (findingTitle(g.items[0], t).toLowerCase().includes(q)) return true;
+    if ((g.article ?? '').toLowerCase().includes(q)) return true;
+    return g.items.some((v) => {
+      const name = (empNameById?.get(v.empId) ?? v.empId).toLowerCase();
+      return name.includes(q) || v.empId.toLowerCase().includes(q);
+    });
+  }, [q, t, empNameById]);
+
+  const fVGroups = vGroups.filter(matchGroup);
+  const fNGroups = nGroups.filter(matchGroup);
+  const totalGroups = fVGroups.length + fNGroups.length;
+
+  const keyOf = (tone: 'violation' | 'info', g: FindingGroup) => `${tone}:${g.key}`;
+  const allVisibleKeys = [
+    ...fVGroups.map((g) => keyOf('violation', g)),
+    ...fNGroups.map((g) => keyOf('info', g)),
+  ];
+  const toggle = (key: string) => setOpenKeys((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  // While searching, the matching groups auto-open so the hits are visible
+  // without an extra click.
+  const isOpen = (key: string) => (q ? true : openKeys.has(key));
+  const expandAll = () => setOpenKeys(new Set(allVisibleKeys));
+  const collapseAll = () => setOpenKeys(new Set());
+
   if (violations.length === 0 && notes.length === 0) {
     return (
       <div className="p-10 text-center">
@@ -67,37 +108,90 @@ export function FindingsList({ findings, empNameById, hasContext = true, classNa
   }
 
   return (
-    <div className={cn('divide-y divide-slate-100 dark:divide-slate-700/60', className)}>
-      {vGroups.length > 0 && (
-        <FindingsSection
-          label={t('findings.section.violations')}
-          total={countInstances(violations)}
-          tone="violation"
-          groups={vGroups}
-          empNameById={empNameById}
-        />
-      )}
-      {nGroups.length > 0 && (
-        <FindingsSection
-          label={t('findings.section.notes')}
-          total={countInstances(notes)}
-          tone="info"
-          groups={nGroups}
-          empNameById={empNameById}
-        />
+    <div className={className}>
+      {/* Toolbar: search + expand/collapse all. Only meaningful with >1 group. */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/60 bg-white dark:bg-slate-900">
+        <div className="relative flex-1 min-w-0">
+          <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute top-1/2 -translate-y-1/2 start-2.5 pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('findings.search.placeholder')}
+            aria-label={t('findings.search.placeholder')}
+            className="w-full ps-8 pe-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={expandAll}
+          title={t('findings.expandAll')}
+          aria-label={t('findings.expandAll')}
+          className="apple-press shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          <ChevronsUpDown className="w-3 h-3" />
+          <span className="hidden sm:inline">{t('findings.expandAll')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={collapseAll}
+          title={t('findings.collapseAll')}
+          aria-label={t('findings.collapseAll')}
+          className="apple-press shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          <ChevronsDownUp className="w-3 h-3" />
+          <span className="hidden sm:inline">{t('findings.collapseAll')}</span>
+        </button>
+      </div>
+
+      {totalGroups === 0 ? (
+        <div className="p-8 text-center">
+          <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+          <div className="text-[11px] text-slate-400 dark:text-slate-500">{t('findings.noMatches')}</div>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
+          {fVGroups.length > 0 && (
+            <FindingsSection
+              label={t('findings.section.violations')}
+              total={countInstances(fVGroups.flatMap((g) => g.items))}
+              tone="violation"
+              groups={fVGroups}
+              empNameById={empNameById}
+              isOpen={isOpen}
+              onToggle={toggle}
+              keyOf={keyOf}
+            />
+          )}
+          {fNGroups.length > 0 && (
+            <FindingsSection
+              label={t('findings.section.notes')}
+              total={countInstances(fNGroups.flatMap((g) => g.items))}
+              tone="info"
+              groups={fNGroups}
+              empNameById={empNameById}
+              isOpen={isOpen}
+              onToggle={toggle}
+              keyOf={keyOf}
+            />
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 function FindingsSection({
-  label, total, tone, groups, empNameById,
+  label, total, tone, groups, empNameById, isOpen, onToggle, keyOf,
 }: {
   label: string;
   total: number;
   tone: 'violation' | 'info';
   groups: FindingGroup[];
   empNameById?: Map<string, string>;
+  isOpen: (key: string) => boolean;
+  onToggle: (key: string) => void;
+  keyOf: (tone: 'violation' | 'info', g: FindingGroup) => string;
 }) {
   const { fmt } = useI18n();
   const accent = tone === 'violation'
@@ -110,17 +204,25 @@ function FindingsSection({
         <span className={cn('text-[10px] font-black tabular-nums px-1.5 py-0.5 rounded-full', accent)}>{fmt.num(total)}</span>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-        {groups.map((g) => (
-          <FindingGroupRow key={`${tone}:${g.key}`} group={g} empNameById={empNameById} />
-        ))}
+        {groups.map((g) => {
+          const key = keyOf(tone, g);
+          return (
+            <FindingGroupRow
+              key={key}
+              group={g}
+              empNameById={empNameById}
+              open={isOpen(key)}
+              onToggle={() => onToggle(key)}
+            />
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function FindingGroupRow({ group, empNameById }: { group: FindingGroup; empNameById?: Map<string, string> }) {
+function FindingGroupRow({ group, empNameById, open, onToggle }: { group: FindingGroup; empNameById?: Map<string, string>; open: boolean; onToggle: () => void }) {
   const { t, fmt, dir } = useI18n();
-  const [open, setOpen] = useState(false);
   const isViolation = group.severity === 'violation';
   const Icon = isViolation ? AlertTriangle : Info;
   const iconCls = isViolation ? 'text-rose-500 dark:text-rose-300' : 'text-blue-500 dark:text-blue-300';
@@ -131,7 +233,7 @@ function FindingGroupRow({ group, empNameById }: { group: FindingGroup; empNameB
     <div className={cn(isViolation ? 'bg-white dark:bg-slate-900' : 'bg-blue-50/20 dark:bg-blue-500/[0.04]')}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
         aria-expanded={open}
         className="w-full flex items-center gap-3 px-5 py-3 text-start hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >

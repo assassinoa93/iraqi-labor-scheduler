@@ -2563,6 +2563,73 @@ export default function App() {
     setScheduleUndoStack(rest);
   };
 
+  // v5.27 — copy the previous month's grid into the active month. Day-number
+  // aligned (day N → day N), clamped to this month's length, and SKIPS any
+  // cell already filled here so it never clobbers manual edits. Pushes one
+  // undo entry. Lets the supervisor reuse a stable rotation instead of
+  // re-painting it every period.
+  const handleCopyPreviousMonth = () => {
+    const prev = new Date(config.year, config.month - 2, 1); // month is 1-based
+    const prevKey = `scheduler_schedule_${prev.getFullYear()}_${prev.getMonth() + 1}`;
+    const source = allSchedules[prevKey] ?? {};
+    if (Object.keys(source).length === 0) {
+      showInfo(t('schedule.copyMonth.title'), t('schedule.copyMonth.noSource'));
+      return;
+    }
+    const next: Schedule = {};
+    for (const [empId, days] of Object.entries(schedule)) next[empId] = { ...days };
+    let copied = 0;
+    for (const [empId, days] of Object.entries(source)) {
+      for (const [dStr, entry] of Object.entries(days)) {
+        const d = Number(dStr);
+        if (d < 1 || d > config.daysInMonth) continue;
+        if (next[empId]?.[d]) continue; // skip existing
+        if (!next[empId]) next[empId] = {};
+        next[empId][d] = entry;
+        copied++;
+      }
+    }
+    if (copied === 0) {
+      showInfo(t('schedule.copyMonth.title'), t('schedule.copyMonth.nothing'));
+      return;
+    }
+    setScheduleUndoStack(prevStack => [{ schedule, employees, appliedAt: Date.now() }, ...prevStack].slice(0, 5));
+    setSchedule(next);
+    showInfo(t('schedule.copyMonth.title'), t('schedule.copyMonth.done', { n: copied }));
+  };
+
+  // v5.27 — fill the whole month from the first week's weekday pattern. For
+  // each day D ≥ 8, the source day is ((D-1) % 7) + 1 (same weekday, days 1-7),
+  // so a fixed weekly rotation set up once propagates across the month. Skips
+  // already-filled cells; one undo entry.
+  const handleRepeatFirstWeek = () => {
+    if (config.daysInMonth <= 7) {
+      showInfo(t('schedule.repeatWeek.title'), t('schedule.repeatWeek.tooShort'));
+      return;
+    }
+    const next: Schedule = {};
+    for (const [empId, days] of Object.entries(schedule)) next[empId] = { ...days };
+    let copied = 0;
+    for (const [empId, days] of Object.entries(schedule)) {
+      for (let d = 8; d <= config.daysInMonth; d++) {
+        const src = ((d - 1) % 7) + 1;
+        const srcEntry = days[src];
+        if (!srcEntry) continue;
+        if (next[empId]?.[d]) continue; // skip existing
+        if (!next[empId]) next[empId] = {};
+        next[empId][d] = srcEntry;
+        copied++;
+      }
+    }
+    if (copied === 0) {
+      showInfo(t('schedule.repeatWeek.title'), t('schedule.repeatWeek.nothing'));
+      return;
+    }
+    setScheduleUndoStack(prevStack => [{ schedule, employees, appliedAt: Date.now() }, ...prevStack].slice(0, 5));
+    setSchedule(next);
+    showInfo(t('schedule.repeatWeek.title'), t('schedule.repeatWeek.done', { n: copied }));
+  };
+
   // PDF lazy-load. Pulls jspdf + jspdf-autotable + html2canvas only on first use.
   const handleExportPDF = async () => {
     const { generatePDFReport } = await import('./lib/pdfReport');
@@ -4139,6 +4206,8 @@ export default function App() {
                 onUndo={undoLastSchedule}
                 onUndoCell={undoLastCell}
                 cellUndoDepth={cellUndoStack.length}
+                onCopyPreviousMonth={handleCopyPreviousMonth}
+                onRepeatFirstWeek={handleRepeatFirstWeek}
                 onRunAuto={handleRunAutoScheduler}
                 canRunAuto={activeMonthCanEdit && !simMode && employees.length > 0 && stations.length > 0}
                 runAutoDisabledReason={

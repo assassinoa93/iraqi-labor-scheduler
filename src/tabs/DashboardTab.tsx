@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Database, BarChart3, X,
   ShieldAlert, Clock, ShieldCheck, AlertCircle, TrendingUp,
-  Briefcase, Plus, CheckCircle2, Circle,
+  Briefcase, Plus, CheckCircle2, Circle, CalendarOff,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station } from '../types';
+import { Employee, Shift, PublicHoliday, Config, Violation, Schedule, Station, LeaveType } from '../types';
 import { Card, KpiCard, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { getEmployeeLeaveOnDate } from '../lib/leaves';
 import { baseHourlyRate, monthlyCapFor } from '../lib/payroll';
 import { useModalKeys } from '../lib/hooks';
 import { ComplianceTrendCard } from '../components/ComplianceTrendCard';
@@ -94,6 +95,27 @@ export function DashboardTab(props: DashboardTabProps) {
     () => Array.from({ length: config.daysInMonth }, (_, i) => i + 1),
     [config.daysInMonth]
   );
+
+  // v5.27 — "Time off, next 7 days" so a supervisor can answer "who is off
+  // Thursday, by name" at a glance. Walks [today, today+6] over the canonical
+  // leaves.ts reader (covers leaveRanges + legacy single-range fields). Real
+  // calendar dates, independent of the config month being viewed.
+  const offThisWeek = useMemo(() => {
+    const today = new Date();
+    const out: Array<{ dateStr: string; label: string; people: Array<{ name: string; type: LeaveType }> }> = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dateStr = format(d, 'yyyy-MM-dd');
+      const people: Array<{ name: string; type: LeaveType }> = [];
+      for (const e of employees) {
+        const lv = getEmployeeLeaveOnDate(e, dateStr);
+        if (lv) people.push({ name: e.name, type: lv.type });
+      }
+      if (people.length) out.push({ dateStr, label: format(d, 'EEE MMM d'), people });
+    }
+    return out;
+  }, [employees]);
 
   // v5.25 — shared canonical count + score (lib/findings.ts), identical to
   // Reports, the schedule preview modal, and the approval dialog so the same
@@ -580,6 +602,37 @@ export function DashboardTab(props: DashboardTabProps) {
           currentOTPay={totalOTPay}
           simArgs={advisorySimArgs}
         />
+      )}
+
+      {/* v5.27 — Time off in the next 7 days. Answers "who is off this week,
+          by name" without opening each employee. Only rendered once a roster
+          exists (same gate as the advisory). */}
+      {employees.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarOff className="w-4 h-4 text-amber-600 dark:text-amber-300" />
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('dashboard.offThisWeek.title')}</h3>
+          </div>
+          {offThisWeek.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{t('dashboard.offThisWeek.empty')}</p>
+          ) : (
+            <div className="space-y-3">
+              {offThisWeek.map((d) => (
+                <div key={d.dateStr} className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3">
+                  <span className="shrink-0 w-28 text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{d.label}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {d.people.map((p, i) => (
+                      <span key={`${p.name}-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 text-[10px] font-bold border border-amber-100 dark:border-amber-500/30">
+                        {p.name}
+                        <span className="text-amber-500/70 dark:text-amber-300/60 uppercase tracking-wider text-[8px]">{t(`leaves.type.${p.type}`)}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       <div className="grid grid-cols-1 gap-6">

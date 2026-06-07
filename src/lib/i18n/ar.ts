@@ -82,6 +82,9 @@ export const ar: Dict = {
   'roster.seedSample': 'بيانات نموذجية',
   'roster.tag.driver': 'سائق · م.٨٨',
   'roster.tag.rotate': 'تدوير',
+  // v5.27 — إظهار الإجازة لكل صف
+  'roster.leave.onToday': 'في إجازة {type}',
+  'roster.leave.upcoming': '{type} بعد {n} يوم',
   'roster.unassigned': 'غير معين',
   'roster.editEmployee': 'تعديل {name}',
   'roster.deleteEmployee': 'حذف {name}',
@@ -389,6 +392,19 @@ export const ar: Dict = {
   'schedule.group.collapse': 'طي',
   'schedule.group.expand': 'توسيع',
   'schedule.noMatches': 'لا يوجد موظفون يطابقون عوامل التصفية الحالية.',
+  // v5.27 — إعادة استخدام نمط تناوب ثابت
+  'schedule.copyMonth.button': 'نسخ الشهر الماضي',
+  'schedule.copyMonth.tooltip': 'انسخ جدول الشهر السابق إلى هذا الشهر. يتخطّى الخلايا المعبَّأة بالفعل؛ قابل للتراجع.',
+  'schedule.copyMonth.title': 'نسخ الشهر الماضي',
+  'schedule.copyMonth.noSource': 'لا يوجد جدول محفوظ للشهر السابق لنسخه.',
+  'schedule.copyMonth.nothing': 'لا شيء للنسخ — كل الخلايا المعنية معبَّأة بالفعل هذا الشهر.',
+  'schedule.copyMonth.done': 'تم نسخ {n} تعيينًا من الشهر الماضي (مع الإبقاء على الخلايا الموجودة).',
+  'schedule.repeatWeek.button': 'تكرار الأسبوع 1',
+  'schedule.repeatWeek.tooltip': 'املأ بقية الشهر من نمط الأسبوع الأول مع مطابقة أيام الأسبوع. يتخطّى الخلايا المعبَّأة؛ قابل للتراجع.',
+  'schedule.repeatWeek.title': 'تكرار الأسبوع 1',
+  'schedule.repeatWeek.tooShort': 'هذا الشهر أسبوع واحد — لا شيء لتكراره.',
+  'schedule.repeatWeek.nothing': 'لا شيء لتكراره — الأيام اللاحقة معبَّأة بالفعل، أو الأسبوع الأول فارغ.',
+  'schedule.repeatWeek.done': 'تم ملء {n} تعيينًا من الأسبوع الأول (مع الإبقاء على الخلايا الموجودة).',
   'schedule.paintBanner': 'وضع الرسم: [{code}] نشط — انقر على الخلايا للتعيين.',
   'schedule.prevMonth': 'الشهر السابق',
   'schedule.nextMonth': 'الشهر التالي',
@@ -588,6 +604,9 @@ export const ar: Dict = {
   'dashboard.kpi.compliance': 'الامتثال العام',
   'dashboard.complianceAudit': 'تدقيق الامتثال — تحليل قانون العمل',
   'dashboard.liveValidation': 'تحقق فوري',
+  // v5.27 — بطاقة الإجازات خلال الأسبوع
+  'dashboard.offThisWeek.title': 'الإجازات — خلال 7 أيام',
+  'dashboard.offThisWeek.empty': 'لا أحد في إجازة خلال الأيام السبعة القادمة.',
   'dashboard.noViolations': 'لا توجد مشاكل امتثال في الجدول الفعّال.',
   'dashboard.noViolations.hint': 'كل تركيبة موظف × يوم تجتاز فحوصات الحد اليومي والراحة بين المناوبات والراحة الأسبوعية.',
   'dashboard.noScheduleYet': 'لا يوجد جدول لهذا الشهر بعد',
@@ -1926,6 +1945,11 @@ export const ar: Dict = {
   'findings.noSchedule.hint': 'أنشئ جدولًا أو ولّده لتشغيل فحوص الامتثال.',
   'findings.staff': '{n} موظف',
   'findings.day': 'يوم {day}',
+  // v5.27 — شريط بحث + توسيع/طي الكل في قائمة النتائج
+  'findings.search.placeholder': 'ابحث في النتائج…',
+  'findings.expandAll': 'توسيع الكل',
+  'findings.collapseAll': 'طي الكل',
+  'findings.noMatches': 'لا توجد نتائج مطابقة لبحثك.',
 
   'modal.station.flatHC.overridden': 'متجاوَز بواسطة الملف الساعي',
 

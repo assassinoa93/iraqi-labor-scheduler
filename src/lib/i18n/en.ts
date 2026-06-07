@@ -85,6 +85,9 @@ export const en: Dict = {
   'roster.seedSample': 'Seed Sample',
   'roster.tag.driver': 'Driver · Art.88',
   'roster.tag.rotate': 'Rotate',
+  // v5.27 — per-row leave visibility
+  'roster.leave.onToday': 'On {type} leave',
+  'roster.leave.upcoming': '{type} in {n}d',
   'roster.unassigned': 'Unassigned',
   'roster.editEmployee': 'Edit {name}',
   'roster.deleteEmployee': 'Delete {name}',
@@ -396,6 +399,19 @@ export const en: Dict = {
   'schedule.group.collapse': 'Collapse',
   'schedule.group.expand': 'Expand',
   'schedule.noMatches': 'No personnel match the current filters.',
+  // v5.27 — reuse a stable rotation
+  'schedule.copyMonth.button': 'Copy last month',
+  'schedule.copyMonth.tooltip': 'Copy the previous month’s schedule into this month. Skips cells already filled here; undoable.',
+  'schedule.copyMonth.title': 'Copy Last Month',
+  'schedule.copyMonth.noSource': 'The previous month has no saved schedule to copy.',
+  'schedule.copyMonth.nothing': 'Nothing to copy — every applicable cell is already filled this month.',
+  'schedule.copyMonth.done': 'Copied {n} assignments from last month (existing cells were kept).',
+  'schedule.repeatWeek.button': 'Repeat week 1',
+  'schedule.repeatWeek.tooltip': 'Fill the rest of the month from the first week’s pattern, matching weekdays. Skips cells already filled; undoable.',
+  'schedule.repeatWeek.title': 'Repeat Week 1',
+  'schedule.repeatWeek.tooShort': 'This month is a single week — nothing to repeat.',
+  'schedule.repeatWeek.nothing': 'Nothing to repeat — later days are already filled, or week 1 is empty.',
+  'schedule.repeatWeek.done': 'Filled {n} assignments from week 1 (existing cells were kept).',
   'schedule.paintBanner': 'Painting: [{code}] mode active — Click cells to assign.',
   'schedule.prevMonth': 'Previous month',
   'schedule.nextMonth': 'Next month',
@@ -614,6 +630,9 @@ export const en: Dict = {
   'dashboard.kpi.compliance': 'Global Compliance',
   'dashboard.complianceAudit': 'Compliance Audit — Labor Law Analysis',
   'dashboard.liveValidation': 'Live Validation',
+  // v5.27 — time-off-this-week card
+  'dashboard.offThisWeek.title': 'Time Off — Next 7 Days',
+  'dashboard.offThisWeek.empty': 'No one is on leave in the next 7 days.',
   'dashboard.noViolations': 'No compliance issues detected in active schedule.',
   'dashboard.noViolations.hint': 'Every employee × day combination passes daily, rest-between-shifts, and weekly-rest checks.',
   'dashboard.noScheduleYet': 'No schedule for this month yet',
@@ -2034,6 +2053,11 @@ export const en: Dict = {
   'findings.noSchedule.hint': 'Build or generate a schedule to run compliance checks.',
   'findings.staff': '{n} staff',
   'findings.day': 'Day {day}',
+  // v5.27 — findings list search + expand/collapse-all toolbar
+  'findings.search.placeholder': 'Search findings…',
+  'findings.expandAll': 'Expand all',
+  'findings.collapseAll': 'Collapse all',
+  'findings.noMatches': 'No findings match your search.',
 
   // Phase 3.2 — flat HC overridden hint (StationModal + BulkAddStations)
   'modal.station.flatHC.overridden': 'Overridden by hourly profile',

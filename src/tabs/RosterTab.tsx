@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit } from 'lucide-react';
+import { format, differenceInCalendarDays } from 'date-fns';
+import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit, CalendarOff } from 'lucide-react';
 import { Employee, LeaveRequest, LeaveType, Station, StationGroup } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { getEmployeeLeaveOnDate, listAllLeaveRanges } from '../lib/leaves';
 import { SortableHeader, SortDir } from '../components/Primitives';
 import { LeaveRequestPanel } from '../components/Leave/LeaveRequestPanel';
 
@@ -56,7 +58,25 @@ export function RosterTab({
   leaveRequests, canSubmitLeaveRequest, canDecideLeaveRequest,
   onSubmitLeaveRequest, onApproveLeaveRequest, onRejectLeaveRequest,
 }: RosterTabProps) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
+
+  // v5.27 — leave visibility on the most-used daily list. "Who is off today,
+  // by name" was previously invisible here. We surface today's active leave
+  // (and an "upcoming within 7 days" heads-up) per row using the canonical
+  // leaves.ts helpers — a pure read over leaveRanges, no schedule walk.
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const leaveInfo = (emp: Employee): { kind: 'on' | 'soon'; type: LeaveType; days?: number } | null => {
+    const active = getEmployeeLeaveOnDate(emp, todayStr);
+    if (active) return { kind: 'on', type: active.type };
+    let best: { type: LeaveType; days: number } | null = null;
+    for (const r of listAllLeaveRanges(emp)) {
+      if (r.start > todayStr) {
+        const d = differenceInCalendarDays(new Date(r.start + 'T00:00:00'), new Date(todayStr + 'T00:00:00'));
+        if (d >= 1 && d <= 7 && (!best || d < best.days)) best = { type: r.type, days: d };
+      }
+    }
+    return best ? { kind: 'soon', type: best.type, days: best.days } : null;
+  };
 
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -260,7 +280,24 @@ export function RosterTab({
                 </td>
                 <td className="px-6 py-4 font-mono text-xs font-bold text-slate-400 dark:text-slate-500 tracking-tighter">{emp.empId}</td>
                 <td className="px-6 py-4">
-                  <p className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</p>
+                    {(() => {
+                      const li = leaveInfo(emp);
+                      if (!li) return null;
+                      const typeLabel = t(`leaves.type.${li.type}`);
+                      return li.kind === 'on' ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-200 text-[8px] font-black uppercase tracking-widest border border-amber-200 dark:border-amber-500/40">
+                          <CalendarOff className="w-2.5 h-2.5" />
+                          {t('roster.leave.onToday', { type: typeLabel })}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                          {t('roster.leave.upcoming', { type: typeLabel, n: fmt.num(li.days ?? 0) })}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-tighter mt-0.5">{emp.contractType}</p>
                 </td>
                 <td className="px-6 py-4">
