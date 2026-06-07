@@ -406,6 +406,10 @@ export const ar: Dict = {
   'schedule.repeatWeek.tooShort': 'هذا الشهر أسبوع واحد — لا شيء لتكراره.',
   'schedule.repeatWeek.nothing': 'لا شيء لتكراره — الأيام اللاحقة معبَّأة بالفعل، أو الأسبوع الأول فارغ.',
   'schedule.repeatWeek.done': 'تم ملء {n} تعيينًا من الأسبوع الأول (مع الإبقاء على الخلايا الموجودة).',
+  // v5.27 — منتقي المحطة في لوحة الرسم
+  'schedule.paintStation.label': 'المحطة المراد تعيينها أثناء الرسم',
+  'schedule.paintStation.tooltip': 'اختر محطة لوسمها على الورديات المرسومة لتُحتسب ضمن تغطية تلك المحطة. «تلقائي» يترك المحطة غير محدَّدة.',
+  'schedule.paintStation.auto': 'تلقائي (بدون محطة)',
   'schedule.paintBanner': 'وضع الرسم: [{code}] نشط — انقر على الخلايا للتعيين.',
   'schedule.prevMonth': 'الشهر السابق',
   'schedule.nextMonth': 'الشهر التالي',
@@ -1510,6 +1514,20 @@ export const ar: Dict = {
 
   // Roster bulk-edit (v5.2.0)
   'roster.bulkEdit': 'تحرير جماعي',
+  'roster.bulkLeave': 'تسجيل إجازة',
+  // v5.27 — نافذة تسجيل الإجازة الجماعي
+  'modal.bulkLeave.title': 'تسجيل إجازة',
+  'modal.bulkLeave.subtitle': '{count} موظف(ين) محدَّدين',
+  'modal.bulkLeave.type': 'نوع الإجازة',
+  'modal.bulkLeave.start': 'تاريخ البدء',
+  'modal.bulkLeave.end': 'تاريخ الانتهاء',
+  'modal.bulkLeave.notes': 'ملاحظة (اختياري)',
+  'modal.bulkLeave.notesPlaceholder': 'مثال: إغلاق العيد، تدريب الفريق…',
+  'modal.bulkLeave.apply': 'تسجيل الإجازة',
+  'modal.bulkLeave.error.dates': 'تاريخا البدء والانتهاء مطلوبان.',
+  'modal.bulkLeave.error.inverted': 'يجب أن يكون تاريخ البدء في أو قبل تاريخ الانتهاء.',
+  'info.bulkLeave.title': 'تم تسجيل الإجازة',
+  'info.bulkLeave.body': 'تم تسجيل إجازة {type} لـ {count} موظف(ين)؛ وتم تحديث جدول الشهر الحالي.',
   'bulkEdit.title': 'تحرير جماعي للموظفين',
   'bulkEdit.subtitle': 'تم تحديد {count} موظف — لن يتغير سوى الأقسام التي تختار تفعيلها',
   'bulkEdit.change': 'تغيير',

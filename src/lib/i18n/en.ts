@@ -413,6 +413,10 @@ export const en: Dict = {
   'schedule.repeatWeek.tooShort': 'This month is a single week — nothing to repeat.',
   'schedule.repeatWeek.nothing': 'Nothing to repeat — later days are already filled, or week 1 is empty.',
   'schedule.repeatWeek.done': 'Filled {n} assignments from week 1 (existing cells were kept).',
+  // v5.27 — station picker in the paint palette
+  'schedule.paintStation.label': 'Station to assign while painting',
+  'schedule.paintStation.tooltip': 'Pick a station to stamp on painted shifts so they count toward that station’s coverage. “Auto” leaves the station unset.',
+  'schedule.paintStation.auto': 'Auto (no station)',
   'schedule.paintBanner': 'Painting: [{code}] mode active — Click cells to assign.',
   'schedule.prevMonth': 'Previous month',
   'schedule.nextMonth': 'Next month',
@@ -1577,6 +1581,20 @@ export const en: Dict = {
 
   // Roster bulk-edit (v5.2.0)
   'roster.bulkEdit': 'Bulk Edit',
+  'roster.bulkLeave': 'Record Leave',
+  // v5.27 — bulk record-leave modal
+  'modal.bulkLeave.title': 'Record Leave',
+  'modal.bulkLeave.subtitle': '{count} selected employee(s)',
+  'modal.bulkLeave.type': 'Leave type',
+  'modal.bulkLeave.start': 'Start date',
+  'modal.bulkLeave.end': 'End date',
+  'modal.bulkLeave.notes': 'Note (optional)',
+  'modal.bulkLeave.notesPlaceholder': 'e.g. Eid closure, team training…',
+  'modal.bulkLeave.apply': 'Record Leave',
+  'modal.bulkLeave.error.dates': 'Start and end dates are required.',
+  'modal.bulkLeave.error.inverted': 'Start date must be on or before the end date.',
+  'info.bulkLeave.title': 'Leave Recorded',
+  'info.bulkLeave.body': 'Recorded {type} leave for {count} employee(s); the active month’s grid was updated.',
   'bulkEdit.title': 'Bulk Edit Employees',
   'bulkEdit.subtitle': '{count} employees selected — only the sections you opt into will change',
   'bulkEdit.change': 'Change',

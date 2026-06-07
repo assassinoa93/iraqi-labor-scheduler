@@ -79,13 +79,14 @@ import { detectCoverageGap, findSwapCandidates, CoverageGap, CoverageSuggestion 
 import { useCoverageHints, type PendingHint } from './lib/useCoverageHints';
 import { suggestHourlyDemandFromHistory } from './lib/demandHistory';
 import { PlanEverythingWizard } from './components/PlanEverythingWizard';
+import { BulkLeaveModal } from './components/BulkLeaveModal';
 import {
   submitLeaveRequest as submitLeaveRequestFn,
   approveLeaveRequest as approveLeaveRequestFn,
   rejectLeaveRequest as rejectLeaveRequestFn,
   applyApprovedRequestToEmployees,
 } from './lib/leaveRequests';
-import { getEmployeeLeaveOnDate } from './lib/leaves';
+import { getEmployeeLeaveOnDate, newLeaveRangeId } from './lib/leaves';
 import {
   normalizeEmployees, normalizeShifts, normalizeStations, normalizeHolidays,
   normalizeConfig, normalizeAllSchedules, normalizeCompanies,
@@ -1087,6 +1088,7 @@ export default function App() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isBulkLeaveOpen, setIsBulkLeaveOpen] = useState(false);
 
   // Lightweight info dialog — single OK button, no destructive action. Used
   // in place of native `alert()` so the message respects RTL layout and the
@@ -1655,6 +1657,34 @@ export default function App() {
     showInfo(
       t('info.bulkAssign.title'),
       t('info.bulkAssign.body', { code: shiftCode, employees: empCount, days: dayCount }),
+    );
+  };
+
+  // v5.27 — record one leave range across every selected employee. Replicates
+  // BOTH halves of the single-employee save: appends the LeaveRange (so the
+  // balance projector + compliance engine see it) AND stamps the leave shift
+  // onto the active month's grid (so the schedule reflects the absence). Pure
+  // additive — never overwrites an existing range.
+  const applyBulkLeave = (args: { type: LeaveType; start: string; end: string; notes: string }) => {
+    const ids = selectedEmployees;
+    if (ids.size === 0) return;
+    // Build each employee's next state once, then reuse it for BOTH the
+    // schedule stamp (paints AL/SL/MAT on newly-covered days) and the roster
+    // write — so the persisted range id matches what was stamped.
+    const updates = new Map<string, Employee>();
+    for (const empId of ids) {
+      const prevEmp = employees.find(e => e.empId === empId);
+      if (!prevEmp) continue;
+      const range = { id: newLeaveRangeId(), type: args.type, start: args.start, end: args.end, notes: args.notes || undefined };
+      const nextEmp: Employee = { ...prevEmp, leaveRanges: [...(prevEmp.leaveRanges ?? []), range] };
+      updates.set(empId, nextEmp);
+      stampLeaveOntoSchedule(prevEmp, nextEmp);
+    }
+    setEmployees(prev => prev.map(e => updates.get(e.empId) ?? e));
+    setIsBulkLeaveOpen(false);
+    showInfo(
+      t('info.bulkLeave.title'),
+      t('info.bulkLeave.body', { count: updates.size, type: t(`leaves.type.${args.type}`) }),
     );
   };
 
@@ -4103,6 +4133,7 @@ export default function App() {
                 onLoadSample={loadSampleData}
                 onBulkAssignShift={() => setIsBulkAssignOpen(true)}
                 onBulkEdit={() => setIsBulkEditOpen(true)}
+                onBulkLeave={() => setIsBulkLeaveOpen(true)}
                 onMassImport={() => fileInputRef.current?.click()}
                 onDownloadTemplate={downloadRosterTemplate}
                 leaveRequests={data.leaveRequests ?? []}
@@ -4784,6 +4815,13 @@ export default function App() {
         stationGroups={stationGroups}
         shifts={shifts}
         onApply={applyBulkEdit}
+      />
+
+      <BulkLeaveModal
+        isOpen={isBulkLeaveOpen}
+        count={selectedEmployees.size}
+        onClose={() => setIsBulkLeaveOpen(false)}
+        onApply={applyBulkLeave}
       />
 
       {/* Print-only view of the master schedule. Hidden via CSS in normal display

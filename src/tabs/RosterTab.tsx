@@ -31,6 +31,9 @@ interface RosterTabProps {
   // (eligible stations / groups, shift preferences, role, contract, etc.)
   // to every selected employee in one pass. Counterpart to onBulkDelete.
   onBulkEdit?: () => void;
+  // v5.27 — record one leave range across every selected employee at once
+  // (Eid closure, team training day, …). Counterpart to onBulkAssignShift.
+  onBulkLeave?: () => void;
   // v4.2.1 — moved from the global toolbar so roster operations live with
   // the roster. `onMassImport` opens the OS file picker (the actual file
   // input + parser stays in App.tsx since it uses several App-level
@@ -53,7 +56,7 @@ type SortKey = 'empId' | 'name' | 'role';
 export function RosterTab({
   employees, stations, stationGroups = [], searchTerm, setSearchTerm,
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
-  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift, onBulkEdit,
+  onAddNew, onEdit, onDelete, onBulkDelete, onLoadSample, onBulkAssignShift, onBulkEdit, onBulkLeave,
   onMassImport, onDownloadTemplate,
   leaveRequests, canSubmitLeaveRequest, canDecideLeaveRequest,
   onSubmitLeaveRequest, onApproveLeaveRequest, onRejectLeaveRequest,
@@ -179,6 +182,15 @@ export function RosterTab({
             >
               <Edit className="w-3.5 h-3.5" />
               {t('roster.bulkEdit')} ({selectedEmployees.size})
+            </button>
+          )}
+          {selectedEmployees.size > 0 && onBulkLeave && (
+            <button
+              onClick={onBulkLeave}
+              className="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-amber-100 dark:border-amber-500/30 hover:bg-amber-100 dark:hover:bg-amber-500/25 transition-all font-mono"
+            >
+              <CalendarOff className="w-3.5 h-3.5" />
+              {t('roster.bulkLeave')} ({selectedEmployees.size})
             </button>
           )}
           {selectedEmployees.size > 0 && (

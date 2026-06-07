@@ -439,6 +439,14 @@ export function ScheduleTab({
   }, [compactCells]);
   const dayCellWidth = compactCells ? DAY_CELL_WIDTH_COMPACT : DAY_CELL_WIDTH_DEFAULT;
 
+  // v5.27 — station to stamp while painting. The write path already persists
+  // ScheduleEntry.stationId (and station coverage counts read it), but there
+  // was no UI to set it, so every hand-painted shift was invisible to
+  // per-station coverage. "Auto" ('') leaves stationId unset (legacy
+  // behaviour). Kept local and merged into paintMode whenever a shift pill or
+  // number-key selects a shift, so it survives re-selection.
+  const [paintStationId, setPaintStationId] = useState<string>('');
+
   // v2.6 — collapsed station IDs persist across sessions so the supervisor's
   // pivot view doesn't reset between visits. Stored as an array (Set isn't
   // JSON-friendly) keyed per-app — small enough that we don't bother per-
@@ -752,13 +760,13 @@ export function ScheduleTab({
         const target = shifts[n - 1];
         if (target) {
           e.preventDefault();
-          setPaintMode(paintMode?.shiftCode === target.code ? null : { shiftCode: target.code });
+          setPaintMode(paintMode?.shiftCode === target.code ? null : { shiftCode: target.code, stationId: paintStationId || undefined });
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shifts, paintMode, setPaintMode, onUndoCell, cellUndoDepth]);
+  }, [shifts, paintMode, setPaintMode, onUndoCell, cellUndoDepth, paintStationId]);
 
   // v5.16.0 — empty-state guard. Pre-v5.16 a brand-new install showed
   // the user an empty grid + busy toolbar with no breadcrumb of what to
@@ -972,7 +980,7 @@ export function ScheduleTab({
               return (
                 <button
                   key={s.code}
-                  onClick={() => setPaintMode(paintMode?.shiftCode === s.code ? null : { shiftCode: s.code })}
+                  onClick={() => setPaintMode(paintMode?.shiftCode === s.code ? null : { shiftCode: s.code, stationId: paintStationId || undefined })}
                   aria-pressed={paintMode?.shiftCode === s.code}
                   title={kbdHint ? `${s.code} (${kbdHint})` : s.code}
                   className={cn(
@@ -1011,6 +1019,28 @@ export function ScheduleTab({
               <span>1-9 / Esc</span>
             </div>
           </div>
+
+          {/* v5.27 — station to stamp while painting. Without this, manually
+              painted shifts had no stationId and never counted toward
+              per-station coverage. "Auto" leaves it unset. */}
+          {stations.length > 0 && (
+            <div className="flex items-center gap-1.5" title={t('schedule.paintStation.tooltip')}>
+              <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <select
+                value={paintStationId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setPaintStationId(id);
+                  if (paintMode) setPaintMode({ shiftCode: paintMode.shiftCode, stationId: id || undefined });
+                }}
+                aria-label={t('schedule.paintStation.label')}
+                className="px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm max-w-[10rem]"
+              >
+                <option value="">{t('schedule.paintStation.auto')}</option>
+                {stations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {scheduleUndoStack.length > 0 && (
             <button
