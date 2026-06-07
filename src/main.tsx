@@ -1,5 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import { MotionConfig } from 'motion/react';
 import { AppShell } from './components/AppShell';
 
 // v3.0.0 — webfonts bundled locally via @fontsource so the Electron app
@@ -37,10 +38,15 @@ import { ThemeProvider } from './lib/theme';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <LocaleProvider>
-        <AppShell />
-      </LocaleProvider>
-    </ThemeProvider>
+    {/* v5.27 — reducedMotion="user" makes every motion/react animation honour
+        the OS "reduce motion" setting (the CSS @media reset in index.css covers
+        Tailwind animate-* + transitions for the rest). */}
+    <MotionConfig reducedMotion="user">
+      <ThemeProvider>
+        <LocaleProvider>
+          <AppShell />
+        </LocaleProvider>
+      </ThemeProvider>
+    </MotionConfig>
   </StrictMode>,
 );

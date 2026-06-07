@@ -24,7 +24,9 @@ export function SortableHeader({
   const active = currentKey === sortKey;
   const justify = align === 'center' ? 'justify-center' : align === 'end' ? 'justify-end' : 'justify-start';
   return (
-    <th className={cn('px-6 py-3 tracking-wider', className)}>
+    // v5.27 — aria-sort exposes current sort state to screen readers on every
+    // table built with this shared header (Roster, Payroll, …).
+    <th aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={cn('px-6 py-3 tracking-wider', className)}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}

@@ -756,3 +756,17 @@
     width: 8mm;
   }
 }
+
+/* v5.27 — respect the OS "reduce motion" accessibility setting. Near-instant
+   (not 0s, which can break transitionend listeners) durations neutralise
+   Tailwind animate-* utilities (spin/pulse/bounce) and CSS transitions for
+   users prone to motion sickness. motion/react animations are handled
+   separately via <MotionConfig reducedMotion="user"> in main.tsx. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
