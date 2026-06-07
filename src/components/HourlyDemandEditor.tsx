@@ -40,7 +40,7 @@ export function HourlyDemandEditor({ slots, fallback, onAdd, onRemove, onUpdate,
         <p className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">{label}</p>
       )}
       {slots.length === 0 ? (
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
           {t('modal.station.hourly.empty', { fallback })}
         </p>
       ) : (
@@ -57,7 +57,7 @@ export function HourlyDemandEditor({ slots, fallback, onAdd, onRemove, onUpdate,
                   <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
                 ))}
               </select>
-              <span className="text-slate-400 dark:text-slate-500 text-xs">→</span>
+              <span className="text-slate-500 dark:text-slate-400 text-xs">→</span>
               <select
                 value={s.endHour}
                 onChange={e => onUpdate(i, { endHour: parseInt(e.target.value) })}
@@ -76,12 +76,12 @@ export function HourlyDemandEditor({ slots, fallback, onAdd, onRemove, onUpdate,
                 className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded py-1.5 px-2 text-xs font-mono text-center"
                 aria-label={t('modal.station.hourly.hc')}
               />
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">PAX</span>
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">PAX</span>
               <button
                 type="button"
                 onClick={() => onRemove(i)}
                 aria-label={t('modal.station.hourly.removeSlot')}
-                className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/15 rounded"
+                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/15 rounded"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

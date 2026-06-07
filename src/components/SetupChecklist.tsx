@@ -91,7 +91,7 @@ export function SetupChecklist({
       }
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{badge}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{badge}</span>
           <p className={cn(
             'text-sm font-bold',
             done ? 'text-emerald-700 dark:text-emerald-200 line-through opacity-70' : 'text-slate-800 dark:text-slate-100',

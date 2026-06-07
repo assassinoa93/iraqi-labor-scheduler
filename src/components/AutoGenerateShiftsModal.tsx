@@ -265,7 +265,7 @@ export function AutoGenerateShiftsModal({
                       );
                     })}
                   </div>
-                  <div className="flex justify-between mt-1 text-[8px] font-mono text-slate-400 dark:text-slate-500">
+                  <div className="flex justify-between mt-1 text-[8px] font-mono text-slate-500 dark:text-slate-400">
                     <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-[9px] font-bold uppercase tracking-widest">
@@ -294,7 +294,7 @@ export function AutoGenerateShiftsModal({
                         </p>
                       </div>
                       <div className="text-end shrink-0">
-                        <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('shifts.autoGen.recommendedHC')}</p>
+                        <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('shifts.autoGen.recommendedHC')}</p>
                         <p className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200">
                           {s.recommendedNormalHC} <span className="text-slate-300 dark:text-slate-600">/</span> <span className="text-violet-600 dark:text-violet-300">{s.recommendedPeakHC}</span>
                         </p>
@@ -373,7 +373,7 @@ export function AutoGenerateShiftsModal({
               className={cn(
                 'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
                 hasNoDemand || isAdequate
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700',
               )}
             >
@@ -393,7 +393,7 @@ export function AutoGenerateShiftsModal({
               className={cn(
                 'px-6 py-2 rounded text-sm font-bold transition-all shadow-lg uppercase tracking-widest',
                 hasNoDemand || optimizeUnchanged || !onReplaceLibrary
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-700 hover:to-blue-700',
               )}
             >
@@ -561,7 +561,7 @@ function DeltaTile({
       <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">{label}</p>
       <p className="text-xs font-mono">
         <span className="text-slate-500 dark:text-slate-400">{beforeStr}</span>
-        <ArrowRight className="inline w-3 h-3 mx-1 text-slate-400 dark:text-slate-500" />
+        <ArrowRight className="inline w-3 h-3 mx-1 text-slate-500 dark:text-slate-400" />
         <span className={cn('font-black', isImprovement ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100')}>{afterStr}</span>
       </p>
     </div>
@@ -588,7 +588,7 @@ function ShiftListColumn({
       </div>
       <div className="divide-y divide-slate-200 dark:divide-slate-700/60 max-h-[36vh] overflow-y-auto">
         {entries.length === 0 ? (
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 italic p-3">—</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 italic p-3">—</p>
         ) : (
           entries.map((e, i) => {
             const badgeTone =

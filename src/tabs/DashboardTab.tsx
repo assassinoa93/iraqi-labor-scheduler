@@ -300,10 +300,10 @@ export function DashboardTab(props: DashboardTabProps) {
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tighter uppercase leading-none">{t('dashboard.stats.title')}</h3>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{t('dashboard.stats.period')}: {format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy')}</p>
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{t('dashboard.stats.period')}: {format(new Date(config.year, config.month - 1, 1), 'MMMM yyyy')}</p>
                   </div>
                 </div>
-                <button ref={closeStatsButtonRef} onClick={() => setIsStatsModalOpen(false)} aria-label={t('action.cancel')} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-all"><X className="w-6 h-6 text-slate-400 dark:text-slate-500" /></button>
+                <button ref={closeStatsButtonRef} onClick={() => setIsStatsModalOpen(false)} aria-label={t('action.cancel')} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition-all"><X className="w-6 h-6 text-slate-500 dark:text-slate-400" /></button>
               </div>
 
               <div className="p-8 overflow-y-auto flex-1 space-y-8">
@@ -314,22 +314,22 @@ export function DashboardTab(props: DashboardTabProps) {
                     <p className="text-xs font-bold text-blue-100 mt-2">{t('dashboard.stats.basedOn', { count: fmt.num(employees.length) })}</p>
                   </Card>
                   <Card className="p-6 bg-slate-900 dark:bg-slate-800 text-white border-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">{t('dashboard.stats.totalIncidents')}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">{t('dashboard.stats.totalIncidents')}</p>
                     <p className="text-5xl font-black tracking-tight">{fmt.num(totalViolationInstances)}</p>
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-2">{t('dashboard.stats.acrossRules', { count: fmt.num(distinctViolationRules) })}</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">{t('dashboard.stats.acrossRules', { count: fmt.num(distinctViolationRules) })}</p>
                   </Card>
                   <Card className="p-6 border-slate-200 dark:border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">{t('dashboard.peakStability')}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">{t('dashboard.peakStability')}</p>
                     <p className={cn(
                       "text-5xl font-black tracking-tight",
                       peakStabilityPercent >= 90 ? "text-emerald-600 dark:text-emerald-300" : peakStabilityPercent >= 75 ? "text-slate-800 dark:text-slate-100" : "text-rose-600 dark:text-rose-300"
                     )}>{fmt.num(peakStabilityPercent)}%</p>
-                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-2 italic">{t('dashboard.peakCaption')}</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2 italic">{t('dashboard.peakCaption')}</p>
                   </Card>
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <ShieldAlert className="w-3.5 h-3.5" /> {t('dashboard.stats.byCategory')}
                   </h4>
                   <div className="grid grid-cols-1 gap-3">
@@ -351,7 +351,7 @@ export function DashboardTab(props: DashboardTabProps) {
               </div>
 
               <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase italic">{t('dashboard.stats.footer')}</p>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase italic">{t('dashboard.stats.footer')}</p>
                 <button onClick={() => setIsStatsModalOpen(false)} className="bg-slate-900 dark:bg-slate-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-all">{t('dashboard.stats.close')}</button>
               </div>
             </motion.div>
@@ -499,7 +499,7 @@ export function DashboardTab(props: DashboardTabProps) {
           <div className="space-y-6">
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('dashboard.continuity')}</h5>
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('dashboard.continuity')}</h5>
                 <ShieldCheck className="w-4 h-4 text-emerald-500 dark:text-emerald-300" />
               </div>
               <div className="space-y-4">
@@ -509,7 +509,7 @@ export function DashboardTab(props: DashboardTabProps) {
                       "text-2xl font-black",
                       overallCoveragePercent >= 90 ? "text-emerald-600 dark:text-emerald-300" : overallCoveragePercent >= 75 ? "text-slate-800 dark:text-slate-100" : "text-rose-600 dark:text-rose-300"
                     )}>{overallCoveragePercent}%</p>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{t('dashboard.stationCoverage')}</p>
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{t('dashboard.stationCoverage')}</p>
                   </div>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -522,7 +522,7 @@ export function DashboardTab(props: DashboardTabProps) {
                     )}
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">{t('dashboard.coverageNote')}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">{t('dashboard.coverageNote')}</p>
               </div>
             </Card>
             <Card className="p-6 bg-blue-50/50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/30">
@@ -546,7 +546,7 @@ export function DashboardTab(props: DashboardTabProps) {
           className="p-10 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 text-center space-y-6"
         >
           <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShieldAlert className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+            <ShieldAlert className="w-10 h-10 text-slate-500 dark:text-slate-400" />
           </div>
           <div className="max-w-md mx-auto space-y-2">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t('dashboard.empty.title')}</h2>
@@ -603,7 +603,7 @@ export function DashboardTab(props: DashboardTabProps) {
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{t('dashboard.offThisWeek.title')}</h3>
           </div>
           {offThisWeek.length === 0 ? (
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{t('dashboard.offThisWeek.empty')}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t('dashboard.offThisWeek.empty')}</p>
           ) : (
             <div className="space-y-3">
               {offThisWeek.map((d) => (
@@ -689,10 +689,10 @@ export function DashboardTab(props: DashboardTabProps) {
               })()}
             </h3>
             <div className="flex gap-2">
-              <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+              <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">
                 <div className="w-2 h-2 rounded-full bg-red-100 dark:bg-red-500/25 border border-red-200 dark:border-red-500/40" /> {t('dashboard.coverage.low')}
               </div>
-              <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+              <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">
                 <div className="w-2 h-2 rounded-full bg-emerald-100 dark:bg-emerald-500/25 border border-emerald-200 dark:border-emerald-500/40" /> {t('dashboard.coverage.optimal')}
               </div>
             </div>
@@ -702,7 +702,7 @@ export function DashboardTab(props: DashboardTabProps) {
             <div className="inline-grid gap-1" style={{ gridTemplateColumns: `repeat(${hourlyCoverage.hours.length + 1}, minmax(40px, 1fr))` }}>
               <div className="h-10" />
               {hourlyCoverage.hours.map(h => (
-                <div key={h} className="text-center font-mono text-[9px] font-bold text-slate-400 dark:text-slate-500 py-2 border-b border-slate-100 dark:border-slate-700/60">
+                <div key={h} className="text-center font-mono text-[9px] font-bold text-slate-500 dark:text-slate-400 py-2 border-b border-slate-100 dark:border-slate-700/60">
                   {h}:00
                 </div>
               ))}
@@ -710,7 +710,7 @@ export function DashboardTab(props: DashboardTabProps) {
               {daysInMonthArr.map(day => (
                 <React.Fragment key={day}>
                   <div className="flex flex-col justify-center pe-4 border-e border-slate-100 dark:border-slate-700/60">
-                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{t('dashboard.day')} {day}</span>
+                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{t('dashboard.day')} {day}</span>
                     <span className="text-[8px] text-slate-300 dark:text-slate-600 font-bold">{format(new Date(config.year, config.month - 1, day), 'EEE')}</span>
                   </div>
                   {hourlyCoverage.hours.map(h => {
@@ -735,7 +735,7 @@ export function DashboardTab(props: DashboardTabProps) {
               ))}
             </div>
           </div>
-          <p className="mt-6 text-[10px] text-slate-400 dark:text-slate-500 font-medium italic">{t('dashboard.coverage.note')}</p>
+          <p className="mt-6 text-[10px] text-slate-500 dark:text-slate-400 font-medium italic">{t('dashboard.coverage.note')}</p>
         </Card>
 
         <div className="grid grid-cols-1 gap-6">

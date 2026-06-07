@@ -163,7 +163,7 @@ export function WhatIfPanel(props: Props) {
                       type="button"
                       onClick={() => removeChange(i)}
                       aria-label={t('action.remove')}
-                      className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300"
+                      className="text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -402,7 +402,7 @@ function DeltaTile({ label, before, after, delta, better, unit }: {
         <span className="text-slate-500 dark:text-slate-400">{fmt(before)}</span>
         <span className="mx-1.5">→</span>
         <span className="font-black">{fmt(after)}</span>
-        {unit && <span className="text-slate-400 dark:text-slate-500 ms-0.5 text-[8px]">{unit}</span>}
+        {unit && <span className="text-slate-500 dark:text-slate-400 ms-0.5 text-[8px]">{unit}</span>}
       </p>
       <p className="text-[9px] font-mono mt-0.5">
         {delta === 0 ? '±0' : `${delta > 0 ? '+' : ''}${fmt(delta)}`}

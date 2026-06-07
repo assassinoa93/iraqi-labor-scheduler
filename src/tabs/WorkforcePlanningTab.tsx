@@ -1178,7 +1178,7 @@ function RollupStationRow({ station, idealOnly }: { station: AnnualRollupStation
           </div>
         </div>
         <div className="shrink-0 pt-1">
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500 dark:text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400" />}
         </div>
       </button>
 

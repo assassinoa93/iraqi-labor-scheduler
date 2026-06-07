@@ -56,7 +56,7 @@ export function PendingApprovalsCard({ kind, rows, companies, onJump }: Props) {
         </div>
         <div>
           <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</p>
-          <p className="text-[10px] uppercase tracking-widest font-mono text-slate-400 dark:text-slate-500">
+          <p className="text-[10px] uppercase tracking-widest font-mono text-slate-500 dark:text-slate-400">
             {rows.length === 0 ? '0 pending' : `${rows.length} pending`}
           </p>
         </div>
@@ -81,7 +81,7 @@ export function PendingApprovalsCard({ kind, rows, companies, onJump }: Props) {
               <li key={`${r.companyId}-${r.yyyymm}`} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                    {byId.get(r.companyId) ?? r.companyId} <span className="text-slate-400 dark:text-slate-500">·</span> {monthLabel}
+                    {byId.get(r.companyId) ?? r.companyId} <span className="text-slate-500 dark:text-slate-400">·</span> {monthLabel}
                   </p>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                     {isValidation ? 'Submitted' : 'Locked'} by{' '}

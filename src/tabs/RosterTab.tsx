@@ -153,7 +153,7 @@ export function RosterTab({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative w-full sm:w-72">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder={t('roster.searchPlaceholder')}
@@ -246,7 +246,7 @@ export function RosterTab({
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <table className="w-full text-start text-sm">
-          <thead className="bg-slate-50 dark:bg-slate-800/40 text-[10px] uppercase text-slate-400 dark:text-slate-500 font-black border-b border-slate-100 dark:border-slate-700/60">
+          <thead className="bg-slate-50 dark:bg-slate-800/40 text-[10px] uppercase text-slate-500 dark:text-slate-400 font-black border-b border-slate-100 dark:border-slate-700/60">
             <tr>
               <th className="px-4 py-3 text-center">
                 <input
@@ -275,7 +275,7 @@ export function RosterTab({
                 <td colSpan={6} className="p-20 text-center">
                   <div className="max-w-xs mx-auto">
                     <Users className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
-                    <h3 className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-[10px]">{t('roster.emptyTitle')}</h3>
+                    <h3 className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('roster.emptyTitle')}</h3>
                     <p className="text-[10px] text-slate-300 dark:text-slate-600 font-medium uppercase tracking-tighter mt-1 mb-6">{t('roster.emptyHint')}</p>
                     <div className="flex gap-2 justify-center">
                       <button onClick={onAddNew} className="px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all">{t('roster.addManually')}</button>
@@ -287,7 +287,7 @@ export function RosterTab({
             )}
             {visible.length === 0 && employees.length > 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                <td colSpan={6} className="p-12 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                   {t('schedule.noMatches')}
                 </td>
               </tr>
@@ -302,7 +302,7 @@ export function RosterTab({
                     onChange={() => toggleEmployeeSelection(emp.empId)}
                   />
                 </td>
-                <td className="px-6 py-4 font-mono text-xs font-bold text-slate-400 dark:text-slate-500 tracking-tighter">{emp.empId}</td>
+                <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 tracking-tighter">{emp.empId}</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</p>
@@ -323,7 +323,7 @@ export function RosterTab({
                     })()}
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-tighter">{emp.contractType}</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">{emp.contractType}</p>
                     {(() => {
                       const ce = contractExpiry(emp);
                       if (!ce) return null;
@@ -353,7 +353,7 @@ export function RosterTab({
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-tighter">{emp.department}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-tighter">{emp.department}</p>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">

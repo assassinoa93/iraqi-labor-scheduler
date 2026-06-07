@@ -291,7 +291,7 @@ export function LeaveRequestPanel({
                             'apple-press px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm',
                             rejectReason.trim()
                               ? 'bg-rose-600 hover:bg-rose-700 text-white'
-                              : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed',
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed',
                           )}
                         >
                           {t('leaveReq.reject.confirm')}
@@ -307,7 +307,7 @@ export function LeaveRequestPanel({
 
         {recentDecisions.length > 0 && (
           <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">{t('leaveReq.recent')}</p>
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">{t('leaveReq.recent')}</p>
             <ul className="space-y-1">
               {recentDecisions.map(req => {
                 const emp = empById.get(req.empId);

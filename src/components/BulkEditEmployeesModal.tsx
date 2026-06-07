@@ -320,7 +320,7 @@ export function BulkEditEmployeesModal({
                         'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all',
                         active
                           ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-blue-300 dark:hover:border-blue-500/40',
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-300 dark:hover:border-blue-500/40',
                       )}
                     >
                       <Plus className={cn('w-3 h-3', active && 'rotate-45')} />
@@ -329,7 +329,7 @@ export function BulkEditEmployeesModal({
                   );
                 })}
                 {stations.length === 0 && (
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 col-span-3">{t('bulkEdit.stations.empty')}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 col-span-3">{t('bulkEdit.stations.empty')}</p>
                 )}
               </div>
             )}
@@ -369,7 +369,7 @@ export function BulkEditEmployeesModal({
                       </button>
                     );
                   })}
-                  {workShifts.length === 0 && <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('bulkEdit.shifts.empty')}</p>}
+                  {workShifts.length === 0 && <p className="text-[10px] text-slate-500 dark:text-slate-400">{t('bulkEdit.shifts.empty')}</p>}
                 </div>
               )}
             </div>
@@ -593,7 +593,7 @@ function ScalarRow({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</label>
+        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</label>
         <label className="flex items-center gap-2 cursor-pointer">
           <Switch checked={enabled} onChange={onToggle} aria-label={`${changeLabel} ${label}`} />
           <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{changeLabel}</span>

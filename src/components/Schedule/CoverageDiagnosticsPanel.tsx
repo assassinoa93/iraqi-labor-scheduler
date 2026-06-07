@@ -139,7 +139,7 @@ export function CoverageDiagnosticsPanel(props: Props) {
             );
           })}
           {groups.length > 60 && (
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 italic text-center">
               {t('coverageDiag.truncated', { count: groups.length - 60 })}
             </p>
           )}

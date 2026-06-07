@@ -350,7 +350,7 @@ function WeeklyStationRow({ rotation }: { rotation: WeeklyStationRotation }) {
               {t(`workforce.scenario.weekly.day.${day.dayKey}`)}
             </p>
             {day.slots.length === 0 ? (
-              <p className="text-[8px] text-slate-400 dark:text-slate-500 italic">—</p>
+              <p className="text-[8px] text-slate-500 dark:text-slate-400 italic">—</p>
             ) : (
               <div className="space-y-0.5">
                 {day.slots.map((slot, i) => (
@@ -543,7 +543,7 @@ function StationScenarioRow({ scenario }: { scenario: StationScenario }) {
             );
           })}
         </div>
-        <div className="flex justify-between text-[8px] font-mono text-slate-400 dark:text-slate-500">
+        <div className="flex justify-between text-[8px] font-mono text-slate-500 dark:text-slate-400">
           <span>{fmtHour(scenario.openingHour)}</span>
           <span>{fmtHour(scenario.closingHour)}</span>
         </div>

@@ -96,7 +96,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                 isActive && m.tone === 'emerald' && "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-200 border-emerald-500",
                 isActive && m.tone === 'blue' && "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-200 border-blue-500",
                 isActive && m.tone === 'indigo' && "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-200 border-indigo-500",
-                !isActive && "text-slate-400 dark:text-slate-500 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-900/50",
+                !isActive && "text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-900/50",
               )}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -118,7 +118,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
             <ActiveIcon className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('advisory.section.eyebrow')}</p>
+            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('advisory.section.eyebrow')}</p>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">{t(active.titleKey)}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">{t(active.bodyKey)}</p>
           </div>
@@ -244,7 +244,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
               />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-[10px]">
                 <div>
-                  <p className="font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
+                  <p className="font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('advisory.kpi.hires')}</p>
                   <p className="text-base font-black text-slate-800 dark:text-slate-100">+{cur}</p>
                 </div>
                 <div>
@@ -260,7 +260,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                   <p className={cn('text-sm font-black font-mono', net >= 0 ? 'text-emerald-700 dark:text-emerald-200' : 'text-amber-700 dark:text-amber-200')}>{net >= 0 ? '+' : '−'}{fmtIQD(net)}</p>
                 </div>
               </div>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-2 leading-snug">
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-2 leading-snug">
                 {t('advisory.whatIf.note')}
               </p>
             </div>
@@ -329,7 +329,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                               {labelKey ? t(labelKey) : entry.ruleKey}
                             </span>
                             {article && (
-                              <span className="text-[8px] font-mono font-black text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">
+                              <span className="text-[8px] font-mono font-black text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">
                                 {article}
                               </span>
                             )}
@@ -348,7 +348,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed italic">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
                   {t('advisory.fines.exposure.disclaimer')}
                 </p>
               </div>
@@ -455,7 +455,7 @@ function PerStationList({ perStation, tone }: { perStation: StationHire[]; tone:
                 tone === 'blue' && "text-blue-700 dark:text-blue-200",
                 tone === 'indigo' && "text-indigo-700 dark:text-indigo-200",
               )}>+{p.hires}</p>
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-0.5">{t('advisory.perStation.toHire')}</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-0.5">{t('advisory.perStation.toHire')}</p>
             </div>
           </div>
         ))}
@@ -532,7 +532,7 @@ function SimStat({ label, value, ok, hint }: { label: string; value: string; ok:
       "p-2 rounded-lg border text-center",
       hint ? "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700/60" : ok ? "bg-white dark:bg-slate-900 border-emerald-100 dark:border-emerald-500/30" : "bg-white dark:bg-slate-900 border-amber-100 dark:border-amber-500/30",
     )}>
-      <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
+      <p className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</p>
       <p className={cn(
         "text-base font-black mt-0.5",
         hint ? "text-slate-700 dark:text-slate-200" : ok ? "text-emerald-700 dark:text-emerald-200" : "text-amber-700 dark:text-amber-200",

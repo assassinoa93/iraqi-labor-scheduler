@@ -80,7 +80,7 @@ export function CompaniesPanel({ companies, onAdd, onRename, onDelete }: Props) 
     <section className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.companies.title')}</p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
           {t('superAdmin.companies.subtitle', { count: companies.length })}
         </p>
       </div>
@@ -207,7 +207,7 @@ function CompanyRow({ company, isEditing, busy, t, onEdit, onCancelEdit, onRenam
     <div className="flex items-center gap-3 px-4 py-2.5">
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate">{company.name}</p>
-        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">{company.id}</p>
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate">{company.id}</p>
       </div>
       <button
         onClick={onEdit}

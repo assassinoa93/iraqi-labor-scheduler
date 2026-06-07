@@ -357,7 +357,7 @@ export function BulkAddStationsModal({
                   className={cn(
                     "w-full border rounded py-1.5 px-2 text-sm font-mono",
                     defaults.normalHourlyDemand.length > 0
-                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-400"
                       : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
                   )}
                 />
@@ -372,7 +372,7 @@ export function BulkAddStationsModal({
                   className={cn(
                     "w-full border rounded py-1.5 px-2 text-sm font-mono",
                     defaults.peakHourlyDemand.length > 0
-                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                      ? "bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-400"
                       : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
                   )}
                 />
@@ -437,7 +437,7 @@ export function BulkAddStationsModal({
                     })}
                   </span>
                 ) : (
-                  <span className="ms-auto text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  <span className="ms-auto text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     {t('bulkStation.hourly.optional')}
                   </span>
                 )}
@@ -510,7 +510,7 @@ export function BulkAddStationsModal({
             </div>
             <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800/40 text-[9px] uppercase text-slate-400 dark:text-slate-500 font-black tracking-widest">
+                <thead className="bg-slate-50 dark:bg-slate-800/40 text-[9px] uppercase text-slate-500 dark:text-slate-400 font-black tracking-widest">
                   <tr>
                     <th className="px-2 py-2 text-start">ID</th>
                     <th className="px-2 py-2 text-start">{t('bulkStation.col.name')}</th>
@@ -638,7 +638,7 @@ export function BulkAddStationsModal({
               </table>
             </div>
             {rows.length > cleanRows.length && (
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                 {t('bulkStation.row.blanksHint', { count: rows.length - cleanRows.length })}
               </p>
             )}
@@ -684,7 +684,7 @@ function DefaultsField({ label, children, overridden }: { label: string; childre
     <div className="space-y-1">
       <label className={cn(
         "text-[9px] font-bold uppercase tracking-widest",
-        overridden ? "text-amber-600 dark:text-amber-300" : "text-slate-400 dark:text-slate-500",
+        overridden ? "text-amber-600 dark:text-amber-300" : "text-slate-500 dark:text-slate-400",
       )}>
         {label}
         {overridden && (

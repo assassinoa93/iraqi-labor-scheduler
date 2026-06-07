@@ -104,7 +104,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               so callers don't need to reformat. The i18n hint stays for
               users who type the date instead of using the picker. */}
           <SettingField required label={t('modal.holiday.field.date')} type="date" value={formData.date} onChange={v => setFormData({...formData, date: v})} />
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 -mt-2">{t('modal.holiday.field.date.hint')}</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 -mt-2">{t('modal.holiday.field.date.hint')}</p>
           <SettingField required label={t('modal.holiday.field.name')} value={formData.name} onChange={v => setFormData({...formData, name: v})} />
 
           {/* v2.5.0 — duration field. Eid Al-Fitr / Eid Al-Adha typically
@@ -113,7 +113,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               now holds a single record + duration; the rest of the app
               expands it to per-day records for date-matching. */}
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.holiday.field.duration')}</label>
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.holiday.field.duration')}</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -129,7 +129,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               />
               <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{t('modal.holiday.field.duration.suffix')}</span>
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{t('modal.holiday.field.duration.hint')}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t('modal.holiday.field.duration.hint')}</p>
           </div>
           <SettingField
             label={t('modal.holiday.field.category')}
@@ -149,7 +149,7 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
               (so the supervisor knows what's in force) but the buttons
               are click-disabled. */}
           <div>
-            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">{t('modal.holiday.field.compMode')}</label>
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 block">{t('modal.holiday.field.compMode')}</label>
             {/* v5.1.7 — four tiles: inherit + the three Art. 74 modes.
                 "Both" is the strict-text option; visually purple to match
                 the Variables-tab card. Grid stays compact at 2 cols on

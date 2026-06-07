@@ -165,7 +165,7 @@ export function QuotaPanel() {
             <Activity className="w-3 h-3 inline-block me-1 -mt-0.5" />
             {t('superAdmin.quota.rollingUsage')}
             {usage && <> · <span className="font-mono">{t('superAdmin.quota.lastFetched', { time: fetchedAtLabel })}</span></>}
-            {usage?.cached && <span className="text-slate-400 dark:text-slate-500"> {t('superAdmin.quota.cached')}</span>}
+            {usage?.cached && <span className="text-slate-500 dark:text-slate-400"> {t('superAdmin.quota.cached')}</span>}
           </p>
         </div>
         <button
@@ -193,7 +193,7 @@ export function QuotaPanel() {
               <MetricBar key={row.key} row={row} metric={usage?.[row.key]} />
             ))}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
             {t('superAdmin.quota.lagNote')}
           </p>
         </>
@@ -385,7 +385,7 @@ function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | unde
           {apiError ? (
             <span className="text-rose-600 dark:text-rose-300">{t('superAdmin.quota.metric.unavailable')}</span>
           ) : used === null || used === undefined ? (
-            <span className="text-slate-400 dark:text-slate-500">—</span>
+            <span className="text-slate-500 dark:text-slate-400">—</span>
           ) : (
             <span className={cn("font-bold", labelCls)}>
               {t('superAdmin.quota.metric.usage', {
@@ -403,7 +403,7 @@ function MetricBar({ row, metric }: { row: MetricRow; metric: QuotaMetric | unde
           style={{ width: `${Math.min(pct, 100)}%` }}
         />
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{t(row.helperKey)}</p>
+      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t(row.helperKey)}</p>
       {apiError && (
         <p className="text-[10px] text-rose-600 dark:text-rose-300 font-mono leading-relaxed">
           {apiError.code}: {apiError.message}
@@ -470,7 +470,7 @@ function Section({ children }: { children: React.ReactNode }) {
     <section className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.quota.title')}</p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
           {t('superAdmin.quota.subtitle')}
         </p>
       </div>

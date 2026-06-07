@@ -42,7 +42,7 @@ export function UserManagementTab({ companies }: Props) {
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight mb-1">
           {t('userManagement.title')}
         </h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
           {t('userManagement.subtitle')}
         </p>
       </div>

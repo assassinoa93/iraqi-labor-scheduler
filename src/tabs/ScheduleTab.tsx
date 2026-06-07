@@ -349,7 +349,7 @@ function ScheduleRow({
             </span>
           )}
         </div>
-        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1 shrink-0 mt-0.5">
+        <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1 shrink-0 mt-0.5">
           <Hash className="w-2 h-2" /> {emp?.empId} • {emp?.role}
         </span>
       </div>
@@ -885,7 +885,7 @@ export function ScheduleTab({
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={scheduleFilter}
@@ -1025,7 +1025,7 @@ export function ScheduleTab({
               per-station coverage. "Auto" leaves it unset. */}
           {stations.length > 0 && (
             <div className="flex items-center gap-1.5" title={t('schedule.paintStation.tooltip')}>
-              <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <MapPin className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <select
                 value={paintStationId}
                 onChange={(e) => {
@@ -1113,7 +1113,7 @@ export function ScheduleTab({
               className={cn(
                 'apple-press flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-sm border',
                 saveState === 'saving'
-                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-wait'
+                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-wait'
                   : saveState === 'error'
                     ? 'bg-rose-50 dark:bg-rose-500/15 border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-500/25'
                     : 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/25',
@@ -1253,7 +1253,7 @@ export function ScheduleTab({
             left both in the grid AND in the rail. */}
         <div className="sticky top-0 z-30 flex bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
           <div
-            className="sticky left-0 z-10 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[4px_0_8px_rgba(0,0,0,0.04)] flex items-center px-4 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+            className="sticky left-0 z-10 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[4px_0_8px_rgba(0,0,0,0.04)] flex items-center px-4 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest"
             style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH, height: 14 }}
             aria-hidden
           >
@@ -1319,7 +1319,7 @@ export function ScheduleTab({
                     </span>
                     <span className={cn(
                       "text-[7px] font-bold uppercase shrink-0 leading-none mt-0.5",
-                      isToday ? "text-blue-500 dark:text-blue-300" : "text-slate-400 dark:text-slate-500",
+                      isToday ? "text-blue-500 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",
                     )}>
                       {format(date, 'EEE')}
                     </span>
@@ -1330,7 +1330,7 @@ export function ScheduleTab({
 
             {/* Virtualised body */}
             {filteredEmployees.length === 0 && employees.length > 0 ? (
-              <div className="p-12 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              <div className="p-12 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                 {t('schedule.noMatches')}
               </div>
             ) : (
@@ -1380,25 +1380,25 @@ export function ScheduleTab({
           return (
             <div className="bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-700 px-4 py-2 flex items-center gap-4 flex-wrap text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 dark:text-slate-500">{t('schedule.footer.totalHrs')}:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('schedule.footer.totalHrs')}:</span>
                 <span className="font-black text-slate-800 dark:text-slate-100">{totalHrs.toFixed(0)}h</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <span className="text-slate-400 dark:text-slate-500">{t('schedule.footer.saturated')}:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('schedule.footer.saturated')}:</span>
                 <span className="font-black text-red-700 dark:text-red-300">{saturated}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span className="text-slate-400 dark:text-slate-500">{t('schedule.footer.nearCap')}:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('schedule.footer.nearCap')}:</span>
                 <span className="font-black text-amber-700 dark:text-amber-300">{nearCap}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-slate-400 dark:text-slate-500">{t('schedule.footer.onLeaveAny')}:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('schedule.footer.onLeaveAny')}:</span>
                 <span className="font-black text-emerald-700 dark:text-emerald-300">{onLeaveAnyDay}</span>
               </div>
-              <div className="ms-auto text-slate-400 dark:text-slate-500 normal-case font-mono">
+              <div className="ms-auto text-slate-500 dark:text-slate-400 normal-case font-mono">
                 {filteredEmployees.length}/{employees.length} {t('schedule.footer.employees')}
               </div>
             </div>

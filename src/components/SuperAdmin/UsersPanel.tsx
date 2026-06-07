@@ -232,10 +232,10 @@ export function UsersPanel({ companies }: Props) {
                     {(u.displayName || u.position) && (
                       <div className="text-[10px] text-slate-600 dark:text-slate-300 truncate max-w-[260px]" title={[u.displayName, u.position].filter(Boolean).join(' · ')}>
                         {u.displayName ?? '—'}
-                        {u.position && <span className="text-slate-400 dark:text-slate-500"> · {u.position}</span>}
+                        {u.position && <span className="text-slate-500 dark:text-slate-400"> · {u.position}</span>}
                       </div>
                     )}
-                    <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate max-w-[260px]">{u.uid}</div>
+                    <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[260px]">{u.uid}</div>
                   </Td>
                   <Td>
                     <RoleBadge role={u.role} />
@@ -352,7 +352,7 @@ function Section({ title, subtitle, children }: SectionProps) {
     <section className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">{subtitle}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">{subtitle}</p>
       </div>
       {children}
     </section>
@@ -424,7 +424,7 @@ function CompaniesCell({ companyIds, companies, role }: { companyIds: string[]; 
   // Super-admin and admin see every company unconditionally. Manager and
   // supervisor are scoped via `allowedCompanies`; show their explicit list.
   if (role === 'super_admin' || role === 'admin') {
-    return <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">All companies</span>;
+    return <span className="text-[10px] text-slate-500 dark:text-slate-400 italic">All companies</span>;
   }
   if (!companyIds || companyIds.length === 0) {
     return <span className="text-[10px] text-rose-600 dark:text-rose-300 font-medium">No companies assigned</span>;
@@ -641,7 +641,7 @@ function UserFormModal({ mode, companies, initial, isSelf, onClose, onSubmit }: 
                 onChange={(next) => setForm({ ...form, tabPerms: next })}
               />
             ) : (
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Using the role default. Tabs not allowed for the role won't appear in this user's sidebar; some tabs may render read-only. Toggle <strong>Customize</strong> to override per tab.
               </p>
             )}
@@ -690,7 +690,7 @@ function CompanyMultiSelect({ companies, selected, onChange }: {
   return (
     <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg p-2 space-y-1 bg-white dark:bg-slate-800/60">
       {companies.length === 0 && (
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic px-2 py-1">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic px-2 py-1">
           No companies yet — create some first.
         </p>
       )}
@@ -703,7 +703,7 @@ function CompanyMultiSelect({ companies, selected, onChange }: {
             className="rounded"
           />
           <span className="text-[11px] text-slate-700 dark:text-slate-200">{c.name}</span>
-          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono ml-auto">{c.id}</span>
+          <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono ml-auto">{c.id}</span>
         </label>
       ))}
     </div>
@@ -776,7 +776,7 @@ function Field({ label, required, helper, children }: { label: string; required?
         {label}{required && <span className="text-rose-500"> *</span>}
       </label>
       {children}
-      {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{helper}</p>}
+      {helper && <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{helper}</p>}
     </div>
   );
 }
@@ -849,7 +849,7 @@ function TabPermsGrid({ value, onChange }: { value: TabPerms; onChange: (next: T
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
         <strong>Hidden</strong> = tab does not appear in the sidebar.
         <strong className="ms-2">Read</strong> = tab visible, all add/edit/delete actions are disabled.
         <strong className="ms-2">Full</strong> = read + write + delete.

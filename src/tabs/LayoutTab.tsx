@@ -346,7 +346,7 @@ export function LayoutTab({
         <div className="flex items-center gap-2 flex-wrap">
           {stations.length > 0 && (
             <div className="relative w-full sm:w-64">
-              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder={t('layout.searchPlaceholder')}
@@ -563,7 +563,7 @@ export function LayoutTab({
                         'p-1.5 rounded transition-colors shrink-0',
                         allSelected
                           ? 'text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15'
-                          : 'text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-white/60 dark:hover:bg-slate-700/60',
+                          : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-white/60 dark:hover:bg-slate-700/60',
                       )}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -603,7 +603,7 @@ export function LayoutTab({
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {availableRoles.length === 0 ? (
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
                         {t('layout.group.eligibleRoles.empty')}
                       </p>
                     ) : (
@@ -649,7 +649,7 @@ export function LayoutTab({
 
               <div className="p-3 space-y-2 min-h-[120px]">
                 {items.length === 0 && (
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center py-6">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 italic text-center py-6">
                     {isUngrouped ? t('layout.group.ungroupedEmpty') : t('layout.group.empty')}
                   </div>
                 )}
@@ -678,8 +678,8 @@ export function LayoutTab({
       {stations.length === 0 && (
         <div className="p-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-inner">
           <Layout className="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-4" />
-          <h3 className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-1 max-w-md mx-auto leading-relaxed">{t('layout.emptyHint')}</p>
+          <h3 className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs">{t('layout.empty')}</h3>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 max-w-md mx-auto leading-relaxed">{t('layout.emptyHint')}</p>
           {/* v5.16.0 — empty-state CTAs. Pre-v5.16 the empty zone showed
               only a hint and forced the user to find the small toolbar
               buttons above. Mirrors the RosterTab empty-state pattern. */}
@@ -863,26 +863,26 @@ function StationCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{station.name}</p>
-          <p className="text-[9px] font-mono font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{station.id}</p>
+          <p className="text-[9px] font-mono font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{station.id}</p>
         </div>
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] font-bold text-slate-500 dark:text-slate-400">
         <div>
-          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.normalStaffing')}</p>
+          <p className="text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('layout.normalStaffing')}</p>
           <p className="text-slate-800 dark:text-slate-100 font-mono">{station.normalMinHC}</p>
         </div>
         <div>
-          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.peakStaffing')}</p>
+          <p className="text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('layout.peakStaffing')}</p>
           <p className="text-blue-700 dark:text-blue-200 font-mono">{station.peakMinHC}</p>
         </div>
         <div>
-          <p className="text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('layout.eligible')}</p>
+          <p className="text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('layout.eligible')}</p>
           <p className="text-emerald-700 dark:text-emerald-200 font-mono">{eligibleCount}</p>
         </div>
       </div>
 
-      <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono mt-2">{station.openingTime} → {station.closingTime}</p>
+      <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-2">{station.openingTime} → {station.closingTime}</p>
 
       <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60">
         <div className="relative">
@@ -898,10 +898,10 @@ function StationCard({
           {menu}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300">
+          <button onClick={onEdit} title={t('action.edit')} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300">
             <Edit3 className="w-3 h-3" />
           </button>
-          <button onClick={onDelete} title={t('action.delete')} className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-500/15 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300">
+          <button onClick={onDelete} title={t('action.delete')} className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-500/15 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -947,7 +947,7 @@ function NewGroupForm({ onSave, onCancel }: { onSave: (name: string, color: stri
           disabled={!name.trim()}
           className={cn(
             "px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all shrink-0",
-            name.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed",
+            name.trim() ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed",
           )}
         >
           {t('action.save')}

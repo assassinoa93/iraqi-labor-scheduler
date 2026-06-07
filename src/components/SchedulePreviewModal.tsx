@@ -212,7 +212,7 @@ export function SchedulePreviewModal({ isOpen, onClose, onApply, stats, monthLab
           </div>
           <div className="hidden sm:flex items-center gap-3 pe-1">
             <div className="text-end">
-              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.preview.compliance')}</p>
+              <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.preview.compliance')}</p>
               <p className={cn(
                 "text-3xl font-black leading-none mt-1",
                 compliancePct >= 95 ? "text-emerald-600 dark:text-emerald-300" : compliancePct >= 80 ? "text-amber-600 dark:text-amber-300" : "text-rose-600 dark:text-rose-300",
@@ -443,7 +443,7 @@ function BigStat({ label, value, sub, tone = 'neutral' }: { label: string; value
     <div className={cn("p-3.5 rounded-xl border", toneClass)}>
       <p className="text-[9px] font-black uppercase tracking-widest opacity-60 text-slate-600 dark:text-slate-300">{label}</p>
       <p className={cn("text-2xl font-black mt-1.5 leading-none", valueClass)}>{fmt.num(value)}</p>
-      {sub && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider">{sub}</p>}
+      {sub && <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider">{sub}</p>}
     </div>
   );
 }

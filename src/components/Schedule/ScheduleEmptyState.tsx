@@ -31,7 +31,7 @@ export function ScheduleEmptyState({
     <div className="space-y-6">
       <div className="p-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 shadow-inner">
         <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Calendar className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          <Calendar className="w-8 h-8 text-slate-500 dark:text-slate-400" />
         </div>
         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t(titleKey)}</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed mb-6">{t(bodyKey)}</p>

@@ -57,9 +57,9 @@ export function ChipsBlock({ chipSet, selected, disabled, onPick }: Props) {
                 isSelected
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/25'
                   : selected !== null
-                    ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                    ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                     : disabled
-                      ? 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                      ? 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                       : isFreeform
                         ? 'bg-white dark:bg-slate-800/60 border-dashed border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500/60'
                         : 'bg-white dark:bg-slate-800/60 border-amber-200 dark:border-amber-500/30 text-slate-800 dark:text-slate-200 hover:border-amber-400 dark:hover:border-amber-500/60',

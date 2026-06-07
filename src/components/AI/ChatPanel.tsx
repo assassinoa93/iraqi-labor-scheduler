@@ -368,7 +368,7 @@ export function ChatPanel({
             {t('ai.chat.title')}
           </h4>
           {session && session.messages.length > 0 && (
-            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono">
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono">
               {t('ai.chat.stats', {
                 tokens: session.totalTokens.total.toLocaleString(),
                 count: session.messages.filter((m) => m.role !== 'system').length,
@@ -456,7 +456,7 @@ export function ChatPanel({
           className="w-full px-3 py-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all resize-y disabled:opacity-60"
         />
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400">
             {t('ai.chat.input.hint', {
               model,
               trainingState: noTraining ? t('ai.chat.input.noTraining.on') : t('ai.chat.input.noTraining.off'),
@@ -628,7 +628,7 @@ function AssistantBubble({
           </div>
         )}
         {message.tokens && (
-          <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">
+          <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
             {t('ai.chat.tokenBreakdown', {
               total: message.tokens.total.toLocaleString(),
               prompt: message.tokens.prompt,
@@ -664,7 +664,7 @@ function ToolResult({ message }: { message: SessionMessage }) {
         )}
         <span className="font-bold">{message.name ?? t('ai.chat.toolResult.fallbackName')}</span>
         <span className={verdictColor}>{t('ai.chat.toolResult.estimate', { count: (message.toolEstimateTokens ?? 0).toLocaleString() })}</span>
-        <span className="text-slate-400 dark:text-slate-500">{message.toolError ? t('ai.chat.toolResult.error') : t('ai.chat.toolResult.result')}</span>
+        <span className="text-slate-500 dark:text-slate-400">{message.toolError ? t('ai.chat.toolResult.error') : t('ai.chat.toolResult.result')}</span>
       </button>
       {open && (
         <pre className="mt-1 text-[10px] font-mono p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-700/70 rounded-lg overflow-x-auto max-h-64 overflow-y-auto text-slate-700 dark:text-slate-300">
@@ -744,7 +744,7 @@ function ExportButton({
               {t('ai.chat.export.acceptedPending.desc', { count: acceptedCount + pendingCount })}
             </p>
           </button>
-          <p className="text-[9px] text-slate-400 dark:text-slate-500 px-3 pt-2 pb-1 border-t border-slate-100 dark:border-slate-800 mt-1">
+          <p className="text-[9px] text-slate-500 dark:text-slate-400 px-3 pt-2 pb-1 border-t border-slate-100 dark:border-slate-800 mt-1">
             {t('ai.chat.export.footer')}
           </p>
         </div>
@@ -761,7 +761,7 @@ function SystemMarker({ message }: { message: SessionMessage }) {
     <div className="text-center">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         <span>{t('ai.chat.systemMarker', { preview: `${preview.replace(/[#*]/g, '').slice(0, 60)}${preview.length > 60 ? '…' : ''}` })}</span>

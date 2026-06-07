@@ -255,11 +255,11 @@ export function EmployeeOTDetailModal({
           {workRows.length === 0 ? (
             <div className="p-12 text-center">
               <CalendarIcon className="w-8 h-8 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('otDetail.noWork')}</p>
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('otDetail.noWork')}</p>
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/70 dark:bg-slate-800/40 text-[9px] uppercase text-slate-400 dark:text-slate-500 font-black tracking-widest sticky top-0 z-10">
+              <thead className="bg-slate-50/70 dark:bg-slate-800/40 text-[9px] uppercase text-slate-500 dark:text-slate-400 font-black tracking-widest sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2 text-start w-16">{t('otDetail.col.day')}</th>
                   <th className="px-3 py-2 text-start">{t('otDetail.col.date')}</th>
@@ -297,7 +297,7 @@ export function EmployeeOTDetailModal({
                       <td className="px-3 py-2 font-mono font-bold text-slate-600 dark:text-slate-300">{r.day}</td>
                       <td className="px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400">
                         <span className="font-mono">{r.date}</span>
-                        <span className="ms-2 text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">{r.dayOfWeek}</span>
+                        <span className="ms-2 text-[9px] uppercase tracking-widest text-slate-500 dark:text-slate-400">{r.dayOfWeek}</span>
                         {r.isHoliday && premiumOwedHere && (
                           <span
                             className="ms-2 inline-block px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest uppercase bg-amber-200 dark:bg-amber-500/30 text-amber-800 dark:text-amber-100"
@@ -374,9 +374,9 @@ function KpiTile({ label, value, sub, tone }: { label: string; value: string; su
     'text-slate-800 dark:text-slate-100';
   return (
     <div className="space-y-0.5">
-      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</p>
+      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</p>
       <p className={cn('text-base font-black', valueClass)}>{value}</p>
-      {sub && <p className="text-[9px] font-mono text-slate-400 dark:text-slate-500">{sub}</p>}
+      {sub && <p className="text-[9px] font-mono text-slate-500 dark:text-slate-400">{sub}</p>}
     </div>
   );
 }

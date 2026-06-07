@@ -31,12 +31,12 @@ export function ComplianceTrendCard({ companyId, compliancePct, violations, cove
     return (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center">
             <Activity className="w-5 h-5" />
           </div>
           <div>
             <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('trend.title')}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{t('trend.bootstrap')}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t('trend.bootstrap')}</p>
           </div>
         </div>
       </div>
@@ -98,7 +98,7 @@ export function ComplianceTrendCard({ companyId, compliancePct, violations, cove
           strokeLinejoin="round"
         />
       </svg>
-      <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-400 dark:text-slate-500">
+      <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
         <span>{first.date} · {first.compliancePct}%</span>
         <span>{last.date} · {last.compliancePct}%</span>
       </div>

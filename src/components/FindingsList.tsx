@@ -94,13 +94,13 @@ export function FindingsList({ findings, empNameById, hasContext = true, classNa
           <>
             <ShieldCheck className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto mb-3" />
             <div className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{t('findings.allClear.title')}</div>
-            <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('findings.allClear.hint')}</div>
+            <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{t('findings.allClear.hint')}</div>
           </>
         ) : (
           <>
             <Circle className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
             <div className="text-sm font-bold text-slate-500 dark:text-slate-300">{t('findings.noSchedule.title')}</div>
-            <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{t('findings.noSchedule.hint')}</div>
+            <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{t('findings.noSchedule.hint')}</div>
           </>
         )}
       </div>
@@ -112,7 +112,7 @@ export function FindingsList({ findings, empNameById, hasContext = true, classNa
       {/* Toolbar: search + expand/collapse all. Only meaningful with >1 group. */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/60 bg-white dark:bg-slate-900">
         <div className="relative flex-1 min-w-0">
-          <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute top-1/2 -translate-y-1/2 start-2.5 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 absolute top-1/2 -translate-y-1/2 start-2.5 pointer-events-none" />
           <input
             type="search"
             value={query}
@@ -147,7 +147,7 @@ export function FindingsList({ findings, empNameById, hasContext = true, classNa
       {totalGroups === 0 ? (
         <div className="p-8 text-center">
           <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-          <div className="text-[11px] text-slate-400 dark:text-slate-500">{t('findings.noMatches')}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">{t('findings.noMatches')}</div>
         </div>
       ) : (
         <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -244,10 +244,10 @@ function FindingGroupRow({ group, empNameById, open, onToggle }: { group: Findin
             ×{fmt.num(group.instances)}
           </span>
         )}
-        <span className="shrink-0 text-[10px] font-medium text-slate-400 dark:text-slate-500 tabular-nums hidden sm:inline">
+        <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400 tabular-nums hidden sm:inline">
           {t('findings.staff', { n: fmt.num(group.employees) })}
         </span>
-        <span className="shrink-0 text-[10px] font-mono text-slate-400 dark:text-slate-500 hidden md:inline">{group.article}</span>
+        <span className="shrink-0 text-[10px] font-mono text-slate-500 dark:text-slate-400 hidden md:inline">{group.article}</span>
         <ChevronDown className={cn('w-4 h-4 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
       </button>
       {open && (

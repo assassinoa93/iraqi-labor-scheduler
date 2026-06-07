@@ -201,7 +201,7 @@ export function DatabasePanel() {
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
           {t('superAdmin.database.purge.note')}
         </p>
       </div>
@@ -231,7 +231,7 @@ function Section({ children }: { children: React.ReactNode }) {
     <section className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('superAdmin.database.title')}</p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
           {t('superAdmin.database.subtitle')}
         </p>
       </div>

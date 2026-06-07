@@ -149,7 +149,7 @@ function ScopePill({
           : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-300 dark:hover:border-blue-500/40'
       }`}
     >
-      <Icon className={`w-3 h-3 ${active ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+      <Icon className={`w-3 h-3 ${active ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
       <span className="uppercase tracking-widest text-[9px] opacity-80">{label}</span>
       <span className="font-mono">{value}</span>
     </button>

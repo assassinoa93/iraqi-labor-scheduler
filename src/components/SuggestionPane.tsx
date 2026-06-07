@@ -172,7 +172,7 @@ export function SuggestionPane({
                 onClick={onDismissHint}
                 title={t('hint.coverage.keepGap')}
                 aria-label={t('hint.coverage.keepGap')}
-                className="ml-auto p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                className="ml-auto p-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -232,7 +232,7 @@ export function SuggestionPane({
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate">{s.empId}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{s.empId}</p>
                         {s.warnings.length > 0 && (
                           <p className="text-[10px] text-amber-700 dark:text-amber-200 leading-tight mt-1 flex items-start gap-1">
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0 mt-0.5" />
@@ -240,7 +240,7 @@ export function SuggestionPane({
                           </p>
                         )}
                       </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -261,7 +261,7 @@ export function SuggestionPane({
                 onClick={onClearChanges}
                 title={t('pane.changes.clear')}
                 aria-label={t('pane.changes.clear')}
-                className="ml-auto text-[9px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest"
+                className="ml-auto text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest"
               >
                 {t('pane.changes.clear')}
               </button>
@@ -270,8 +270,8 @@ export function SuggestionPane({
 
           {recentChanges.length === 0 ? (
             <div className="px-3 py-6 text-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/60 rounded-lg">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('pane.changes.empty')}</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{t('pane.changes.emptyHint')}</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('pane.changes.empty')}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{t('pane.changes.emptyHint')}</p>
             </div>
           ) : (
             <>
@@ -295,7 +295,7 @@ export function SuggestionPane({
                       onClick={() => onUndoChange(change.id)}
                       title={t('pane.changes.undo')}
                       aria-label={t('pane.changes.undo')}
-                      className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 rounded transition-colors shrink-0"
+                      className="p-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 rounded transition-colors shrink-0"
                     >
                       <Undo2 className="w-3 h-3" />
                     </button>

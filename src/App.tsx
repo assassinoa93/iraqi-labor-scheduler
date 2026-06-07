@@ -3992,7 +3992,7 @@ export default function App() {
           >
             <Suspense fallback={
               <div className="flex items-center justify-center py-32">
-                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest animate-pulse">{t('app.loadingTab')}</div>
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest animate-pulse">{t('app.loadingTab')}</div>
               </div>
             }>
             {activeTab === 'dashboard' && (

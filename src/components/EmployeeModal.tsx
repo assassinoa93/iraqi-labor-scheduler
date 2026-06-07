@@ -292,7 +292,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
               }}
             />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.otHourlyRate')}</label>
+              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.employee.field.otHourlyRate')}</label>
               <div className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-500 dark:text-slate-400 shadow-sm flex justify-between items-center">
                  <span>{fmt.num(formData.baseHourlyRate)} IQD</span>
                  <span className="text-[8px] bg-blue-100 dark:bg-blue-500/25 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-black tracking-widest">AUTO: (SALARY / {monthlyHoursDivisor(formData, config)})</span>
@@ -301,7 +301,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             <SettingField min={0} max={365} step={1} label={t('modal.employee.field.holidayBank')} type="number" value={formData.holidayBank} onChange={v => setFormData({...formData, holidayBank: Math.max(0, Math.min(365, parseInt(v) || 0))})} />
             <SettingField min={0} max={365} step={1} label={t('modal.employee.field.annualLeave')} type="number" value={formData.annualLeaveBalance} onChange={v => setFormData({...formData, annualLeaveBalance: Math.max(0, Math.min(365, parseInt(v) || 0))})} />
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
+              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.employee.field.restPolicy')}</label>
               <select
                 value={formData.fixedRestDay}
                 onChange={e => setFormData({...formData, fixedRestDay: parseInt(e.target.value) || 0})}
@@ -312,14 +312,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                   <option key={i} value={i + 1}>{t('modal.employee.rest.fixed')} {d}</option>
                 ))}
               </select>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                 {formData.fixedRestDay === 0
                   ? t('modal.employee.rest.help.rotate')
                   : t('modal.employee.rest.help.fixed')}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.category')}</label>
+              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.employee.field.category')}</label>
               <select
                 value={formData.category || 'Standard'}
                 onChange={e => setFormData({...formData, category: e.target.value as 'Standard' | 'Driver'})}
@@ -328,14 +328,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                 <option value="Standard">{t('modal.employee.cat.standard')}</option>
                 <option value="Driver">{t('modal.employee.cat.driver')}</option>
               </select>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                 {formData.category === 'Driver'
                   ? t('modal.employee.cat.help.driver')
                   : t('modal.employee.cat.help.standard')}
               </p>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.field.gender')}</label>
+              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.employee.field.gender')}</label>
               <select
                 value={formData.gender || ''}
                 onChange={e => setFormData({...formData, gender: (e.target.value || undefined) as 'M' | 'F' | undefined})}
@@ -345,7 +345,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                 <option value="M">{t('modal.employee.gender.male')}</option>
                 <option value="F">{t('modal.employee.gender.female')}</option>
               </select>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                 {t('modal.employee.gender.note')}
               </p>
             </div>
@@ -399,7 +399,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                     >
                       <Plus className={cn('w-3 h-3', active && 'rotate-45')} />
                       <span className="truncate">{g.name}</span>
-                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-400 dark:text-slate-500')}>
+                      <span className={cn('text-[9px] font-mono', active ? 'opacity-80' : 'text-slate-500 dark:text-slate-400')}>
                         {partial ? `${carvedMembers.length}/${memberIds.length}` : `· ${memberIds.length}`}
                       </span>
                     </button>
@@ -452,7 +452,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                         ? "bg-emerald-600 border-emerald-700 text-white shadow-sm"
                         : directlyOn
                           ? "bg-blue-600 border-blue-700 text-white shadow-sm"
-                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-blue-300 dark:hover:border-blue-500/40"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-300 dark:hover:border-blue-500/40"
                     )}
                   >
                     <Plus className={cn("w-3 h-3", active && "rotate-45")} />
@@ -460,7 +460,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                   </button>
                 );
               })}
-              {stations.length === 0 && <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium col-span-3">{t('modal.employee.stations.empty')}</p>}
+              {stations.length === 0 && <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium col-span-3">{t('modal.employee.stations.empty')}</p>}
             </div>
           </div>
 
@@ -488,7 +488,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
                     </button>
                   );
                 })}
-                {workShifts.length === 0 && <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('modal.employee.shifts.empty')}</p>}
+                {workShifts.length === 0 && <p className="text-[10px] text-slate-500 dark:text-slate-400">{t('modal.employee.shifts.empty')}</p>}
               </div>
             </div>
             <div className="space-y-2">
@@ -559,7 +559,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.employee.notes')}</label>
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.employee.notes')}</label>
             <textarea
               className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none"
               value={formData.notes}

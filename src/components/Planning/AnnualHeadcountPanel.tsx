@@ -163,7 +163,7 @@ function HeadcountColumn({
 
       {idealOnly ? (
         <div>
-          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
             {t('workforce.headcount.recommended')}
           </p>
           <p className={cn("text-5xl font-black tracking-tight tabular-nums", accentText)}>
@@ -174,7 +174,7 @@ function HeadcountColumn({
       ) : (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+            <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
               {t('workforce.headcount.current')}
             </p>
             <p className="text-3xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{stats.current}</p>

@@ -478,7 +478,7 @@ function WorkspacePolicyCard({
         <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
           {t('ai.policy.title')}
         </h4>
-        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
           {t('ai.policy.superAdminOnly')}
         </span>
       </div>
@@ -894,7 +894,7 @@ function WorkspaceOverviewCard({
           <ApplyDefaultScopeButton survey={survey} onApply={setScope} />
         </div>
         <ScopeBar scope={scope} onChange={setScope} survey={survey} />
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
           {t('ai.overview.scope.wfpHint', { year: survey.wfp.defaultYear })}
         </p>
       </div>
@@ -914,7 +914,7 @@ function OverviewTile({
   return (
     <div className={`p-3 bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 rounded-lg ${wide ? 'sm:col-span-3' : ''}`}>
       <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+        <Icon className="w-3 h-3 text-slate-500 dark:text-slate-400" />
         <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</p>
       </div>
       <p className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono">{value}</p>
@@ -994,7 +994,7 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
           <h4 className="text-xs font-black text-slate-700 dark:text-slate-100 uppercase tracking-widest">
             {t('ai.inspector.title')}
           </h4>
-          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+          <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
             {t('ai.inspector.preview')}
           </span>
         </div>
@@ -1063,7 +1063,7 @@ function ToolInspectorCard({ ctx, scope }: { ctx: ToolContext; scope: AiScope })
             <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
               {t('ai.inspector.tokenEstimate', { count: result.tokens.toLocaleString() })}
             </span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
               {t('ai.inspector.budgetLegend', {
                 comfortable: TOKEN_BUDGET.comfortable.toLocaleString(),
                 soft: TOKEN_BUDGET.soft.toLocaleString(),

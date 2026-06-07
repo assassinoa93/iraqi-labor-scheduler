@@ -68,14 +68,14 @@ export function BulkLeaveModal({ isOpen, count, onClose, onApply }: BulkLeaveMod
             <CalendarOff className="w-5 h-5 text-amber-600 dark:text-amber-300" />
             <div>
               <h3 className="font-black text-slate-800 dark:text-slate-100 uppercase tracking-tighter text-sm">{t('modal.bulkLeave.title')}</h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{t('modal.bulkLeave.subtitle', { count })}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">{t('modal.bulkLeave.subtitle', { count })}</p>
             </div>
           </div>
-          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400 dark:text-slate-500" /></button>
+          <button ref={closeButtonRef} onClick={onClose} aria-label={t('action.cancel')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-500 dark:text-slate-400" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.bulkLeave.type')}</label>
+            <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest mb-1 block">{t('modal.bulkLeave.type')}</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as LeaveType)}
@@ -86,16 +86,16 @@ export function BulkLeaveModal({ isOpen, count, onClose, onApply }: BulkLeaveMod
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.bulkLeave.start')}</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest mb-1 block">{t('modal.bulkLeave.start')}</label>
               <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm font-mono text-slate-800 dark:text-slate-100" />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.bulkLeave.end')}</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest mb-1 block">{t('modal.bulkLeave.end')}</label>
               <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm font-mono text-slate-800 dark:text-slate-100" />
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1 block">{t('modal.bulkLeave.notes')}</label>
+            <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest mb-1 block">{t('modal.bulkLeave.notes')}</label>
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('modal.bulkLeave.notesPlaceholder')} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-sm text-slate-800 dark:text-slate-100" />
           </div>
           {error && (
@@ -105,7 +105,7 @@ export function BulkLeaveModal({ isOpen, count, onClose, onApply }: BulkLeaveMod
           )}
         </div>
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-          <button onClick={onClose} className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
+          <button onClick={onClose} className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
           <button onClick={handleApply} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-white transition-all">{t('modal.bulkLeave.apply')}</button>
         </div>
       </motion.div>

@@ -56,7 +56,7 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight">{t('holidays.title')}</h3>
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-widest font-mono leading-none">{t('holidays.subtitle')}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-widest font-mono leading-none">{t('holidays.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* v2.2.0 — bulk-set every holiday at once. Useful when the
@@ -131,7 +131,7 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 font-bold uppercase">
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-bold uppercase">
                     {(holi.durationDays ?? 1) > 1
                       ? t('holidays.dateRange', {
                           start: format(new Date(holi.date), 'dd MMM'),
@@ -181,7 +181,7 @@ export function HolidaysTab({ holidays, config, onAddNew, onEdit, onDelete, onUp
               <div className="flex justify-between items-center py-3 border-t border-slate-50 dark:border-slate-700/60 mt-4">
                 <span className={cn(
                   'text-[9px] font-black uppercase tracking-widest',
-                  holi.isFixed ? 'text-blue-500 dark:text-blue-300' : 'text-slate-400 dark:text-slate-500',
+                  holi.isFixed ? 'text-blue-500 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400',
                 )}>
                   {holi.isFixed ? t('holidays.fixed') : t('holidays.movable')}
                 </span>

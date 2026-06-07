@@ -134,7 +134,7 @@ function CollapsibleCard({ title, subtitle, icon: Icon, iconBg, iconText, defaul
           </div>
           {subtitle && <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{subtitle}</p>}
         </div>
-        {open ? <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />}
+        {open ? <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />}
       </button>
       {open && children}
     </div>
@@ -199,7 +199,7 @@ function Section({ title, subtitle, icon, iconBg, iconText, caps, config, setCon
                   }}
                   className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[60px]">{t(cap.unitKey)}</span>
               </div>
             </div>
           );
@@ -246,7 +246,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
     <div className="space-y-8 max-w-5xl">
       <div>
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
           {t('variables.subtitle')}
         </p>
       </div>
@@ -369,7 +369,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
               summary. */}
           <FineRatesSection config={config} setConfig={setConfig} readOnly={readOnly} />
 
-          <div className="border-t border-slate-100 dark:border-slate-800 pt-6 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-6 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             <p className="font-bold uppercase tracking-widest text-[10px] text-slate-500 dark:text-slate-400 mb-2">{t('variables.references.title')}</p>
             <p>{t('variables.references.body')}</p>
           </div>
@@ -458,7 +458,7 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
                       onChange={e => setOverride({ open: e.target.value, close })}
                       className="flex-1 px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100 disabled:opacity-40"
                     />
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">→</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">→</span>
                     <input
                       type="time"
                       value={close}
@@ -783,7 +783,7 @@ function FineRatesSection({ config, setConfig, readOnly }: {
                   }}
                   className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-sm font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[60px]">{t('variables.fines.unit')}</span>
                 {isOverridden && !readOnly && (
                   <button
                     type="button"
@@ -926,7 +926,7 @@ function CoverageRealismSection({ config, setConfig, readOnly }: {
                           }}
                           className="w-20 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-800 dark:text-slate-100 text-end focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60"
                         />
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">%</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">%</span>
                       </div>
                     );
                   })}

@@ -75,14 +75,14 @@ export function SimulationDeltaPanel({ isActive, metrics, onExit, onApply, onRes
             const Icon = tone === 'good' ? TrendingUp : tone === 'bad' ? TrendingDown : Minus;
             return (
               <div key={i} className="flex flex-col min-w-[110px]">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{m.label}</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{m.label}</p>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-sm font-black text-slate-700 dark:text-slate-200">{fmt(m.sim)}</span>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">vs {fmt(m.baseline)}</span>
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">vs {fmt(m.baseline)}</span>
                 </div>
                 <div className={cn(
                   "flex items-center gap-1 text-[10px] font-bold mt-0.5",
-                  tone === 'good' ? "text-emerald-600 dark:text-emerald-300" : tone === 'bad' ? "text-rose-600 dark:text-rose-300" : "text-slate-400 dark:text-slate-500"
+                  tone === 'good' ? "text-emerald-600 dark:text-emerald-300" : tone === 'bad' ? "text-rose-600 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"
                 )}>
                   <Icon className="w-3 h-3" />
                   {delta === 0 ? t('sim.delta.unchanged') : (delta > 0 ? '+' : '') + fmt(delta)}

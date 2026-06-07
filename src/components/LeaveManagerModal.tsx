@@ -189,8 +189,8 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
               {draft.length === 0 && (
                 <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
                   <Heart className="w-8 h-8 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-                  <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.modal.empty')}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{t('leaves.modal.emptyHint')}</p>
+                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('leaves.modal.empty')}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{t('leaves.modal.emptyHint')}</p>
                 </div>
               )}
               {draft.map((r, idx) => {
@@ -220,11 +220,11 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-baseline gap-2 flex-wrap">
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{t(meta.labelKey)}</span>
-                          <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500">{t(meta.articleKey)}</span>
+                          <span className="font-mono text-[9px] text-slate-500 dark:text-slate-400">{t(meta.articleKey)}</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.range.start')}</label>
+                            <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('leaves.range.start')}</label>
                             <input
                               type="date"
                               value={r.start}
@@ -233,7 +233,7 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('leaves.range.end')}</label>
+                            <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('leaves.range.end')}</label>
                             <input
                               type="date"
                               value={r.end}
@@ -256,7 +256,7 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
                       <button
                         onClick={() => removeRange(idx)}
                         aria-label={t('action.delete')}
-                        className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/15 rounded-lg transition-colors shrink-0"
+                        className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/15 rounded-lg transition-colors shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

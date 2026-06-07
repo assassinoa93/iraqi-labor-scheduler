@@ -130,7 +130,7 @@ export function SettingsTab({
         <div className="pt-8 border-t border-slate-100 dark:border-slate-700/60">
           <div className="space-y-1 mb-4">
             <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('settings.display.title')}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-tighter">{t('settings.display.subtitle')}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-tighter">{t('settings.display.subtitle')}</p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
@@ -153,7 +153,7 @@ export function SettingsTab({
       <div className="pt-8 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center flex-wrap gap-4">
         <div className="space-y-1">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('settings.dbSecurity')}</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-tighter">{t('settings.instance')}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-tighter">{t('settings.instance')}</p>
         </div>
         <div className="flex gap-3 flex-wrap">
           <button onClick={onExportBackup} className="apple-press px-6 py-2 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 border border-emerald-100 dark:border-emerald-500/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-100 dark:hover:bg-emerald-500/25 font-mono flex items-center gap-2">
@@ -178,7 +178,7 @@ export function SettingsTab({
         <div className="pt-8 border-t border-slate-100 dark:border-slate-700/60">
           <div className="space-y-1 mb-4">
             <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Session</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-tighter">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-tighter">
               Sign out or switch between Offline Demo and Online modes
             </p>
           </div>
@@ -282,7 +282,7 @@ export function SettingsTab({
                 onFocus={(e) => e.currentTarget.select()}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 break-all"
               />
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Recipients paste this on the "Connect Online" → "Join with a connection code" screen.
                 Contains your team's Firebase project identifiers (public client IDs, not secrets).
               </p>
@@ -401,7 +401,7 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
             Connected databases
           </p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400">
             {stored.entries.length} saved · switch between Firebase projects
           </p>
         </div>
@@ -427,7 +427,7 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
           >
             <Database className={cn(
               "w-4 h-4 shrink-0",
-              stored.active === e.id ? "text-blue-600 dark:text-blue-300" : "text-slate-400 dark:text-slate-500",
+              stored.active === e.id ? "text-blue-600 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",
             )} />
             {renaming === e.id ? (
               <form
@@ -456,7 +456,7 @@ function ConnectedDatabases({ onSignOut }: { onSignOut?: () => Promise<void> | v
               <>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{e.label}</p>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">{e.config.projectId}</p>
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate">{e.config.projectId}</p>
                 </div>
                 {stored.active === e.id ? (
                   <span className="text-[9px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-200 flex items-center gap-1 shrink-0">

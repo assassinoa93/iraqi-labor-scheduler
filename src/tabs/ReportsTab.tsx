@@ -43,7 +43,7 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight">{t('reports.title')}</h3>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-widest font-mono">{t('reports.subtitle')}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-widest font-mono">{t('reports.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -83,7 +83,7 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
       </div>
 
       <div className="mt-8 space-y-4">
-        <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+        <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Sparkles className="w-3 h-3" /> {t('reports.previewLabel')}
         </h4>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-6 shadow-sm min-h-[300px]">
@@ -93,26 +93,26 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
               <h5 className="font-bold text-slate-800 dark:text-slate-100">{t('reports.previewHeader')}</h5>
             </div>
             <div className="text-end">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{format(new Date(config.year, config.month - 1), 'MMMM yyyy')}</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{format(new Date(config.year, config.month - 1), 'MMMM yyyy')}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.totalPersonnel')}</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter mb-1">{t('reports.preview.totalPersonnel')}</p>
                 <p className="text-2xl font-light text-slate-900 dark:text-slate-50">{fmt.num(employees.length)}</p>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.complianceScore')}</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter mb-1">{t('reports.preview.complianceScore')}</p>
                 <p className={cn("text-2xl font-light", scoreColor)}>{fmt.num(score)}%</p>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/60">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{t('reports.preview.coverageStatus')}</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter mb-1">{t('reports.preview.coverageStatus')}</p>
                 {hasScheduleData ? (
                   <p className={cn("text-2xl font-light", coverageColor)}>{fmt.num(overallCoveragePercent)}%</p>
                 ) : (
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase pt-2">{t('reports.preview.noSchedule')}</p>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase pt-2">{t('reports.preview.noSchedule')}</p>
                 )}
               </div>
             </div>

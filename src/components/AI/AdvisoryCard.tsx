@@ -78,7 +78,7 @@ export function AdvisoryCard({ finding, onSetStatus, onAskMore, disabled }: Prop
               <span className={`text-[9px] font-black uppercase tracking-widest ${tone.accent}`}>
                 {t(SEVERITY_LABEL_KEY[finding.severity])}
               </span>
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">·</span>
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">·</span>
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                 {t(CATEGORY_LABEL_KEY[finding.category])}
               </span>
@@ -119,7 +119,7 @@ export function AdvisoryCard({ finding, onSetStatus, onAskMore, disabled }: Prop
             {finding.evidence.map((e, i) => (
               <div key={i} className="flex items-baseline gap-2 text-[10px] font-mono">
                 <span className="text-slate-500 dark:text-slate-400 truncate">{e.path}</span>
-                <span className="text-slate-400 dark:text-slate-500">=</span>
+                <span className="text-slate-500 dark:text-slate-400">=</span>
                 <span className="text-slate-700 dark:text-slate-200 font-bold">{e.value}</span>
               </div>
             ))}

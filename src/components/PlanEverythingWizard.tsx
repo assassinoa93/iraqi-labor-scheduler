@@ -225,7 +225,7 @@ export function PlanEverythingWizard({
             {stationsMissingDemand.map(st => (
               <div key={st.id} className="px-3 py-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 flex items-center justify-between gap-2">
                 <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 truncate">{st.name}</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex-shrink-0">{st.id}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex-shrink-0">{st.id}</p>
               </div>
             ))}
           </div>
@@ -271,7 +271,7 @@ export function PlanEverythingWizard({
                 </p>
               </div>
               <div className="text-end">
-                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('shifts.autoGen.recommendedHC')}</p>
+                <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('shifts.autoGen.recommendedHC')}</p>
                 <p className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200">
                   {s.recommendedNormalHC} <span className="text-slate-300 dark:text-slate-600">/</span> <span className="text-violet-600 dark:text-violet-300">{s.recommendedPeakHC}</span>
                 </p>
@@ -500,7 +500,7 @@ function PrimaryAction({ onClick, disabled, running, label }: { onClick: () => v
       className={cn(
         'inline-flex items-center gap-2 px-5 py-2 rounded text-[11px] font-bold uppercase tracking-widest transition-all shadow-md',
         disabled
-          ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+          ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
           : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700',
       )}
     >
@@ -526,7 +526,7 @@ function RecapCard({ label, done }: { label: string; done: boolean }) {
       )} />
       <p className={cn(
         'text-[10px] font-black uppercase tracking-widest',
-        done ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-400 dark:text-slate-500',
+        done ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-500 dark:text-slate-400',
       )}>
         {label}
       </p>

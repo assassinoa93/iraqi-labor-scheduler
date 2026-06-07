@@ -53,7 +53,7 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
             <button
               onClick={onDismiss}
               aria-label={t('action.cancel')}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 p-1 -m-1 rounded transition-colors shrink-0"
+              className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 -m-1 rounded transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -95,7 +95,7 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate">{s.empId}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{s.empId}</p>
                       {s.warnings.length > 0 && (
                         <p className="text-[10px] text-amber-700 dark:text-amber-200 leading-tight mt-1 flex items-start gap-1">
                           <AlertTriangle className="w-2.5 h-2.5 shrink-0 mt-0.5" />
@@ -103,7 +103,7 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
                         </p>
                       )}
                     </div>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 mt-0.5 shrink-0" />
                   </button>
                 ))}
               </div>
@@ -111,7 +111,7 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
           </div>
 
           <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-between items-center gap-2">
-            <span className="text-[9px] text-slate-400 dark:text-slate-500 italic">{t('hint.coverage.override')}</span>
+            <span className="text-[9px] text-slate-500 dark:text-slate-400 italic">{t('hint.coverage.override')}</span>
             <button
               onClick={onDismiss}
               className="px-3 py-1 text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded uppercase tracking-widest transition-all"

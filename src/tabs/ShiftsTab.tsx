@@ -134,7 +134,7 @@ export function ShiftsTab({
             </span>
           )}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder={t('shifts.searchPlaceholder')}
@@ -160,7 +160,7 @@ export function ShiftsTab({
               'flex items-center gap-2 px-5 py-2 rounded text-[10px] font-bold uppercase tracking-widest transition-all shadow-md',
               canAutoGenerate
                 ? 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed',
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed',
             )}
           >
             <Sparkles className="w-3 h-3" />
@@ -232,8 +232,8 @@ export function ShiftsTab({
               <SortableHeader label={t('shifts.col.name')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('shifts.col.hours')} sortKey="hours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label={t('shifts.col.status')} sortKey="status" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="center" />
-              <th className="px-6 py-4 tracking-wider text-center w-24 text-[10px] font-black text-slate-400 dark:text-slate-500">{t('shifts.col.order')}</th>
-              <th className="px-6 py-4 tracking-wider text-end text-[10px] font-black text-slate-400 dark:text-slate-500">{t('shifts.col.actions')}</th>
+              <th className="px-6 py-4 tracking-wider text-center w-24 text-[10px] font-black text-slate-500 dark:text-slate-400">{t('shifts.col.order')}</th>
+              <th className="px-6 py-4 tracking-wider text-end text-[10px] font-black text-slate-500 dark:text-slate-400">{t('shifts.col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -255,7 +255,7 @@ export function ShiftsTab({
                 </td>
                 <td className="px-6 py-4">
                   <p className="font-bold text-slate-700 dark:text-slate-200 text-xs">{s.name}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{s.description}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">{s.description}</p>
                 </td>
                 <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-1">
@@ -288,7 +288,7 @@ export function ShiftsTab({
                           disabled={sortActive || originalIndex === 0 || upBlockedByPartition}
                           onClick={() => onMove(originalIndex, 'up')}
                           aria-label={`${t('shifts.moveUp')}: ${s.code}`}
-                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ChevronUp className="w-3 h-3" />
                         </button>
@@ -296,7 +296,7 @@ export function ShiftsTab({
                           disabled={sortActive || originalIndex === shifts.length - 1 || downBlockedByPartition}
                           onClick={() => onMove(originalIndex, 'down')}
                           aria-label={`${t('shifts.moveDown')}: ${s.code}`}
-                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-300 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ChevronDown className="w-3 h-3" />
                         </button>
@@ -306,7 +306,7 @@ export function ShiftsTab({
                 </td>
                 <td className="px-6 py-4 text-end">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit(s)} aria-label={`${t('action.edit')}: ${s.code}`} className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors p-1">
+                    <button onClick={() => onEdit(s)} aria-label={`${t('action.edit')}: ${s.code}`} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors p-1">
                       <Settings className="w-4 h-4" />
                     </button>
                     {/* v2.2.0 — system shifts (OFF/CP/AL/SL/MAT/PH) get a
@@ -324,7 +324,7 @@ export function ShiftsTab({
                         <Lock className="w-4 h-4" />
                       </span>
                     ) : (
-                      <button onClick={() => onDelete(s.code)} aria-label={`${t('action.delete')}: ${s.code}`} className="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-300 transition-colors p-1">
+                      <button onClick={() => onDelete(s.code)} aria-label={`${t('action.delete')}: ${s.code}`} className="text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-300 transition-colors p-1">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -363,7 +363,7 @@ function AuditFindingRow({ finding, onDelete }: { finding: AuditFinding; onDelet
           )}
         </p>
         <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">{finding.reason}</p>
-        <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-mono uppercase tracking-widest">
+        <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-1 font-mono uppercase tracking-widest">
           {t('shifts.audit.usage', { count: finding.usageCount, months: finding.monthsScanned })}
         </p>
       </div>

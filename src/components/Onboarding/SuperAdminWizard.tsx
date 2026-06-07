@@ -169,7 +169,7 @@ export function SuperAdminWizard({ onComplete, onCancel, mode = 'fresh' }: Props
 
         <button
           onClick={() => { clearMode(); location.reload(); }}
-          className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
         >
           {t('wizard.switchOffline')}
         </button>
@@ -193,13 +193,13 @@ function Stepper({ steps, currentIdx }: { steps: StepDef[]; currentIdx: number }
                 "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
                 done && "bg-emerald-500 text-white",
                 active && "bg-blue-600 text-white shadow-md shadow-blue-500/30",
-                !done && !active && "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500",
+                !done && !active && "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400",
               )}>
                 {done ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
               </div>
               <span className={cn(
                 "text-[9px] font-bold uppercase tracking-widest text-center max-w-[80px] leading-tight",
-                active ? "text-blue-700 dark:text-blue-300" : "text-slate-400 dark:text-slate-500",
+                active ? "text-blue-700 dark:text-blue-300" : "text-slate-500 dark:text-slate-400",
               )}>
                 {t(s.titleKey)}
               </span>
@@ -633,7 +633,7 @@ function Field({ label, required, helper, children }: { label: string; required?
         {label}{required && <span className="text-rose-500"> *</span>}
       </label>
       {children}
-      {helper && <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{helper}</p>}
+      {helper && <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{helper}</p>}
     </div>
   );
 }
@@ -655,7 +655,7 @@ function PrimaryNext({ onClick, label, disabled }: { onClick: () => void; label:
       className={cn(
         "apple-press px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono flex items-center gap-2 transition-colors",
         disabled
-          ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+          ? "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
           : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20",
       )}
     >

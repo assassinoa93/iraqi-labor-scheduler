@@ -327,7 +327,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
             </div>
           </div>
 
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
             Either way, after saving you'll sign in with your existing email + password — your super_admin role is already on the Firebase project, so there's nothing to re-grant. To manage users from this PC, link your service-account JSON later from <strong>Super Admin → Connection</strong> (or <strong>Settings → Connected databases</strong>).
           </p>
         </div>
@@ -350,7 +350,7 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
               ✓ Connection code recognized — fields filled below
             </p>
           ) : (
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Paste a <code className="font-mono">ils-connect:</code> code, or a firebaseConfig block. Fields auto-fill.
             </p>
           )}
@@ -393,13 +393,13 @@ export function OnlineSetup({ onConfigured, onCancel }: Props) {
         </button>
 
         {!isSuperAdmin && (
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
             <strong>Don't have a code yet?</strong> Ask your super-admin to open <strong>Settings → Generate connection code</strong> on their device and share the <code className="font-mono">ils-connect:…</code> string with you (Signal / WhatsApp / in person). They'll also need to create your account first from <strong>User Management → New user</strong>.
           </p>
         )}
       </div>
 
-      <p className="mt-5 text-center text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed font-medium">
+      <p className="mt-5 text-center text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
         These values are public client identifiers, not secrets. They're saved on this device only and persist across app restarts.
       </p>
     </Frame>
@@ -424,7 +424,7 @@ function SavedDatabasesList({
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
           Use a database you already saved
         </p>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+        <span className="text-[10px] text-slate-500 dark:text-slate-400">
           {stored.entries.length} saved
         </span>
       </div>
@@ -446,7 +446,7 @@ function SavedDatabasesList({
               )} />
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{e.label}</p>
-                <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">{e.config.projectId}</p>
+                <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate">{e.config.projectId}</p>
               </div>
             </button>
             {stored.active === e.id && (
@@ -505,7 +505,7 @@ function Frame({ children, onBack, onCancel, onSwitchOffline }: FrameProps) {
         {children}
         <button
           onClick={onSwitchOffline}
-          className="mt-6 w-full text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          className="mt-6 w-full text-center text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
         >
           Switch to Offline Demo
         </button>

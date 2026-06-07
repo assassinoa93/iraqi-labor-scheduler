@@ -331,7 +331,7 @@ export function ScheduleApprovalBanner({
               {t('banner.approval.diff.removed', { count: diffSummary.removed })}
             </span>
             {diffSnapshotLabel && (
-              <span className="ms-auto font-mono normal-case text-slate-400 dark:text-slate-500">{diffSnapshotLabel}</span>
+              <span className="ms-auto font-mono normal-case text-slate-500 dark:text-slate-400">{diffSnapshotLabel}</span>
             )}
           </div>
         )}

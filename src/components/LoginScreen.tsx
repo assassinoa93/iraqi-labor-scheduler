@@ -120,7 +120,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? t('login.password.hide') : t('login.password.show')}
                 title={showPassword ? t('login.password.hide') : t('login.password.show')}
-                className="absolute end-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
+                className="absolute end-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -170,7 +170,7 @@ export function LoginScreen({ onSwitchDatabase }: Props) {
           )}
           <button
             onClick={switchToOffline}
-            className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
             {t('login.switchOffline')}
           </button>

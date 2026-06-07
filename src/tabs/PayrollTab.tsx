@@ -341,7 +341,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         </div>
         <Card className="p-10 text-center space-y-4">
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">
-            <Users className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+            <Users className="w-8 h-8 text-slate-500 dark:text-slate-400" />
           </div>
           <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t('payroll.empty.title')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">{t('payroll.empty.body')}</p>
@@ -496,7 +496,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           + Net Payable rollups when groupBy is active. */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none" />
           <input
             type="text"
             placeholder={t('payroll.filter.searchPlaceholder')}
@@ -524,7 +524,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <div className="flex items-center gap-1.5 ms-auto">
-          <Layers className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.filter.groupBy')}</span>
           <select
             value={groupBy}
@@ -557,12 +557,12 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           <Card className="p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.eyebrow')}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.gratuity.eyebrow')}</p>
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mt-0.5">{t('payroll.gratuity.title')}</h3>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed max-w-xl">{t('payroll.gratuity.subtitle')}</p>
               </div>
               <div className="text-end">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.totalLiability')}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.gratuity.totalLiability')}</p>
                 <p className="text-3xl font-black text-purple-700 dark:text-purple-200 tabular-nums">
                   {fmt.num(Math.round(gratuity.totalLiability))}
                 </p>
@@ -571,21 +571,21 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
             </div>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.contributors')}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.gratuity.contributors')}</p>
                 <p className="text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{fmt.num(gratuity.contributors)}</p>
               </div>
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.avg')}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.gratuity.avg')}</p>
                 <p className="text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{fmt.num(Math.round(gratuity.avgPerEmployee))}</p>
               </div>
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.gratuity.asOf')}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.gratuity.asOf')}</p>
                 <p className="text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">{fmt.date(new Date(config.year, config.month - 1, config.daysInMonth), 'yyyy-MM-dd')}</p>
               </div>
             </div>
             {gratuity.topFive.length > 0 && (
               <div className="mt-4">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">{t('payroll.gratuity.topFive')}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">{t('payroll.gratuity.topFive')}</p>
                 <ul className="space-y-1">
                   {gratuity.topFive.map(r => (
                     <li key={r.empId} className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-100 dark:border-slate-700/60">
@@ -610,10 +610,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                 <SortableHeader label={t('payroll.col.hours')} sortKey="totalHours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.holidayBank')} sortKey="holidayBank" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-blue-500/30" />
                 <SortableHeader label={t('payroll.col.annualLeave')} sortKey="annualLeave" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-emerald-500/30" />
-                <th className="px-6 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
                 <SortableHeader label={t('payroll.col.baseSalary')} sortKey="baseMonthly" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.hourlyRate')} sortKey="hourlyRate" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
-                <th className="px-6 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
                 <SortableHeader label={t('payroll.col.otAmount')} sortKey="otAmount" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.netPayable')} sortKey="netPayable" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
               </tr>
@@ -685,7 +685,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
-                      <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{emp.empId}</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{emp.empId}</div>
                     </td>
                     <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600 dark:text-slate-300">{totalHours.toFixed(1)}h</td>
                     <td className="px-6 py-4">
@@ -705,12 +705,12 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                           <div className="space-y-0.5">
                             <span className={cn(
                               'px-3 py-1 rounded-full text-[10px] font-black tracking-tight',
-                              proj.projected > 0 ? 'bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500',
+                              proj.projected > 0 ? 'bg-blue-100 dark:bg-blue-500/25 text-blue-700 dark:text-blue-200 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
                             )}>
                               {proj.projected} {t('payroll.days')}
                             </span>
                             {showFootnote && (
-                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 ps-1">
+                              <p className="text-[8px] font-mono text-slate-500 dark:text-slate-400 ps-1">
                                 {emp.holidayBank}
                                 {proj.accrued > 0 && ` + ${proj.accrued}`}
                                 {proj.used > 0 && ` − ${proj.used}`}
@@ -742,7 +742,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                               {projected} {t('payroll.days')}
                             </span>
                             {isProjecting && consumedDays > 0 && (
-                              <p className="text-[8px] font-mono text-slate-400 dark:text-slate-500 ps-1">
+                              <p className="text-[8px] font-mono text-slate-500 dark:text-slate-400 ps-1">
                                 {emp.annualLeaveBalance} − {consumedDays}
                               </p>
                             )}
@@ -777,14 +777,14 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     <td className="px-6 py-4">
                       <div className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded w-fit",
-                        isOtEligible ? "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
+                        isOtEligible ? "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-200" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                       )}>
                         {isOtEligible ? t('payroll.qualified') : t('payroll.standard')}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300">+{fmt.num(Math.round(otAmount))}</div>
-                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">
+                      <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
                         {premiumHolidayHours > 0 && `(incl. ${premiumHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
                         {totalHolidayHours > 0 && premiumHolidayHours === 0 && (

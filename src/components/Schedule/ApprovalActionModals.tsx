@@ -313,7 +313,7 @@ export function SendBackModal({
           : "e.g. 'OT cap exception on row 7 needs Variables-tab tweak before I finalize.'"}
         className="w-full px-3 py-2 mb-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/40"
       />
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-4 leading-relaxed">
+      <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
         Required. The {destination} won't see the schedule again until they edit and resubmit.
       </p>
       <FooterButtons

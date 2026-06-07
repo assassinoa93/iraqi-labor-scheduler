@@ -184,7 +184,7 @@ export function AuditLogTab() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-100 uppercase tracking-tight">{t('audit.title')}</h3>
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
             {t('audit.subtitle')} · {entries.length} / 2000
           </p>
         </div>
@@ -233,7 +233,7 @@ export function AuditLogTab() {
       />
 
       <div className="flex items-center gap-2 flex-wrap p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 rounded-xl">
-        <Filter className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+        <Filter className="w-3 h-3 text-slate-500 dark:text-slate-400" />
         <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('audit.filter')}</span>
         <button
           onClick={() => setFilterDomain('all')}
@@ -265,7 +265,7 @@ export function AuditLogTab() {
       {filtered.length === 0 && !loading && (
         <div className="p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700/60 text-center">
           <History className="w-10 h-10 text-slate-200 dark:text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-[10px]">{t('audit.empty')}</p>
+          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('audit.empty')}</p>
           <p className="text-[10px] text-slate-300 dark:text-slate-600 font-medium uppercase tracking-tighter mt-1">{t('audit.emptyHint')}</p>
         </div>
       )}
@@ -293,7 +293,7 @@ export function AuditLogTab() {
                       </span>
                     </div>
                     {(e.targetId || e.actorEmail) && (
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-2 flex-wrap">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-2 flex-wrap">
                         {e.targetId && <span>{e.targetId}</span>}
                         {e.actorEmail && (
                           <>
@@ -304,7 +304,7 @@ export function AuditLogTab() {
                       </p>
                     )}
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0">{format(new Date(e.ts), 'HH:mm:ss')}</span>
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 shrink-0">{format(new Date(e.ts), 'HH:mm:ss')}</span>
                 </div>
               ))}
             </div>

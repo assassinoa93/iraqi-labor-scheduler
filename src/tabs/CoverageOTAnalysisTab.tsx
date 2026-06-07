@@ -93,7 +93,7 @@ export function CoverageOTAnalysisTab(props: Props) {
       {!hasAnalysis ? (
         <Card className="p-10 text-center space-y-4">
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">
-            <TrendingUp className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+            <TrendingUp className="w-8 h-8 text-slate-500 dark:text-slate-400" />
           </div>
           <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t('otAnalysis.empty.title')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">{t('otAnalysis.empty.body')}</p>
@@ -121,7 +121,7 @@ export function CoverageOTAnalysisTab(props: Props) {
             <Card className="p-5 bg-slate-900 dark:bg-slate-800 text-white border-0 shadow-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">{t('otAnalysis.kpi.totalOT')}</p>
               <p className="text-3xl font-black tracking-tight">{fmtIQD(analysis.totalOTPay)}</p>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider">IQD / mo</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider">IQD / mo</p>
             </Card>
             <Card className="p-5 bg-rose-50/70 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/40">
               <p className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-200 mb-2">{t('otAnalysis.kpi.overCapPay')}</p>
@@ -200,7 +200,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                         </div>
                         <div className="text-end shrink-0">
                           <p className="text-lg font-black text-slate-900 dark:text-slate-50 leading-none">{fmtIQD(st.totalOTPay)}</p>
-                          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">IQD / mo</p>
+                          <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">IQD / mo</p>
                         </div>
                       </div>
                       <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
@@ -229,7 +229,7 @@ export function CoverageOTAnalysisTab(props: Props) {
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-600 dark:text-blue-300" /> {t('otAnalysis.byEmployee.title')}
                 </h3>
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{analysis.byEmployee.length} {t('otAnalysis.byEmployee.count')}</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{analysis.byEmployee.length} {t('otAnalysis.byEmployee.count')}</span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-700/60 max-h-[400px] overflow-y-auto">
                 {analysis.byEmployee.slice(0, 20).map(emp => {
@@ -251,16 +251,16 @@ export function CoverageOTAnalysisTab(props: Props) {
                         <div className="grid grid-cols-2 gap-3 shrink-0 text-end">
                           <div>
                             <p className={cn("text-sm font-black", overCapColor)}>{emp.payableOverCapHours.toFixed(1)}h</p>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('otAnalysis.byEmployee.overCap')}</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('otAnalysis.byEmployee.overCap')}</p>
                           </div>
                           <div>
                             <p className={cn("text-sm font-black", holidayColor)}>{emp.holidayHours}h</p>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('otAnalysis.byEmployee.holiday')}</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('otAnalysis.byEmployee.holiday')}</p>
                           </div>
                         </div>
                         <div className="text-end shrink-0 w-24">
                           <p className="text-sm font-black text-slate-900 dark:text-slate-50">{fmtIQD(emp.totalOTPay)}</p>
-                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">IQD</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">IQD</p>
                         </div>
                       </div>
                     </button>

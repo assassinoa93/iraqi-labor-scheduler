@@ -35,7 +35,7 @@ export function SortableHeader({
           justify,
           active
             ? 'text-slate-700 dark:text-slate-100 hover:text-slate-900 dark:hover:text-white'
-            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200',
+            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
         )}
       >
         {label}
@@ -84,7 +84,7 @@ export function ComparativeKpi({
   const render = (v: number | string) => typeof v === 'number' ? fmt.num(v) : fmt.digits(v);
   return (
     <div>
-      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{label}</p>
       <p className="text-2xl font-black tabular-nums">
         <span className="text-slate-500 dark:text-slate-400">{render(current)}</span>
         <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
@@ -337,7 +337,7 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
       : value;
   return (
     <Card className="p-5 group">
-      <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2">{label}</p>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold mb-2">{label}</p>
       <div className="flex items-baseline gap-2">
         <span className={cn(
           "text-3xl font-light tracking-tight",
@@ -346,7 +346,7 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
           {displayValue}
         </span>
         {!trend && unit && (
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">{unit}</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">{unit}</span>
         )}
       </div>
       {trend && (

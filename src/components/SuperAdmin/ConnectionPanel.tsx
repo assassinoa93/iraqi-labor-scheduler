@@ -175,7 +175,7 @@ function Section({ title, subtitle, children }: SectionProps) {
     <section className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</p>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-widest font-mono">{subtitle}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">{subtitle}</p>
       </div>
       {children}
     </section>

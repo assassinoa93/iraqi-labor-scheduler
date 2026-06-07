@@ -172,7 +172,7 @@ export function ShiftModal({ isOpen, onClose, onSave, shift, config, existingIds
           )}
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('modal.shift.field.description')}</label>
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('modal.shift.field.description')}</label>
             <textarea
               className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs min-h-[60px] focus:ring-1 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
               value={formData.description}
