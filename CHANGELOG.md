@@ -2,6 +2,15 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.37.0 — 2026-06-08
+
+**Payroll + PDF now measure overtime against each employee's category-aware cap, matching the OT-analysis tab.**
+
+- [lib/payroll.ts](src/lib/payroll.ts) — `computePayrollRow` (the shared engine behind the Payroll table, the period delta, and the PDF report) now uses `monthlyCapFor(emp, config)` — **Driver 224h / hazardous 144h / hour-exempt none / standard 192h** — instead of the flat `monthlyHourCap`. Pre-v5.37 a driver who worked 216h was billed 24h of phantom standard OT against the 192h standard cap, disagreeing with the OT-analysis tab (which already used the category cap). The row now also returns `cap` so the OT-eligibility flag is labelled against the employee's real cap. [tabs/PayrollTab.tsx](src/tabs/PayrollTab.tsx) + [lib/pdfReport.ts](src/lib/pdfReport.ts) use it.
+- **Effect:** none for Standard-only rosters (`monthlyCapFor` === `monthlyHourCap` for them). For drivers/hazardous staff, standard-OT hours and pay now reconcile across Payroll, the PDF, and the Coverage & OT Analysis tab. +4 tests (Driver cap → less OT, hazardous cap → more OT, hour-exempt → never, plus the `cap` field).
+
+_Suite 483 → 486 tests; `tsc` + Vite build clean; secret-leak audit clean over full history._
+
 ## v5.36.0 — 2026-06-08
 
 **A "Holiday" day-type in the coverage scenarios, and the full Online-setup screen localized to Arabic.**

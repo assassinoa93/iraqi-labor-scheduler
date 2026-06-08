@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation, Station } from '../types';
-import { monthlyHourCap, computePayrollRow } from './payroll';
+import { computePayrollRow } from './payroll';
 import { en } from './i18n/en';
 import { statuteLegendFor } from './statuteText';
 
@@ -157,10 +157,9 @@ export const generatePDFReport = (
   // holiday hour (ignoring comp-day mode, where a granted rest day means no
   // cash premium) and it counted leave-overlap days as worked hours. Routing
   // through computePayrollRow makes the PDF match the Payroll table exactly,
-  // which is the user-visible source of truth. (Note: both still use the flat
-  // monthlyHourCap — aligning to the category-aware monthlyCapFor would change
-  // on-screen Driver/hazardous OT and is deferred for separate review.)
-  const cap = monthlyHourCap(config);
+  // which is the user-visible source of truth. v5.37 — both now also use the
+  // category-aware monthlyCapFor (Driver 224h / hazardous 144h), so the OT
+  // flag and standard-OT pay match the OT-analysis tab too.
   const holidaysForPay = config.holidays ?? [];
 
   const performanceData = employees.map(emp => {
@@ -170,7 +169,8 @@ export const generatePDFReport = (
       emp.role,
       `${row.totalHours.toFixed(1)}h`,
       `${row.baseMonthly.toLocaleString()}`,
-      row.totalHours > cap ? t('common.yes') : t('common.no'),
+      // v5.37 — OT flag against the employee's category-aware cap.
+      row.totalHours > row.cap ? t('common.yes') : t('common.no'),
       `${Math.round(row.otAmount).toLocaleString()} IQD`,
       `${Math.round(row.netPayable).toLocaleString()} IQD`,
       emp.holidayBank || 0,

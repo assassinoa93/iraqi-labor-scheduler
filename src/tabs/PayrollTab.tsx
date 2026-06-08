@@ -4,7 +4,7 @@ import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
-import { monthlyHourCap, computePayrollRow } from '../lib/payroll';
+import { computePayrollRow } from '../lib/payroll';
 import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange, projectHolidayBank } from '../lib/leaves';
 import { format } from 'date-fns';
 import { HolidayPayBreakdown } from '../lib/holidayCompPay';
@@ -136,6 +136,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
   type Row = {
     emp: Employee;
     totalHours: number;
+    cap: number;
     baseMonthly: number;
     hourlyRate: number;
     standardOTHours: number;
@@ -679,10 +680,13 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                 // The actual per-row JSX — extracted into an IIFE so the
                 // grouped + ungrouped paths share one renderer instead of
                 // duplicating the ~80-line cell layout.
-                const renderRow = ({ emp, totalHours, baseMonthly, hourlyRate, standardOTHours, holidayBreakdown, otAmount, netPayable }: Row) => {
+                const renderRow = ({ emp, totalHours, cap, baseMonthly, hourlyRate, standardOTHours, holidayBreakdown, otAmount, netPayable }: Row) => {
                   const totalHolidayHours = holidayBreakdown.totalHolidayHours;
                   const premiumHolidayHours = holidayBreakdown.premiumHolidayHours;
-                  const isOtEligible = totalHours > monthlyHourCap(config);
+                  // v5.37 — flag OT against the employee's category-aware cap
+                  // (Driver 224h / hazardous 144h / standard 192h), matching
+                  // the standard-OT math in computePayrollRow.
+                  const isOtEligible = totalHours > cap;
 
                   // v5.8.0 — OT carry-over detection. Use case the user
                   // flagged: comp-day mode + a late-month holiday → premium

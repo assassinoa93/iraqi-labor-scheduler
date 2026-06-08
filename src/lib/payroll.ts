@@ -90,19 +90,24 @@ export function computeWorkedHours(
   return total;
 }
 
-// v5.34 — canonical per-employee payroll figures for one month. Extracted
-// verbatim from PayrollTab's inline row computation so the same numbers can be
-// reused without duplication: the on-screen table, the period-over-period
-// "vs last month" delta (run against the prior schedule + previousMonthConfig),
-// and — once verified against the on-screen figures — the PDF compliance
-// report (which currently re-derives pay inline and over-bills). The math is
-// intentionally identical to the pre-v5.34 PayrollTab so this refactor changes
-// NO displayed value:
-//   standardOTHours = max(0, totalHours − monthlyHourCap − premiumHolidayHours)
-// uses the flat monthlyHourCap (NOT the category-aware monthlyCapFor); aligning
-// the cap is a separate, numbers-changing step flagged for review.
+// v5.34 — canonical per-employee payroll figures for one month. Shared by the
+// on-screen Payroll table, the period-over-period "vs last month" delta, and
+// the PDF compliance report, so all three always agree.
+//
+// v5.37 — the standard-OT cap is now the category-aware `monthlyCapFor(emp,
+// config)` (Driver 224h, hazardous 144h, hour-exempt none, else standard 192h)
+// instead of the flat `monthlyHourCap`. Pre-v5.37 a driver who worked 210h was
+// billed 18h of standard OT against the 192h standard cap even though their
+// legal cap is 224h; that disagreed with the OT-analysis tab (which already
+// used monthlyCapFor) and over-stated driver/hazardous OT. This aligns Payroll
+// + PDF with the OT analysis. Standard-category employees are unaffected
+// (monthlyCapFor === monthlyHourCap for them). `cap` is returned so callers can
+// label the OT-eligibility flag against the employee's real cap.
 export interface PayrollRow {
   totalHours: number;
+  // The category-aware monthly OT cap applied to this employee (Infinity for
+  // hour-exempt). Returned so the UI/PDF can flag OT eligibility consistently.
+  cap: number;
   baseMonthly: number;
   hourlyRate: number;
   standardOTHours: number;
@@ -120,7 +125,7 @@ export function computePayrollRow(
   config: Config,
   allSchedules?: Record<string, Schedule>,
 ): PayrollRow {
-  const cap = monthlyHourCap(config);
+  const cap = monthlyCapFor(emp, config);
   const totalHours = computeWorkedHours(emp, schedule, shifts, config);
   const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
   const hourlyRate = baseHourlyRate(emp, config);
@@ -129,5 +134,5 @@ export function computePayrollRow(
   const standardOTPay = standardOTHours * hourlyRate * (config.otRateDay ?? 1.5);
   const otAmount = standardOTPay + holidayBreakdown.premiumPay;
   const netPayable = baseMonthly + otAmount;
-  return { totalHours, baseMonthly, hourlyRate, standardOTHours, standardOTPay, holidayBreakdown, otAmount, netPayable };
+  return { totalHours, cap, baseMonthly, hourlyRate, standardOTHours, standardOTPay, holidayBreakdown, otAmount, netPayable };
 }

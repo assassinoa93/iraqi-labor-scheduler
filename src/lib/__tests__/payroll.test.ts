@@ -105,8 +105,44 @@ describe('computePayrollRow', () => {
     const schedule: Schedule = { 'EMP-1': days };
     const r = computePayrollRow(baseEmp, schedule, [FS], [], fullCfg);
     expect(r.totalHours).toBe(200);
+    expect(r.cap).toBe(192);
     expect(r.standardOTHours).toBe(8);
     expect(Math.round(r.otAmount)).toBe(93_750);
+  });
+
+  it('v5.37: uses the Driver cap (224h) not the flat 192h → less standard OT', () => {
+    // A driver working 216h is UNDER their 224h cap, so zero standard OT.
+    // Pre-v5.37 (flat 192h cap) this billed 24h of phantom OT.
+    const driver = { ...baseEmp, category: 'Driver' as const, contractedWeeklyHrs: 56 };
+    const days: Record<number, { shiftCode: string }> = {};
+    for (let d = 1; d <= 27; d++) days[d] = { shiftCode: 'FS' }; // 27 × 8 = 216h
+    const r = computePayrollRow(driver, { 'EMP-1': days }, [FS], [], fullCfg);
+    expect(r.totalHours).toBe(216);
+    expect(r.cap).toBe(224);
+    expect(r.standardOTHours).toBe(0);
+    expect(r.otAmount).toBe(0);
+  });
+
+  it('v5.37: uses the hazardous cap (144h) → MORE standard OT than the flat cap', () => {
+    // A hazardous worker has a LOWER cap (144h), so 152h worked is 8h over.
+    // Pre-v5.37 (flat 192h cap) this was 0 OT.
+    const haz = { ...baseEmp, isHazardous: true };
+    const days: Record<number, { shiftCode: string }> = {};
+    for (let d = 1; d <= 19; d++) days[d] = { shiftCode: 'FS' }; // 19 × 8 = 152h
+    const r = computePayrollRow(haz, { 'EMP-1': days }, [FS], [], fullCfg);
+    expect(r.totalHours).toBe(152);
+    expect(r.cap).toBe(144);
+    expect(r.standardOTHours).toBe(8);
+  });
+
+  it('v5.37: hour-exempt employees never accrue OT (infinite cap)', () => {
+    const exempt = { ...baseEmp, hourExempt: true };
+    const days: Record<number, { shiftCode: string }> = {};
+    for (let d = 1; d <= 28; d++) days[d] = { shiftCode: 'FS' }; // 224h
+    const r = computePayrollRow(exempt, { 'EMP-1': days }, [FS], [], fullCfg);
+    expect(r.cap).toBe(Number.POSITIVE_INFINITY);
+    expect(r.standardOTHours).toBe(0);
+    expect(r.otAmount).toBe(0);
   });
 
   it('cash-ot mode: a worked holiday is billed the 2× premium', () => {
