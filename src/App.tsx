@@ -3099,6 +3099,31 @@ export default function App() {
     pushCellUndo(edits);
   };
 
+  // v5.32 — drag-paint commit. ScheduleTab accumulates the dragged cells during
+  // the drag and commits them here on mouseup in ONE setSchedule + ONE undo
+  // entry (Ctrl+Z reverts the whole sweep) and — in Online mode — a single
+  // syncMonth Firestore write instead of one per cell. Mirrors
+  // handleCellRangeFill's edit/undo shape over an explicit cell list.
+  const handleCellPaintBatch = (cells: Array<{ empId: string; day: number }>) => {
+    if (!paintMode || cells.length === 0) return;
+    const next = { shiftCode: paintMode.shiftCode, stationId: paintMode.stationId };
+    const edits: CellEdit[] = [];
+    setSchedule(p => {
+      const updated = { ...p };
+      for (const { empId, day } of cells) {
+        const empBucket = { ...(updated[empId] || {}) };
+        const prev = empBucket[day];
+        if (!prev || prev.shiftCode !== next.shiftCode || prev.stationId !== next.stationId) {
+          edits.push({ empId, day, prev });
+          empBucket[day] = next;
+        }
+        updated[empId] = empBucket;
+      }
+      return updated;
+    });
+    pushCellUndo(edits);
+  };
+
   // User picked a swap candidate from the coverage hint toast. Move the
   // vacated shift onto the chosen employee. The move overwrites whatever
   // they had on that day — usually OFF, occasionally another work shift
@@ -4263,6 +4288,7 @@ export default function App() {
                 setActiveMonth={setActiveMonth}
                 onCellClick={handleCellClick}
                 onCellRangeFill={handleCellRangeFill}
+                onCellPaintBatch={handleCellPaintBatch}
                 onUndo={undoLastSchedule}
                 onUndoCell={undoLastCell}
                 cellUndoDepth={cellUndoStack.length}

@@ -89,6 +89,9 @@ interface ScheduleTabProps {
   // rectangle (including endpoints) with the current paint mode and records
   // a single bundled undo entry.
   onCellRangeFill?: (anchorEmpId: string, anchorDay: number, empId: string, day: number) => void;
+  // v5.32 — commit a whole drag-paint sweep at once (one undo + one Firestore
+  // write). Cells accumulate locally during the drag; this fires on mouseup.
+  onCellPaintBatch?: (cells: Array<{ empId: string; day: number }>) => void;
   onUndo: () => void;
   // Per-cell undo (Ctrl+Z). The App keeps a separate stack of individual cell
   // edits so users can quickly back out of a mispainted cell without losing
@@ -257,6 +260,10 @@ interface RowData {
   // in the active locale (react-window rows are outside the component tree, so
   // they can't call useI18n themselves).
   t: (k: string, vars?: Record<string, string | number>) => string;
+  // v5.32 — live drag-paint preview: cellKeys currently in the sweep + the
+  // paint code to show on them before the mouseup commit.
+  dragCells: Set<string>;
+  dragPaintCode: string;
 }
 
 // Each visible row is rendered by react-window. We deliberately do NOT wrap
@@ -266,7 +273,7 @@ interface RowData {
 function ScheduleRow({
   index, style, rowPlan, days, schedule, onCellClick, onCellMouseDown, onCellMouseEnter,
   recentlyChangedCells, violationCellKeys, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
-  cellsReadOnly, diffMap, dayCellWidth, t,
+  cellsReadOnly, diffMap, dayCellWidth, t, dragCells, dragPaintCode,
 }: RowComponentProps<RowData>) {
   const item = rowPlan[index];
   if (!item) return <div style={style} />;
@@ -377,7 +384,11 @@ function ScheduleRow({
         const isRecent = !!emp && !!recentlyChangedCells?.has(cellKey);
         const hasViolation = !!emp && !!violationCellKeys?.has(cellKey);
         const diffKind = emp && diffMap ? diffMap.get(cellKey) ?? null : null;
-        const code = emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : '';
+        // v5.32 — show the drag-paint code on cells in the active sweep before
+        // the mouseup commit, so the user still gets live feedback while the
+        // actual write is batched.
+        const baseCode = emp ? schedule[emp.empId]?.[day]?.shiftCode || '' : '';
+        const code = emp && dragCells.has(cellKey) ? dragPaintCode : baseCode;
         // v5.31 — localized, fully-encoded cell aria-label. Beyond colour: the
         // violation AND diff (added/modified/removed) state are spoken to
         // screen readers, not conveyed by the red dot / outline tint alone.
@@ -418,7 +429,7 @@ export function ScheduleTab({
   scheduleViolationsOnly, setScheduleViolationsOnly,
   scheduleGroupByStation, setScheduleGroupByStation,
   violationCount, rosterRoles,
-  scheduleUndoStack, prevMonth, nextMonth, setActiveMonth, onCellClick, onCellRangeFill,
+  scheduleUndoStack, prevMonth, nextMonth, setActiveMonth, onCellClick, onCellRangeFill, onCellPaintBatch,
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
   onCopyPreviousMonth, onRepeatFirstWeek,
   canRunAuto, runAutoDisabledReason,
@@ -505,6 +516,15 @@ export function ScheduleTab({
   // here (not in App.tsx) to keep mouse-event noise local to the grid.
   const [isDragPainting, setIsDragPainting] = useState(false);
   const lastClickedCellRef = useRef<{ empId: string; day: number } | null>(null);
+  // v5.32 — drag-paint accumulation. Cells touched during the current drag are
+  // collected in dragListRef (commit order) and mirrored into dragCells (a Set
+  // of `${empId}:${day}` keys) purely for the live preview overlay. On mouseup
+  // we commit the whole list via onCellPaintBatch (one undo + one sync) and set
+  // justDraggedRef so the trailing click (which fires after mouseup) is ignored.
+  const dragListRef = useRef<Array<{ empId: string; day: number }>>([]);
+  const justDraggedRef = useRef(false);
+  const [dragCells, setDragCells] = useState<Set<string>>(new Set());
+  const dragPaintCode = paintMode?.shiftCode ?? '';
   // v2.1.2 — paint banner pulses briefly when entering paint mode, then
   // settles to a static label. Pre-2.1.2 it pulsed forever, which read
   // as visual noise after the user understood they were in paint mode.
@@ -588,10 +608,19 @@ export function ScheduleTab({
   // in dragging mode.
   useEffect(() => {
     if (!isDragPainting) return;
-    const onUp = () => setIsDragPainting(false);
+    const onUp = () => {
+      const cells = dragListRef.current;
+      if (cells.length > 0 && paintMode && onCellPaintBatch) {
+        onCellPaintBatch(cells);
+        justDraggedRef.current = true; // swallow the trailing click on the release cell
+      }
+      dragListRef.current = [];
+      setDragCells((prev) => (prev.size ? new Set() : prev));
+      setIsDragPainting(false);
+    };
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
-  }, [isDragPainting]);
+  }, [isDragPainting, paintMode, onCellPaintBatch]);
 
   const handleCellMouseDown = React.useCallback((empId: string, day: number, e: React.MouseEvent) => {
     // v5.0 — read-only-while-pending. If the schedule is in submitted /
@@ -611,28 +640,46 @@ export function ScheduleTab({
     }
     if (paintMode) {
       e.preventDefault();
+      // v5.32 — start a drag-paint sweep. The first cell is recorded but NOT
+      // committed yet; it (and any cells dragged over) commit together on
+      // mouseup. The live preview overlay shows the paint immediately.
+      justDraggedRef.current = false;
+      dragListRef.current = [{ empId, day }];
+      setDragCells(new Set([`${empId}:${day}`]));
       setIsDragPainting(true);
-      onCellClick(empId, day);
     }
     lastClickedCellRef.current = { empId, day };
-  }, [paintMode, onCellClick, onCellRangeFill, canEditCells]);
+  }, [paintMode, onCellRangeFill, canEditCells]);
 
   const handleCellMouseEnter = React.useCallback((empId: string, day: number) => {
     if (!canEditCells) return;
     if (isDragPainting && paintMode) {
-      onCellClick(empId, day);
+      // Accumulate (commit happens on mouseup). De-dupe so a sweep that
+      // re-enters a cell doesn't list it twice.
+      if (!dragListRef.current.some((c) => c.empId === empId && c.day === day)) {
+        dragListRef.current.push({ empId, day });
+      }
+      setDragCells((prev) => {
+        const key = `${empId}:${day}`;
+        if (prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
     }
-  }, [isDragPainting, paintMode, onCellClick, canEditCells]);
+  }, [isDragPainting, paintMode, canEditCells]);
 
   const handleCellClick = React.useCallback((empId: string, day: number, opts?: { shift?: boolean }) => {
     if (!canEditCells) return;
+    // v5.32 — a drag-paint sweep (even a zero-move click in paint mode) commits
+    // on mouseup; the browser then fires this click on the release cell. Swallow
+    // it so we don't double-handle. justDraggedRef is set by the mouseup commit.
+    if (paintMode && justDraggedRef.current) { justDraggedRef.current = false; return; }
     // Skip the click if it's the second half of a shift+click range fill
     // (already handled in mousedown). Without this guard the anchor cell
     // would be cycled twice.
     if (opts?.shift && paintMode) return;
-    // Drag-paint already handled on mousedown — let the click for the same
-    // cell pass through harmlessly only when not in paint mode (so cycling
-    // through codes still works in cursor mode).
+    // Defensive: if a drag is somehow still active, don't also cycle here.
     if (paintMode && isDragPainting) return;
     onCellClick(empId, day, opts);
     lastClickedCellRef.current = { empId, day };
@@ -1383,6 +1430,8 @@ export function ScheduleTab({
                   diffMap: diffEnabled ? diffMap : null,
                   dayCellWidth,
                   t,
+                  dragCells,
+                  dragPaintCode,
                 }}
               />
             )}
