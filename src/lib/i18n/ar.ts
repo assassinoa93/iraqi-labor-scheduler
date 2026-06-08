@@ -871,6 +871,7 @@ export const ar: Dict = {
   'schedule.stale.body': '{emps} موظفين و{shifts} رموز ورديات و{stations} محطات مُشار إليها في جدول هذا الشهر لم تعد موجودة.',
   'schedule.stale.rerun': 'إعادة تشغيل المُجدوِل التلقائي',
   'schedule.autoRunning': 'جارٍ الجدولة…',
+  'schedule.grid.ariaLabel': 'شبكة الجدول الشهري — الموظفون حسب اليوم',
 
   // Info dialogs
   'info.notice.title': 'إشعار',

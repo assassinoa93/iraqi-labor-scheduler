@@ -901,6 +901,7 @@ export const en: Dict = {
   'schedule.stale.body': '{emps} employees, {shifts} shift codes, and {stations} stations referenced in this month\'s schedule no longer exist.',
   'schedule.stale.rerun': 'Re-run Auto-Scheduler',
   'schedule.autoRunning': 'Scheduling…',
+  'schedule.grid.ariaLabel': 'Monthly schedule grid — employees by day',
 
   // Info / replacement-for-alert dialogs
   'info.notice.title': 'Notice',

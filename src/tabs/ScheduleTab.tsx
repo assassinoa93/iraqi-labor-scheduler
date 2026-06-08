@@ -290,23 +290,31 @@ function ScheduleRow({
   if (item.kind === 'header') {
     const collapsed = item.collapsed;
     return (
+      // v5.39 — the group-collapse strip is a grid row (role="row" +
+      // aria-rowindex); the interactive toggle moves to an inner role="button"
+      // (the chevron + station-name block) so we don't stack a button role on
+      // a row role. onClick stays on the outer for mouse convenience (clicking
+      // anywhere on the strip still toggles); keyboard focus + Enter/Space live
+      // on the inner button.
       <div
         style={style}
-        role="button"
-        tabIndex={0}
+        role="row"
+        aria-rowindex={index + 2}
         onClick={() => onToggleCollapse(item.stationId)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onToggleCollapse(item.stationId);
-          }
-        }}
         title={collapsed ? `Expand · ${item.stationName}` : `Collapse · ${item.stationName}`}
         className="flex border-b border-blue-200/60 dark:border-blue-500/30 bg-gradient-to-r from-blue-50 via-blue-50/70 to-blue-50/40 dark:from-blue-500/15 dark:via-blue-500/10 dark:to-blue-500/5 hover:from-blue-100 hover:via-blue-100/70 dark:hover:from-blue-500/25 cursor-pointer transition-colors group-row-header select-none"
       >
         <div
           data-sticky-left
-          className="z-10 px-3 flex items-center gap-2 will-change-transform"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onToggleCollapse(item.stationId);
+            }
+          }}
+          className="z-10 px-3 flex items-center gap-2 will-change-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
           style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH, height: GROUP_HEADER_HEIGHT }}
         >
           <span className="shrink-0 text-blue-600 dark:text-blue-300">
@@ -344,7 +352,12 @@ function ScheduleRow({
   const capPct = stats && stats.weeklyCap > 0 ? stats.weeklyHrsRolling / stats.weeklyCap : 0;
   const tone = capPct >= 1 ? 'over' : capPct >= 0.9 ? 'near' : 'ok';
   return (
-    <div style={style} className="flex border-b schedule-grid-line hover:bg-slate-50/50 dark:hover:bg-slate-800/40 group bg-white dark:bg-slate-900">
+    <div
+      style={style}
+      role="row"
+      aria-rowindex={index + 2}
+      className="flex border-b schedule-grid-line hover:bg-slate-50/50 dark:hover:bg-slate-800/40 group bg-white dark:bg-slate-900"
+    >
       {/* v1.15 — react-window's overflow:auto container intercepts CSS
           sticky-left, so the JS scroll handler in ScheduleTab translates
           [data-sticky-left] elements by the current scrollLeft to keep
@@ -352,6 +365,8 @@ function ScheduleRow({
           keeps the transform on the GPU compositor for smooth panning. */}
       <div
         data-sticky-left
+        role="rowheader"
+        aria-colindex={1}
         className="bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 z-10 px-4 py-2 border-r border-slate-200 dark:border-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)] flex flex-col justify-center will-change-transform"
         style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
         title={stats ? formatEmployeeStatsTooltip(stats, t) : undefined}
@@ -405,7 +420,7 @@ function ScheduleRow({
           ariaLabel = parts.join(' · ');
         }
         return (
-          <div key={day} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
+          <div key={day} role="gridcell" aria-colindex={day + 1} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
             <ScheduleCell
               value={code}
               onClick={(e) => emp && onCellClick(emp.empId, day, { shift: e.shiftKey })}
@@ -1350,10 +1365,23 @@ export function ScheduleTab({
           </div>
         </div>
         <div className="overflow-x-auto" ref={gridScrollRef}>
-          <div style={{ width: totalGridWidth, minWidth: totalGridWidth }}>
+          {/* v5.39 — role=grid (Tier B). aria-rowcount/colcount count the full
+              (non-virtualised) grid: +1 row for the day-header, +1 column for
+              the employee-name column. Each row carries aria-rowindex and each
+              cell aria-colindex so screen readers can report position even
+              though react-window only mounts the visible rows. */}
+          <div
+            role="grid"
+            aria-label={t('schedule.grid.ariaLabel')}
+            aria-rowcount={rowPlan.length + 1}
+            aria-colcount={days.length + 1}
+            style={{ width: totalGridWidth, minWidth: totalGridWidth }}
+          >
             {/* Sticky day header */}
-            <div className="flex bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
+            <div role="row" aria-rowindex={1} className="flex bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
               <div
+                role="columnheader"
+                aria-colindex={1}
                 className="sticky left-0 bg-slate-50 dark:bg-slate-800 z-30 px-4 py-4 border-r border-slate-200 dark:border-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.05)] tracking-tighter text-[10px] uppercase font-black text-slate-500 dark:text-slate-300 flex items-center"
                 style={{ width: NAME_COL_WIDTH, minWidth: NAME_COL_WIDTH }}
               >
@@ -1373,6 +1401,8 @@ export function ScheduleTab({
                 return (
                   <div
                     key={d}
+                    role="columnheader"
+                    aria-colindex={d + 1}
                     title={isHoli ? `${d} ${t(MONTH_SHORT_KEYS[config.month - 1])} — ${holiday.name}` : `${d} ${t(MONTH_SHORT_KEYS[config.month - 1])} (${t(DOW_SHORT_KEYS[dow])})`}
                     className={cn(
                       "py-3 text-center border-r schedule-grid-line tracking-tighter flex flex-col items-center relative",
@@ -1416,6 +1446,7 @@ export function ScheduleTab({
               </div>
             ) : (
               <List
+                role="rowgroup"
                 rowCount={rowPlan.length}
                 rowHeight={getRowHeight}
                 defaultHeight={naturalHeight}

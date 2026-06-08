@@ -2,6 +2,15 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.39.0 — 2026-06-08
+
+**Full `role="grid"` ARIA semantics on the schedule grid (accessibility Tier B).**
+
+- [tabs/ScheduleTab.tsx](src/tabs/ScheduleTab.tsx), [lib/i18n](src/lib/i18n) — the virtualized schedule grid now exposes proper grid semantics: `role="grid"` (with `aria-rowcount` / `aria-colcount` covering the full, non-virtualized grid), the day-header as `role="row"` of `role="columnheader"` cells, react-window's row container as `role="rowgroup"`, each employee row as `role="row"` with `aria-rowindex`, the name cell as `role="rowheader"`, and every day cell as `role="gridcell"` with `aria-colindex`. Because react-window v2 renders rows as **direct children** of its root, the `grid → rowgroup → row → gridcell` nesting is valid with no intermediate wrappers. The Tier A per-cell `aria-label`s (shift / violation / diff state) remain nested inside each gridcell. The group-collapse strip became a valid grid row with its toggle moved to an inner `role="button"`.
+- This builds on Tier A (per-cell labels, shipped earlier). **Verified** via DOM inspection (valid role nesting, aligned row/col indices, no leftover `listitem` roles, no console errors, cell interaction intact); a full screen-reader pass is still recommended.
+
+_Suite 486 tests; `tsc` + Vite build clean; secret-leak audit clean over full history._
+
 ## v5.38.0 — 2026-06-08
 
 **Online mode shows a loading skeleton while the cloud data streams in, instead of a momentary empty-state flash.**
