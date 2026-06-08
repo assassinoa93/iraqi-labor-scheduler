@@ -106,6 +106,27 @@ describe('buildCoverageScenarios', () => {
     expect(out[0].coveringShifts.map(s => s.code)).toEqual(['M']);
   });
 
+  it('honours the holiday tier (holidayMinHC) when isHoliday is set (v5.36)', () => {
+    // Station needs 2 PAX on a peak day but 3 on a public holiday.
+    const stations = [station({ openingTime: '11:00', closingTime: '19:00', peakMinHC: 2, normalMinHC: 1, holidayMinHC: 3 })];
+    const shifts = [shift({ code: 'M', start: '11:00', end: '19:00' })];
+    const cfg = baseConfig();
+
+    const holiday = buildCoverageScenarios({ stations, shifts, config: cfg, isPeakDay: true, isHoliday: true });
+    // 1 shift on the floor × holiday HC 3 = 3 concurrent.
+    expect(holiday[0].peakConcurrentHC).toBe(3);
+
+    const peak = buildCoverageScenarios({ stations, shifts, config: cfg, isPeakDay: true, isHoliday: false });
+    expect(peak[0].peakConcurrentHC).toBe(2);
+  });
+
+  it('falls back to the peak tier on a holiday when the station has no holiday override', () => {
+    const stations = [station({ openingTime: '11:00', closingTime: '19:00', peakMinHC: 2, normalMinHC: 1 })];
+    const shifts = [shift({ code: 'M', start: '11:00', end: '19:00' })];
+    const out = buildCoverageScenarios({ stations, shifts, config: baseConfig(), isPeakDay: true, isHoliday: true });
+    expect(out[0].peakConcurrentHC).toBe(2); // no holidayMinHC → peak fallback
+  });
+
   it('summarizeScenarios aggregates across stations', () => {
     const stations = [
       station({ id: 'a', name: 'A', openingTime: '11:00', closingTime: '19:00', peakMinHC: 1 }),

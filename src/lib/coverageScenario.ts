@@ -112,6 +112,12 @@ export interface ScenarioBuildArgs {
   // (false). Defaults to peak — that's the worst-case the supervisor
   // plans for; normal days are easier to cover.
   isPeakDay?: boolean;
+  // v5.36 — when true, the scenario consults each station's holiday tier
+  // (holidayMinHC / holidayHourlyDemand) first, falling through to the
+  // peak/normal tier for stations with no holiday override (getRequiredHC
+  // handles the fallback). Callers pass isPeakDay:true alongside so a
+  // station without a holiday carve-out still plans against its peak demand.
+  isHoliday?: boolean;
   // Annual leave days per FTE per year (Iraqi Labor Law Art. 43 minimum
   // is 21 days). Defaults to 21 + small sick buffer.
   annualLeaveDaysPerEmployee?: number;
@@ -191,7 +197,7 @@ function rangesOverlap(a0: number, a1: number, b0: number, b1: number): boolean 
 // Build the per-station scenario.
 function buildOneScenario(
   station: Station,
-  args: Required<Pick<ScenarioBuildArgs, 'shifts' | 'config' | 'isPeakDay' | 'annualLeaveDaysPerEmployee' | 'sickAndCompBufferPct' | 'daysOpenPerWeek' | 'restDaysPerEmployeePerWeek'>>,
+  args: Required<Pick<ScenarioBuildArgs, 'shifts' | 'config' | 'isPeakDay' | 'isHoliday' | 'annualLeaveDaysPerEmployee' | 'sickAndCompBufferPct' | 'daysOpenPerWeek' | 'restDaysPerEmployeePerWeek'>>,
   groupsById: Map<string, StationGroup>,
 ): StationScenario {
   const stOpen = parseHourFloor(station.openingTime);
@@ -235,7 +241,7 @@ function buildOneScenario(
     // profile or flat fallback). Last hour (closing) = no demand —
     // skip it.
     const isLast = (i === totalSpan);
-    const requiredHC = isLast ? 0 : getRequiredHC(station, hour, args.isPeakDay);
+    const requiredHC = isLast ? 0 : getRequiredHC(station, hour, args.isPeakDay, args.isHoliday);
     if (requiredHC > 0) totalDemandHours++;
 
     // "Concurrent if staffed to required HC": if every shift on the
@@ -307,10 +313,11 @@ function buildOneScenario(
 }
 
 export function buildCoverageScenarios(args: ScenarioBuildArgs): StationScenario[] {
-  const required: Required<Pick<ScenarioBuildArgs, 'shifts' | 'config' | 'isPeakDay' | 'annualLeaveDaysPerEmployee' | 'sickAndCompBufferPct' | 'daysOpenPerWeek' | 'restDaysPerEmployeePerWeek'>> = {
+  const required: Required<Pick<ScenarioBuildArgs, 'shifts' | 'config' | 'isPeakDay' | 'isHoliday' | 'annualLeaveDaysPerEmployee' | 'sickAndCompBufferPct' | 'daysOpenPerWeek' | 'restDaysPerEmployeePerWeek'>> = {
     shifts: args.shifts,
     config: args.config,
     isPeakDay: args.isPeakDay ?? true,
+    isHoliday: args.isHoliday ?? false,
     annualLeaveDaysPerEmployee: args.annualLeaveDaysPerEmployee ?? 21,
     sickAndCompBufferPct: args.sickAndCompBufferPct ?? 0.05,
     daysOpenPerWeek: args.daysOpenPerWeek ?? 7,

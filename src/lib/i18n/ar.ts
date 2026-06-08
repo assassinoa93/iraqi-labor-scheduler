@@ -1283,6 +1283,7 @@ export const ar: Dict = {
   'workforce.scenario.subtitle': 'يستعرض كيف تُغطّي ورديّاتك كل محطة ساعةً بساعة، ويحسب حجم الكادر اللازم للحفاظ على تغطية مستمرة بعد الراحة الأسبوعية والإجازة السنوية.',
   'workforce.scenario.dayType.peak': 'يوم ذروة',
   'workforce.scenario.dayType.normal': 'يوم اعتيادي',
+  'workforce.scenario.dayType.holiday': 'يوم عطلة',
   'workforce.scenario.summary.stations': 'المحطات',
   'workforce.scenario.summary.gaps': 'بها فجوات',
   'workforce.scenario.summary.uncoveredHours': 'ساعات غير مُغطاة',

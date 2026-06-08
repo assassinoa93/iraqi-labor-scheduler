@@ -1326,6 +1326,7 @@ export const en: Dict = {
   'workforce.scenario.subtitle': 'Walks through how your existing shifts cover each station hour-by-hour, and computes the roster size needed to keep coverage continuous through weekly rest and annual leave.',
   'workforce.scenario.dayType.peak': 'Peak day',
   'workforce.scenario.dayType.normal': 'Normal day',
+  'workforce.scenario.dayType.holiday': 'Holiday',
   'workforce.scenario.summary.stations': 'Stations',
   'workforce.scenario.summary.gaps': 'With gaps',
   'workforce.scenario.summary.uncoveredHours': 'Uncovered hrs',

@@ -38,7 +38,7 @@ interface Props {
 export function CoverageScenarioPanel({ stations, shifts, stationGroups, employees, config }: Props) {
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
-  const [dayType, setDayType] = useState<'peak' | 'normal'>('peak');
+  const [dayType, setDayType] = useState<'peak' | 'normal' | 'holiday'>('peak');
   // v5.19.0 — toggles between the single-day timeline and the weekly
   // rotation simulator. Weekly mode answers "given my current roster
   // can I actually keep coverage continuous through Art. 71 weekly
@@ -48,7 +48,10 @@ export function CoverageScenarioPanel({ stations, shifts, stationGroups, employe
 
   const scenarios = useMemo(() => buildCoverageScenarios({
     stations, shifts, config,
-    isPeakDay: dayType === 'peak',
+    // Holiday plans against the holiday tier first, but still passes
+    // isPeakDay so stations without a holiday carve-out fall back to peak.
+    isPeakDay: dayType !== 'normal',
+    isHoliday: dayType === 'holiday',
     stationGroups,
   }), [stations, shifts, config, dayType, stationGroups]);
 
@@ -386,7 +389,7 @@ function WeeklyStationRow({ rotation }: { rotation: WeeklyStationRotation }) {
   );
 }
 
-function DayTypeToggle({ dayType, onChange }: { dayType: 'peak' | 'normal'; onChange: (d: 'peak' | 'normal') => void }) {
+function DayTypeToggle({ dayType, onChange }: { dayType: 'peak' | 'normal' | 'holiday'; onChange: (d: 'peak' | 'normal' | 'holiday') => void }) {
   const { t } = useI18n();
   return (
     <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-0.5">
@@ -413,6 +416,20 @@ function DayTypeToggle({ dayType, onChange }: { dayType: 'peak' | 'normal'; onCh
         )}
       >
         {t('workforce.scenario.dayType.normal')}
+      </button>
+      {/* v5.36 — Holiday day-type honours each station's holidayMinHC /
+          holidayHourlyDemand tier (falls back to peak when none set). */}
+      <button
+        type="button"
+        onClick={() => onChange('holiday')}
+        className={cn(
+          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+          dayType === 'holiday'
+            ? "bg-amber-500 text-white shadow-sm"
+            : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100",
+        )}
+      >
+        {t('workforce.scenario.dayType.holiday')}
       </button>
     </div>
   );
