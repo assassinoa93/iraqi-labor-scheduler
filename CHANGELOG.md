@@ -2,6 +2,12 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.39.1 — 2026-06-08
+
+**CI test-timeout hardening (no app changes).** The v5.39.0 release build went red on two tests — `whatIfSimulator` ("hire change") and `i18n/format` ("ASCII digits for en") — both **timeouts**, not logic failures, and both unrelated to the v5.39.0 grid-ARIA change. Root cause: the suite had no `test` config, so vitest used the default 5s timeout and spawned one worker per core; on a shared 2-core GitHub Actions runner the heavy `whatIfSimulator` test (it runs the full auto-scheduler) starved sibling workers of CPU, so even trivial tests wall-clocked past 5s (~7s observed). The fixtures are tiny, so this is runner contention, not a perf regression.
+
+- [vite.config.ts](vite.config.ts) — added a `test` block (`testTimeout: 30000`, `hookTimeout: 30000`, `maxWorkers: 2`) and switched `defineConfig` to `vitest/config` so the block is typed. No test was weakened; all 486 still pass locally in ~1s.
+
 ## v5.39.0 — 2026-06-08
 
 **Full `role="grid"` ARIA semantics on the schedule grid (accessibility Tier B).**
