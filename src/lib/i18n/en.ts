@@ -355,6 +355,7 @@ export const en: Dict = {
   // Variables tab
   'variables.title': 'Legal Variables & Compliance Caps',
   'variables.subtitle': 'All thresholds enforced by the compliance engine. Each value cites the governing article of Iraqi Labor Law No. 37 of 2015.',
+  'variables.relaunchWizard': 'Re-run Setup Wizard',
   'variables.standard': 'Standard Personnel',
   'variables.hazardous': 'Hazardous & Industrial Work',
   'variables.drivers': 'Drivers / Transport Workers',

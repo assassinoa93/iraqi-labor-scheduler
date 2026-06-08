@@ -2,6 +2,22 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.35.0 — 2026-06-08
+
+**The PDF compliance report now consumes the canonical pay engine (it was over-billing), and the Venue Profile wizard gets a real re-run entry point plus a dropped-answer fix.**
+
+### PDF report → canonical pay engine
+
+- [lib/pdfReport.ts](src/lib/pdfReport.ts) — the employee performance/credits table re-derived pay inline and **over-billed** vs the on-screen Payroll tab in two ways: it charged the 2× holiday premium on **every** holiday hour (ignoring comp-day mode, where a granted rest day means no cash premium) and it counted **leave-overlap days** as worked hours. It now calls the shared `computePayrollRow` (extracted verbatim in v5.34), so the PDF matches the Payroll table — the user-visible source of truth — exactly. `allSchedules` is threaded through so the Art. 74 comp-window look-ahead can cross the month boundary. (Both still use the flat `monthlyHourCap`; aligning to the category-aware `monthlyCapFor` would change on-screen Driver/hazardous OT and is deferred for separate review.)
+- [lib/__tests__/payroll.test.ts](src/lib/__tests__/payroll.test.ts) — +5 tests locking `computePayrollRow`: baseline, over-cap standard OT, cash-ot premium, **comp-day mode → no premium** (the over-bill fix), and leave-day exclusion.
+
+### Venue Profile wizard
+
+- [components/VenueProfileWizard.tsx](src/components/VenueProfileWizard.tsx) — fixed the **bare-preset holiday drop**: the "operates on public holidays?" answer was only persisted when the coverage preset was *realistic*; picking the *bare* preset silently discarded it. The answer is now always merged onto the downtime breakdown (preset's, the existing config's, or a default), regardless of preset.
+- [components/VariablesTab.tsx](src/components/VariablesTab.tsx), [App.tsx](src/App.tsx) — added the **"Re-run Setup Wizard"** button to the Variables tab, making real the re-run-from-Variables promise the wizard's docstring has carried (unfulfilled) since v5.22. The wizard now opens either on a blank first-run company or on demand.
+
+_Suite 476 → 481 tests; `tsc` + Vite build clean; secret-leak audit clean over full history. PDF generation verified live over the full demo roster._
+
 ## v5.34.0 — 2026-06-08
 
 **Period-over-period "vs last month" deltas, a non-blocking auto-scheduler spinner, colour-blind-safe schedule diff cells, and a sticky payroll name column.** Continues the v5.27–v5.33 improvement-roadmap rollout (see the consolidated note below).

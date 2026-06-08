@@ -348,6 +348,7 @@ export const ar: Dict = {
   // Variables tab
   'variables.title': 'المتغيرات القانونية وحدود الامتثال',
   'variables.subtitle': 'كل العتبات التي يطبّقها محرك الامتثال. كل قيمة تُشير إلى المادة الحاكمة من قانون العمل العراقي رقم ٣٧ لسنة ٢٠١٥.',
+  'variables.relaunchWizard': 'إعادة تشغيل معالج الإعداد',
   'variables.standard': 'الموظفون القياسيون',
   'variables.hazardous': 'العمل الخطر والصناعي',
   'variables.drivers': 'السائقون / عمال النقل',

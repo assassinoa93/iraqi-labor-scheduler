@@ -77,10 +77,6 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
 
   const finish = () => {
     const coveragePatch = applyCoveragePreset(coveragePreset);
-    // Layer the wizard answers on top of the coverage preset patch.
-    // Order matters: the wizard's `operatesOnHolidays` answer overrides
-    // the preset's default so a "Bare hours" + "operates on holidays"
-    // answer is preserved correctly.
     const patch: Partial<Config> = {
       ...coveragePatch,
       shopOpeningTime: openTime,
@@ -89,12 +85,18 @@ export function VenueProfileWizard({ isOpen, onComplete, onSkip, config }: Props
       holidayCompMode,
       venueProfileCompleted: true,
     };
-    if (coveragePatch.coverageMode === 'realistic' && coveragePatch.downtimeAssumptions) {
-      patch.downtimeAssumptions = {
-        ...coveragePatch.downtimeAssumptions,
-        operatesOnHolidays,
-      };
-    }
+    // v5.35 — always persist the Q3 "operates on public holidays?" answer,
+    // regardless of the coverage preset. Pre-v5.35 the answer was only written
+    // when the preset was 'realistic' (the only preset that ships a
+    // downtimeAssumptions block); picking the 'bare' preset (simple mode, no
+    // downtime block) silently DROPPED the user's Q3 answer. Merge it onto
+    // whichever downtime breakdown the preset or the existing config provides
+    // — or a default block — so the answer survives and is correct when the
+    // user later switches coverage to realistic.
+    const baseDowntime = coveragePatch.downtimeAssumptions ?? config.downtimeAssumptions;
+    patch.downtimeAssumptions = baseDowntime
+      ? { ...baseDowntime, operatesOnHolidays }
+      : { annualLeaveRate: 21 / 365, sickRate: 11 / 365, publicHolidayRate: 13 / 365, restDayGapRate: 1 / 7, operatesOnHolidays };
     onComplete(patch);
   };
 

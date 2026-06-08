@@ -46,6 +46,12 @@ interface Props {
   // caps when no hazardous-flagged employees). Optional + default to
   // empty so test fixtures and legacy callers keep working.
   employees?: Employee[];
+  // v5.35 — re-open the Venue Profile setup wizard. The wizard's own
+  // docstring has promised a "re-run from the Variables tab" since v5.22 but
+  // the entry point never existed; this wires it. Optional so test fixtures /
+  // legacy callers keep working; the button only renders when supplied and
+  // operational config is editable.
+  onRelaunchVenueWizard?: () => void;
 }
 
 // CapDef carries i18n keys (resolved at render time so language toggles update
@@ -209,7 +215,7 @@ function Section({ title, subtitle, icon, iconBg, iconText, caps, config, setCon
   );
 }
 
-export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operatingWindowReadOnly, holidayCompModeReadOnly, employees = [] }: Props) {
+export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operatingWindowReadOnly, holidayCompModeReadOnly, employees = [], onRelaunchVenueWizard }: Props) {
   const { t } = useI18n();
   // v5.1.3 — operating window has its own write-gate (manager + supervisor
   // own operational hours). When the prop is omitted, fall back to
@@ -244,11 +250,26 @@ export function VariablesTab({ config, setConfig: rawSetConfig, readOnly, operat
 
   return (
     <div className="space-y-8 max-w-5xl">
-      <div>
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
-          {t('variables.subtitle')}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight mb-1">{t('variables.title')}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest font-mono">
+            {t('variables.subtitle')}
+          </p>
+        </div>
+        {/* v5.35 — re-run the Venue Profile wizard (the documented-but-dead
+            "re-run from Variables" promise, now real). Operational config, so
+            gated on opsReadOnly rather than governance readOnly. */}
+        {onRelaunchVenueWizard && !opsReadOnly && (
+          <button
+            type="button"
+            onClick={onRelaunchVenueWizard}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-all shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {t('variables.relaunchWizard')}
+          </button>
+        )}
       </div>
 
       {/* v5.22.0 — view switcher. Two pill buttons (Operational / Statutory)

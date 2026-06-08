@@ -2361,6 +2361,10 @@ export default function App() {
   // public handler flips it on, yields two animation frames so React commits
   // the spinner, then runs the work and clears it.
   const [isAutoScheduling, setIsAutoScheduling] = useState(false);
+  // v5.35 — manual re-open of the Venue Profile wizard from the Variables tab
+  // (the wizard auto-fires only on a blank first-run company). OR'd into the
+  // wizard's isOpen; cleared on the wizard's complete/skip.
+  const [venueWizardManualOpen, setVenueWizardManualOpen] = useState(false);
 
   // `mode` controls whether the scheduler builds a fresh schedule
   // (`fresh`) or fills around the user's existing entries (`preserve`).
@@ -2707,7 +2711,7 @@ export default function App() {
   // PDF lazy-load. Pulls jspdf + jspdf-autotable + html2canvas only on first use.
   const handleExportPDF = async () => {
     const { generatePDFReport } = await import('./lib/pdfReport');
-    generatePDFReport(employees, schedule, shifts, { ...config, holidays }, violations, stations, t);
+    generatePDFReport(employees, schedule, shifts, { ...config, holidays }, violations, stations, t, allSchedules);
     // v5.27.0 — the PDF is always rendered with English labels (jsPDF has no
     // Arabic glyphs). Employee names are data, not labels, so an Arabic name
     // still comes out as blank boxes. Warn the user once after export so a
@@ -4525,6 +4529,7 @@ export default function App() {
                 // read-only here. Offline mode (role===null) is fully
                 // editable as a single-user fallback.
                 holidayCompModeReadOnly={role !== null && role !== 'super_admin' && role !== 'manager'}
+                onRelaunchVenueWizard={() => setVenueWizardManualOpen(true)}
               />
             )}
 
@@ -4823,10 +4828,10 @@ export default function App() {
           strategy, holiday compensation) so the supervisor doesn't have
           to walk Variables before getting their first schedule. */}
       <VenueProfileWizard
-        isOpen={!config.venueProfileCompleted && stations.length === 0 && employees.length === 0}
+        isOpen={venueWizardManualOpen || (!config.venueProfileCompleted && stations.length === 0 && employees.length === 0)}
         config={config}
-        onComplete={(patch) => setConfig(prev => ({ ...prev, ...patch }))}
-        onSkip={() => setConfig(prev => ({ ...prev, venueProfileCompleted: true }))}
+        onComplete={(patch) => { setConfig(prev => ({ ...prev, ...patch })); setVenueWizardManualOpen(false); }}
+        onSkip={() => { setConfig(prev => ({ ...prev, venueProfileCompleted: true })); setVenueWizardManualOpen(false); }}
       />
 
       <SimulationDeltaPanel

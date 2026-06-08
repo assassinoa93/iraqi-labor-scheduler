@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeWorkedHours } from '../payroll';
-import { Employee, Shift, Schedule } from '../../types';
+import { computeWorkedHours, computePayrollRow } from '../payroll';
+import { Employee, Shift, Schedule, Config, PublicHoliday } from '../../types';
 
 const FS: Shift = { code: 'FS', name: 'Full', start: '09:00', end: '17:00', durationHrs: 8, breakMin: 30, isIndustrial: false, isHazardous: false, isWork: true, description: '' };
 const OFF: Shift = { code: 'OFF', name: 'Off', start: '00:00', end: '00:00', durationHrs: 0, breakMin: 0, isIndustrial: false, isHazardous: false, isWork: false, description: '' };
@@ -67,5 +67,73 @@ describe('computeWorkedHours — leave-overlap exclusion', () => {
 
   it('returns 0 for an employee with no schedule entries', () => {
     expect(computeWorkedHours(baseEmp, {}, [FS], cfg)).toBe(0);
+  });
+});
+
+// v5.34/v5.35 — computePayrollRow is the single pay engine now shared by the
+// Payroll table, the period-over-period delta, and the PDF compliance report.
+// These tests lock the two behaviours that the PDF previously got wrong (it
+// re-derived pay inline and over-billed): (1) holiday hours under comp-day mode
+// with a comp day granted are NOT charged the 2× premium; (2) leave-overlap
+// days are excluded from worked hours. hourly = 1,500,000 / (48×4) = 7,812.5;
+// cap = 192h.
+const fullCfg = {
+  year: 2026, month: 1, daysInMonth: 31,
+  standardWeeklyHrsCap: 48, hazardousWeeklyHrsCap: 36, driverWeeklyHrsCap: 56,
+  otRateDay: 1.5, otRateNight: 2.0,
+  holidayCompMode: 'cash-ot', holidayCompWindowDays: 30,
+  carryForwardUnspentCompDays: false,
+} as unknown as Config;
+
+const NEW_YEAR: PublicHoliday[] = [
+  { date: '2026-01-01', name: 'New Year', type: 'public', legalReference: '' },
+];
+
+describe('computePayrollRow', () => {
+  it('baseline: under cap, no holiday, no leave → zero OT, net = base salary', () => {
+    const schedule: Schedule = { 'EMP-1': { 1: { shiftCode: 'FS' }, 2: { shiftCode: 'FS' } } };
+    const r = computePayrollRow(baseEmp, schedule, [FS], [], fullCfg);
+    expect(r.totalHours).toBe(16);
+    expect(r.otAmount).toBe(0);
+    expect(r.netPayable).toBe(1_500_000);
+  });
+
+  it('over the monthly cap → standard OT at the day rate', () => {
+    // 25 × 8h = 200h, 8h over the 192h cap → 8 × 7812.5 × 1.5 = 93,750.
+    const days: Record<number, { shiftCode: string }> = {};
+    for (let d = 1; d <= 25; d++) days[d] = { shiftCode: 'FS' };
+    const schedule: Schedule = { 'EMP-1': days };
+    const r = computePayrollRow(baseEmp, schedule, [FS], [], fullCfg);
+    expect(r.totalHours).toBe(200);
+    expect(r.standardOTHours).toBe(8);
+    expect(Math.round(r.otAmount)).toBe(93_750);
+  });
+
+  it('cash-ot mode: a worked holiday is billed the 2× premium', () => {
+    const schedule: Schedule = { 'EMP-1': { 1: { shiftCode: 'FS' } } };
+    const r = computePayrollRow(baseEmp, schedule, [FS], NEW_YEAR, fullCfg);
+    // 8h × 7812.5 × 2.0 = 125,000 premium; under cap so no standard OT.
+    expect(Math.round(r.otAmount)).toBe(125_000);
+    expect(r.holidayBreakdown.premiumHolidayHours).toBe(8);
+  });
+
+  it('comp-day mode with a comp day granted: NO 2× premium (the PDF over-bill fix)', () => {
+    const compDayCfg = { ...fullCfg, holidayCompMode: 'comp-day' } as Config;
+    // Worked the holiday (Jan 1), OFF the next day within the comp window →
+    // the rest day IS the compensation, so no cash premium is owed. The old
+    // inline PDF math would have charged 8 × 7812.5 × 2 = 125,000.
+    const schedule: Schedule = { 'EMP-1': { 1: { shiftCode: 'FS' }, 2: { shiftCode: 'OFF' } } };
+    const r = computePayrollRow(baseEmp, schedule, [FS, OFF], NEW_YEAR, compDayCfg);
+    expect(r.holidayBreakdown.premiumHolidayHours).toBe(0);
+    expect(r.otAmount).toBe(0);
+    expect(r.netPayable).toBe(1_500_000);
+  });
+
+  it('excludes leave-overlap days from worked hours (no inflated OT/net)', () => {
+    const emp = { ...baseEmp, leaveRanges: [{ id: 'l1', type: 'annual' as const, start: '2026-01-02', end: '2026-01-02' }] };
+    const schedule: Schedule = { 'EMP-1': { 1: { shiftCode: 'FS' }, 2: { shiftCode: 'FS' } } };
+    const r = computePayrollRow(emp, schedule, [FS], [], fullCfg);
+    expect(r.totalHours).toBe(8); // Jan 2 on annual leave excluded
+    expect(r.otAmount).toBe(0);
   });
 });

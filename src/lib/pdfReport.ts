@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation, Station } from '../types';
-import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap } from './payroll';
+import { monthlyHourCap, computePayrollRow } from './payroll';
 import { en } from './i18n/en';
 import { statuteLegendFor } from './statuteText';
 
@@ -34,6 +34,11 @@ export const generatePDFReport = (
   violations: Violation[],
   stations: Station[],
   _localeT: Translator = (k) => k,
+  // v5.35 — full schedule map so the canonical pay engine's Art. 74
+  // comp-window check can cross the month boundary (a CP early next month
+  // satisfies a late-month holiday). Optional for back-compat; without it the
+  // engine is current-month-bound and errs toward "premium owed".
+  allSchedules?: Record<string, Schedule>,
 ) => {
   void _localeT; // PDF is always English — see header comment.
   // English-only translator: resolve from the `en` dict with {var} interpolation.
@@ -48,7 +53,6 @@ export const generatePDFReport = (
     format: 'a3'
   });
 
-  const shiftMap = new Map(shifts.map(s => [s.code, s]));
   const stationMap = new Map(stations.map(s => [s.id, s]));
 
   // --- Title ---
@@ -147,41 +151,28 @@ export const generatePDFReport = (
   doc.setTextColor(30, 41, 59);
   doc.text(t('pdf.section.performance'), 15, auditY);
 
-  const holidayDates = new Set(config.holidays?.map(h => h.date) || []);
+  // v5.35 — consume the canonical pay engine (computePayrollRow) instead of
+  // re-deriving pay inline. The old inline math over-billed vs the on-screen
+  // Payroll tab in two ways: it charged the 2× holiday premium on EVERY
+  // holiday hour (ignoring comp-day mode, where a granted rest day means no
+  // cash premium) and it counted leave-overlap days as worked hours. Routing
+  // through computePayrollRow makes the PDF match the Payroll table exactly,
+  // which is the user-visible source of truth. (Note: both still use the flat
+  // monthlyHourCap — aligning to the category-aware monthlyCapFor would change
+  // on-screen Driver/hazardous OT and is deferred for separate review.)
+  const cap = monthlyHourCap(config);
+  const holidaysForPay = config.holidays ?? [];
 
   const performanceData = employees.map(emp => {
-    const empSched = schedule[emp.empId] || {};
-    let totalHrsCount = 0;
-    let holidayOTHours = 0;
-    
-    Object.entries(empSched).forEach(([day, entry]) => {
-      const dateStr = format(new Date(config.year, config.month - 1, parseInt(day)), 'yyyy-MM-dd');
-      const isHoli = !!config.holidays?.find(h => h.date === dateStr);
-      const shift = shiftMap.get(entry?.shiftCode ?? '');
-      if (shift?.isWork) {
-        totalHrsCount += shift.durationHrs;
-        if (isHoli) holidayOTHours += shift.durationHrs;
-      }
-    });
-
-    const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
-    const baseHourRate = baseHourlyRate(emp, config);
-    const cap = monthlyHourCap(config);
-    const stdOTHours = Math.max(0, totalHrsCount - cap - holidayOTHours);
-
-    const stdOTPay = stdOTHours * baseHourRate * (config.otRateDay ?? 1.5);
-    const holiOTPay = holidayOTHours * baseHourRate * (config.otRateNight ?? 2.0);
-    const totalOTPay = stdOTPay + holiOTPay;
-    const netPay = baseMonthly + totalOTPay;
-
+    const row = computePayrollRow(emp, schedule, shifts, holidaysForPay, config, allSchedules);
     return [
       emp.name,
       emp.role,
-      `${totalHrsCount.toFixed(1)}h`,
-      `${baseMonthly.toLocaleString()}`,
-      totalHrsCount > cap ? t('common.yes') : t('common.no'),
-      `${Math.round(totalOTPay).toLocaleString()} IQD`,
-      `${Math.round(netPay).toLocaleString()} IQD`,
+      `${row.totalHours.toFixed(1)}h`,
+      `${row.baseMonthly.toLocaleString()}`,
+      row.totalHours > cap ? t('common.yes') : t('common.no'),
+      `${Math.round(row.otAmount).toLocaleString()} IQD`,
+      `${Math.round(row.netPayable).toLocaleString()} IQD`,
       emp.holidayBank || 0,
       emp.annualLeaveBalance || 0
     ];
