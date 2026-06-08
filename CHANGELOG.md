@@ -2,6 +2,46 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.34.0 — 2026-06-08
+
+**Period-over-period "vs last month" deltas, a non-blocking auto-scheduler spinner, colour-blind-safe schedule diff cells, and a sticky payroll name column.** Continues the v5.27–v5.33 improvement-roadmap rollout (see the consolidated note below).
+
+### Period-over-period deltas
+
+- New [lib/periodComparison.ts](src/lib/periodComparison.ts) — pure helpers (`computeDelta`, `previousMonthOf`, `previousScheduleKey`, `previousMonthConfig`) that diff a metric against the previous month computed **live** from `allSchedules` (no new persisted snapshot, so dual-mode parity is automatic and past-month edits never leave a stale stored number). +13 tests.
+- New [components/DeltaChip.tsx](src/components/DeltaChip.tsx) — a "vs last month" pill. Direction is conveyed by the arrow icon **and** colour **and** a spelled-out `aria-label` (not colour alone); a muted "No prior month" state renders when there's nothing to compare against, and a neutral mode covers metrics with no inherent good/bad direction.
+- [tabs/CoverageOTAnalysisTab.tsx](src/tabs/CoverageOTAnalysisTab.tsx) — delta chips on the Total OT / Over-cap / Holiday-premium KPI cards, re-running `analyzeOT` against the prior schedule pivoted onto `previousMonthConfig` (useMemo-guarded so the second pass only re-runs on input change).
+- [tabs/PayrollTab.tsx](src/tabs/PayrollTab.tsx) — a new company-wide grand-total card (Total OT Pay + Total Net Payable) with deltas.
+- [lib/payroll.ts](src/lib/payroll.ts) — extracted `computePayrollRow` (a **verbatim** refactor — no displayed number changes) so the on-screen table, the period delta, and a future PDF-report alignment all share one pay engine.
+
+### Non-blocking auto-scheduler
+
+- [App.tsx](src/App.tsx), [tabs/ScheduleTab.tsx](src/tabs/ScheduleTab.tsx), [components/Schedule/AutoScheduleRangePicker.tsx](src/components/Schedule/AutoScheduleRangePicker.tsx) — the heavy synchronous scheduler run now yields two animation frames so a "Scheduling…" spinner actually paints before the main thread blocks; the run controls disable while a run is in flight (rAF-yield pattern already used elsewhere in the app).
+
+### Accessibility
+
+- [components/Primitives.tsx](src/components/Primitives.tsx) — schedule diff cells now carry a colour-blind-safe corner glyph (**+** added · **~** modified · **−** removed) alongside the existing colour ring, so red-green colour-blind reviewers can tell the three diff kinds apart; the per-cell violation dot's hover title is now localized. [components/Schedule/ScheduleApprovalBanner.tsx](src/components/Schedule/ScheduleApprovalBanner.tsx) — the diff legend shows the glyphs too.
+
+### UX
+
+- [tabs/PayrollTab.tsx](src/tabs/PayrollTab.tsx) — a sticky first column keeps the employee name in view while scrolling the wide (10-column) payroll table sideways.
+
+_Suite 463 → 476 tests; `tsc` + Vite production build clean; four-check secret-leak audit clean over full history._
+
+## v5.27.0 – v5.33.0 — 2026-06-07/08 (consolidated)
+
+These seven releases shipped the bulk of the 48-item improvement roadmap (a 67-agent code-grounded review of v5.26.0). Logged together here to close the changelog gap:
+
+- **v5.27.0** — Data-trust batch: leave-request queue now **persisted** in both offline + Firestore modes; delete-orphan fixes (purging an employee/station clears its schedule references across all months); online backup-import guard; audit-log Clear disabled online; modal identifier validation; StationModal dirty-guard; real Reports coverage tile; PDF Arabic-tofu fix. Plus UX: FindingsList search + expand/collapse-all, Roster leave chips + Dashboard "Time Off (7 days)" card, "Copy last month" / "Repeat week 1", unified SetupChecklist + wired Plan-Everything wizard, station picker in the paint palette, bulk "Record Leave", fixed-term contract end dates.
+- **v5.28.0** — Probation-period awareness (`probationEndDate` + Roster chip + HRIS column); contract/probation columns in the HRIS roster export; final hardcoded aria-labels internationalized; RTL-aware nav arrows.
+- **v5.29.0** — Statute citations in exports: new `statuteText.ts` (Art. 67–88, 137), per-finding requirement + legend in the HRIS `compliance.json` and a "Statute Reference" table in the PDF report.
+- **v5.30.0** — Localized schedule-grid dates + per-employee stats tooltip (`empStats.*`, threaded via react-window `RowData`; numbers stay ASCII).
+- **v5.31.0** — Schedule-cell aria-label encodes violation/diff state beyond colour; Roster CSV import + template gain optional Contract End / Probation End columns (completes the contract/probation feature end-to-end).
+- **v5.32.0** — Focus-trap + focus-restore for all modals via one `useModalKeys` change; `otSummary` skips its per-employee holiday-pay loop off-simulation (perf); Roster pagination (50/page, select-all spans the full filtered set).
+- **v5.33.0** — Batch drag-paint: a sweep commits in one schedule update + one undo + one Firestore write, with a live preview overlay during the drag.
+
+Compliance research underpinning the above: **Art. 69** = intra-shift rest break (>5 continuous hours → ≥30 min break); **Art. 71** = 21-day annual-leave minimum.
+
 ## v5.26.0 — 2026-05-31
 
 **Overtime hire-advice now nets out public-holiday hours, a 10-screen Arabic internationalization pass, and a Payroll empty state.** A continuation of the v5.25 reporting/compliance unification (the inline `v5.25 —` code markers reflect that same initiative). The "hire to end overtime" math counted Art. 74 public-holiday hours — which no amount of hiring can remove — so it over-recommended staff and projected savings that never land. This release puts every overtime surface on one net-of-holiday, category-aware definition, brings the approval banner / AI tab / super-admin panels into Arabic, and gives the Payroll tab a real empty state.

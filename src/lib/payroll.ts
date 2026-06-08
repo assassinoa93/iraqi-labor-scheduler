@@ -1,5 +1,6 @@
-import { Employee, Config, Schedule, Shift } from '../types';
+import { Employee, Config, Schedule, Shift, PublicHoliday } from '../types';
 import { getEmployeeLeaveOnDate } from './leaves';
+import { computeHolidayPay, HolidayPayBreakdown } from './holidayCompPay';
 
 // Single fallback used when an employee record predates the salary field
 // (legacy CSV imports, very old backups). Real records always have
@@ -87,4 +88,46 @@ export function computeWorkedHours(
     total += shift.durationHrs;
   }
   return total;
+}
+
+// v5.34 — canonical per-employee payroll figures for one month. Extracted
+// verbatim from PayrollTab's inline row computation so the same numbers can be
+// reused without duplication: the on-screen table, the period-over-period
+// "vs last month" delta (run against the prior schedule + previousMonthConfig),
+// and — once verified against the on-screen figures — the PDF compliance
+// report (which currently re-derives pay inline and over-bills). The math is
+// intentionally identical to the pre-v5.34 PayrollTab so this refactor changes
+// NO displayed value:
+//   standardOTHours = max(0, totalHours − monthlyHourCap − premiumHolidayHours)
+// uses the flat monthlyHourCap (NOT the category-aware monthlyCapFor); aligning
+// the cap is a separate, numbers-changing step flagged for review.
+export interface PayrollRow {
+  totalHours: number;
+  baseMonthly: number;
+  hourlyRate: number;
+  standardOTHours: number;
+  standardOTPay: number;
+  holidayBreakdown: HolidayPayBreakdown;
+  otAmount: number;
+  netPayable: number;
+}
+
+export function computePayrollRow(
+  emp: Employee,
+  schedule: Schedule,
+  shifts: Shift[],
+  holidays: PublicHoliday[],
+  config: Config,
+  allSchedules?: Record<string, Schedule>,
+): PayrollRow {
+  const cap = monthlyHourCap(config);
+  const totalHours = computeWorkedHours(emp, schedule, shifts, config);
+  const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
+  const hourlyRate = baseHourlyRate(emp, config);
+  const holidayBreakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourlyRate, allSchedules);
+  const standardOTHours = Math.max(0, totalHours - cap - holidayBreakdown.premiumHolidayHours);
+  const standardOTPay = standardOTHours * hourlyRate * (config.otRateDay ?? 1.5);
+  const otAmount = standardOTPay + holidayBreakdown.premiumPay;
+  const netPayable = baseMonthly + otAmount;
+  return { totalHours, baseMonthly, hourlyRate, standardOTHours, standardOTPay, holidayBreakdown, otAmount, netPayable };
 }

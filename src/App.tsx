@@ -2354,6 +2354,13 @@ export default function App() {
     runId: number;
   } | null>(null);
   const [scheduleUndoStack, setScheduleUndoStack] = useState<Array<{ schedule: Schedule; employees: Employee[]; appliedAt: number }>>([]);
+  // v5.34 — non-blocking auto-scheduler spinner. The run is a heavy,
+  // synchronous main-thread computation (runAutoScheduler + liability pass +
+  // compliance check + coverage loops); without yielding, the button appears
+  // frozen on large months. This flag drives a "scheduling…" spinner; the
+  // public handler flips it on, yields two animation frames so React commits
+  // the spinner, then runs the work and clears it.
+  const [isAutoScheduling, setIsAutoScheduling] = useState(false);
 
   // `mode` controls whether the scheduler builds a fresh schedule
   // (`fresh`) or fills around the user's existing entries (`preserve`).
@@ -2366,7 +2373,21 @@ export default function App() {
   //   • Cross-month range → split into per-month invocations, stitched
   //     via `allSchedules`, applied directly with a summary toast (a
   //     multi-month preview modal would be too dense to be useful).
+  // Public entry point: shows the spinner, yields two frames so the spinner
+  // actually paints, then runs the synchronous scheduler. Re-entrancy guarded.
   const handleRunAutoScheduler = (mode: 'fresh' | 'preserve' = 'fresh', range?: { start: string; end: string }) => {
+    if (isAutoScheduling) return;
+    setIsAutoScheduling(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try {
+        doRunAutoScheduler(mode, range);
+      } finally {
+        setIsAutoScheduling(false);
+      }
+    }));
+  };
+
+  const doRunAutoScheduler = (mode: 'fresh' | 'preserve' = 'fresh', range?: { start: string; end: string }) => {
     try {
       // Default path: no range → existing full-month preview-and-apply.
       if (!range) {
@@ -4295,6 +4316,7 @@ export default function App() {
                 onCopyPreviousMonth={handleCopyPreviousMonth}
                 onRepeatFirstWeek={handleRepeatFirstWeek}
                 onRunAuto={handleRunAutoScheduler}
+                isAutoScheduling={isAutoScheduling}
                 canRunAuto={activeMonthCanEdit && !simMode && employees.length > 0 && stations.length > 0}
                 runAutoDisabledReason={
                   // v5.1.1 — auto-scheduler must respect the cell-edit gate.

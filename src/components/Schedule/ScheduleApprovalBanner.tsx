@@ -318,16 +318,19 @@ export function ScheduleApprovalBanner({
             colour ring means. */}
         {diffEnabled && diffSummary && diffSummary.total > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-1">
+            {/* v5.34 — each swatch also shows the colour-blind-safe corner
+                glyph the grid now stamps on diff cells (+ added · ~ modified ·
+                − removed) so the legend teaches the non-chromatic cue too. */}
             <span className="inline-flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm border-2 border-emerald-500 dark:border-emerald-400" />
+              <span className="w-3.5 h-3.5 rounded-sm border-2 border-emerald-500 dark:border-emerald-400 flex items-center justify-center text-[8px] font-black text-slate-700 dark:text-slate-100 leading-none">+</span>
               {t('banner.approval.diff.added', { count: diffSummary.added })}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm border-2 border-amber-500 dark:border-amber-300" />
+              <span className="w-3.5 h-3.5 rounded-sm border-2 border-amber-500 dark:border-amber-300 flex items-center justify-center text-[8px] font-black text-slate-700 dark:text-slate-100 leading-none">~</span>
               {t('banner.approval.diff.modified', { count: diffSummary.modified })}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm border-2 border-rose-500 dark:border-rose-400" />
+              <span className="w-3.5 h-3.5 rounded-sm border-2 border-rose-500 dark:border-rose-400 flex items-center justify-center text-[8px] font-black text-slate-700 dark:text-slate-100 leading-none">−</span>
               {t('banner.approval.diff.removed', { count: diffSummary.removed })}
             </span>
             {diffSnapshotLabel && (

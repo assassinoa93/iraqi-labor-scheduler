@@ -454,9 +454,21 @@ export const en: Dict = {
   'schedule.warningHeader': 'Compliance warnings for {name}',
   'schedule.warningFooter': 'The assignment was applied — undo or repaint if this was unintended.',
 
+  // Period-over-period delta chip (v5.34) — "vs last month"
+  'delta.vsLastMonth': 'vs last month',
+  'delta.noPrior': 'No prior month',
+  'delta.aria.up': 'Up {magnitude} vs last month',
+  'delta.aria.down': 'Down {magnitude} vs last month',
+  'delta.aria.flat': 'Unchanged vs last month',
+
   // Payroll tab
   'payroll.title': 'Credits & Compensation',
   'payroll.subtitle': 'Suggested overtime and holiday credit tracking based on Iraqi Labor Law (Art. 67-73).',
+  // v5.34 — company payroll grand total with vs-last-month deltas
+  'payroll.totals.title': 'Company Total',
+  'payroll.totals.companyWide': 'All employees',
+  'payroll.totals.otPay': 'Total OT Pay',
+  'payroll.totals.netPayable': 'Total Net Payable',
   'payroll.exportDraft': 'Export Payroll Draft',
   'payroll.export.csv': 'Export CSV',
   'payroll.export.tooltip': 'Per-employee CSV ready for HRIS import (SAP, Kayan HR). Includes hours, OT, balances, and net payable.',
@@ -886,6 +898,7 @@ export const en: Dict = {
   'schedule.stale.header': 'Schedule contains broken references',
   'schedule.stale.body': '{emps} employees, {shifts} shift codes, and {stations} stations referenced in this month\'s schedule no longer exist.',
   'schedule.stale.rerun': 'Re-run Auto-Scheduler',
+  'schedule.autoRunning': 'Scheduling…',
 
   // Info / replacement-for-alert dialogs
   'info.notice.title': 'Notice',

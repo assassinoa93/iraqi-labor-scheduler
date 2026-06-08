@@ -449,9 +449,21 @@ export const ar: Dict = {
 
   // Staffing Advisory
 
+  // Period-over-period delta chip (v5.34) — "vs last month"
+  'delta.vsLastMonth': 'مقارنة بالشهر السابق',
+  'delta.noPrior': 'لا يوجد شهر سابق',
+  'delta.aria.up': 'ارتفاع {magnitude} مقارنة بالشهر السابق',
+  'delta.aria.down': 'انخفاض {magnitude} مقارنة بالشهر السابق',
+  'delta.aria.flat': 'دون تغيير مقارنة بالشهر السابق',
+
   // Payroll tab
   'payroll.title': 'الأرصدة والتعويضات',
   'payroll.subtitle': 'تتبع مقترح للعمل الإضافي وأرصدة العطلات وفقًا لقانون العمل العراقي (المواد ٦٧-٧٣).',
+  // v5.34 — إجمالي الأجور للشركة مع مقارنة بالشهر السابق
+  'payroll.totals.title': 'إجمالي الشركة',
+  'payroll.totals.companyWide': 'كل الموظفين',
+  'payroll.totals.otPay': 'إجمالي أجر العمل الإضافي',
+  'payroll.totals.netPayable': 'إجمالي صافي المستحق',
   'payroll.exportDraft': 'تصدير مسودة الأجور',
   'payroll.export.csv': 'تصدير CSV',
   'payroll.export.tooltip': 'ملف CSV لكل موظف جاهز للاستيراد إلى أنظمة HRIS (SAP، كيان HR). يشمل الساعات والأوفرتايم والأرصدة وصافي المستحق.',
@@ -856,6 +868,7 @@ export const ar: Dict = {
   'schedule.stale.header': 'الجدول يحتوي مراجع غير صالحة',
   'schedule.stale.body': '{emps} موظفين و{shifts} رموز ورديات و{stations} محطات مُشار إليها في جدول هذا الشهر لم تعد موجودة.',
   'schedule.stale.rerun': 'إعادة تشغيل المُجدوِل التلقائي',
+  'schedule.autoRunning': 'جارٍ الجدولة…',
 
   // Info dialogs
   'info.notice.title': 'إشعار',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Calendar, Sparkles, Wand2 } from 'lucide-react';
+import { AlertTriangle, Calendar, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useI18n } from '../../lib/i18n';
 
@@ -10,13 +10,17 @@ import { useI18n } from '../../lib/i18n';
 // The widget closes itself on outside click + Escape; the parent only sees
 // the resolved {start,end} payload (or undefined for full-month runs).
 export function AutoScheduleRangePicker({
-  year, month, daysInMonth, disabled, disabledReason, onRunPreserve, onRunFresh,
+  year, month, daysInMonth, disabled, disabledReason, busy = false, onRunPreserve, onRunFresh,
 }: {
   year: number;
   month: number;
   daysInMonth: number;
   disabled: boolean;
   disabledReason?: string;
+  // v5.34 — true while a run is in flight: disables both run buttons and
+  // swaps the primary button's icon/label for a spinner so the heavy
+  // synchronous computation no longer looks like a frozen UI.
+  busy?: boolean;
   onRunPreserve: (range?: { start: string; end: string }) => void;
   onRunFresh: (range?: { start: string; end: string }) => void;
 }) {
@@ -83,17 +87,17 @@ export function AutoScheduleRangePicker({
           visibly registers as "I will lose work" before click. */}
       <button
         onClick={() => onRunPreserve(buildRange())}
-        disabled={disabled}
+        disabled={disabled || busy}
         title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.refill.tooltip')}
         className="apple-press flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-500/25 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:hover:bg-slate-300 dark:disabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:text-slate-500"
       >
-        <Wand2 className="w-4 h-4" />
-        {t('action.runAutoSchedule.refill')}
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+        {busy ? t('schedule.autoRunning') : t('action.runAutoSchedule.refill')}
       </button>
 
       <button
         onClick={() => onRunFresh(buildRange())}
-        disabled={disabled}
+        disabled={disabled || busy}
         title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.rebuild.tooltip')}
         className="apple-press flex items-center gap-2 bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-2 border-rose-300 dark:border-rose-500/40 px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:border-slate-200 dark:disabled:border-slate-700 disabled:cursor-not-allowed disabled:shadow-none"
       >
@@ -103,7 +107,7 @@ export function AutoScheduleRangePicker({
 
       <button
         onClick={() => setOpen(o => !o)}
-        disabled={disabled}
+        disabled={disabled || busy}
         title={t('schedule.runAuto.range.tooltip')}
         className={cn(
           'p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-1',

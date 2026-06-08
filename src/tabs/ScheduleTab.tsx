@@ -117,6 +117,10 @@ interface ScheduleTabProps {
   // ScheduleTab doesn't need a stations[] prop just to count it.
   canRunAuto: boolean;
   runAutoDisabledReason?: string;
+  // v5.34 — true while the (synchronous, heavy) auto-scheduler run is in
+  // flight. Drives a "scheduling…" spinner + disables the run controls so the
+  // button no longer appears frozen on large months.
+  isAutoScheduling?: boolean;
   // Cells (`${empId}:${day}` keys) the user just swapped via the coverage
   // hint toast. The grid renders these with a brief pulsing highlight so the
   // user sees what moved. Empty set = no recent changes; the cells render
@@ -414,6 +418,7 @@ function ScheduleRow({
               empId={emp?.empId}
               day={day}
               ariaLabel={ariaLabel}
+              violationTitle={t('schedule.cell.aria.violation')}
             />
           </div>
         );
@@ -432,7 +437,7 @@ export function ScheduleTab({
   scheduleUndoStack, prevMonth, nextMonth, setActiveMonth, onCellClick, onCellRangeFill, onCellPaintBatch,
   onUndo, onUndoCell, cellUndoDepth = 0, onRunAuto,
   onCopyPreviousMonth, onRepeatFirstWeek,
-  canRunAuto, runAutoDisabledReason,
+  canRunAuto, runAutoDisabledReason, isAutoScheduling = false,
   paintWarnings, onDismissPaintWarnings, staleness, recentlyChangedCells, violationCellKeys,
   onExportSchedule, simMode, onEnterSimMode, onSaveDraft, saveState, lastSavedAt,
   carryForwardUnspentCompDays, onToggleCarryForward, pendingCarriedForwardCount,
@@ -1167,6 +1172,7 @@ export function ScheduleTab({
             daysInMonth={config.daysInMonth}
             disabled={!canRunAuto}
             disabledReason={runAutoDisabledReason}
+            busy={isAutoScheduling}
             onRunPreserve={(range) => onRunAuto('preserve', range)}
             onRunFresh={(range) => onRunAuto('fresh', range)}
           />
@@ -1278,9 +1284,10 @@ export function ScheduleTab({
             </p>
             <button
               onClick={() => onRunAuto('fresh')}
-              className="mt-2 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold uppercase tracking-widest"
+              disabled={isAutoScheduling}
+              className="mt-2 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {t('schedule.stale.rerun')}
+              {isAutoScheduling ? t('schedule.autoRunning') : t('schedule.stale.rerun')}
             </button>
           </div>
         </div>

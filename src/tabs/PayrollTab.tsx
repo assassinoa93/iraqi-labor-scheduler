@@ -4,11 +4,13 @@ import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
 import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
-import { DEFAULT_MONTHLY_SALARY_IQD, baseHourlyRate, monthlyHourCap, computeWorkedHours } from '../lib/payroll';
+import { monthlyHourCap, computePayrollRow } from '../lib/payroll';
 import { listAllLeaveRangesIncludingPainted, countLeaveDaysOfTypeInRange, projectHolidayBank } from '../lib/leaves';
 import { format } from 'date-fns';
-import { computeHolidayPay, HolidayPayBreakdown } from '../lib/holidayCompPay';
+import { HolidayPayBreakdown } from '../lib/holidayCompPay';
 import { computeCompanyGratuity } from '../lib/gratuity';
+import { computeDelta, previousMonthConfig, previousScheduleKey } from '../lib/periodComparison';
+import { DeltaChip } from '../components/DeltaChip';
 
 type PayrollSortKey =
   | 'name' | 'totalHours' | 'holidayBank' | 'annualLeave'
@@ -143,19 +145,39 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
     netPayable: number;
   };
   const rows = useMemo<Row[]>(() => {
-    const cap = monthlyHourCap(config);
-    return employees.map(emp => {
-      const totalHours = computeWorkedHours(emp, schedule, shifts, config);
-      const baseMonthly = emp.baseMonthlySalary || DEFAULT_MONTHLY_SALARY_IQD;
-      const hourlyRate = baseHourlyRate(emp, config);
-      const holidayBreakdown = computeHolidayPay(emp, schedule, shifts, holidays, config, hourlyRate, allSchedules);
-      const standardOTHours = Math.max(0, totalHours - cap - holidayBreakdown.premiumHolidayHours);
-      const standardOTPay = standardOTHours * hourlyRate * (config.otRateDay ?? 1.5);
-      const otAmount = standardOTPay + holidayBreakdown.premiumPay;
-      const netPayable = baseMonthly + otAmount;
-      return { emp, totalHours, baseMonthly, hourlyRate, standardOTHours, standardOTPay, holidayBreakdown, otAmount, netPayable };
-    });
+    return employees.map(emp => ({
+      emp,
+      ...computePayrollRow(emp, schedule, shifts, holidays, config, allSchedules),
+    }));
   }, [employees, schedule, shifts, holidays, config, allSchedules]);
+
+  // v5.34 — period-over-period deltas. Recompute the same canonical payroll
+  // engine against the previous month's schedule (already in memory) pivoted
+  // onto `previousMonthConfig`, then diff the company-wide OT + Net Payable
+  // totals. Live, zero new persistence (so dual-mode parity is automatic) and
+  // useMemo-guarded so the prior-month pass only re-runs when its inputs
+  // actually change.
+  const grandTotals = useMemo(() => ({
+    otAmount: rows.reduce((s, r) => s + r.otAmount, 0),
+    netPayable: rows.reduce((s, r) => s + r.netPayable, 0),
+  }), [rows]);
+
+  const prevTotals = useMemo(() => {
+    const prevSchedule = allSchedules?.[previousScheduleKey(config.year, config.month)];
+    if (!prevSchedule || Object.keys(prevSchedule).length === 0) return null;
+    const prevConfig = previousMonthConfig(config);
+    let otAmount = 0;
+    let netPayable = 0;
+    for (const emp of employees) {
+      const r = computePayrollRow(emp, prevSchedule, shifts, holidays, prevConfig, allSchedules);
+      otAmount += r.otAmount;
+      netPayable += r.netPayable;
+    }
+    return { otAmount, netPayable };
+  }, [employees, shifts, holidays, config, allSchedules]);
+
+  const otDelta = computeDelta(grandTotals.otAmount, prevTotals?.otAmount ?? 0, !!prevTotals);
+  const netDelta = computeDelta(grandTotals.netPayable, prevTotals?.netPayable ?? 0, !!prevTotals);
 
   // v5.7.0 — filter pipeline: search (name / id / dept) → role filter →
   // dept filter → sort. Same shape as RosterTab so the two tabs stay
@@ -489,6 +511,36 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
         </div>
       )}
 
+      {/* v5.34 — company payroll grand total with "vs last month" deltas.
+          Always company-wide (independent of the search / filter narrowing
+          below) so the headline figure is the full monthly spend. The OT chip
+          treats a drop as good (green); Net Payable is shown neutral because a
+          fall there can simply mean a smaller roster, not a saving. */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t('payroll.totals.title')}</h3>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('payroll.totals.companyWide')}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.totals.otPay')}</p>
+              <DeltaChip delta={otDelta} lowerIsBetter />
+            </div>
+            <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums">{fmt.num(Math.round(grandTotals.otAmount))}</p>
+            <p className="text-[9px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-wider">IQD / mo</p>
+          </div>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('payroll.totals.netPayable')}</p>
+              <DeltaChip delta={netDelta} neutral />
+            </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-slate-50 tabular-nums">{fmt.num(Math.round(grandTotals.netPayable))}</p>
+            <p className="text-[9px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-wider">IQD / mo</p>
+          </div>
+        </div>
+      </Card>
+
       {/* v5.7.0 — search + role/dept filter + group-by, parity with the
           Roster tab. The user explicitly flagged that any tab showing
           employee data should support these. Active filter count appears
@@ -606,7 +658,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           <table className="w-full text-start border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
-                <SortableHeader label={t('payroll.col.employee')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('payroll.col.employee')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="sticky start-0 z-20 bg-slate-50 dark:bg-slate-800" />
                 <SortableHeader label={t('payroll.col.hours')} sortKey="totalHours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('payroll.col.holidayBank')} sortKey="holidayBank" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-blue-500/30" />
                 <SortableHeader label={t('payroll.col.annualLeave')} sortKey="annualLeave" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-emerald-500/30" />
@@ -683,7 +735,9 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                     !hasNextMonthCP;
                   return (
                     <tr key={emp.empId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4">
+                    {/* v5.34 — sticky first column keeps the employee name in
+                        view while scrolling the wide payroll table sideways. */}
+                    <td className="px-6 py-4 sticky start-0 z-10 bg-white dark:bg-slate-900">
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{emp.empId}</div>
                     </td>

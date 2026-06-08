@@ -366,7 +366,7 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
 
 export function ScheduleCell({
   value, onClick, isRecent, onMouseDown, onMouseEnter, readOnly, diff,
-  hasViolation, empId, day, ariaLabel,
+  hasViolation, empId, day, ariaLabel, violationTitle,
 }: {
   value: string;
   // v5.22.1 — keyboard activation (Enter / Space) reuses the click handler;
@@ -399,6 +399,10 @@ export function ScheduleCell({
   empId?: string;
   day?: number;
   ariaLabel?: string;
+  // v5.34 — localized mouse-tooltip for the violation corner dot. The cell's
+  // aria-label already speaks the violation to screen readers; this is the
+  // hover title (was a hardcoded English string).
+  violationTitle?: string;
 }) {
   // The diff-outline + recent-change-outline are mutually compatible —
   // recent-cell pulses, diff stays static — but we precompute the class
@@ -407,6 +411,17 @@ export function ScheduleCell({
     diff === 'added'    ? 'outline outline-2 outline-emerald-500 dark:outline-emerald-400 z-10' :
     diff === 'modified' ? 'outline outline-2 outline-amber-500 dark:outline-amber-300 z-10' :
     diff === 'removed'  ? 'outline outline-2 outline-rose-500 dark:outline-rose-400 z-10' :
+    null;
+
+  // v5.34 — colour-blind-safe diff cue. The diff state is otherwise conveyed
+  // ONLY by the outline colour (emerald / amber / rose), which red-green
+  // colour-blind reviewers can't tell apart. A tiny corner glyph encodes the
+  // KIND non-chromatically: + added · ~ modified · − removed. aria-hidden — the
+  // cell's aria-label already spells out the diff for screen readers.
+  const diffGlyph =
+    diff === 'added'    ? '+' :
+    diff === 'modified' ? '~' :
+    diff === 'removed'  ? '−' :
     null;
 
   // v5.18.0 — arrow-key navigation. The cell is keyboard-focusable when
@@ -486,10 +501,18 @@ export function ScheduleCell({
       )}
     >
       {value}
+      {diffGlyph && (
+        <span
+          aria-hidden
+          className="absolute top-0 start-0.5 text-[8px] font-black leading-none text-slate-900/80 dark:text-white/90 pointer-events-none"
+        >
+          {diffGlyph}
+        </span>
+      )}
       {hasViolation && (
         <span
           aria-hidden
-          title="Compliance violation"
+          title={violationTitle || 'Compliance violation'}
           className="absolute top-0.5 end-0.5 w-1.5 h-1.5 rounded-full bg-red-500 dark:bg-red-400 shadow-[0_0_0_1px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_1px_rgba(15,23,42,0.8)]"
         />
       )}

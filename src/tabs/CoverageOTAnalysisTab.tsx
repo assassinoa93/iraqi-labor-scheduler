@@ -9,6 +9,8 @@ import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { analyzeOT, suggestMitigations, OTMitigation } from '../lib/otAnalysis';
 import { EmployeeOTDetailModal } from '../components/EmployeeOTDetailModal';
+import { computeDelta, previousMonthConfig, previousScheduleKey } from '../lib/periodComparison';
+import { DeltaChip } from '../components/DeltaChip';
 
 interface Props {
   employees: Employee[];
@@ -46,6 +48,22 @@ export function CoverageOTAnalysisTab(props: Props) {
     () => analyzeOT(employees, schedule, shifts, stations, holidays, config, allSchedules),
     [employees, schedule, shifts, stations, holidays, config, allSchedules],
   );
+
+  // v5.34 — period-over-period deltas. Re-run the same OT engine against the
+  // previous month's schedule (already in memory, keyed by month) pivoted onto
+  // previousMonthConfig. Live + zero persistence, so dual-mode parity is
+  // automatic; useMemo-guarded so the prior-month pass only re-runs when its
+  // inputs change. null when there is no prior schedule to compare against.
+  const prevAnalysis = useMemo(() => {
+    const prevSchedule = allSchedules?.[previousScheduleKey(config.year, config.month)];
+    if (!prevSchedule || Object.keys(prevSchedule).length === 0) return null;
+    return analyzeOT(employees, prevSchedule, shifts, stations, holidays, previousMonthConfig(config), allSchedules);
+  }, [employees, shifts, stations, holidays, config, allSchedules]);
+
+  const hasPrev = prevAnalysis != null;
+  const totalOTDelta = computeDelta(analysis.totalOTPay, prevAnalysis?.totalOTPay ?? 0, hasPrev);
+  const overCapDelta = computeDelta(analysis.totalOverCapPay, prevAnalysis?.totalOverCapPay ?? 0, hasPrev);
+  const holidayDelta = computeDelta(analysis.totalHolidayPay, prevAnalysis?.totalHolidayPay ?? 0, hasPrev);
 
   const avgMonthlySalary = useMemo(() => {
     if (employees.length === 0) return 1_500_000;
@@ -119,17 +137,26 @@ export function CoverageOTAnalysisTab(props: Props) {
           {/* ── Top KPI strip ──────────────────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="p-5 bg-slate-900 dark:bg-slate-800 text-white border-0 shadow-xl">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">{t('otAnalysis.kpi.totalOT')}</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">{t('otAnalysis.kpi.totalOT')}</p>
+                <DeltaChip delta={totalOTDelta} lowerIsBetter size="xs" />
+              </div>
               <p className="text-3xl font-black tracking-tight">{fmtIQD(analysis.totalOTPay)}</p>
               <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider">IQD / mo</p>
             </Card>
             <Card className="p-5 bg-rose-50/70 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/40">
-              <p className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-200 mb-2">{t('otAnalysis.kpi.overCapPay')}</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-200">{t('otAnalysis.kpi.overCapPay')}</p>
+                <DeltaChip delta={overCapDelta} lowerIsBetter size="xs" />
+              </div>
               <p className="text-2xl font-black text-rose-700 dark:text-rose-200 tracking-tight">{fmtIQD(analysis.totalOverCapPay)}</p>
               <p className="text-[10px] font-bold text-rose-600 dark:text-rose-300 mt-1">{analysis.totalOverCapHours.toFixed(0)}h · {overCapPct}% {t('otAnalysis.kpi.ofTotal')}</p>
             </Card>
             <Card className="p-5 bg-amber-50/70 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/40">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-200 mb-2">{t('otAnalysis.kpi.holidayPay')}</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-200">{t('otAnalysis.kpi.holidayPay')}</p>
+                <DeltaChip delta={holidayDelta} lowerIsBetter size="xs" />
+              </div>
               <p className="text-2xl font-black text-amber-700 dark:text-amber-200 tracking-tight">{fmtIQD(analysis.totalHolidayPay)}</p>
               <p className="text-[10px] font-bold text-amber-600 dark:text-amber-300 mt-1">{analysis.totalHolidayHours}h · {holidayPct}% {t('otAnalysis.kpi.ofTotal')}</p>
             </Card>
