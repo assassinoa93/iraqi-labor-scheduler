@@ -2,6 +2,14 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.38.0 — 2026-06-08
+
+**Online mode shows a loading skeleton while the cloud data streams in, instead of a momentary empty-state flash.**
+
+- [components/HydrationSkeleton.tsx](src/components/HydrationSkeleton.tsx) (new), [App.tsx](src/App.tsx) — in online (Firebase) mode, returning users briefly saw empty states ("0 employees", "no data") before the first Firestore snapshot arrived, which read like data loss. The content area now shows a pulsing skeleton overlay until the company's first employees snapshot lands. Implemented defensively: gated on `isAuthenticated` so **offline mode is entirely unaffected** (verified — no skeleton, normal load); the sidebar + header stay interactive so the user can still switch company / sign out; and an **8-second timeout fallback** marks the company hydrated even if no snapshot ever arrives, so the skeleton can never hang the UI. New `app.hydrating` key (en/ar).
+
+_Suite 486 tests; `tsc` + Vite build clean; secret-leak audit clean over full history. Offline behaviour verified live; online behaviour to be confirmed by the user in a Firebase session._
+
 ## v5.37.0 — 2026-06-08
 
 **Payroll + PDF now measure overtime against each employee's category-aware cap, matching the OT-analysis tab.**

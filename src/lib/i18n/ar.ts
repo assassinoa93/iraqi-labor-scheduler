@@ -779,6 +779,7 @@ export const ar: Dict = {
 
   // App-shell
   'app.loadingTab': 'جارٍ التحميل…',
+  'app.hydrating': 'جارٍ تحميل مساحة العمل…',
 
   // Misc
   'common.affects': 'يؤثر على:',

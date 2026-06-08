@@ -809,6 +809,7 @@ export const en: Dict = {
 
   // App-shell
   'app.loadingTab': 'Loading…',
+  'app.hydrating': 'Loading your workspace…',
 
   // Misc
   'common.affects': 'Affects:',

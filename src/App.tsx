@@ -67,6 +67,7 @@ import { HolidayModal } from './components/HolidayModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { SchedulePreviewModal, buildPreviewStats } from './components/SchedulePreviewModal';
 import { VenueProfileWizard } from './components/VenueProfileWizard';
+import { HydrationSkeleton } from './components/HydrationSkeleton';
 import { LocaleSwitcher } from './components/LocaleSwitcher';
 import { CompanySwitcher } from './components/CompanySwitcher';
 import { SimulationDeltaPanel, SimDeltaMetric } from './components/SimulationDeltaPanel';
@@ -641,6 +642,17 @@ export default function App() {
     window.localStorage.setItem('iraqi-scheduler-active-company', activeCompanyId);
   }, [activeCompanyId]);
 
+  // v5.38 — online hydration gate. Tracks which companies have received their
+  // first Firestore domain snapshot so the content area can show a skeleton
+  // instead of an empty-state flash while the cloud data streams in. Offline
+  // mode never populates this (isAuthenticated is false there) → no skeleton.
+  // A timeout fallback in the domain-subscription effect marks a company
+  // hydrated even if no snapshot ever arrives, so the app can NEVER get stuck
+  // on the skeleton.
+  const [hydratedCompanies, setHydratedCompanies] = useState<Set<string>>(() => new Set());
+  const markCompanyHydrated = (cid: string) =>
+    setHydratedCompanies(prev => (prev.has(cid) ? prev : new Set(prev).add(cid)));
+
   // Phase 2.1 — companies registry from Firestore.
   // In Online mode the Express /api/data fetch above still seeds initial
   // local state, but Firestore's onSnapshot is the source of truth and
@@ -713,6 +725,12 @@ export default function App() {
     const cid = activeCompanyId;
     let cancelled = false;
     const unsubs: Array<() => void> = [];
+    // v5.38 — safety net: even if the employees snapshot never arrives (cold
+    // cache + offline, permission error swallowed below, empty project), mark
+    // the company hydrated after 8s so the skeleton can never hang the UI.
+    const hydrationFallback = setTimeout(() => {
+      if (!cancelled) markCompanyHydrated(cid);
+    }, 8000);
     const updateDomain = <K extends keyof CompanyData>(key: K, value: CompanyData[K]) => {
       if (cancelled || cid !== activeCompanyId) return;
       setCompanyData((prev) => {
@@ -723,7 +741,9 @@ export default function App() {
     (async () => {
       try {
         const subs = [
-          await subscribeEmployees(cid, (items) => updateDomain('employees', items)),
+          // First employees snapshot (even an empty list) means the cloud data
+          // is flowing → drop the hydration skeleton.
+          await subscribeEmployees(cid, (items) => { updateDomain('employees', items); markCompanyHydrated(cid); }),
           await subscribeShifts(cid, (items) => updateDomain('shifts', items)),
           await subscribeStations(cid, (items) => updateDomain('stations', items)),
           await subscribeStationGroups(cid, (items) => updateDomain('stationGroups', items)),
@@ -763,6 +783,7 @@ export default function App() {
     })();
     return () => {
       cancelled = true;
+      clearTimeout(hydrationFallback);
       unsubs.forEach((u) => u());
     };
     // setCompanyData is a stable React setState — omitting it from the
@@ -4044,13 +4065,21 @@ export default function App() {
         </header>
 
         <div className={cn(
-          "flex-1 overflow-auto p-8 transition-[padding] duration-200",
+          "flex-1 overflow-auto p-8 relative transition-[padding] duration-200",
           // The suggestion pane is fixed-positioned to the inline-end edge
           // of the viewport (visual right in LTR, visual left in RTL).
           // Shift the content's inline-end padding so the grid doesn't
           // slide under the pane in either direction.
           activeTab === 'schedule' && !paneCollapsed && "pe-[356px]"
         )}>
+          {/* v5.38 — online hydration skeleton overlay. Online-only (gated on
+              isAuthenticated, which is false in offline mode); covers the
+              content while this company's first Firestore snapshot streams in.
+              The 8s timeout fallback in the subscription effect guarantees it
+              clears even if no snapshot arrives. */}
+          {isAuthenticated && !!activeCompanyId && !hydratedCompanies.has(activeCompanyId) && (
+            <HydrationSkeleton />
+          )}
           <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
