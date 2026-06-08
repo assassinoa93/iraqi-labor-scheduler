@@ -2,6 +2,20 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.36.0 — 2026-06-08
+
+**A "Holiday" day-type in the coverage scenarios, and the full Online-setup screen localized to Arabic.**
+
+### Coverage scenarios honour the holiday tier
+
+- [lib/coverageScenario.ts](src/lib/coverageScenario.ts), [components/CoverageScenarioPanel.tsx](src/components/CoverageScenarioPanel.tsx) — the day-type toggle gains a third **Holiday** option. The scenario builder now passes `isHoliday` to `getRequiredHC`, so a station's `holidayMinHC` / `holidayHourlyDemand` tier drives the timeline and roster math on holidays (falling back to the peak tier for stations with no holiday override). +2 tests.
+
+### OnlineSetup localization
+
+- [components/OnlineSetup.tsx](src/components/OnlineSetup.tsx) — the ~515-line Connect-Online / Firebase-setup flow was English-only; it now renders through the i18n system (72 new `onlineSetup.*` keys with full English/Arabic parity). Technical tokens the user must paste verbatim — `firebaseConfig`, `ils-connect:` codes, config field placeholders, the Firebase Console URL — are intentionally left ASCII per the project's code-stays-ASCII convention.
+
+_Suite 481 → 483 tests; `tsc` + Vite build clean; secret-leak audit clean over full history._
+
 ## v5.35.0 — 2026-06-08
 
 **The PDF compliance report now consumes the canonical pay engine (it was over-billing), and the Venue Profile wizard gets a real re-run entry point plus a dropped-answer fix.**
