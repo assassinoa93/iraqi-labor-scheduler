@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { X, ChevronDown, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { Station, HourlyDemandSlot } from '../types';
 import { useI18n } from '../lib/i18n';
+import { Button } from './Primitives';
 import { useModalKeys } from '../lib/hooks';
 import { useConfirm } from './ConfirmModal';
 import { validateHourlyDemand } from '../lib/stationDemand';
@@ -458,8 +459,8 @@ export function StationModal({ isOpen, onClose, onSave, station, availableRoles 
           )}
         </div>
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 shrink-0">
-          <button onClick={requestClose} className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
-          <button onClick={handleSave} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-white transition-all">{t('modal.station.save')}</button>
+          <Button onClick={requestClose} variant="ghost" size="sm">{t('action.cancel')}</Button>
+          <Button onClick={handleSave} variant="commit" size="sm" press className="px-6">{t('modal.station.save')}</Button>
         </div>
       </motion.div>
     </div>

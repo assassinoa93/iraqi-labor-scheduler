@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trash2, Info } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
+import { Button } from './Primitives';
 
 // Promise-wrapper around ConfirmModal so callers don't have to manage their
 // own isOpen / pending-action state. Replaces native window.confirm() with
@@ -63,31 +64,33 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
           )}
 
           {infoOnly ? (
-            <button
+            <Button
               ref={cancelRef}
               onClick={() => { onConfirm(); onClose(); }}
-              className="apple-press w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-500/25"
+              variant="accent"
+              size="sm"
+              press
+              fullWidth
             >
               {t('action.confirm')}
-            </button>
+            </Button>
           ) : (
             <div className="flex gap-3">
-              <button
-                ref={cancelRef}
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-              >
+              <Button ref={cancelRef} onClick={onClose} variant="subtle" size="sm" className="flex-1">
                 {t('modal.confirm.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   onConfirm();
                   onClose();
                 }}
-                className="apple-press flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-red-700 shadow-md shadow-red-500/25"
+                variant="danger"
+                size="sm"
+                press
+                className="flex-1"
               >
                 {t('modal.confirm.confirm')}
-              </button>
+              </Button>
             </div>
           )}
         </div>

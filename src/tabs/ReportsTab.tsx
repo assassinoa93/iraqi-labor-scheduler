@@ -2,7 +2,7 @@ import React from 'react';
 import { Download, FileSpreadsheet, Database, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Schedule, Shift, Config, Violation } from '../types';
-import { Card } from '../components/Primitives';
+import { Button, Card } from '../components/Primitives';
 import { FindingsList } from '../components/FindingsList';
 import { complianceScore, countInstances } from '../lib/findings';
 import { cn } from '../lib/utils';
@@ -38,6 +38,12 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
     ? 'text-emerald-600 dark:text-emerald-300'
     : overallCoveragePercent >= 75 ? 'text-amber-600 dark:text-amber-300' : 'text-rose-600 dark:text-rose-300';
   const empNameById = new Map(employees.map((e) => [e.empId, e.name]));
+  // v5.40.0 — export guards. With zero employees both exports would produce
+  // an empty/garbage artifact (header-only CSV, contentless PDF), so they
+  // disable with a hint instead. CSV stays enabled when a roster exists but
+  // no schedule yet — an empty-grid CSV is a legitimate "blank month" export;
+  // the PDF is mostly schedule/compliance content, so it gets a hint.
+  const noRoster = employees.length === 0;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -55,13 +61,23 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
             <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg tracking-tight">{t('reports.pdf.title')}</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{t('reports.pdf.body')}</p>
           </div>
-          <button
+          <Button
             onClick={onExportPDF}
-            className="apple-press w-full py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-blue-500 shadow-lg flex items-center justify-center gap-2"
+            variant="primary"
+            size="md"
+            press
+            fullWidth
+            disabled={noRoster}
+            className="py-3 shadow-lg"
           >
             <Download className="w-4 h-4" />
             {t('reports.pdf.button')}
-          </button>
+          </Button>
+          {noRoster ? (
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center -mt-3">{t('reports.export.noRoster')}</p>
+          ) : !hasScheduleData ? (
+            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest text-center -mt-3">{t('reports.export.noSchedule')}</p>
+          ) : null}
         </Card>
 
         <Card className="p-8 space-y-6">
@@ -72,13 +88,21 @@ export function ReportsTab({ employees, schedule, shifts, config, violations, no
             <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg tracking-tight">{t('reports.csv.title')}</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{t('reports.csv.body')}</p>
           </div>
-          <button
+          <Button
             onClick={onExportCSV}
-            className="apple-press w-full py-3 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-2 shadow-sm"
+            variant="secondary"
+            size="md"
+            press
+            fullWidth
+            disabled={noRoster}
+            className="py-3"
           >
             <Download className="w-4 h-4" />
             {t('reports.csv.button')}
-          </button>
+          </Button>
+          {noRoster && (
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center -mt-3">{t('reports.export.noRoster')}</p>
+          )}
         </Card>
       </div>
 

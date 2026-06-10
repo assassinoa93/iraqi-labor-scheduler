@@ -1,5 +1,6 @@
 import { Calendar } from 'lucide-react';
 import { useI18n } from '../../lib/i18n';
+import { Button } from '../Primitives';
 
 // v5.16.0 — empty-state shown when employees=0 OR stations=0. The grid
 // can't render anything useful in those states; pre-v5.16 the user just
@@ -37,20 +38,14 @@ export function ScheduleEmptyState({
         <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed mb-6">{t(bodyKey)}</p>
         <div className="flex flex-wrap gap-3 justify-center">
           {showRosterCta && (
-            <button
-              onClick={onGoToRoster}
-              className="apple-press flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
-            >
+            <Button onClick={onGoToRoster} variant="accent" size="lg" press>
               {t('schedule.empty.noEmployees.cta')}
-            </button>
+            </Button>
           )}
           {showLayoutCta && (
-            <button
-              onClick={onGoToLayout}
-              className="apple-press flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
-            >
+            <Button onClick={onGoToLayout} variant="accent" size="lg" press>
               {t('schedule.empty.noStations.cta')}
-            </button>
+            </Button>
           )}
         </div>
       </div>

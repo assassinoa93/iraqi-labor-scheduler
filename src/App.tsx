@@ -5,23 +5,10 @@
 
 import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
 import {
-  Users,
-  Calendar,
-  Clock,
-  FileSpreadsheet,
-  Settings,
   Download,
-  BarChart3,
-  Flag,
   Database,
   X,
-  Layout,
-  Scale,
   FlaskConical,
-  TrendingUp,
-  Building2,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -171,9 +158,6 @@ const VariablesTab = lazy(() => import('./components/VariablesTab').then(m => ({
 const AuditLogTab = lazy(() => import('./components/AuditLogTab').then(m => ({ default: m.AuditLogTab })));
 const SuperAdminTab = lazy(() => import('./tabs/SuperAdminTab').then(m => ({ default: m.SuperAdminTab })));
 const UserManagementTab = lazy(() => import('./tabs/UserManagementTab').then(m => ({ default: m.UserManagementTab })));
-// v5.20.0 — BYOK OpenRouter assistant. Beta. Hidden for supervisors by
-// default; per-user encrypted key gate kicks in once the tab is open.
-const AIServicesTab = lazy(() => import('./tabs/AIServicesTab').then(m => ({ default: m.AIServicesTab })));
 
 // Empty placeholder used when a company has no per-domain data yet.
 const emptyCompanyData = (): CompanyData => ({
@@ -210,9 +194,12 @@ export default function App() {
 
   // If the current tab becomes disallowed (e.g. supervisor signs in while
   // activeTab is set to 'workforce' from a previous super-admin session),
-  // bounce to the Dashboard which everyone can see.
+  // bounce to the Dashboard which everyone can see. v5.40.0: also bounce off
+  // the Firebase-backed tabs in Offline Demo mode — they're hidden from the
+  // offline sidebar, so a stale activeTab would strand the user on a dead tab.
   useEffect(() => {
-    if (!tabAllowed(activeTab, role, tabPerms)) {
+    const offlineHidden = getMode() !== 'online' && (activeTab === 'userManagement' || activeTab === 'superAdmin');
+    if (offlineHidden || !tabAllowed(activeTab, role, tabPerms)) {
       setActiveTab('dashboard');
     }
   }, [activeTab, role, tabPerms]);
@@ -552,6 +539,13 @@ export default function App() {
   //   • Offline → Express + JSON is the only source of truth. Existing
   //     behavior preserved verbatim.
   useEffect(() => {
+    // v5.40.0 — one-time cleanup of the removed AI Services (beta) feature's
+    // storage. Harmless no-op once the keys are gone; runs in both modes.
+    try {
+      Object.keys(window.localStorage)
+        .filter(k => k.startsWith('ils.ai.'))
+        .forEach(k => window.localStorage.removeItem(k));
+    } catch { /* storage unavailable — nothing to clean */ }
     if (getMode() === 'online') {
       // Online mode: leave companies + companyData empty; the Firestore
       // subscriptions below will hydrate from cache (instant) or server
@@ -2731,6 +2725,13 @@ export default function App() {
 
   // PDF lazy-load. Pulls jspdf + jspdf-autotable + html2canvas only on first use.
   const handleExportPDF = async () => {
+    // v5.40.0 — defensive guard. The Reports tab disables its button when the
+    // roster is empty, but keep the keyboard/programmatic path from reaching
+    // jsPDF with nothing to render.
+    if (employees.length === 0) {
+      showInfo(t('reports.pdf.title'), t('reports.export.noRoster'));
+      return;
+    }
     const { generatePDFReport } = await import('./lib/pdfReport');
     generatePDFReport(employees, schedule, shifts, { ...config, holidays }, violations, stations, t, allSchedules);
     // v5.27.0 — the PDF is always rendered with English labels (jsPDF has no
@@ -3913,42 +3914,30 @@ export default function App() {
             Analytics (weekly) → Setup (occasional) → System (rare). */}
         <nav className="flex-1 py-4 overflow-y-auto sidebar-scrollbar">
           <SidebarGroup label={t('sidebar.group.operations')}>
-            {tabAllowed('dashboard', role, tabPerms) && <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} index="01" icon={BarChart3} onClick={() => setActiveTab('dashboard')} />}
-            {tabAllowed('schedule', role, tabPerms) && <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} index="02" icon={Calendar} onClick={() => setActiveTab('schedule')} badge={scheduleApprovalBadge} />}
-            {tabAllowed('roster', role, tabPerms) && <TabButton active={activeTab === 'roster'} label={t('tab.roster')} index="03" icon={Users} onClick={() => setActiveTab('roster')} />}
-            {tabAllowed('payroll', role, tabPerms) && <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} index="04" icon={BarChart3} onClick={() => setActiveTab('payroll')} />}
+            {tabAllowed('dashboard', role, tabPerms) && <TabButton active={activeTab === 'dashboard'} label={t('tab.dashboard')} onClick={() => setActiveTab('dashboard')} />}
+            {tabAllowed('schedule', role, tabPerms) && <TabButton active={activeTab === 'schedule'} label={t('tab.schedule')} onClick={() => setActiveTab('schedule')} badge={scheduleApprovalBadge} />}
+            {tabAllowed('roster', role, tabPerms) && <TabButton active={activeTab === 'roster'} label={t('tab.roster')} onClick={() => setActiveTab('roster')} />}
+            {tabAllowed('payroll', role, tabPerms) && <TabButton active={activeTab === 'payroll'} label={t('tab.payroll')} onClick={() => setActiveTab('payroll')} />}
           </SidebarGroup>
           <SidebarGroup label={t('sidebar.group.analytics')}>
-            {tabAllowed('coverageOT', role, tabPerms) && <TabButton active={activeTab === 'coverageOT'} label={t('tab.coverageOT')} index="05" icon={TrendingUp} onClick={() => setActiveTab('coverageOT')} />}
-            {tabAllowed('workforce', role, tabPerms) && <TabButton active={activeTab === 'workforce'} label={t('tab.workforce')} index="06" icon={Building2} onClick={() => setActiveTab('workforce')} />}
-            {tabAllowed('reports', role, tabPerms) && <TabButton active={activeTab === 'reports'} label={t('tab.reports')} index="07" icon={FileSpreadsheet} onClick={() => setActiveTab('reports')} />}
+            {tabAllowed('coverageOT', role, tabPerms) && <TabButton active={activeTab === 'coverageOT'} label={t('tab.coverageOT')} onClick={() => setActiveTab('coverageOT')} />}
+            {tabAllowed('workforce', role, tabPerms) && <TabButton active={activeTab === 'workforce'} label={t('tab.workforce')} onClick={() => setActiveTab('workforce')} />}
+            {tabAllowed('reports', role, tabPerms) && <TabButton active={activeTab === 'reports'} label={t('tab.reports')} onClick={() => setActiveTab('reports')} />}
           </SidebarGroup>
           <SidebarGroup label={t('sidebar.group.setup')}>
-            {tabAllowed('layout', role, tabPerms) && <TabButton active={activeTab === 'layout'} label={t('tab.layout')} index="08" icon={Layout} onClick={() => setActiveTab('layout')} />}
-            {tabAllowed('shifts', role, tabPerms) && <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} index="09" icon={Clock} onClick={() => setActiveTab('shifts')} />}
-            {tabAllowed('holidays', role, tabPerms) && <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} index="10" icon={Flag} onClick={() => setActiveTab('holidays')} />}
-            {tabAllowed('variables', role, tabPerms) && <TabButton active={activeTab === 'variables'} label={t('tab.variables')} index="11" icon={Scale} onClick={() => setActiveTab('variables')} />}
+            {tabAllowed('layout', role, tabPerms) && <TabButton active={activeTab === 'layout'} label={t('tab.layout')} onClick={() => setActiveTab('layout')} />}
+            {tabAllowed('shifts', role, tabPerms) && <TabButton active={activeTab === 'shifts'} label={t('tab.shifts')} onClick={() => setActiveTab('shifts')} />}
+            {tabAllowed('holidays', role, tabPerms) && <TabButton active={activeTab === 'holidays'} label={t('tab.holidays')} onClick={() => setActiveTab('holidays')} />}
+            {tabAllowed('variables', role, tabPerms) && <TabButton active={activeTab === 'variables'} label={t('tab.variables')} onClick={() => setActiveTab('variables')} />}
           </SidebarGroup>
-          {/* v5.20.0 — AI Services (Beta). Sits in its own sidebar group so
-              the BETA pill is unambiguous. Visible to manager/admin/super_admin
-              by default; the per-user encrypted OpenRouter key is the second gate. */}
-          {tabAllowed('aiServices', role, tabPerms) && (
-            <SidebarGroup label={t('sidebar.group.assistant')}>
-              <TabButton
-                active={activeTab === 'aiServices'}
-                label={t('tab.aiServices')}
-                icon={Sparkles}
-                onClick={() => setActiveTab('aiServices')}
-                tag="BETA"
-                tagTitle="AI Services is in active testing — behaviour may change between releases"
-              />
-            </SidebarGroup>
-          )}
           <SidebarGroup label={t('sidebar.group.system')}>
-            {tabAllowed('audit', role, tabPerms) && <TabButton active={activeTab === 'audit'} label={t('tab.audit')} index="12" icon={Database} onClick={() => setActiveTab('audit')} />}
-            {tabAllowed('settings', role, tabPerms) && <TabButton active={activeTab === 'settings'} label={t('tab.settings')} index="13" icon={Settings} onClick={() => setActiveTab('settings')} />}
-            {tabAllowed('userManagement', role, tabPerms) && <TabButton active={activeTab === 'userManagement'} label={t('tab.userManagement')} index="14" icon={Users} onClick={() => setActiveTab('userManagement')} />}
-            {tabAllowed('superAdmin', role, tabPerms) && <TabButton active={activeTab === 'superAdmin'} label={t('tab.superAdmin')} index="15" icon={ShieldCheck} onClick={() => setActiveTab('superAdmin')} />}
+            {tabAllowed('audit', role, tabPerms) && <TabButton active={activeTab === 'audit'} label={t('tab.audit')} onClick={() => setActiveTab('audit')} />}
+            {tabAllowed('settings', role, tabPerms) && <TabButton active={activeTab === 'settings'} label={t('tab.settings')} onClick={() => setActiveTab('settings')} />}
+            {/* v5.40.0 — User Management + Super Admin are Firebase-backed and can
+                do nothing in Offline Demo mode; hiding them beats a sidebar entry
+                that dead-ends in a "no permission" notice. */}
+            {getMode() === 'online' && tabAllowed('userManagement', role, tabPerms) && <TabButton active={activeTab === 'userManagement'} label={t('tab.userManagement')} onClick={() => setActiveTab('userManagement')} />}
+            {getMode() === 'online' && tabAllowed('superAdmin', role, tabPerms) && <TabButton active={activeTab === 'superAdmin'} label={t('tab.superAdmin')} onClick={() => setActiveTab('superAdmin')} />}
           </SidebarGroup>
         </nav>
 
@@ -4589,13 +4578,6 @@ export default function App() {
 
             {activeTab === 'userManagement' && (
               <UserManagementTab companies={companies} />
-            )}
-
-            {activeTab === 'aiServices' && (
-              <AIServicesTab
-                companyData={data}
-                activeCompanyId={activeCompanyId}
-              />
             )}
             </Suspense>
           </motion.div>

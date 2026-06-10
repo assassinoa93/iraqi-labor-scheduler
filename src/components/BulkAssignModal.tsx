@@ -4,6 +4,7 @@ import { X, CalendarRange, Sparkles } from 'lucide-react';
 import { Shift } from '../types';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
+import { Button } from './Primitives';
 import { useModalKeys } from '../lib/hooks';
 
 interface Props {
@@ -165,9 +166,9 @@ export function BulkAssignModal({ isOpen, onClose, selectedCount, shifts, daysIn
             </div>
 
             <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-              <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">
+              <Button onClick={onClose} variant="ghost" size="sm" className="px-6">
                 {t('action.cancel')}
-              </button>
+              </Button>
               <button
                 onClick={apply}
                 disabled={!shiftCode}

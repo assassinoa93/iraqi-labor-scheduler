@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { Search, Trash2, Plus, Users, Edit3, CalendarRange, FileSpreadsheet, Download, Edit, CalendarOff } from 'lucide-react';
 import { Employee, LeaveRequest, LeaveType, Station, StationGroup } from '../types';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { getEmployeeLeaveOnDate, listAllLeaveRanges } from '../lib/leaves';
-import { SortableHeader, SortDir } from '../components/Primitives';
+import { Button, SortableHeader, SortDir } from '../components/Primitives';
 import { LeaveRequestPanel } from '../components/Leave/LeaveRequestPanel';
 
 interface RosterTabProps {
@@ -138,8 +138,7 @@ export function RosterTab({
   }, [employees, searchTerm, roleFilter, sortKey, sortDir]);
 
   // v5.32 — paginate large rosters so a 200+ roster renders one page (50) at a
-  // time instead of every row. Select-all still operates over the FULL filtered
-  // set (`visible`), not just the current page, so bulk actions are predictable.
+  // time instead of every row.
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   // Snap back to the first page whenever the filtered set changes shape.
@@ -150,6 +149,26 @@ export function RosterTab({
   const paged = paginated ? visible.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE) : visible;
   const pageFrom = visible.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
   const pageTo = Math.min(visible.length, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  // v5.40.0 — Gmail-style page-scoped selection. Pre-5.40 the header checkbox
+  // silently selected ALL filtered rows while only one page was visible, so a
+  // bulk delete could touch rows the user never saw. Now the checkbox owns the
+  // current page only (preserving selections made on other pages), and an
+  // explicit banner offers the "all {N} filtered" escalation.
+  const allPagedSelected = paged.length > 0 && paged.every(e => selectedEmployees.has(e.empId));
+  const somePagedSelected = paged.some(e => selectedEmployees.has(e.empId));
+  const allFilteredSelected = visible.length > 0 && visible.every(e => selectedEmployees.has(e.empId));
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = somePagedSelected && !allPagedSelected;
+  }, [somePagedSelected, allPagedSelected]);
+  const togglePageSelection = (checked: boolean) => {
+    setSelectedEmployees(prev => {
+      const next = new Set(prev);
+      paged.forEach(e => { if (checked) next.add(e.empId); else next.delete(e.empId); });
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -193,7 +212,7 @@ export function RosterTab({
           </select>
           {(searchTerm || roleFilter !== 'all') && (
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-              {visible.length}/{employees.length}
+              {fmt.num(visible.length)}/{fmt.num(employees.length)}
             </span>
           )}
           {selectedEmployees.size > 0 && onBulkAssignShift && (
@@ -202,7 +221,7 @@ export function RosterTab({
               className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-emerald-100 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-all font-mono"
             >
               <CalendarRange className="w-3.5 h-3.5" />
-              {t('roster.bulkAssign')} ({selectedEmployees.size})
+              {t('roster.bulkAssign')} ({fmt.num(selectedEmployees.size)})
             </button>
           )}
           {selectedEmployees.size > 0 && onBulkEdit && (
@@ -211,7 +230,7 @@ export function RosterTab({
               className="flex items-center gap-2 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-blue-100 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-all font-mono"
             >
               <Edit className="w-3.5 h-3.5" />
-              {t('roster.bulkEdit')} ({selectedEmployees.size})
+              {t('roster.bulkEdit')} ({fmt.num(selectedEmployees.size)})
             </button>
           )}
           {selectedEmployees.size > 0 && onBulkLeave && (
@@ -220,7 +239,7 @@ export function RosterTab({
               className="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-200 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-amber-100 dark:border-amber-500/30 hover:bg-amber-100 dark:hover:bg-amber-500/25 transition-all font-mono"
             >
               <CalendarOff className="w-3.5 h-3.5" />
-              {t('roster.bulkLeave')} ({selectedEmployees.size})
+              {t('roster.bulkLeave')} ({fmt.num(selectedEmployees.size)})
             </button>
           )}
           {selectedEmployees.size > 0 && (
@@ -229,36 +248,27 @@ export function RosterTab({
               className="flex items-center gap-2 bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-300 px-4 py-2 rounded-lg font-bold text-[10px] uppercase border border-red-100 dark:border-red-500/30 hover:bg-red-100 dark:hover:bg-red-500/25 transition-all font-mono"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {t('roster.bulkDelete')} ({selectedEmployees.size})
+              {t('roster.bulkDelete')} ({fmt.num(selectedEmployees.size)})
             </button>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {onDownloadTemplate && (
-            <button
-              onClick={onDownloadTemplate}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
-            >
+            <Button onClick={onDownloadTemplate} variant="secondary" size="md" press>
               <Download className="w-3.5 h-3.5" />
               {t('toolbar.csvTemplate')}
-            </button>
+            </Button>
           )}
           {onMassImport && (
-            <button
-              onClick={onMassImport}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
-            >
+            <Button onClick={onMassImport} variant="secondary" size="md" press>
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               {t('toolbar.massImport')}
-            </button>
+            </Button>
           )}
-          <button
-            onClick={onAddNew}
-            className="flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-xl active:scale-95 whitespace-nowrap min-w-fit"
-          >
+          <Button onClick={onAddNew} variant="primary" size="lg" press className="min-w-fit shadow-xl">
             <Plus className="w-4 h-4" />
             {t('roster.addEmployee')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -268,16 +278,11 @@ export function RosterTab({
             <tr>
               <th className="px-4 py-3 text-center">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   aria-label={t('a11y.selectAll')}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedEmployees(new Set(visible.map(emp => emp.empId)));
-                    } else {
-                      setSelectedEmployees(new Set());
-                    }
-                  }}
-                  checked={visible.length > 0 && visible.every(e => selectedEmployees.has(e.empId))}
+                  onChange={(e) => togglePageSelection(e.target.checked)}
+                  checked={allPagedSelected}
                 />
               </th>
               <SortableHeader label={t('roster.col.id')} sortKey="empId" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
@@ -296,8 +301,8 @@ export function RosterTab({
                     <h3 className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('roster.emptyTitle')}</h3>
                     <p className="text-[10px] text-slate-300 dark:text-slate-600 font-medium uppercase tracking-tighter mt-1 mb-6">{t('roster.emptyHint')}</p>
                     <div className="flex gap-2 justify-center">
-                      <button onClick={onAddNew} className="px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all">{t('roster.addManually')}</button>
-                      <button onClick={onLoadSample} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all">{t('roster.seedSample')}</button>
+                      <Button onClick={onAddNew} variant="primary" size="sm">{t('roster.addManually')}</Button>
+                      <Button onClick={onLoadSample} variant="secondary" size="sm">{t('roster.seedSample')}</Button>
                     </div>
                   </div>
                 </td>
@@ -307,6 +312,38 @@ export function RosterTab({
               <tr>
                 <td colSpan={6} className="p-12 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                   {t('schedule.noMatches')}
+                </td>
+              </tr>
+            )}
+            {/* v5.40.0 — Gmail-style escalation banner. Only relevant when the
+                roster is paginated: page fully selected → offer the full
+                filtered set; everything selected → offer a clear. */}
+            {paginated && allPagedSelected && (
+              <tr>
+                <td colSpan={6} className="px-4 py-2.5 text-center bg-blue-50/70 dark:bg-blue-500/10 text-[10px] font-bold uppercase tracking-widest text-blue-800 dark:text-blue-200">
+                  {allFilteredSelected ? (
+                    <>
+                      {t('roster.select.allSelected', { count: fmt.num(visible.length) })}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmployees(new Set())}
+                        className="ms-3 underline underline-offset-2 hover:text-blue-600 dark:hover:text-blue-100 font-black uppercase"
+                      >
+                        {t('roster.select.clear')}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {t('roster.select.pageSelected', { count: fmt.num(paged.length) })}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmployees(new Set(visible.map(e => e.empId)))}
+                        className="ms-3 underline underline-offset-2 hover:text-blue-600 dark:hover:text-blue-100 font-black uppercase"
+                      >
+                        {t('roster.select.allFiltered', { count: fmt.num(visible.length) })}
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             )}

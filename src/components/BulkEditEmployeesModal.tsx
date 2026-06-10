@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { X, Plus, Users } from 'lucide-react';
 import { Employee, Station, StationGroup, Shift, EmployeeCategory, Gender } from '../types';
 import { cn } from '../lib/utils';
-import { SettingField } from './Primitives';
+import { Button, SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
@@ -554,7 +554,7 @@ export function BulkEditEmployeesModal({
               : t('bulkEdit.summary.ready', { changes: activeChanges, count: selectedCount })}
           </p>
           <div className="flex gap-3">
-            <button onClick={onClose} disabled={applying} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed">{t('action.cancel')}</button>
+            <Button onClick={onClose} disabled={applying} variant="ghost" size="sm" className="px-6">{t('action.cancel')}</Button>
             <button
               onClick={apply}
               disabled={activeChanges === 0 || applying}

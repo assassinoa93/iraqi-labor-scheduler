@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { format } from 'date-fns';
 import { PublicHoliday, HolidayCompMode } from '../types';
-import { SettingField } from './Primitives';
+import { Button, SettingField } from './Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
@@ -215,13 +215,10 @@ export function HolidayModal({ isOpen, onClose, onSave, holiday, defaultCompMode
         </div>
 
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-          <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
-          <button
-            onClick={handleSave}
-            className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
-          >
+          <Button onClick={requestClose} variant="ghost" size="sm" className="px-6">{t('action.cancel')}</Button>
+          <Button onClick={handleSave} variant="commit" size="sm" press className="px-8">
             {holiday ? t('action.save') : t('modal.holiday.declare')}
-          </button>
+          </Button>
         </div>
       </motion.div>
     </div>

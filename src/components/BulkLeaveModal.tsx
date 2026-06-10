@@ -17,6 +17,7 @@ import { X, CalendarOff } from 'lucide-react';
 import { format } from 'date-fns';
 import type { LeaveType } from '../types';
 import { useI18n } from '../lib/i18n';
+import { Button } from './Primitives';
 import { useModalKeys } from '../lib/hooks';
 
 interface BulkLeaveModalProps {
@@ -105,8 +106,8 @@ export function BulkLeaveModal({ isOpen, count, onClose, onApply }: BulkLeaveMod
           )}
         </div>
         <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3">
-          <button onClick={onClose} className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-4 py-2 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">{t('action.cancel')}</button>
-          <button onClick={handleApply} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 dark:hover:bg-white transition-all">{t('modal.bulkLeave.apply')}</button>
+          <Button onClick={onClose} variant="ghost" size="sm">{t('action.cancel')}</Button>
+          <Button onClick={handleApply} variant="commit" size="sm" press className="px-6">{t('modal.bulkLeave.apply')}</Button>
         </div>
       </motion.div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Download, Calendar, Upload, FileSpreadsheet, Search, Layers, AlertTriangle, Users } from 'lucide-react';
 import { Employee, PublicHoliday, Schedule, Shift, Config } from '../types';
-import { Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
+import { Button, Card, SortableHeader, SortDir, MonthYearPicker } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { computePayrollRow } from '../lib/payroll';
@@ -369,9 +369,9 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t('payroll.empty.title')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">{t('payroll.empty.body')}</p>
           <div className="flex justify-center pt-2">
-            <button onClick={onGoToRoster} className="px-5 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600">
+            <Button onClick={onGoToRoster} variant="primary" size="sm">
               {t('payroll.empty.cta')}
-            </button>
+            </Button>
           </div>
         </Card>
       </div>
@@ -395,13 +395,10 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-sm"
-          >
+          <Button onClick={onExport} variant="primary" size="sm">
             <Download className="w-3 h-3" />
             {t('payroll.exportDraft')}
-          </button>
+          </Button>
           <button
             onClick={exportPayrollCSV}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-sm"
@@ -410,14 +407,15 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
             <FileSpreadsheet className="w-3 h-3" />
             {t('payroll.export.csv')}
           </button>
-          <button
+          <Button
             onClick={() => importInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
+            variant="secondary"
+            size="sm"
             title={t('payroll.import.tooltip')}
           >
             <Upload className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
             {t('payroll.import.csv')}
-          </button>
+          </Button>
           <input
             ref={importInputRef}
             type="file"
@@ -433,7 +431,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
               import logic as the full payroll CSV (it accepts partial
               column sets), but the friendlier UI advertises the simpler
               format so HR can drop in just `Employee ID,Annual Leave Days`. */}
-          <button
+          <Button
             onClick={() => {
               const headers = ['Employee ID', 'Annual Leave Days'];
               const csvRows = employees.map(e => [e.empId, e.annualLeaveBalance]);
@@ -444,12 +442,13 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
               a.download = 'AnnualLeave_Balance_Template.csv';
               a.click();
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all shadow-sm"
+            variant="secondary"
+            size="sm"
             title={t('payroll.balance.template.tooltip')}
           >
             <Download className="w-3 h-3" />
             {t('payroll.balance.template')}
-          </button>
+          </Button>
           <button
             onClick={() => balanceImportInputRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-all shadow-sm"

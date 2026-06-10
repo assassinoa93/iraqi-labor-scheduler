@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Trash2, Calendar, Heart, Stethoscope, Baby, Paintbrush, ArrowDownToLine } from 'lucide-react';
 import { Employee, LeaveRange, LeaveType, Schedule, Config } from '../types';
 import { useI18n } from '../lib/i18n';
+import { Button } from './Primitives';
 import { useModalKeys } from '../lib/hooks';
 import { listAllLeaveRanges, newLeaveRangeId, applyLeaveRanges, deriveLeaveRangesFromSchedule } from '../lib/leaves';
 import { cn } from '../lib/utils';
@@ -337,15 +338,12 @@ export function LeaveManagerModal({ isOpen, onClose, employee, onSave, schedule,
             </div>
 
             <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-700/60 flex justify-end gap-3 shrink-0">
-              <button onClick={onClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">
+              <Button onClick={onClose} variant="ghost" size="sm" className="px-6">
                 {t('action.cancel')}
-              </button>
-              <button
-                onClick={commit}
-                className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
-              >
+              </Button>
+              <Button onClick={commit} variant="commit" size="sm" press className="px-8">
                 {t('leaves.modal.save')}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

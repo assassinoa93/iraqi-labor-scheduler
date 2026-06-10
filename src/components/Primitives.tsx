@@ -51,6 +51,89 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string }> =
   </div>
 );
 
+// v5.40.0 — shared Button primitive. Until now every tab rolled its own
+// <button> classes, which drifted into ~6 near-identical families (dark
+// slate toolbar CTAs, white bordered secondaries, blue accents, red
+// destructives, gray modal cancels, borderless icon hovers). The variants
+// below are those observed families verbatim — adopting the primitive is a
+// visual no-op except where a drift was a bug (e.g. inconsistent hover
+// shades of the same blue).
+//
+// Notes:
+//   • Keyboard focus ring comes from the global `:focus-visible` rule in
+//     index.css (2px var(--ring)) — no per-variant ring classes needed.
+//   • `press` opts into the `apple-press` hover-lift (index.css). Opt-in on
+//     purpose: destructive actions shouldn't invite playful interaction,
+//     and prefers-reduced-motion already disables it globally.
+//   • `type` defaults to "button" so a Button inside a <form> never
+//     accidentally submits (the HTML default is "submit").
+export type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'subtle' | 'ghost' | 'commit';
+export type ButtonSize = 'sm' | 'md' | 'lg';
+
+const BUTTON_VARIANT_CLASSES: Record<ButtonVariant, string> = {
+  // Dark slate fill — the main toolbar CTA family (Add Employee, Export…).
+  primary: 'bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 shadow-sm',
+  // White bordered — secondary toolbar actions (CSV Template, Mass Import…).
+  secondary: 'bg-white dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm',
+  // Blue fill — affirmative/info actions (empty-state CTAs, info confirm).
+  accent: 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/25',
+  // Red fill — destructive confirms.
+  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-md shadow-red-500/25',
+  // Gray fill — modal-footer cancels.
+  subtle: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700',
+  // Borderless — low-emphasis / icon-adjacent actions.
+  ghost: 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100',
+  // Inverted in dark mode (white on dark) — the modal-footer "Save/Apply"
+  // family. Distinct from `primary` so the strongest action in a dialog
+  // pops against the dark surface.
+  commit: 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white shadow-lg',
+};
+
+// Sizes mirror the app's three real button clusters rather than a linear
+// type scale — note `md` deliberately uses the 10px small-caps toolbar
+// idiom while `sm` (modal footers) uses 12px:
+//   sm → modal-footer buttons   (px-4 py-2  rounded-lg text-xs)
+//   md → toolbar actions        (px-4 py-2.5 rounded-xl text-[10px])
+//   lg → headline CTAs          (px-6 py-2.5 rounded-xl text-sm)
+const BUTTON_SIZE_CLASSES: Record<ButtonSize, string> = {
+  sm: 'px-4 py-2 rounded-lg text-xs',
+  md: 'px-4 py-2.5 rounded-xl text-[10px]',
+  lg: 'px-6 py-2.5 rounded-xl text-sm',
+};
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  press?: boolean;
+  fullWidth?: boolean;
+}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'secondary', size = 'md', press = false, fullWidth = false, type = 'button', className, children, ...rest },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 font-bold uppercase tracking-widest transition-all whitespace-nowrap',
+        'disabled:opacity-60 disabled:cursor-not-allowed',
+        BUTTON_VARIANT_CLASSES[variant],
+        BUTTON_SIZE_CLASSES[size],
+        // No hover-lift while disabled — a button that physically reacts but
+        // doesn't act reads as broken rather than unavailable.
+        press && !rest.disabled && 'apple-press',
+        fullWidth && 'w-full',
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+});
+
 // v2.2.0 — current / recommended comparative KPI. Used on the Workforce
 // Planning rollup so the supervisor reads "5 / 9" at a glance instead of
 // hunting two separate KpiBlocks for the same delta. The recommended
@@ -263,14 +346,15 @@ export const SidebarGroup = ({ label, children }: { label: string; children: Rea
 // real setup path doesn't follow the visual numbers (Roster=03 →
 // Layout=08 → Schedule=02). Without it the tabs read cleaner and the
 // SidebarGroup labels (Operations / Analytics / Setup / System) carry
-// the hierarchy. The `index` prop stays in the signature so existing
-// call sites compile unchanged; it's just no longer rendered.
+// the hierarchy. v5.40.0 — the long-dead `icon`/`index` props were
+// finally dropped from the signature and call sites, along with the
+// `tag`/`tagTitle` BETA pill that only the removed AI tab ever used.
 //
 // The `dir="rtl"` flow is handled by the parent — `start-*` / `end-*`
 // classes auto-mirror so the dot lands on the visual end of the row in
 // either direction. Pre-2.6 the leading bar was force-placed via
 // `border-l-4` and needed a CSS override to mirror in RTL.
-export const TabButton = ({ active, label, onClick, badge, tag, tagTitle }: { active: boolean; icon?: any; label: string; index?: string; onClick: () => void; badge?: number; tag?: string; tagTitle?: string }) => (
+export const TabButton = ({ active, label, onClick, badge }: { active: boolean; label: string; onClick: () => void; badge?: number }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -281,10 +365,7 @@ export const TabButton = ({ active, label, onClick, badge, tag, tagTitle }: { ac
     )}
   >
     <span className="truncate flex-1 text-start">{label}</span>
-    {/* v5.20.0 — phase indicator pill. Used by the AI Services tab to
-        surface "BETA" so users know the feature is still in testing.
-        Coexists with `badge` and the active-state dot — only one of
-        the right-side affordances renders, in priority: badge > tag > dot. */}
+    {/* Right-side affordances render one at a time: badge > active dot. */}
     {badge !== undefined && badge > 0 ? (
       <span
         className={cn(
@@ -296,18 +377,6 @@ export const TabButton = ({ active, label, onClick, badge, tag, tagTitle }: { ac
         title={`${badge} item${badge === 1 ? '' : 's'} need attention`}
       >
         {badge > 99 ? '99+' : badge}
-      </span>
-    ) : tag ? (
-      <span
-        className={cn(
-          "shrink-0 px-1.5 h-[16px] rounded-md text-[8px] font-black tracking-widest uppercase flex items-center justify-center",
-          active
-            ? "bg-amber-400/90 text-slate-900"
-            : "bg-amber-500/15 text-amber-300 border border-amber-400/30",
-        )}
-        title={tagTitle ?? tag}
-      >
-        {tag}
       </span>
     ) : active ? (
       <span

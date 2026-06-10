@@ -4,7 +4,7 @@ import { X, Plus, CalendarHeart } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, Station, StationGroup, Config, Shift } from '../types';
 import { cn, validateIdentifier } from '../lib/utils';
-import { SettingField } from './Primitives';
+import { Button, SettingField } from './Primitives';
 import { Switch } from './ui/Switch';
 import { useI18n } from '../lib/i18n';
 import { useModalKeys } from '../lib/hooks';
@@ -577,13 +577,10 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee, stations, sta
               {error}
             </span>
           )}
-          <button onClick={requestClose} className="px-6 py-2 rounded text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest">{t('action.cancel')}</button>
-          <button
-            onClick={handleSave}
-            className="px-8 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded text-sm font-bold hover:bg-slate-800 dark:hover:bg-white transition-all shadow-lg uppercase tracking-widest"
-          >
+          <Button onClick={requestClose} variant="ghost" size="sm" className="px-6">{t('action.cancel')}</Button>
+          <Button onClick={handleSave} variant="commit" size="sm" press className="px-8">
             {t('modal.employee.commit')}
-          </button>
+          </Button>
         </div>
       </motion.div>
     </div>

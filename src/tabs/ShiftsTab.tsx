@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Clock, ChevronUp, ChevronDown, Settings, Trash2, Lock, Sparkles, ShieldAlert, ChevronRight, Search } from 'lucide-react';
 import { Shift, Station, Config, Schedule } from '../types';
-import { Card, SortableHeader, SortDir } from '../components/Primitives';
+import { Button, Card, SortableHeader, SortDir } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { isSystemShift } from '../lib/systemShifts';
@@ -166,13 +166,10 @@ export function ShiftsTab({
             <Sparkles className="w-3 h-3" />
             {t('shifts.autoGen.cta')}
           </button>
-          <button
-            onClick={onAddNew}
-            className="flex items-center gap-2 bg-slate-900 dark:bg-slate-700 text-white px-5 py-2 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600 transition-all shadow-lg text-center font-mono"
-          >
+          <Button onClick={onAddNew} variant="primary" size="md" press>
             <Plus className="w-3 h-3" />
             {t('shifts.new')}
-          </button>
+          </Button>
         </div>
       </div>
 
