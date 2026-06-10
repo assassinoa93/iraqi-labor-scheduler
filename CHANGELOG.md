@@ -2,6 +2,46 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.40.0 — 2026-06-10
+
+**The beta AI Services feature is retired, and a UI/UX round ships: a shared Button primitive, Gmail-style page-scoped roster selection, Reports export guards, and live-audit fixes.**
+
+### AI Services removed (beta retired, v5.20–v5.25)
+
+The BYOK OpenRouter assistant never left beta and added a maintenance surface (chat loop, key vault, policy layer, 24 modules) that no longer pays its way as the core product matures. Removed in full — 30 files deleted:
+
+- Deleted: `src/lib/ai/` (16 modules + tools + 4 test files), `src/components/AI/` (ChatPanel, ScopeBar, AdvisoryCard, ChipsBlock), [tabs/AIServicesTab.tsx](src/tabs/AIServicesTab.tsx), `electron/ai-bridge.cjs`.
+- [App.tsx](src/App.tsx) — lazy import, the Assistant sidebar group + BETA pill, and the tab render removed; a one-time startup sweep clears the feature's `ils.ai.*` localStorage keys (both modes).
+- [lib/tabAccess.ts](src/lib/tabAccess.ts) — `aiServices` removed from every role default and from `GRANTABLE_TABS`. **Stale data is tolerated, not migrated:** a leftover `tabPerms.aiServices` key on a Firestore user doc is simply never consulted, and the super-admin grant editor is data-driven so the row disappears on its own.
+- [electron/main.cjs](electron/main.cjs) + [electron/preload.cjs](electron/preload.cjs) — AI IPC registration and the `aiApi` bridge removed; main now best-effort deletes the `<userData>/ai/` folder (OS-keychain-encrypted OpenRouter keys + consent records) at startup.
+- [lib/i18n/en.ts](src/lib/i18n/en.ts) + [ar.ts](src/lib/i18n/ar.ts) — all 166 `ai.*` keys plus `tab.aiServices` / `sidebar.group.assistant` removed from each file via a count-asserted script (no neighbouring keys touched).
+- No npm dependency was AI-exclusive (jspdf etc. serve the core exports); `firestore.rules` never referenced AI. CHANGELOG history for v5.20–v5.25 stays as a record.
+
+### New: en/ar i18n parity test
+
+- [lib/__tests__/i18nParity.test.ts](src/lib/__tests__/i18nParity.test.ts) (new) — asserts the English and Arabic dictionaries are key-for-key identical in both directions, making the "en/ar land together" rule mechanical. It immediately caught two **pre-existing** missing Arabic strings — `holidays.bulk.both.tooltip` and `workforce.rollup.title` — now translated in [ar.ts](src/lib/i18n/ar.ts).
+
+### Shared Button primitive
+
+- [components/Primitives.tsx](src/components/Primitives.tsx) — new `Button` with five variants grounded in the styles the app already uses (`primary` slate-filled, `secondary` bordered, `accent` blue, `danger` red, `ghost`), three sizes, opt-in `press` (apple-press), `fullWidth`, and a consistent `focus-visible` ring + disabled state the ad-hoc buttons lacked. Also dropped `TabButton`'s dead `icon`/`index`/`tag` props (numerals were removed in v5.16; the BETA pill died with the AI tab).
+- Adopted at the high-visibility sites (~35): tab toolbars (Roster, Payroll, Reports, Shifts, Schedule), empty states, and modal footers (Confirm, Employee, Station, Shift, Holiday, LeaveManager, Bulk*, ChangePassword, PasswordReset). **Deliberately out of scope:** icon-only micro buttons, sortable headers, schedule cells, sidebar TabButton, the tinted chip-action family, and the login screen.
+
+### Roster: page-scoped selection (Gmail pattern)
+
+- [tabs/RosterTab.tsx](src/tabs/RosterTab.tsx) — pre-v5.40 the header checkbox selected **every filtered employee** while the table showed only the current 50-row page, so bulk delete/edit could silently hit off-page rows. The header checkbox now selects the current page only (with a proper indeterminate state), and a banner offers the explicit escalation: "All 50 on this page selected — **Select all N filtered**" / "All N selected — **Clear selection**". Selections persist across page turns; the bulk-action chips keep showing the true total. New `roster.select.*` keys (en/ar).
+- Same-screen digit consistency: the bulk-chip counts and the filter tally now localize through `fmt.num` (Arabic-Indic in AR) to match the new banner.
+
+### Reports: export guards
+
+- [tabs/ReportsTab.tsx](src/tabs/ReportsTab.tsx) + [App.tsx](src/App.tsx) — with zero employees both exports are disabled with an "Add employees to enable exports" hint instead of producing a contentless PDF / header-only CSV (plus a defensive guard in `handleExportPDF` itself). With a roster but no schedule, CSV stays enabled (a blank-month grid is a legitimate export) and the PDF card shows a "No schedule yet" hint. New `reports.export.*` keys (en/ar).
+
+### Live UX audit fixes
+
+- [App.tsx](src/App.tsx) — **User Management and Super Admin are hidden from the sidebar in Offline Demo mode.** Both are Firebase-backed and previously rendered as clickable tabs that dead-ended in "You don't have permission to view this tab" — wrong message, dead UI. The tab-bounce effect also redirects a stale `activeTab` off them when offline.
+- Audit walked all 13 tabs in EN/AR × light/dark at desktop + 1000px width: zero console errors, no horizontal overflow, toolbars wrap correctly in RTL, dark-mode button/banner contrast verified, data-entry modals still refuse backdrop dismissal (ConfirmModal's stays, by design), pagination + selection banner verified live in Arabic.
+
+_Suite 486 → 448 tests (40 AI tests removed, 2 parity tests added), all passing; `tsc` + Vite build clean; secret-leak audit clean over full history._
+
 ## v5.39.1 — 2026-06-08
 
 **CI test-timeout hardening (no app changes).** The v5.39.0 release build went red on two tests — `whatIfSimulator` ("hire change") and `i18n/format` ("ASCII digits for en") — both **timeouts**, not logic failures, and both unrelated to the v5.39.0 grid-ARIA change. Root cause: the suite had no `test` config, so vitest used the default 5s timeout and spawned one worker per core; on a shared 2-core GitHub Actions runner the heavy `whatIfSimulator` test (it runs the full auto-scheduler) starved sibling workers of CPU, so even trivial tests wall-clocked past 5s (~7s observed). The fixtures are tiny, so this is runner contention, not a perf regression.
