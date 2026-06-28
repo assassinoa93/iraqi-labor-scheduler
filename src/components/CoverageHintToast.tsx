@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb, X, ArrowRight, MoonStar, AlertTriangle, Star } from 'lucide-react';
 import { CoverageGap, CoverageSuggestion } from '../lib/coverageHints';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+
+// v5.41.0 (04.6) — the hint auto-retires after this long if the supervisor
+// doesn't act. Dismissing == "keep the gap" (the toast's stated safe default),
+// so timing out is non-destructive. Hovering or focusing the toast pauses the
+// countdown so it never vanishes mid-decision.
+const AUTO_DISMISS_MS = 12000;
 
 interface Props {
   // When non-null the toast is visible. The toast doesn't close itself —
@@ -21,6 +27,18 @@ interface Props {
 // employees first; preference / compliance warnings factored in).
 export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props) {
   const { t } = useI18n();
+  // Pause the auto-dismiss while the user is reading/choosing. `onDismiss` is
+  // held in a ref so a parent passing a fresh callback each render doesn't keep
+  // restarting (and thus never firing) the timer.
+  const [paused, setPaused] = useState(false);
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+  const gapKey = hint ? `${hint.gap.station.id}:${hint.gap.day}` : null;
+  useEffect(() => {
+    if (!gapKey || paused) return;
+    const id = window.setTimeout(() => dismissRef.current(), AUTO_DISMISS_MS);
+    return () => window.clearTimeout(id);
+  }, [gapKey, paused]);
   return (
     <AnimatePresence>
       {hint && (
@@ -39,6 +57,10 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
           className="fixed bottom-6 z-[90] w-[320px] bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/40 rounded-xl shadow-2xl shadow-amber-500/10 overflow-hidden"
           role="status"
           aria-live="polite"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocusCapture={() => setPaused(true)}
+          onBlurCapture={() => setPaused(false)}
         >
           <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-500/15 dark:to-amber-500/25 border-b border-amber-200 dark:border-amber-500/40 flex items-start gap-3">
             <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
@@ -114,10 +136,20 @@ export function CoverageHintToast({ hint, onDismiss, onPickReplacement }: Props)
             <span className="text-[9px] text-slate-500 dark:text-slate-400 italic">{t('hint.coverage.override')}</span>
             <button
               onClick={onDismiss}
-              className="px-3 py-1 text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded uppercase tracking-widest transition-all"
+              className="px-3 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded tracking-tight transition-all"
             >
               {t('hint.coverage.keepGap')}
             </button>
+          </div>
+          {/* v5.41.0 (04.6) — draining bar shows time left before the hint
+              auto-retires (== keep the gap). Re-keyed on `paused` so it and the
+              JS timer restart together; frozen full while hovered/focused. */}
+          <div className="h-0.5 bg-amber-100 dark:bg-amber-500/20">
+            <div
+              key={`${gapKey}:${paused}`}
+              className="toast-drain h-full w-full bg-amber-500 dark:bg-amber-400"
+              style={{ animationDuration: `${AUTO_DISMISS_MS}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+            />
           </div>
         </motion.div>
       )}

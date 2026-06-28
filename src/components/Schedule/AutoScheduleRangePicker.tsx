@@ -89,7 +89,7 @@ export function AutoScheduleRangePicker({
         onClick={() => onRunPreserve(buildRange())}
         disabled={disabled || busy}
         title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.refill.tooltip')}
-        className="apple-press flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-500/25 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:hover:bg-slate-300 dark:disabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:text-slate-500"
+        className="apple-press flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm tracking-tight hover:bg-emerald-700 shadow-lg shadow-emerald-500/25 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:hover:bg-slate-300 dark:disabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:text-slate-500"
       >
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
         {busy ? t('schedule.autoRunning') : t('action.runAutoSchedule.refill')}
@@ -99,7 +99,7 @@ export function AutoScheduleRangePicker({
         onClick={() => onRunFresh(buildRange())}
         disabled={disabled || busy}
         title={disabled ? (disabledReason || '') : t('action.runAutoSchedule.rebuild.tooltip')}
-        className="apple-press flex items-center gap-2 bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-2 border-rose-300 dark:border-rose-500/40 px-6 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:border-slate-200 dark:disabled:border-slate-700 disabled:cursor-not-allowed disabled:shadow-none"
+        className="apple-press flex items-center gap-2 bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-300 border-2 border-rose-300 dark:border-rose-500/40 px-6 py-2.5 rounded-xl font-semibold text-sm tracking-tight hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:border-slate-200 dark:disabled:border-slate-700 disabled:cursor-not-allowed disabled:shadow-none"
       >
         <Sparkles className="w-4 h-4" />
         {t('action.runAutoSchedule.rebuild')}
@@ -172,13 +172,13 @@ export function AutoScheduleRangePicker({
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => { setStartDate(monthFirst); setEndDate(monthLast); setOpen(false); }}
-              className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+              className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
             >
               {t('schedule.runAuto.range.fullMonth')}
             </button>
             <button
               onClick={() => setOpen(false)}
-              className="flex-1 px-3 py-2 bg-slate-900 dark:bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-blue-500 transition-all"
+              className="flex-1 px-3 py-2 bg-slate-900 dark:bg-blue-600 text-white rounded-lg text-[11px] font-semibold tracking-tight hover:bg-slate-800 dark:hover:bg-blue-500 transition-all"
             >
               {t('action.done')}
             </button>

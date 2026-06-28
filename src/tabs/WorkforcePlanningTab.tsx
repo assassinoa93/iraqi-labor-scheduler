@@ -136,6 +136,19 @@ export function WorkforcePlanningTab(props: Props) {
   const fmtIQD = (n: number) => fmt.num(Math.round(Math.abs(n)));
   const fmtIQDascii = (n: number) => Math.round(Math.abs(n)).toLocaleString();
 
+  // v5.41.0 (03.5) — headline IQD figures abbreviate to K/M/B so a year's
+  // salary reads "−305M" instead of "−305,011,923"; the full grouped figure
+  // stays one hover away (title). `signed` prepends +/− (the cards already
+  // colour-code by sign). Detail rows keep the precise fmtIQD form above.
+  const iqdBig = (value: number, signed = false) => {
+    const sign = signed ? (value < 0 ? '−' : value > 0 ? '+' : '') : '';
+    return (
+      <span title={`${fmtIQD(value)} IQD`} className="tabular-nums">
+        {sign}{fmt.abbrev(Math.abs(value)).short}
+      </span>
+    );
+  };
+
   // v2.6.0 — five-number annual headcount summary, computed separately
   // for FTE and PT so the supervisor reads the demand profile clearly:
   //   • Avg, median  — central tendency over the year
@@ -462,7 +475,7 @@ export function WorkforcePlanningTab(props: Props) {
                   "text-2xl font-black tracking-tight",
                   annual.annualDelta < 0 ? "text-emerald-700 dark:text-emerald-300" : annual.annualDelta > 0 ? "text-rose-700 dark:text-rose-300" : "text-slate-700 dark:text-slate-200",
                 )}>
-                  {annual.annualDelta >= 0 ? '+' : '−'}{fmtIQD(annual.annualDelta)}
+                  {iqdBig(annual.annualDelta, true)}
                 </p>
                 <p className={cn(
                   "text-[10px] font-bold mt-1",
@@ -473,7 +486,7 @@ export function WorkforcePlanningTab(props: Props) {
               <Card className="p-5 bg-emerald-50 border-emerald-200">
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 mb-2">{t('workforce.ideal.annualSalary')}</p>
                 <p className="text-2xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
-                  {fmtIQD(mode === 'conservative' ? rollup.annualConservativeSalary : rollup.annualOptimalSalary)}
+                  {iqdBig(mode === 'conservative' ? rollup.annualConservativeSalary : rollup.annualOptimalSalary)}
                 </p>
                 <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-300 mt-1 uppercase tracking-wider">{t('workforce.annual.kpi.annualDeltaSub')}</p>
               </Card>
@@ -481,7 +494,7 @@ export function WorkforcePlanningTab(props: Props) {
             {mode === 'conservative' ? (
               <Card className="p-5 bg-amber-50 border-amber-200">
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 mb-2">{t('workforce.ideal.legalPremium')}</p>
-                <p className="text-2xl font-black tracking-tight text-amber-700 dark:text-amber-300">{fmtIQD(rollup.legalSafetyPremium)}</p>
+                <p className="text-2xl font-black tracking-tight text-amber-700 dark:text-amber-300">{iqdBig(rollup.legalSafetyPremium)}</p>
                 <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed mt-1">{t('workforce.ideal.legalPremiumNote')}</p>
               </Card>
             ) : (

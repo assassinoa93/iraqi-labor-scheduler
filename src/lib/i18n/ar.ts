@@ -329,6 +329,7 @@ export const ar: Dict = {
   'setup.checklist.eyebrow': 'بدء الاستخدام',
   'setup.checklist.title': 'أكمل إعداد مساحة العمل',
   'setup.checklist.subtitle': 'اتبع هذه الخطوات الأربع بالترتيب. كل خطوة تفتح التبويب الصحيح — تختفي القائمة تلقائياً بمجرد توفر المحطات والموظفين والورديات.',
+  'setup.checklist.progress': 'اكتمل {done} من {total} خطوات',
   'setup.checklist.dismiss': 'إخفاء قائمة الإعداد',
   'setup.checklist.step1.badge': 'الخطوة ١',
   'setup.checklist.step1.label': 'أضف محطة عمل واحدة على الأقل',
@@ -484,6 +485,7 @@ export const ar: Dict = {
   'payroll.filter.groupBy.role': 'الدور',
   'payroll.filter.groupBy.category': 'فئة الموظف',
   'payroll.group.headcount': '{count} موظف',
+  'payroll.total.row': 'الإجمالي الكلي',
   'payroll.group.otRollup': 'إضافي: +{ot} د.ع',
   'payroll.group.netRollup': 'صافي: {net} د.ع',
   // v5.8.0 — مؤشر ترحيل الإضافي

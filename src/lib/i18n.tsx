@@ -5,6 +5,7 @@ import { ar } from './i18n/ar';
 import {
   formatDate as fmtDateRaw,
   formatNumber as fmtNumberRaw,
+  abbreviateNumber as abbreviateRaw,
   getArabicDigitsPref,
   setArabicDigitsPref,
   toArabicDigits,
@@ -31,6 +32,9 @@ export interface I18nFormatters {
   num: (value: number, opts?: Intl.NumberFormatOptions) => string;
   date: (date: Date | number, fmt: string) => string;
   digits: (s: string) => string;
+  // v5.41.0 (03.5) — compact K/M/B form (+ the full grouped figure for a
+  // hover title) for dense headline numbers like annual IQD salary totals.
+  abbrev: (value: number) => { short: string; full: string };
 }
 
 interface I18nContextValue {
@@ -106,6 +110,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     num: (value, opts) => fmtNumberRaw(value, locale, { useArabicDigits: arabicDigits, ...opts }),
     date: (date, f) => fmtDateRaw(date, f, locale, { useArabicDigits: arabicDigits }),
     digits: (s) => (locale === 'ar' && arabicDigits ? toArabicDigits(s) : s),
+    abbrev: (value) => abbreviateRaw(value, locale, { useArabicDigits: arabicDigits }),
   }), [locale, arabicDigits]);
 
   return (
@@ -119,6 +124,7 @@ const defaultFormatters: I18nFormatters = {
   num: (v, opts) => new Intl.NumberFormat('en-US', opts).format(v),
   date: (d, f) => fmtDateRaw(d, f, 'en'),
   digits: (s) => s,
+  abbrev: (v) => abbreviateRaw(v, 'en'),
 };
 
 export function useI18n(): I18nContextValue {

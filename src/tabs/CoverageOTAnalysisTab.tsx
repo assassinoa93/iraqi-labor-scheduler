@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   TrendingUp, Calendar as CalendarIcon,
-  Users, MapPin, Clock, Lightbulb, Sparkles, Info,
+  Users, MapPin, Clock, Lightbulb, Sparkles, Info, ArrowRight,
 } from 'lucide-react';
 import { Employee, Shift, Station, PublicHoliday, Config, Schedule } from '../types';
-import { Card, MonthYearPicker } from '../components/Primitives';
+import { Card, MonthYearPicker, Button } from '../components/Primitives';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { analyzeOT, suggestMitigations, OTMitigation } from '../lib/otAnalysis';
@@ -110,17 +110,25 @@ export function CoverageOTAnalysisTab(props: Props) {
 
       {!hasAnalysis ? (
         <Card className="p-10 text-center space-y-4">
-          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">
+          {/* v5.41.0 (04.7) — a slow breath turns the wall into a doorway. */}
+          <div className="animate-breathe w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">
             <TrendingUp className="w-8 h-8 text-slate-500 dark:text-slate-400" />
           </div>
           <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t('otAnalysis.empty.title')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">{t('otAnalysis.empty.body')}</p>
-          <div className="flex justify-center gap-2 pt-2">
-            <button onClick={onGoToRoster} className="px-5 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-600">
-              {t('otAnalysis.empty.toRoster')}
-            </button>
-            <button onClick={onGoToSchedule} className="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          {/* v5.41.0 (03.6) — one primary door (build the schedule, the real
+              first step toward OT data) + one quiet link, instead of two
+              equal-weight buttons. */}
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 pt-2">
+            <Button variant="primary" size="lg" press onClick={onGoToSchedule}>
               {t('otAnalysis.empty.toSchedule')}
+              <ArrowRight className="w-4 h-4 rtl-flip" />
+            </Button>
+            <button
+              onClick={onGoToRoster}
+              className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors underline-offset-4 hover:underline"
+            >
+              {t('otAnalysis.empty.toRoster')}
             </button>
           </div>
         </Card>

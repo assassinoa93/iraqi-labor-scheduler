@@ -3945,7 +3945,11 @@ export default function App() {
           <LocaleSwitcher />
           <button
             onClick={handleQuitApp}
-            className="w-full flex items-center gap-3 px-4 py-2.5 bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-red-200 border border-red-500/25 hover:border-red-500/40 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
+            /* v5.41.0 (03.3) — neutralised from red to a quiet slate. Red on
+               a "Quit" control reads as "destroy data"; closing the app is
+               benign. Matches the sidebar's inactive-tab idiom. De-shouted
+               from all-caps to sentence-case per F2. */
+            className="w-full flex items-center gap-3 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-slate-200 border border-white/[0.06] hover:border-white/[0.12] rounded-xl text-[11px] font-semibold tracking-tight transition-all"
           >
             <X className="w-4 h-4" />
             {t('sidebar.quitApp')}
@@ -3977,7 +3981,7 @@ export default function App() {
               <button
                 onClick={exitSimMode}
                 title={t('sim.toolbar.exit')}
-                className="apple-press px-4 py-1.5 bg-indigo-600 text-white border border-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 shadow-md flex items-center gap-2"
+                className="apple-press px-4 py-1.5 bg-indigo-600 text-white border border-indigo-700 rounded-lg text-[11px] font-semibold tracking-tight hover:bg-indigo-700 shadow-md flex items-center gap-2"
               >
                 <FlaskConical className="w-3 h-3" />
                 {t('sim.toolbar.exit')}
@@ -3996,7 +4000,7 @@ export default function App() {
               return (
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className="apple-press inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-500/30 rounded-md text-[10px] font-bold uppercase tracking-widest font-mono hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-colors max-w-[260px]"
+                  className="apple-press inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-500/30 rounded-md text-[11px] font-semibold font-mono hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-colors max-w-[260px]"
                   title={`Active database: ${active.label} (${active.config.projectId})`}
                 >
                   <Database className="w-3 h-3 shrink-0" />

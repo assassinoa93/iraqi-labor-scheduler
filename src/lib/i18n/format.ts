@@ -71,6 +71,41 @@ export function formatNumber(
   return raw;
 }
 
+/** v5.41.0 (03.5) — abbreviate a large number to a compact K/M/B form for
+ *  dense displays, e.g. 305_000_000 → "305M", 1_250_000 → "1.3M". Returns
+ *  both the compact string and the full grouped figure (intended for a hover
+ *  `title`). Both honour the Arabic-Indic digit preference. The sign is
+ *  preserved on the compact form. Magnitudes below 10,000 are returned in
+ *  full — abbreviating "8,400" costs clarity without saving space. */
+export function abbreviateNumber(
+  value: number,
+  locale: Locale,
+  opts?: { useArabicDigits?: boolean },
+): { short: string; full: string } {
+  const full = formatNumber(Math.round(value), locale, opts);
+  const abs = Math.abs(value);
+  if (abs < 10_000) return { short: full, full };
+  const sign = value < 0 ? '-' : '';
+  const units: [number, string][] = [
+    [1_000_000_000, 'B'],
+    [1_000_000, 'M'],
+    [1_000, 'K'],
+  ];
+  for (const [base, suffix] of units) {
+    if (abs >= base) {
+      const scaled = abs / base;
+      // One decimal below 100 (1.3M), none at/above (305M) to stay tight.
+      const decimals = scaled < 100 ? 1 : 0;
+      const num = formatNumber(Number(scaled.toFixed(decimals)), locale, {
+        ...opts,
+        maximumFractionDigits: decimals,
+      });
+      return { short: `${sign}${num}${suffix}`, full };
+    }
+  }
+  return { short: full, full };
+}
+
 /** Format a date for display. Locale=ar uses Arabic month names (date-fns
  *  ar locale) plus an optional digit map. Format string follows date-fns
  *  conventions. */

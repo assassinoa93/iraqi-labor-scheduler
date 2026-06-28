@@ -2,6 +2,31 @@
 
 All notable changes to **Iraqi Labor Scheduler** are listed here. Versioning follows [SemVer](https://semver.org/) (MAJOR.MINOR.PATCH); each release tag (`vX.Y.Z`) on GitHub triggers a build that publishes the signed-by-hash Windows installer plus `SHA256SUMS.txt` to the matching GitHub Release.
 
+## v5.41.0 — 2026-06-28
+
+**The "UI & Motion Review" pass: the console now looks as smart as it works. De-shout the type, give KPI numbers a trend, abbreviate the giant figures, color-key the schedule legend, and let the heavy actions show their work — without a rebuild.** Acting on the design audit (`UI & Motion Review`), several of whose proposals had *already* shipped between the reviewed v5.1.6 screens and the v5.40.0 code (the canvas was already flat `--surface-sunken`; tab transitions, the hydration skeleton, the sync chip, the unified setup checklist + wizard front door, the leave chip, and the sticky payroll name column all already existed). This release implements the genuine remainder.
+
+### Foundations
+
+- **F2 — stop shouting (de-shout the Button primitive).** [Primitives.tsx](src/components/Primitives.tsx) — the shared `Button` base dropped `uppercase tracking-widest` for `font-semibold` in the label's own case. Caps + tracking are now reserved for genuine eyebrow labels (`SidebarGroup`, `SettingField`/`KpiCard` labels, status badges). Swept the same de-shout across the bespoke CTAs the primitive doesn't cover yet: the schedule toolbar (filters, painter, Save/Export/Print/Plan, Re-fill/Rebuild + range modal), the month picker, the top-bar pills, the dashboard CTAs (show-stats, recruitment, empty-state, stats-close), the setup-card CTA, the coverage empty-state, the company switcher's "Add company", and the advisory mode tabs. Shift **codes** (FS/MX/…) stay uppercase — they're identifiers, not prose.
+- **F3 — make KPI cards say something.** [Primitives.tsx](src/components/Primitives.tsx) `KpiCard` learned four opt-in extras (existing call sites unchanged): a count-up value on mount, an inline `DeltaChip`, a one-line reason, and a micro `Sparkline` along the card base. The Dashboard violations card now carries a 30-day sparkline + "vs last month" delta off the existing compliance-history store; every numeric card counts up. New shared motion layer: [lib/motion.ts](src/lib/motion.ts) (`useCountUp`, shared easing/spring) and [components/Sparkline.tsx](src/components/Sparkline.tsx) (draw-on line, honours reduced-motion).
+
+### Screen & motion polish
+
+- **Schedule (03.2 + 04.5).** The painter legend gained a **colour swatch + code + name** so it finally speaks the grid's colour language (it was monochrome codes before). The auto-schedule is now **the signature moment**: freshly-placed cells cascade in (staggered `col·24ms + row·34ms` pop) instead of silently appearing — the scheduler still computes synchronously first, and the cascade is skipped entirely under reduced-motion.
+- **Payroll (03.7).** Numeric columns are `tabular-nums` + right-aligned (headers and cells), and a column-aligned **grand-total footer row** carries the OT + Net totals with the same "vs last month" deltas as the summary card.
+- **Workforce Planning (03.5).** Giant IQD figures abbreviate to K/M/B (e.g. `−305M`) with the full grouped figure on hover, via a new `fmt.abbrev` helper ([i18n/format.ts](src/lib/i18n/format.ts)). Detail tables keep full precision.
+- **Compliance Dashboard (03.1).** The setup card dropped the strikethrough on done steps and gained an animated **completion ring** (0→pct on mount) + an "X of N steps" caption.
+- **Coverage & OT empty state (03.6 / 04.7).** A slow "breathing" glyph and one primary door (+ a quiet link) replace the static icon and two equal-weight buttons.
+- **Roster (03.4).** Each row gained an initials **monogram** as a scan anchor.
+- **Toasts (04.6).** The coverage-hint toast auto-retires after 12s (== keep the gap, its stated safe default) with a draining progress bar, paused on hover/focus.
+- **Shell (03.3).** The red "Quit application" button is neutralised to slate — closing the app is benign, not "destroy data".
+
+### Notes
+
+- Deliberately **not** done: a wholesale generic-toast-system refactor (high risk, low review value — the spring + auto-dismiss the review asked for were added to the existing toast instead); the Workforce hero-line / "why" toggle (the high-value abbreviation shipped instead). The F1 canvas glow and several motion items were already shipped and needed no change.
+- New i18n keys (`payroll.total.row`, `setup.checklist.progress`) added to **both** en + ar; the parity test stays green. `tsc --noEmit` clean; all 448 tests pass.
+
 ## v5.40.0 — 2026-06-10
 
 **The beta AI Services feature is retired, and a UI/UX round ships: a shared Button primitive, Gmail-style page-scoped roster selection, Reports export guards, and live-audit fixes.**

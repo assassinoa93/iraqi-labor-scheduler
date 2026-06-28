@@ -659,15 +659,15 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
                 <SortableHeader label={t('payroll.col.employee')} sortKey="name" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="sticky start-0 z-20 bg-slate-50 dark:bg-slate-800" />
-                <SortableHeader label={t('payroll.col.hours')} sortKey="totalHours" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('payroll.col.hours')} sortKey="totalHours" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="end" />
                 <SortableHeader label={t('payroll.col.holidayBank')} sortKey="holidayBank" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-blue-500/30" />
                 <SortableHeader label={t('payroll.col.annualLeave')} sortKey="annualLeave" currentKey={sortKey} direction={sortDir} onSort={handleSort} className="underline decoration-emerald-500/30" />
                 <th className="px-6 py-3 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('payroll.col.leaves')}</th>
-                <SortableHeader label={t('payroll.col.baseSalary')} sortKey="baseMonthly" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
-                <SortableHeader label={t('payroll.col.hourlyRate')} sortKey="hourlyRate" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('payroll.col.baseSalary')} sortKey="baseMonthly" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="end" />
+                <SortableHeader label={t('payroll.col.hourlyRate')} sortKey="hourlyRate" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="end" />
                 <th className="px-6 py-3 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('payroll.col.otEligibility')}</th>
-                <SortableHeader label={t('payroll.col.otAmount')} sortKey="otAmount" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
-                <SortableHeader label={t('payroll.col.netPayable')} sortKey="netPayable" currentKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('payroll.col.otAmount')} sortKey="otAmount" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="end" />
+                <SortableHeader label={t('payroll.col.netPayable')} sortKey="netPayable" currentKey={sortKey} direction={sortDir} onSort={handleSort} align="end" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -744,7 +744,7 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.name}</div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{emp.empId}</div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600 dark:text-slate-300">{totalHours.toFixed(1)}h</td>
+                    <td className="px-6 py-4 font-mono text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums text-end">{totalHours.toFixed(1)}h</td>
                     <td className="px-6 py-4">
                       {(() => {
                         // v5.8.0 — same as-of-date projection as the
@@ -829,8 +829,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">{fmt.num(baseMonthly)} IQD</td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">{fmt.num(Math.round(hourlyRate))} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-600 dark:text-slate-300 tabular-nums text-end">{fmt.num(baseMonthly)} IQD</td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400 tabular-nums text-end">{fmt.num(Math.round(hourlyRate))} IQD</td>
                     <td className="px-6 py-4">
                       <div className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded w-fit",
@@ -839,8 +839,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                         {isOtEligible ? t('payroll.qualified') : t('payroll.standard')}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300">+{fmt.num(Math.round(otAmount))}</div>
+                    <td className="px-6 py-4 text-end">
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300 tabular-nums">+{fmt.num(Math.round(otAmount))}</div>
                       <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono truncate">
                         {standardOTHours > 0 && `${standardOTHours.toFixed(1)}h @ ${Math.round((config.otRateDay ?? 1.5) * 100)}% `}
                         {premiumHolidayHours > 0 && `(incl. ${premiumHolidayHours.toFixed(1)}h @ ${Math.round((config.otRateNight ?? 2.0) * 100)}%)`}
@@ -863,8 +863,8 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tighter">
+                    <td className="px-6 py-4 text-end">
+                      <div className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tighter tabular-nums">
                         {fmt.num(Math.round(netPayable))}
                       </div>
                     </td>
@@ -897,6 +897,35 @@ export function PayrollTab({ employees, schedule, shifts, holidays, config, allS
                 ]);
               })()}
             </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                {/* v5.41.0 (03.7) — company grand-total row, column-aligned
+                    under the OT + Net columns with the same "vs last month"
+                    deltas as the summary card above. Sticky first cell +
+                    tabular figures so the totals line up under the data. */}
+                <tr className="bg-slate-100 dark:bg-slate-800/60 border-t-2 border-slate-300 dark:border-slate-600">
+                  <td className="px-6 py-3 sticky start-0 z-10 bg-slate-100 dark:bg-slate-800">
+                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{t('payroll.total.row')}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{t('payroll.group.headcount', { count: fmt.num(rows.length) })}</div>
+                  </td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end text-slate-400 dark:text-slate-500" aria-hidden>—</td>
+                  <td className="px-6 py-3 text-end">
+                    <div className="font-mono text-sm font-black text-emerald-700 dark:text-emerald-300 tabular-nums">{fmt.num(Math.round(grandTotals.otAmount))}</div>
+                    <div className="mt-1 flex justify-end"><DeltaChip delta={otDelta} size="xs" lowerIsBetter /></div>
+                  </td>
+                  <td className="px-6 py-3 text-end">
+                    <div className="font-mono text-sm font-black text-slate-900 dark:text-slate-50 tabular-nums">{fmt.num(Math.round(grandTotals.netPayable))}</div>
+                    <div className="mt-1 flex justify-end"><DeltaChip delta={netDelta} size="xs" neutral /></div>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </Card>

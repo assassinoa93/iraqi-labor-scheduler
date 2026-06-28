@@ -3,6 +3,10 @@ import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '../lib/utils';
 import { getShiftColor } from '../lib/colors';
 import { useI18n } from '../lib/i18n';
+import { useCountUp } from '../lib/motion';
+import { Sparkline, type SparkTone } from './Sparkline';
+import { DeltaChip } from './DeltaChip';
+import type { PeriodDelta } from '../lib/periodComparison';
 
 export type SortDir = 'asc' | 'desc';
 
@@ -117,7 +121,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       ref={ref}
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-bold uppercase tracking-widest transition-all whitespace-nowrap',
+        // v5.41.0 (F2 "stop shouting") — the base dropped `uppercase
+        // tracking-widest`: all-caps + wide tracking on every CTA flattened
+        // hierarchy and broke on long labels. Buttons now read as
+        // `font-semibold` in their stored case; caps + tracking are reserved
+        // for genuine eyebrow labels (SidebarGroup, SettingField/KpiCard
+        // labels) only.
+        'inline-flex items-center justify-center gap-2 font-semibold transition-all whitespace-nowrap',
         'disabled:opacity-60 disabled:cursor-not-allowed',
         BUTTON_VARIANT_CLASSES[variant],
         BUTTON_SIZE_CLASSES[size],
@@ -261,7 +271,7 @@ export function MonthYearPicker({
         className="text-center px-4 w-40 font-mono hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-xl py-1 transition-colors cursor-pointer"
       >
         <p className="text-[10px] font-black text-blue-500 dark:text-blue-300 uppercase tracking-[0.2em]">{fmt.num(year, { useGrouping: false })}</p>
-        <p className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tighter uppercase whitespace-nowrap">{monthName}</p>
+        <p className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tighter whitespace-nowrap">{monthName}</p>
       </button>
       <button
         onClick={onNext}
@@ -299,7 +309,7 @@ export function MonthYearPicker({
                   key={key}
                   onClick={() => { onChange(draftYear, m); setOpen(false); }}
                   className={cn(
-                    'px-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-150',
+                    'px-2 py-2 rounded-lg text-[11px] font-bold tracking-tight transition-all duration-150',
                     isActive
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                       : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60',
@@ -394,22 +404,55 @@ export const TabButton = ({ active, label, onClick, badge }: { active: boolean; 
 // the value/dot/label render red; any other truthy string renders the
 // OK tone. v2.1.2 dropped the always-empty inner span artifact and
 // routed status labels through i18n.
-export function KpiCard({ label, value, trend, unit }: { label: string; value: any; trend?: string; unit?: string }) {
+//
+// v5.41.0 (F3 "make KPI cards say something") — the card learned to carry a
+// trend, a delta and a reason without changing its footprint. All four extras
+// are OPT-IN, so existing call sites that pass only {label, value} are
+// untouched:
+//   • countTo (+ countSuffix)  — animate the value 0→N on mount (reuses
+//     useCountUp, honours reduced-motion). Use INSTEAD of `value`.
+//   • delta (+ deltaProps)     — a "vs last month" DeltaChip under the value.
+//   • hint                     — a one-line reason ("2 employees · Art. 67").
+//   • spark (+ sparkTone)      — a micro sparkline drawn along the card's base.
+// The pulsing status dot still renders for `trend` callers, but is suppressed
+// when a `delta` is supplied (the delta says the same thing, with magnitude).
+export function KpiCard({
+  label, value, trend, unit,
+  countTo, countSuffix, delta, deltaProps, hint, spark, sparkTone,
+}: {
+  label: string;
+  value?: any;
+  trend?: string;
+  unit?: string;
+  countTo?: number;
+  countSuffix?: string;
+  delta?: PeriodDelta | null;
+  deltaProps?: { lowerIsBetter?: boolean; neutral?: boolean };
+  hint?: string;
+  spark?: number[];
+  sparkTone?: SparkTone;
+}) {
   const { t, fmt } = useI18n();
+  // useCountUp must run unconditionally (Rules of Hooks); the `enabled` flag
+  // makes it a no-op (returns the target) when the caller passes a static value.
+  const counted = useCountUp(countTo ?? 0, { enabled: countTo != null });
   // v5.24 — auto-map ASCII digits inside KPI values when Arabic-Indic
   // mode is on. Callers usually pre-format (e.g., "78%" or "1,234") so
   // we keep their formatting and only remap the digits glyph.
-  const displayValue = typeof value === 'number'
-    ? fmt.num(value)
-    : typeof value === 'string'
-      ? fmt.digits(value)
-      : value;
+  const displayValue = countTo != null
+    ? `${fmt.num(Math.round(counted))}${countSuffix ? fmt.digits(countSuffix) : ''}`
+    : typeof value === 'number'
+      ? fmt.num(value)
+      : typeof value === 'string'
+        ? fmt.digits(value)
+        : value;
+  const hasSpark = !!spark && spark.length >= 2;
   return (
-    <Card className="p-5 group">
+    <Card className={cn('p-5 group relative', hasSpark && 'pb-8 overflow-hidden')}>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold mb-2">{label}</p>
       <div className="flex items-baseline gap-2">
         <span className={cn(
-          "text-3xl font-light tracking-tight",
+          "text-3xl font-light tracking-tight tabular-nums",
           trend === 'Critical' ? "text-red-600 dark:text-red-300" : "text-slate-900 dark:text-slate-50"
         )}>
           {displayValue}
@@ -418,7 +461,22 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
           <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">{unit}</span>
         )}
       </div>
-      {trend && (
+      {(delta || hint) && (
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          {delta && (
+            <DeltaChip
+              delta={delta}
+              size="xs"
+              lowerIsBetter={deltaProps?.lowerIsBetter}
+              neutral={deltaProps?.neutral}
+            />
+          )}
+          {hint && (
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{hint}</span>
+          )}
+        </div>
+      )}
+      {trend && !delta && (
         <div className="mt-4 flex items-center gap-1.5">
           <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", trend === 'Critical' ? "bg-red-500" : "bg-emerald-500")} />
           <span className={cn(
@@ -427,6 +485,13 @@ export function KpiCard({ label, value, trend, unit }: { label: string; value: a
           )}>
             {trend === 'Critical' ? t('kpi.status.review') : t('kpi.status.balanced')}
           </span>
+        </div>
+      )}
+      {hasSpark && (
+        // Anchored to the card's base as a quiet backdrop so it adds trend
+        // without competing with the headline number.
+        <div className="absolute inset-x-0 bottom-0 opacity-90 pointer-events-none">
+          <Sparkline data={spark!} tone={sparkTone} height={30} />
         </div>
       )}
     </Card>

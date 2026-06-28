@@ -196,7 +196,7 @@ export function CompanySwitcher({ companies, activeCompanyId, onSwitch, onAdd, o
         !locked && (
           <button
             onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-black text-slate-400 hover:text-white hover:bg-slate-800 uppercase tracking-widest transition-all"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] font-semibold text-slate-400 hover:text-white hover:bg-slate-800 tracking-tight transition-all"
           >
             <Plus className="w-3 h-3" />
             {t('company.add')}

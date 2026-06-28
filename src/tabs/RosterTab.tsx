@@ -53,6 +53,31 @@ interface RosterTabProps {
 
 type SortKey = 'empId' | 'name' | 'role';
 
+// v5.41.0 (03.4) — initials monogram. Gives each roster row a fixed visual
+// anchor for the eye to land on instead of a wall of text. The tint is a
+// stable hash of the name so the same person always reads the same colour
+// (works for Arabic names too — first letters of the first two words).
+const MONO_TONES = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
+  'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
+  'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200',
+  'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
+  'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200',
+];
+function Monogram({ name }: { name: string }) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = (parts.slice(0, 2).map((w) => w[0] ?? '').join('') || '?').toUpperCase();
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const tone = MONO_TONES[hash % MONO_TONES.length];
+  return (
+    <div className={cn('shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-black select-none', tone)} aria-hidden>
+      {initials}
+    </div>
+  );
+}
+
 export function RosterTab({
   employees, stations, stationGroups = [], searchTerm, setSearchTerm,
   selectedEmployees, toggleEmployeeSelection, setSelectedEmployees,
@@ -359,6 +384,9 @@ export function RosterTab({
                 </td>
                 <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 tracking-tighter">{emp.empId}</td>
                 <td className="px-6 py-4">
+                  <div className="flex items-start gap-3">
+                    <Monogram name={emp.name} />
+                    <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-slate-800 dark:text-slate-100">{emp.name}</p>
                     {(() => {
@@ -397,6 +425,8 @@ export function RosterTab({
                         </span>
                       );
                     })()}
+                  </div>
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4">

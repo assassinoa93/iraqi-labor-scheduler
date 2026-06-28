@@ -1,7 +1,48 @@
 import { CheckCircle2, Circle, ArrowRight, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
+import { EASE_OUT, useCountUp } from '../lib/motion';
+
+// v5.41.0 (03.1) — completion ring for the setup card. The arc sweeps 0→pct
+// once on mount (honours reduced-motion: it renders filled instantly), and the
+// centre percentage counts up in step. Gives the card a sense of momentum
+// toward "done" that the bare checklist lacked.
+function ProgressRing({ pct }: { pct: number }) {
+  const reduce = useReducedMotion();
+  const size = 52;
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  // Animate via strokeDashoffset (works reliably on <circle> — pathLength is
+  // only honoured on <path> in some browsers). Offset C → C·(1−pct) sweeps the
+  // arc from empty to pct, starting at 12 o'clock thanks to the -90° rotation.
+  const circumference = 2 * Math.PI * r;
+  const shown = useCountUp(Math.round(pct * 100), { duration: 0.9 });
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }} aria-hidden>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-slate-200 dark:stroke-slate-700" />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          className="stroke-blue-600 dark:stroke-blue-400"
+          strokeDasharray={circumference}
+          initial={reduce ? false : { strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: circumference * (1 - pct) }}
+          transition={{ duration: 0.9, ease: EASE_OUT }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-xs font-black text-slate-700 dark:text-slate-200 tabular-nums">
+        {Math.round(shown)}%
+      </div>
+    </div>
+  );
+}
 
 // v5.24.0 — Setup checklist for new users.
 //
@@ -39,7 +80,7 @@ export function SetupChecklist({
   stationsCount, employeesCount, shiftsCount, hasScheduleEntries,
   onGoToLayout, onGoToRoster, onGoToShifts, onGoToSchedule, onOpenPlanWizard,
 }: Props) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(STORAGE_KEY) === '1';
@@ -55,6 +96,10 @@ export function SetupChecklist({
   // v5.27 — "all done" now includes a built schedule, so the card stays
   // through the final step instead of vanishing right before it.
   const allDone = stationsDone && employeesDone && shiftsDone && hasScheduleEntries;
+  // v5.41.0 (03.1) — drive the completion ring + caption off the four steps.
+  const completedSteps = [stationsDone, employeesDone, shiftsDone, hasScheduleEntries].filter(Boolean).length;
+  const totalSteps = 4;
+  const pct = completedSteps / totalSteps;
 
   useEffect(() => {
     if (allDone) setDismissed(true);
@@ -94,7 +139,7 @@ export function SetupChecklist({
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{badge}</span>
           <p className={cn(
             'text-sm font-bold',
-            done ? 'text-emerald-700 dark:text-emerald-200 line-through opacity-70' : 'text-slate-800 dark:text-slate-100',
+            done ? 'text-emerald-700 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100',
           )}>{label}</p>
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">{hint}</p>
@@ -102,7 +147,7 @@ export function SetupChecklist({
       {!done && (
         <button
           onClick={onClick}
-          className="apple-press shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest font-mono shadow-sm"
+          className="apple-press shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-semibold tracking-tight shadow-sm"
         >
           {cta}
           <ArrowRight className="w-3 h-3 rtl-flip" />
@@ -121,10 +166,14 @@ export function SetupChecklist({
       >
         <X className="w-4 h-4" />
       </button>
-      <div className="mb-4">
-        <p className="text-[10px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-widest mb-1">{t('setup.checklist.eyebrow')}</p>
-        <h3 className="text-lg font-black text-slate-800 dark:text-slate-100">{t('setup.checklist.title')}</h3>
-        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed mt-1">{t('setup.checklist.subtitle')}</p>
+      <div className="mb-4 flex items-start justify-between gap-4 pe-7">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-widest mb-1">{t('setup.checklist.eyebrow')}</p>
+          <h3 className="text-lg font-black text-slate-800 dark:text-slate-100">{t('setup.checklist.title')}</h3>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed mt-1">{t('setup.checklist.subtitle')}</p>
+          <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 mt-1.5 tabular-nums">{t('setup.checklist.progress', { done: fmt.num(completedSteps), total: fmt.num(totalSteps) })}</p>
+        </div>
+        <ProgressRing pct={pct} />
       </div>
       <div className="space-y-2">
         <Step

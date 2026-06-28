@@ -92,7 +92,7 @@ export function StaffingAdvisoryCard({ advisory, currentOTHours, currentOTPay, s
                 // static lookup. Tailwind v4's source scan can't see
                 // `bg-white text-${tone}-700`-style interpolations, so the
                 // active-tab tint silently rendered as default slate.
-                "flex-1 px-4 py-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all border-b-2",
+                "flex-1 px-4 py-3 flex items-center gap-2 text-[11px] font-semibold tracking-tight transition-all border-b-2",
                 isActive && m.tone === 'emerald' && "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-200 border-emerald-500",
                 isActive && m.tone === 'blue' && "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-200 border-blue-500",
                 isActive && m.tone === 'indigo' && "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-200 border-indigo-500",

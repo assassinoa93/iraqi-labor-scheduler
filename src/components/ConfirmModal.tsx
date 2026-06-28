@@ -56,7 +56,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, extra
           {extraAction && (
             <button
               onClick={extraAction.onClick}
-              className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-all border border-blue-100 dark:border-blue-500/30"
+              className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-200 rounded-lg font-semibold text-[11px] tracking-tight hover:bg-blue-100 dark:hover:bg-blue-500/25 transition-all border border-blue-100 dark:border-blue-500/30"
             >
               {extraAction.icon && <extraAction.icon className="w-4 h-4" />}
               {extraAction.label}

@@ -1,4 +1,5 @@
 ﻿import React, { useMemo, useEffect, useState, useRef } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { ChevronLeft, Search, MousePointer2, Sparkles, Hash, AlertTriangle, X, Wrench, Wand2, Keyboard, Undo2, AlertOctagon, Printer, Calendar, CalendarRange, ChevronDown, ChevronRight, MapPin, Download, FlaskConical, Save, Copy } from 'lucide-react';
 import { ScheduleApprovalBanner } from '../components/Schedule/ScheduleApprovalBanner';
 import { CoverageDiagnosticsPanel } from '../components/Schedule/CoverageDiagnosticsPanel';
@@ -10,6 +11,7 @@ import { Employee, Shift, PublicHoliday, Config, Schedule, Station } from '../ty
 import { cn } from '../lib/utils';
 import { useI18n } from '../lib/i18n';
 import { ScheduleCell, MonthYearPicker } from '../components/Primitives';
+import { getShiftColor } from '../lib/colors';
 import { computeEmployeeRunningStats, formatEmployeeStatsTooltip, EmployeeRunningStats } from '../lib/employeeStats';
 import { summarizeDiffMap } from '../lib/firestoreSchedules';
 
@@ -268,6 +270,11 @@ interface RowData {
   // paint code to show on them before the mouseup commit.
   dragCells: Set<string>;
   dragPaintCode: string;
+  // v5.41.0 (04.5) — auto-schedule grid-fill cascade. `fillGen` bumps once per
+  // run so the cell wrappers remount and replay the pop; `fillActive` gates the
+  // ~1.1s window so scrolling afterwards doesn't re-trigger it.
+  fillGen: number;
+  fillActive: boolean;
 }
 
 // Each visible row is rendered by react-window. We deliberately do NOT wrap
@@ -277,7 +284,7 @@ interface RowData {
 function ScheduleRow({
   index, style, rowPlan, days, schedule, onCellClick, onCellMouseDown, onCellMouseEnter,
   recentlyChangedCells, violationCellKeys, statsByEmpId, onToggleCollapse, groupingEnabled, totalGridWidth,
-  cellsReadOnly, diffMap, dayCellWidth, t, dragCells, dragPaintCode,
+  cellsReadOnly, diffMap, dayCellWidth, t, dragCells, dragPaintCode, fillGen, fillActive,
 }: RowComponentProps<RowData>) {
   const item = rowPlan[index];
   if (!item) return <div style={style} />;
@@ -419,8 +426,21 @@ function ScheduleRow({
           if (diffKind) parts.push(t(`schedule.cell.aria.diff.${diffKind}`));
           ariaLabel = parts.join(' · ');
         }
+        // v5.41.0 (04.5) — when a fill is active, freshly-placed cells cascade
+        // in: stagger by column·24ms + row·34ms (capped so far cells don't
+        // lag). Keyed on fillGen so the pop replays once per run; empty cells
+        // don't animate.
+        const popThisCell = fillActive && !!code;
         return (
-          <div key={day} role="gridcell" aria-colindex={day + 1} className="border-r schedule-grid-line flex-shrink-0" style={{ width: dayCellWidth, minWidth: dayCellWidth }}>
+          <div
+            key={`${day}:${fillGen}`}
+            role="gridcell"
+            aria-colindex={day + 1}
+            className={cn('border-r schedule-grid-line flex-shrink-0', popThisCell && 'cell-pop')}
+            style={popThisCell
+              ? { width: dayCellWidth, minWidth: dayCellWidth, animationDelay: `${Math.min(day * 24 + index * 34, 700)}ms` }
+              : { width: dayCellWidth, minWidth: dayCellWidth }}
+          >
             <ScheduleCell
               value={code}
               onClick={(e) => emp && onCellClick(emp.empId, day, { shift: e.shiftKey })}
@@ -482,6 +502,29 @@ export function ScheduleTab({
     hrisLastExportedAt = null,
   } = archive ?? {};
   const { t } = useI18n();
+
+  // v5.41.0 (04.5 — "the signature moment") — after an auto-schedule run, let
+  // the work be visible: the freshly-placed cells cascade in (staggered pop)
+  // instead of silently appearing. The scheduler stays synchronous — we still
+  // compute first (onRunAuto) and only then paint the result. `fillGen` bumps
+  // per run so the cells remount and replay once; `fillActive` opens a ~1.1s
+  // window so scrolling later doesn't re-trigger it. Skipped under
+  // reduced-motion: the filled grid simply appears.
+  const reduceMotion = useReducedMotion();
+  const [fillGen, setFillGen] = useState(0);
+  const [fillActive, setFillActive] = useState(false);
+  const handleRunAuto = (mode?: 'fresh' | 'preserve', range?: { start: string; end: string }) => {
+    onRunAuto(mode, range);
+    if (!reduceMotion) {
+      setFillGen((g) => g + 1);
+      setFillActive(true);
+    }
+  };
+  useEffect(() => {
+    if (!fillActive) return;
+    const id = window.setTimeout(() => setFillActive(false), 1100);
+    return () => window.clearTimeout(id);
+  }, [fillActive, fillGen]);
 
   // v5.16.0 — compact-cells toggle. Persists across sessions in localStorage
   // so a 1366px-laptop supervisor doesn't have to re-enable it every visit.
@@ -993,7 +1036,7 @@ export function ScheduleTab({
             value={scheduleRoleFilter}
             onChange={(e) => setScheduleRoleFilter(e.target.value)}
             aria-label={t('schedule.allRoles')}
-            className="px-3 py-2.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all shadow-sm"
+            className="px-3 py-2.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all shadow-sm"
           >
             <option value="all">{t('schedule.allRoles')}</option>
             {rosterRoles.map(r => <option key={r} value={r}>{r}</option>)}
@@ -1008,7 +1051,7 @@ export function ScheduleTab({
             disabled={violationCount === 0 && !scheduleViolationsOnly}
             title={violationCount === 0 ? t('schedule.filter.violations.empty') : t('schedule.filter.violations.tooltip')}
             className={cn(
-              'px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 border',
+              'px-3 py-2.5 rounded-xl text-[11px] font-semibold tracking-tight transition-all shadow-sm flex items-center gap-1.5 border',
               scheduleViolationsOnly
                 ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
                 : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed',
@@ -1032,7 +1075,7 @@ export function ScheduleTab({
             aria-pressed={scheduleGroupByStation}
             title={t('schedule.filter.groupByStation.tooltip')}
             className={cn(
-              'px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 border',
+              'px-3 py-2.5 rounded-xl text-[11px] font-semibold tracking-tight transition-all shadow-sm flex items-center gap-1.5 border',
               scheduleGroupByStation
                 ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                 : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800',
@@ -1049,7 +1092,7 @@ export function ScheduleTab({
             aria-pressed={compactCells}
             title={t('schedule.compactCells.tooltip')}
             className={cn(
-              'px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 border',
+              'px-3 py-2.5 rounded-xl text-[11px] font-semibold tracking-tight transition-all shadow-sm flex items-center gap-1.5 border',
               compactCells
                 ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                 : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800',
@@ -1071,20 +1114,26 @@ export function ScheduleTab({
           >
             {shifts.map((s, idx) => {
               const kbdHint = idx < 9 ? String(idx + 1) : null;
+              const active = paintMode?.shiftCode === s.code;
               return (
                 <button
                   key={s.code}
-                  onClick={() => setPaintMode(paintMode?.shiftCode === s.code ? null : { shiftCode: s.code, stationId: paintStationId || undefined })}
-                  aria-pressed={paintMode?.shiftCode === s.code}
-                  title={kbdHint ? `${s.code} (${kbdHint})` : s.code}
+                  onClick={() => setPaintMode(active ? null : { shiftCode: s.code, stationId: paintStationId || undefined })}
+                  aria-pressed={active}
+                  title={kbdHint ? `${s.code} — ${s.name} (${kbdHint})` : `${s.code} — ${s.name}`}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all relative",
-                    paintMode?.shiftCode === s.code
+                    "px-2.5 py-2 rounded-lg text-[10px] font-semibold transition-all relative flex items-center gap-1.5",
+                    active
                       ? "bg-blue-600 text-white shadow-inner shadow-blue-800"
-                      : "text-slate-400 hover:text-white"
+                      : "text-slate-300 hover:text-white hover:bg-white/5"
                   )}
                 >
-                  {s.code}
+                  {/* v5.41.0 (03.2) — colour swatch matching the grid cell, so
+                      the painter and the grid finally speak the same colour
+                      language (the legend was previously monochrome codes). */}
+                  <span className={cn('w-2.5 h-2.5 rounded-sm border shrink-0', getShiftColor(s.code) || 'border-slate-500')} aria-hidden />
+                  <span className="font-bold tracking-tight">{s.code}</span>
+                  <span className={cn('font-medium hidden lg:inline max-w-[88px] truncate', active ? 'text-blue-100' : 'text-slate-400')}>{s.name}</span>
                   {kbdHint && (
                     <span className="absolute -top-1 -right-1 text-[7px] font-mono font-black bg-slate-800 text-slate-300 px-1 py-px rounded border border-slate-700 leading-none">
                       {kbdHint}
@@ -1140,7 +1189,7 @@ export function ScheduleTab({
             <button
               onClick={onUndo}
               title={`${t('action.undoLast')} (${scheduleUndoStack.length})`}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
             >
               <ChevronLeft className="w-4 h-4" />
               {t('action.undoLast')}
@@ -1150,7 +1199,7 @@ export function ScheduleTab({
             <button
               onClick={onUndoCell}
               title={t('action.undoCell.tooltip', { count: cellUndoDepth })}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
             >
               <Undo2 className="w-4 h-4" />
               {t('action.undoCell')} ({cellUndoDepth})
@@ -1164,7 +1213,7 @@ export function ScheduleTab({
             <button
               onClick={onCopyPreviousMonth}
               title={t('schedule.copyMonth.tooltip')}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
             >
               <Copy className="w-4 h-4" />
               {t('schedule.copyMonth.button')}
@@ -1174,7 +1223,7 @@ export function ScheduleTab({
             <button
               onClick={onRepeatFirstWeek}
               title={t('schedule.repeatWeek.tooltip')}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
             >
               <CalendarRange className="w-4 h-4" />
               {t('schedule.repeatWeek.button')}
@@ -1188,8 +1237,8 @@ export function ScheduleTab({
             disabled={!canRunAuto}
             disabledReason={runAutoDisabledReason}
             busy={isAutoScheduling}
-            onRunPreserve={(range) => onRunAuto('preserve', range)}
-            onRunFresh={(range) => onRunAuto('fresh', range)}
+            onRunPreserve={(range) => handleRunAuto('preserve', range)}
+            onRunFresh={(range) => handleRunAuto('fresh', range)}
           />
 
           {/* v5.10.0 — explicit "Save draft" button. Surfaces only in
@@ -1206,7 +1255,7 @@ export function ScheduleTab({
                 ? t('schedule.saveDraft.lastSaved', { time: format(new Date(lastSavedAt), 'HH:mm:ss') })
                 : t('schedule.saveDraft.never')}
               className={cn(
-                'apple-press flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-sm border',
+                'apple-press flex items-center gap-2 px-3 py-2.5 rounded-xl font-semibold text-xs tracking-tight shadow-sm border',
                 saveState === 'saving'
                   ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 cursor-wait'
                   : saveState === 'error'
@@ -1222,7 +1271,7 @@ export function ScheduleTab({
           {onExportSchedule && (
             <button
               onClick={onExportSchedule}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
             >
               <Download className="w-4 h-4" />
               {t('toolbar.exportSchedule')}
@@ -1232,7 +1281,7 @@ export function ScheduleTab({
           {onEnterSimMode && !simMode && (
             <button
               onClick={onEnterSimMode}
-              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/40 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-500/15 shadow-sm"
+              className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/40 px-3 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-indigo-50 dark:hover:bg-indigo-500/15 shadow-sm"
             >
               <FlaskConical className="w-4 h-4" />
               {t('sim.toolbar.enter')}
@@ -1242,7 +1291,7 @@ export function ScheduleTab({
           <button
             onClick={() => window.print()}
             title={t('schedule.print.tooltip')}
-            className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+            className="apple-press flex items-center gap-2 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
           >
             <Printer className="w-4 h-4" />
             {t('schedule.print')}
@@ -1258,7 +1307,7 @@ export function ScheduleTab({
             <button
               onClick={onOpenPlanWizard}
               title={t('schedule.planEverything.tooltip')}
-              className="apple-press flex items-center gap-2 bg-gradient-to-r from-violet-600 to-blue-600 text-white border border-transparent px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:from-violet-700 hover:to-blue-700 shadow-md"
+              className="apple-press flex items-center gap-2 bg-gradient-to-r from-violet-600 to-blue-600 text-white border border-transparent px-4 py-2.5 rounded-xl font-semibold text-xs tracking-tight hover:from-violet-700 hover:to-blue-700 shadow-md"
             >
               <Wand2 className="w-4 h-4" />
               {t('schedule.planEverything')}
@@ -1298,7 +1347,7 @@ export function ScheduleTab({
               })}
             </p>
             <button
-              onClick={() => onRunAuto('fresh')}
+              onClick={() => handleRunAuto('fresh')}
               disabled={isAutoScheduling}
               className="mt-2 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1470,6 +1519,8 @@ export function ScheduleTab({
                   t,
                   dragCells,
                   dragPaintCode,
+                  fillGen,
+                  fillActive,
                 }}
               />
             )}

@@ -333,6 +333,7 @@ export const en: Dict = {
   'setup.checklist.eyebrow': 'Getting started',
   'setup.checklist.title': 'Finish Setting Up Your Workspace',
   'setup.checklist.subtitle': 'Work through these four steps in order. Each opens the right tab — the checklist disappears automatically once you have stations, employees, and shifts in place.',
+  'setup.checklist.progress': '{done} of {total} steps complete',
   'setup.checklist.dismiss': 'Dismiss setup checklist',
   'setup.checklist.step1.badge': 'Step 1',
   'setup.checklist.step1.label': 'Add at least one station',
@@ -490,6 +491,7 @@ export const en: Dict = {
   'payroll.filter.groupBy.role': 'Role',
   'payroll.filter.groupBy.category': 'Personnel category',
   'payroll.group.headcount': '{count} people',
+  'payroll.total.row': 'Grand total',
   'payroll.group.otRollup': 'OT: +{ot} IQD',
   'payroll.group.netRollup': 'Net: {net} IQD',
   // v5.8.0 — OT carry-over indicator. Comp-day mode + late-month holiday
